@@ -19,7 +19,10 @@ def send_verification_email(user):
     html_message = render_to_string('users/email/verification.html', context)
     plain_message = strip_tags(html_message)
 
-    
+
+
+
+
     send_mail(
         subject='Verify your email address',
         message=plain_message,

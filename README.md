@@ -117,15 +117,6 @@ frontend/
 │   └── utils/          # Utility functions
 ```
 
-## Development Guidelines
-
-Please refer to `PROJECT_RULES.md` for detailed development guidelines, including:
-
-- Code standards
-- Testing requirements
-- Security practices
-- Performance optimization
-- Documentation requirements
 
 ## API Documentation
 

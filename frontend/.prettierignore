@@ -1,0 +1,6 @@
+# .prettierignore
+build
+dist
+coverage
+node_modules
+public

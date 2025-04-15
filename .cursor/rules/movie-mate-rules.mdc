@@ -1,0 +1,262 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to
+# Movie Recommendation System - Project Rules
+
+## 1. Development Environment
+
+### 1.1 Python Environment
+
+- Python 3.9+ required
+- Use virtual environment (venv) for development
+- All Python dependencies must be listed in `requirements.txt`
+- Use pip for package management
+
+### 1.2 Node.js Environment
+
+- Node.js 16+ required
+- Use npm for package management
+- All frontend dependencies must be listed in `package.json`
+- Use yarn as alternative package manager if needed
+
+### 1.3 IDE Configuration
+
+- Use Cursor IDE as primary development environment
+- Configure ESLint and Prettier for code formatting
+- Enable Python linting with flake8
+- Use Git for version control
+
+## 2. Project Structure
+
+### 2.1 Backend (Django)
+
+```
+movie_recommendation/
+├── core/                 # Core functionality and utilities
+├── movies/              # Movie-related models and views
+├── metadata/            # Genre, person, and crew information
+├── users/               # User management and authentication
+├── recommendations/     # Recommendation algorithms
+└── api/                 # REST API endpoints
+```
+
+### 2.2 Frontend (React)
+
+```
+frontend/
+├── src/
+│   ├── components/      # Reusable UI components
+│   ├── pages/          # Page components
+│   ├── hooks/          # Custom React hooks
+│   ├── store/          # Redux store
+│   ├── api/            # API client and endpoints
+│   └── utils/          # Utility functions
+```
+
+## 3. Code Standards
+
+### 3.1 Python
+
+- Follow PEP 8 style guide
+- Use type hints for function parameters and return values
+- Write docstrings for all functions and classes
+- Maximum line length: 100 characters
+- Use black for code formatting
+
+### 3.2 JavaScript/React
+
+- Follow ESLint rules
+- Use functional components with hooks
+- Implement proper prop types
+- Use TypeScript for new components
+- Follow React best practices
+
+## 4. Database Standards
+
+### 4.1 PostgreSQL
+
+- Use migrations for all database changes
+- Index frequently queried fields
+- Implement proper foreign key constraints
+- Use connection pooling
+- Regular database backups
+
+### 4.2 Elasticsearch
+
+- Index movies, genres, and persons
+- Implement proper mapping
+- Regular index maintenance
+- Backup index configurations
+
+## 5. API Standards
+
+### 5.1 REST API
+
+- Use versioning (v1, v2, etc.)
+- Implement proper error handling
+- Use JWT for authentication
+- Rate limiting implementation
+- Proper documentation with Swagger/OpenAPI
+
+### 5.2 API Response Format
+
+```json
+{
+  "status": "success",
+  "data": {},
+  "message": "Optional message",
+  "errors": []
+}
+```
+
+## 6. Testing Standards
+
+### 6.1 Backend Testing
+
+- Unit tests for all models and services
+- API endpoint tests
+- Integration tests for recommendation algorithms
+- Minimum 80% test coverage
+
+### 6.2 Frontend Testing
+
+- Component tests with React Testing Library
+- Integration tests for user flows
+- E2E tests for critical paths
+- Performance testing
+
+## 7. Security Standards
+
+### 7.1 Authentication
+
+- JWT-based authentication
+- Secure password hashing
+- Session management
+- CSRF protection
+
+### 7.2 Data Protection
+
+- Encrypt sensitive user data
+- Implement proper access controls
+- Regular security audits
+- Follow OWASP guidelines
+
+## 8. Performance Standards
+
+### 8.1 Backend
+
+- Implement caching (Redis)
+- Optimize database queries
+- Use connection pooling
+- Implement proper indexing
+
+### 8.2 Frontend
+
+- Code splitting
+- Lazy loading
+- Image optimization
+- Bundle size optimization
+
+## 9. Documentation
+
+### 9.1 Code Documentation
+
+- Inline comments for complex logic
+- API documentation
+- README files for each module
+- Architecture diagrams
+
+### 9.2 Project Documentation
+
+- Setup instructions
+- Deployment guide
+- API documentation
+- Troubleshooting guide
+
+## 10. Deployment
+
+### 10.1 Development
+
+- Use Docker for development
+- Local environment setup
+- Development server configuration
+
+### 10.2 Production
+
+- Use Docker for deployment
+- CI/CD pipeline
+- Monitoring and logging
+- Backup strategy
+
+## 11. Git Workflow
+
+### 11.1 Branching Strategy
+
+- main: Production code
+- develop: Development branch
+- feature/\*: New features
+- bugfix/\*: Bug fixes
+- hotfix/\*: Urgent fixes
+
+### 11.2 Commit Messages
+
+- Follow conventional commits
+- Clear and descriptive messages
+- Reference issue numbers
+- Separate subject and body
+
+## 12. Code Review Process
+
+### 12.1 Review Requirements
+
+- At least one reviewer required
+- All tests must pass
+- Code style compliance
+- Documentation updates
+
+### 12.2 Review Checklist
+
+- Code quality
+- Security considerations
+- Performance impact
+- Test coverage
+- Documentation
+
+## 13. Monitoring and Logging
+
+### 13.1 Application Monitoring
+
+- Error tracking
+- Performance monitoring
+- User behavior analytics
+- System health checks
+
+### 13.2 Logging
+
+- Structured logging
+- Log levels
+- Log rotation
+- Log analysis
+
+## 14. Maintenance
+
+### 14.1 Regular Tasks
+
+- Dependency updates
+- Security patches
+- Database optimization
+- Performance monitoring
+
+### 14.2 Documentation Updates
+
+- Keep documentation current
+- Update API documentation
+- Maintain changelog
+- Update setup guides

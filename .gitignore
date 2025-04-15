@@ -57,6 +57,7 @@ movie_recommendation/models/
 .project
 .pydevproject
 .settings/
+.cursor/rule
 
 # Jupyter Notebook
 .ipynb_checkpoints

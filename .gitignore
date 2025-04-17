@@ -141,5 +141,5 @@ docker-compose.yml
 node_modules/
 /frontend/build
 .cache/
-requirements.txt
-.requirements.txt
+requirement.txt
+.requirement.txt

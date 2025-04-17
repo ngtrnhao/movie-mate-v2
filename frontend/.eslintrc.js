@@ -31,22 +31,9 @@ module.exports = {
     ],
     'react/prop-types': 'off',
     'react/react-in-jsx-scope': 'off',
+    'react/no-unescaped-entities': ['error', { forbid: ['>', '}'] }],
     'tailwindcss/classnames-order': 'warn',
-    'tailwindcss/no-custom-classname': [
-      'warn',
-      {
-        whitelist: [
-          'text-toggle-light',
-          'text-toggle-dark',
-          'bg-toggle-hover-light',
-          'bg-toggle-hover-dark',
-          'hover:bg-toggle-hover-light',
-          'hover:bg-toggle-hover-dark',
-          'dark:text-toggle-dark',
-          'dark:hover:bg-toggle-hover-dark',
-        ],
-      },
-    ],
+    'tailwindcss/no-custom-classname': 'off',
     'tailwindcss/no-contradicting-classname': 'error',
   },
   settings: {

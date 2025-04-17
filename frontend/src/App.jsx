@@ -1,14 +1,19 @@
 import './App.css';
-import Header from './Components/Header';
+import Header from './components/Header';
 import { ThemeProvider } from './context/ThemeContext';
+import { BrowserRouter } from 'react-router-dom';
+import Footer from './components/footer';
 
 function App() {
   return (
-    <ThemeProvider>
-      <div className="min-h-screen bg-white text-gray-900 transition-colors duration-200 dark:bg-gray-900 dark:text-white">
-        <Header />
-      </div>
-    </ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
+        <div className="bg-background text-foreground flex min-h-screen flex-col transition-colors duration-200">
+          <Header />
+          <Footer />
+        </div>
+      </ThemeProvider>
+    </BrowserRouter>
   );
 }
 

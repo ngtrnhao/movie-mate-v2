@@ -126,7 +126,7 @@ const LandingPage = () => {
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [fetchMovies, lastUpdate]);
+  }, [fetchMovies, lastUpdate, REFRESH_INTERVAL]);
 
   // Slide show interval
   useEffect(() => {
@@ -140,7 +140,7 @@ const LandingPage = () => {
 
   if (error) {
     return (
-      <div className="bg-background flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="text-center text-red-600">
           <h2 className="mb-2 text-2xl font-bold">Error</h2>
           <p>{error}</p>
@@ -151,7 +151,7 @@ const LandingPage = () => {
 
   if (isLoading || featuredMovies.length === 0) {
     return (
-      <div className="bg-background flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="size-8 animate-spin rounded-full border-4 border-red-600 border-t-transparent"></div>
       </div>
     );
@@ -167,7 +167,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="bg-background relative min-h-screen">
+    <div className="relative min-h-screen bg-gray-900">
       {/* Navigation Header */}
       <header className="absolute inset-x-0 top-0 z-10">
         <div className="mx-auto max-w-[1400px] px-4">
@@ -204,12 +204,12 @@ const LandingPage = () => {
               style={{ backgroundImage: `url(${movie.imageUrl})` }}
             />
             {/* Gradient Overlay */}
-            <div className="from-background/80 via-background/50 to-background absolute inset-0 bg-gradient-to-b" />
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/50 to-gray-900" />
           </div>
         ))}
 
         {/* Content */}
-        <div className="relative mx-auto max-w-[1400px] px-4 pt-32">
+        <div className="to relative mx-auto max-w-[1400px]  px-4 pt-32">
           <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center text-center">
             {/* Main Title */}
             <h1 className="mb-6 text-6xl font-bold tracking-tight text-white">
@@ -217,13 +217,13 @@ const LandingPage = () => {
                 <>
                   Discover Your Next
                   <br />
-                  Favorite <span className="text-red-600 dark:text-red-500">Movie</span>
+                  Favorite <span className="text-red-600">Movie</span>
                 </>
               ) : (
                 <>
                   Khám Phá
                   <br />
-                  <span className="text-red-600 dark:text-red-500">Phim</span> Yêu Thích
+                  <span className="text-red-600">Phim</span> Yêu Thích
                 </>
               )}
             </h1>
@@ -270,7 +270,7 @@ const LandingPage = () => {
             </div>
 
             {/* Scroll Indicator */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 animate-bounce">
               <svg
                 className="size-6 text-gray-400"
                 fill="none"
@@ -297,6 +297,13 @@ const LandingPage = () => {
             />
           ))}
         </div>
+      </section>
+      {/* How it works sections */}
+      <section className="h-full bg-gradient-to-b from-black to-gray-900 py-2">
+        <h2 className="text-center text-3xl font-bold sm:text-4xl">How MovieMate Work ?</h2>
+        <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
+          Get Personalized Movie Recommendations in just a few simple steps
+        </p>
       </section>
     </div>
   );

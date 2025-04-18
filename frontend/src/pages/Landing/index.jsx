@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import MovieMateLogo from '../../components/Header/Logo';
+import MovieMateLogo from '../../components/header/Logo';
 
 const LandingPage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);

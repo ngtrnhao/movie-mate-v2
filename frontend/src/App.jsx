@@ -1,6 +1,6 @@
 import './App.css';
 import Header from './components/header';
-import { ThemeProvider } from './context/ThemeContext/index';
+import { ThemeProvider } from './context/ThemeContext';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Footer from './components/footer';
 import LandingPage from './pages/Landing';

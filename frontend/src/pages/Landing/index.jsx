@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import MovieMateLogo from '../../components/header/Logo';
 
 const LandingPage = () => {
@@ -8,6 +8,7 @@ const LandingPage = () => {
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [language, setLanguage] = useState('en-US'); // Default to English
+  const howItWorksRef = useRef(null);
 
   // TMDB Configuration
   const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -137,7 +138,9 @@ const LandingPage = () => {
     }, 5000);
     return () => clearInterval(interval);
   }, [featuredMovies.length]);
-
+  const scrollToHowItWorks = () => {
+    howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
@@ -270,9 +273,12 @@ const LandingPage = () => {
             </div>
 
             {/* Scroll Indicator */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 animate-bounce">
+            <button
+              onClick={scrollToHowItWorks}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 animate-bounce"
+            >
               <svg
-                className="size-6 text-gray-400"
+                className="size-6 animate-bounce text-gray-400"
                 fill="none"
                 strokeWidth="2"
                 viewBox="0 0 24 24"
@@ -280,7 +286,7 @@ const LandingPage = () => {
               >
                 <path d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
-            </div>
+            </button>
           </div>
         </div>
 
@@ -299,11 +305,17 @@ const LandingPage = () => {
         </div>
       </section>
       {/* How it works sections */}
-      <section className="h-full bg-gradient-to-b from-black to-gray-900 py-2">
-        <h2 className="text-center text-3xl font-bold sm:text-4xl">How MovieMate Work ?</h2>
-        <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-          Get Personalized Movie Recommendations in just a few simple steps
-        </p>
+      <section ref={howItWorksRef} className="relative bg-gray-900 py-20">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-900">
+          <div className="relative z-10">
+            <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+              How MovieMate Work ?
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
+              Get Personalized Movie Recommendations in just a few simple steps
+            </p>
+          </div>
+        </div>
       </section>
     </div>
   );

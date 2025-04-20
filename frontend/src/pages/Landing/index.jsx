@@ -212,8 +212,8 @@ const LandingPage = () => {
         ))}
 
         {/* Content */}
-        <div className="to relative mx-auto max-w-[1400px]  px-4 pt-32">
-          <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center text-center">
+        <div className="relative mx-auto max-w-[1400px] px-4 pt-20">
+          <div className="flex min-h-[calc(100vh-160px)] flex-col items-center justify-center text-center">
             {/* Main Title */}
             <h1 className="mb-6 text-6xl font-bold tracking-tight text-white">
               {language === 'en-US' ? (
@@ -306,14 +306,132 @@ const LandingPage = () => {
       </section>
       {/* How it works sections */}
       <section ref={howItWorksRef} className="relative bg-gray-900 py-20">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-900">
-          <div className="relative z-10">
-            <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-              How MovieMate Work ?
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-              Get Personalized Movie Recommendations in just a few simple steps
-            </p>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-900 to-gray-900" />
+        <div className="container mx-auto px-4">
+          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+            How MovieMate Works?
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
+            Get Personalized Movie Recommendations in just a few simple steps
+          </p>
+          <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Step 1 */}
+            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70">
+              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-4 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
+                1
+              </div>
+              <div className="mb-4 flex items-center justify-center">
+                <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
+                  <svg
+                    className="size-8 text-red-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="mb-2 text-center text-lg font-semibold text-white">
+                Create an Account
+              </h3>
+              <p className="text-center text-sm text-gray-400">
+                Sign up for free and set up your profile with your movie preferences.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70">
+              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-4 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
+                2
+              </div>
+              <div className="mb-4 flex items-center justify-center">
+                <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
+                  <svg
+                    className="size-8 text-red-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="mb-2 text-center text-lg font-semibold text-white">Rate Movies</h3>
+              <p className="text-center text-sm text-gray-400">
+                Rate movies you've watched to help our algorithm understand your taste.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70">
+              <div className="absolute -top-4 left-1/2 flex  size-8 -translate-x-4 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
+                3
+              </div>
+              <div className="mb-4 flex items-center justify-center">
+                <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
+                  <svg
+                    className="size-8 text-red-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="mb-2 text-center text-lg font-semibold text-white">
+                Get Recommendations
+              </h3>
+              <p className="text-center text-sm text-gray-400">
+                Receive personalized movie suggestions based on your ratings and preferences.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70">
+              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-4 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
+                4
+              </div>
+              <div className="mb-4 flex items-center justify-center">
+                <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
+                  <svg
+                    className="size-8 text-red-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="mb-2 text-center text-lg font-semibold text-white">
+                Build Your Watchlist
+              </h3>
+              <p className="text-center text-sm text-gray-400">
+                Save movies to your watchlist and track what you want to watch next.
+              </p>
+            </div>
           </div>
         </div>
       </section>

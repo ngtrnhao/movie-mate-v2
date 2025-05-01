@@ -8,12 +8,16 @@ const LandingPage = () => {
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [language, setLanguage] = useState('en-US'); // Default to English
+  const [isPaused, setIsPaused] = useState(false); // Track if slideshow is paused
+  const pauseTimeoutRef = useRef(null); // Reference to timeout for resuming slideshow
   const howItWorksRef = useRef(null);
 
   // TMDB Configuration
   const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
   const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
   const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const SLIDE_INTERVAL = 3000; // 5 seconds between slides
+  const PAUSE_DURATION = 5000; // 15 seconds pause after user interaction
 
   const options = {
     method: 'GET',
@@ -129,15 +133,39 @@ const LandingPage = () => {
     return () => clearInterval(intervalId);
   }, [fetchMovies, lastUpdate, REFRESH_INTERVAL]);
 
-  // Slide show interval
+  // Slide show interval with pause functionality
   useEffect(() => {
     if (featuredMovies.length === 0) return;
 
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % featuredMovies.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [featuredMovies.length]);
+    // Only set interval if not paused
+    if (!isPaused) {
+      const interval = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % featuredMovies.length);
+      }, SLIDE_INTERVAL);
+
+      return () => clearInterval(interval);
+    }
+  }, [featuredMovies.length, isPaused]);
+
+  // Function to handle user interaction with slides
+  const handleSlideInteraction = (index) => {
+    // Clear any existing timeout
+    if (pauseTimeoutRef.current) {
+      clearTimeout(pauseTimeoutRef.current);
+    }
+
+    // Set the current slide
+    setCurrentSlide(index);
+
+    // Pause the slideshow
+    setIsPaused(true);
+
+    // Resume slideshow after pause duration
+    pauseTimeoutRef.current = setTimeout(() => {
+      setIsPaused(false);
+    }, PAUSE_DURATION);
+  };
+
   const scrollToHowItWorks = () => {
     howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -231,10 +259,17 @@ const LandingPage = () => {
               )}
             </h1>
 
-            {/* Description */}
-            <p className="mb-8 max-w-2xl text-lg text-gray-300">
-              {currentMovie?.description?.[language === 'en-US' ? 'en' : 'vi']}
-            </p>
+            {/* Description - Full content with fixed container */}
+            <div className="mb-8 flex justify-center">
+              <div className="flex min-h-[80px] max-w-2xl items-center">
+                <p className="text-lg text-gray-300">
+                  {currentMovie?.description?.[language === 'en-US' ? 'en' : 'vi'] ||
+                    (language === 'en-US'
+                      ? 'Discover your next favorite movie with our personalized recommendations.'
+                      : 'Khám phá bộ phim yêu thích tiếp theo của bạn với các đề xuất được cá nhân hóa của chúng tôi.')}
+                </p>
+              </div>
+            </div>
 
             {/* CTA Buttons */}
             <div className="mb-16 flex gap-4">
@@ -242,7 +277,7 @@ const LandingPage = () => {
                 {language === 'en-US' ? 'Explore Movies' : 'Khám Phá Phim'}
                 <span className="ml-2">→</span>
               </button>
-              <button className="flex h-11 items-center justify-center rounded-md border border-gray-600 px-8 text-sm font-medium text-white transition-colors hover:bg-white/10">
+              <button className="flex h-11 items-center justify-center rounded-md border border-gray-600 px-8 text-sm font-medium text-white transition-colors hover:bg-white/50">
                 {language === 'en-US' ? 'How It Works' : 'Hướng Dẫn'}
               </button>
             </div>
@@ -272,41 +307,54 @@ const LandingPage = () => {
               </button>
             </div>
 
-            {/* Scroll Indicator */}
-            <button
-              onClick={scrollToHowItWorks}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 animate-bounce"
-            >
-              <svg
-                className="size-6 animate-bounce text-gray-400"
-                fill="none"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            {/* Scroll Indicator - Updated positioning */}
+            <div className="mt-16 flex w-full justify-center">
+              <button
+                onClick={scrollToHowItWorks}
+                className="flex flex-col items-center text-gray-400 transition-colors hover:text-gray-300"
               >
-                <path d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-              </svg>
-            </button>
+                <span className="mb-2 text-sm">
+                  {language === 'en-US' ? 'Learn More' : 'Tìm Hiểu Thêm'}
+                </span>
+                <svg
+                  className="size-6 animate-bounce"
+                  fill="none"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Slide Navigation Dots */}
+        {/* Slide Navigation Dots - Updated with interaction handler */}
         <div className="absolute bottom-12 left-1/2 flex -translate-x-1/2 gap-2">
           {featuredMovies.map((movie, index) => (
             <button
               key={movie.id}
-              onClick={() => setCurrentSlide(index)}
+              onClick={() => handleSlideInteraction(index)}
               className={`size-2 rounded-full transition-all ${
                 index === currentSlide ? 'w-8 bg-red-600' : 'bg-gray-600 hover:bg-gray-500'
-              }`}
+              } ${isPaused && index === currentSlide ? 'ring-2 ring-white/50' : ''}`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
         </div>
+
+        {/* Pause indicator - only visible when paused */}
+        {isPaused && (
+          <div className="absolute bottom-24 right-8 flex items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-xs text-white">
+            <span className="size-2 rounded-full bg-red-600"></span>
+            <span>Paused</span>
+          </div>
+        )}
       </section>
       {/* How it works sections */}
       <section ref={howItWorksRef} className="relative bg-gray-900 py-20">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-900 to-gray-900" />
+        <div className="absolute  bg-gradient-to-b from-transparent via-gray-900 to-gray-900" />
         <div className="container mx-auto px-4">
           <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
             How MovieMate Works?
@@ -316,22 +364,22 @@ const LandingPage = () => {
           </p>
           <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {/* Step 1 */}
-            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70">
-              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-4 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
+            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
                 1
               </div>
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
                   <svg
-                    className="size-8 text-red-600"
+                    className="size-6 text-red-600"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    strokeWidth={2}
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
                       d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                     />
                   </svg>
@@ -346,22 +394,22 @@ const LandingPage = () => {
             </div>
 
             {/* Step 2 */}
-            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70">
-              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-4 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
+            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
                 2
               </div>
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
                   <svg
-                    className="size-8 text-red-600"
+                    className="size-6 text-red-600"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    strokeWidth={2}
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
                       d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                     />
                   </svg>
@@ -374,22 +422,22 @@ const LandingPage = () => {
             </div>
 
             {/* Step 3 */}
-            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70">
-              <div className="absolute -top-4 left-1/2 flex  size-8 -translate-x-4 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
+            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
                 3
               </div>
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
                   <svg
-                    className="size-8 text-red-600"
+                    className="size-6 text-red-600"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    strokeWidth={2}
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
                       d="M13 10V3L4 14h7v7l9-11h-7z"
                     />
                   </svg>
@@ -404,22 +452,22 @@ const LandingPage = () => {
             </div>
 
             {/* Step 4 */}
-            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70">
-              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-4 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
+            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+              <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
                 4
               </div>
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
                   <svg
-                    className="size-8 text-red-600"
+                    className="size-6 text-red-600"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    strokeWidth={2}
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
                       d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                     />
                   </svg>
@@ -433,6 +481,116 @@ const LandingPage = () => {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+      {/* Why choose MovieMate */}
+      <section>
+        <div className="relative bg-black py-20">
+          <div className="inset-0 bg-gradient-to-b">
+            <div className="container mx-auto px-4">
+              <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+                Why choose MovieMate
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
+                We're more than just a movie database. We're your personal cinema companion.
+              </p>
+              {/* Grid of Card */}
+              <div className="mt-16 grid grid-cols-1 gap-12 md:grid-cols-3">
+                {/* Card 1 */}
+                <div className="group relative rounded-lg bg-gray-800/50 p-8 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+                  <div className="mb-8 flex items-center justify-center">
+                    <div className="rounded-full bg-red-600/10 p-4 transition-colors duration-300 group-hover:bg-red-600/20">
+                      {/* icon Movie */}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="1.5"
+                        stroke="currentColor"
+                        className="size-8 text-red-600"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0 1 18 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0 1 18 7.125v-1.5m1.125 2.625c-.621 0-1.125.504-1.125 1.125v1.5m2.625-2.625c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25M7.125 12h9.75m-9.75 0A1.125 1.125 0 0 1 6 10.875M7.125 12C6.504 12 6 12.504 6 13.125m0-2.25C6 11.496 5.496 12 4.875 12M18 10.875c0 .621-.504 1.125-1.125 1.125M18 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m-12 5.25v-5.25m0 5.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125m-12 0v-1.5c0-.621-.504-1.125-1.125-1.125M18 18.375v-5.25m0 5.25v-1.5c0-.621.504-1.125 1.125-1.125M18 13.125v1.5c0 .621.504 1.125 1.125 1.125M18 13.125c0-.621.504-1.125 1.125-1.125M6 13.125v1.5c0 .621-.504 1.125-1.125 1.125M6 13.125C6 12.504 5.496 12 4.875 12m-1.5 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M19.125 12h1.5m0 0c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h1.5m14.25 0h1.5"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <h3 className="mb-4 text-center text-xl font-semibold text-white">
+                    Personalized Recommendations
+                  </h3>
+                  <p className="text-center text-base text-gray-300">
+                    Our advanced algorithm learns your preferences and suggests movies you'll love.
+                  </p>
+                </div>
+
+                {/* Card 2 */}
+                <div className="group relative rounded-lg bg-gray-800/50 p-8 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+                  <div className="mb-8 flex items-center justify-center">
+                    <div className="rounded-full bg-red-600/10 p-4 transition-colors duration-300 group-hover:bg-red-600/20">
+                      <svg
+                        className="size-8 text-red-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <h3 className="mb-4 text-center text-xl font-semibold text-white">
+                    Curated Collections
+                  </h3>
+                  <p className="text-center text-base text-gray-300">
+                    Explore hand-picked collections for every mood, genre, and occasion.
+                  </p>
+                </div>
+
+                {/* Card 3 */}
+                <div className="group relative rounded-lg bg-gray-800/50 p-8 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+                  <div className="mb-8 flex items-center justify-center">
+                    <div className="rounded-full bg-red-600/10 p-4 transition-colors duration-300 group-hover:bg-red-600/20">
+                      <svg
+                        className="size-8 text-red-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 7a4 4 0 11-8 0 4 4 0 018 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <h3 className="mb-4 text-center text-xl font-semibold text-white">
+                    Social Watching
+                  </h3>
+                  <p className="text-center text-base text-gray-300">
+                    Share your favorites, create watch parties, and see what your friends are
+                    enjoying.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* Latest Releases */}
+      <section className="relative bg-gray-900 bg-gradient-to-b from-transparent via-gray-900 to-gray-900 py-20">
+        <div className="container mx-auto px-4">
+          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">Latest Releases</h2>
+          <p className="pt-5 text-center text-sm text-gray-400 ">
+            Check out the newest additions to our extensive movie collection
+          </p>
         </div>
       </section>
     </div>

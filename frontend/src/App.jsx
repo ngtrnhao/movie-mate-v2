@@ -1,12 +1,11 @@
 import './App.css';
 import Header from './components/header';
-import { ThemeProvider } from './context/ThemeContext';
 import { LandingThemeProvider } from './context/LandingThemeContext';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Footer from './components/footer';
 import LandingPage from './pages/Landing';
 import HomePage from './pages/Home';
-
+import ErrorPage from './pages/error';
 function App() {
   return (
     <BrowserRouter>
@@ -24,17 +23,16 @@ function App() {
         <Route
           path="/*"
           element={
-            <ThemeProvider>
-              <div className="text-foreground flex min-h-screen flex-col transition-colors duration-200">
-                <Header />
-                <main className="bg-background flex-1 transition-colors duration-200">
-                  <Routes>
-                    <Route path="/home" element={<HomePage />} />
-                  </Routes>
-                </main>
-                <Footer />
-              </div>
-            </ThemeProvider>
+            <div className="text-foreground flex min-h-screen flex-col transition-colors duration-200">
+              <Header />
+              <main className="bg-background flex-1 transition-colors duration-200">
+                <Routes>
+                  <Route path="/home" element={<HomePage />} />
+                  <Route path="*" element={<ErrorPage />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
           }
         />
       </Routes>

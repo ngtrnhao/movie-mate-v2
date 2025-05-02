@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MovieMateLogo from '../../components/header/Logo';
-
+import { motion, AnimatePresence } from 'framer-motion';
 const LandingPage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -220,47 +220,85 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section with Slider */}
-      <section className="relative min-h-screen">
+      <section className="relative min-h-screen overflow-hidden">
         {/* Background Slides */}
-        {featuredMovies.map((movie, index) => (
-          <div
-            key={movie.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              index === currentSlide ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            {/* Background Image */}
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${movie.imageUrl})` }}
-            />
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/50 to-gray-900" />
-          </div>
-        ))}
+        <AnimatePresence mode="wait">
+          {featuredMovies.map((movie, index) => (
+            <motion.div
+              key={movie.id}
+              initial={{ opacity: 0, scal: 1.1 }}
+              animate={{
+                opacity: index === currentSlide ? 1 : 0,
+                scale: index === currentSlide ? 1 : 1.1,
+              }}
+              exit={{ opacity: 0, scale: 1.1 }}
+              transition={{ duration: 0.8, ease: 'easeInOut' }}
+              className="absolute inset-0"
+            >
+              {/* Background Image */}
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url(${movie.imageUrl})` }}
+              />
+              {/* Gradient Overlay */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/50 to-gray-900"
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
         {/* Content */}
         <div className="relative mx-auto max-w-[1400px] px-4 pt-20">
           <div className="flex min-h-[calc(100vh-160px)] flex-col items-center justify-center text-center">
             {/* Main Title */}
-            <h1 className="mb-6 text-6xl font-bold tracking-tight text-white">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="mb-6 text-6xl font-bold tracking-tight text-white"
+            >
               {language === 'en-US' ? (
                 <>
                   Discover Your Next
                   <br />
-                  Favorite <span className="text-red-600">Movie</span>
+                  Favorite{' '}
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, y: 1 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    className="text-red-600"
+                  >
+                    Movie
+                  </motion.span>
                 </>
               ) : (
                 <>
                   Khám Phá
                   <br />
-                  <span className="text-red-600">Phim</span> Yêu Thích
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, y: 1 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    className="text-red-600"
+                  >
+                    Phim
+                  </motion.span>
+                  Yêu Thích
                 </>
               )}
-            </h1>
+            </motion.h1>
 
             {/* Description - Full content with fixed container */}
-            <div className="mb-8 flex justify-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="mb-8 flex justify-center"
+            >
               <div className="flex min-h-[80px] max-w-2xl items-center">
                 <p className="text-lg text-gray-300">
                   {currentMovie?.description?.[language === 'en-US' ? 'en' : 'vi'] ||
@@ -269,18 +307,50 @@ const LandingPage = () => {
                       : 'Khám phá bộ phim yêu thích tiếp theo của bạn với các đề xuất được cá nhân hóa của chúng tôi.')}
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* CTA Buttons */}
-            <div className="mb-16 flex gap-4">
-              <button className="flex h-11 items-center justify-center rounded-md bg-red-600 px-8 text-sm font-medium text-white transition-colors hover:bg-red-700">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="mb-6 flex gap-4"
+            >
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex h-11 items-center justify-center rounded-md bg-red-600 px-8 text-sm font-medium text-white transition-colors hover:bg-red-700"
+              >
                 {language === 'en-US' ? 'Explore Movies' : 'Khám Phá Phim'}
-                <span className="ml-2">→</span>
-              </button>
-              <button className="flex h-11 items-center justify-center rounded-md border border-gray-600 px-8 text-sm font-medium text-white transition-colors hover:bg-white/50">
+                <motion.span
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="ml-3 flex items-center"
+                >
+                  <svg
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14 5l7 7m0 0l-7 7m7-7H3"
+                    />
+                  </svg>
+                </motion.span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex h-11 items-center justify-center rounded-md border border-gray-600 px-8 text-sm font-medium text-white transition-colors hover:bg-white/50"
+              >
                 {language === 'en-US' ? 'How It Works' : 'Hướng Dẫn'}
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
 
             {/* Featured Movie Info */}
             <div className="text-center">
@@ -309,64 +379,129 @@ const LandingPage = () => {
 
             {/* Scroll Indicator - Updated positioning */}
             <div className="mt-16 flex w-full justify-center">
-              <button
-                onClick={scrollToHowItWorks}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  y: [0, 10, 0],
+                }}
+                transition={{
+                  opacity: { duration: 0.6, delay: 1 },
+                  y: {
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  },
+                }}
                 className="flex flex-col items-center text-gray-400 transition-colors hover:text-gray-300"
               >
-                <span className="mb-2 text-sm">
-                  {language === 'en-US' ? 'Learn More' : 'Tìm Hiểu Thêm'}
-                </span>
-                <svg
-                  className="size-6 animate-bounce"
-                  fill="none"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                <button
+                  onClick={scrollToHowItWorks}
+                  className="flex flex-col items-center text-gray-400 transition-colors hover:text-gray-300"
                 >
-                  <path d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </button>
+                  <span className="mb-2 text-sm">
+                    {language === 'en-US' ? 'Learn More' : 'Tìm Hiểu Thêm'}
+                  </span>
+                  <motion.svg
+                    className="size-6 animate-bounce"
+                    fill="none"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <motion.path
+                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                  </motion.svg>
+                </button>
+                {/* Slide Navigation Dots - Updated with interaction handler */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.8 }}
+                  className="mt-4 flex w-full justify-center gap-2"
+                >
+                  {featuredMovies.map((movie, index) => (
+                    <motion.button
+                      key={movie.id}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleSlideInteraction(index)}
+                      className={`size-2 rounded-full transition-all ${
+                        index === currentSlide ? 'w-8 bg-red-600' : 'bg-gray-600 hover:bg-gray-500'
+                      } ${isPaused && index === currentSlide ? 'ring-2 ring-white/50' : ''}`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </motion.div>
+              </motion.div>
             </div>
           </div>
         </div>
 
-        {/* Slide Navigation Dots - Updated with interaction handler */}
-        <div className="absolute bottom-12 left-1/2 flex -translate-x-1/2 gap-2">
-          {featuredMovies.map((movie, index) => (
-            <button
-              key={movie.id}
-              onClick={() => handleSlideInteraction(index)}
-              className={`size-2 rounded-full transition-all ${
-                index === currentSlide ? 'w-8 bg-red-600' : 'bg-gray-600 hover:bg-gray-500'
-              } ${isPaused && index === currentSlide ? 'ring-2 ring-white/50' : ''}`}
-              aria-label={`Go to slide ${index + 1}`}
-            />
-          ))}
-        </div>
-
         {/* Pause indicator - only visible when paused */}
-        {isPaused && (
-          <div className="absolute bottom-24 right-8 flex items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-xs text-white">
-            <span className="size-2 rounded-full bg-red-600"></span>
-            <span>Paused</span>
-          </div>
-        )}
+        <AnimatePresence>
+          {isPaused && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="absolute bottom-24 right-8 flex items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-xs text-white"
+            >
+              <motion.span
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+                className="size-2 rounded-full bg-red-600"
+              ></motion.span>
+              <span>Paused</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </section>
       {/* How it works sections */}
       <section ref={howItWorksRef} className="relative bg-gray-900 py-20">
         <div className="absolute  bg-gradient-to-b from-transparent via-gray-900 to-gray-900" />
         <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-            How MovieMate Works?
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-            Get Personalized Movie Recommendations in just a few simple steps
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9 }}
+            className="text-center"
+          >
+            <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+              How MovieMate Works?
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
+              Get Personalized Movie Recommendations in just a few simple steps
+            </p>
+          </motion.div>
           <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {/* Step 1 */}
-            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
               <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
-                1
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 260,
+                    damping: 20,
+                  }}
+                  className="inline-block"
+                >
+                  1
+                </motion.span>
               </div>
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
@@ -391,12 +526,31 @@ const LandingPage = () => {
               <p className="text-center text-sm text-gray-400">
                 Sign up for free and set up your profile with your movie preferences.
               </p>
-            </div>
+            </motion.div>
 
             {/* Step 2 */}
-            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
               <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
-                2
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 260,
+                    damping: 20,
+                  }}
+                  className="inline-block"
+                >
+                  2
+                </motion.span>
               </div>
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
@@ -419,12 +573,31 @@ const LandingPage = () => {
               <p className="text-center text-sm text-gray-400">
                 Rate movies you've watched to help our algorithm understand your taste.
               </p>
-            </div>
+            </motion.div>
 
             {/* Step 3 */}
-            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
               <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
-                3
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 260,
+                    damping: 20,
+                  }}
+                  className="inline-block"
+                >
+                  3
+                </motion.span>
               </div>
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
@@ -449,12 +622,31 @@ const LandingPage = () => {
               <p className="text-center text-sm text-gray-400">
                 Receive personalized movie suggestions based on your ratings and preferences.
               </p>
-            </div>
+            </motion.div>
 
             {/* Step 4 */}
-            <div className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
               <div className="absolute -top-4 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white transition-transform duration-300 group-hover:scale-110">
-                4
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 260,
+                    damping: 20,
+                  }}
+                  className="inline-block"
+                >
+                  4
+                </motion.span>
               </div>
               <div className="mb-4 flex items-center justify-center">
                 <div className="rounded-full bg-red-600/10 p-3 transition-colors duration-300 group-hover:bg-red-600/20">
@@ -479,7 +671,7 @@ const LandingPage = () => {
               <p className="text-center text-sm text-gray-400">
                 Save movies to your watchlist and track what you want to watch next.
               </p>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>

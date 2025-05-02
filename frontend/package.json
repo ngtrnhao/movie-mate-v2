@@ -9,6 +9,7 @@
     "@testing-library/user-event": "^13.5.0",
     "autoprefixer": "^10.4.21",
     "dotenv": "^16.5.0",
+    "framer-motion": "^12.9.4",
     "frontend": "file:",
     "postcss": "^8.5.3",
     "react": "^19.1.0",

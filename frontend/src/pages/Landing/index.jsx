@@ -1,6 +1,36 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MovieMateLogo from '../../components/header/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const TABS = [
+  { key: 'trending', label: 'Trending' },
+  { key: 'topRated', label: 'Top Rated' },
+  { key: 'upcoming', label: 'Upcoming' },
+];
+
+const TabGroup = ({ tabs, activeTab, onTabChange }) => (
+  <div className="mb-8 flex justify-center gap-2" role="tablist">
+    {tabs.map((tab) => (
+      <button
+        key={tab.key}
+        role="tab"
+        aria-selected={activeTab === tab.key}
+        tabIndex={activeTab === tab.key ? 0 : -1}
+        onClick={() => onTabChange(tab.key)}
+        className={`rounded px-2 py-1 font-sans transition-colors
+          ${
+            activeTab === tab.key
+              ? 'bg-red-600 font-semibold text-white shadow'
+              : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700 hover:text-white'
+          }
+        `}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+);
+
 const LandingPage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -11,6 +41,7 @@ const LandingPage = () => {
   const [isPaused, setIsPaused] = useState(false); // Track if slideshow is paused
   const pauseTimeoutRef = useRef(null); // Reference to timeout for resuming slideshow
   const howItWorksRef = useRef(null);
+  const [activeTab, setActiveTab] = useState(TABS[0].key);
 
   // TMDB Configuration
   const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -169,6 +200,7 @@ const LandingPage = () => {
   const scrollToHowItWorks = () => {
     howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
@@ -780,9 +812,23 @@ const LandingPage = () => {
       <section className="relative bg-gray-900 bg-gradient-to-b from-transparent via-gray-900 to-gray-900 py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">Latest Releases</h2>
-          <p className="pt-5 text-center text-sm text-gray-400 ">
+          <p className="pt-5 text-center text-lg text-gray-400 ">
             Check out the newest additions to our extensive movie collection
           </p>
+          <div className="mt-10">
+            {/* Tabs */}
+            <TabGroup tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
+            {/* Tab Content */}
+            {activeTab === 'trending' && (
+              <div className="text-center text-white">Trending Movies Content</div>
+            )}
+            {activeTab === 'topRated' && (
+              <div className="text-center text-white">Top Rated Movies Content</div>
+            )}
+            {activeTab === 'upcoming' && (
+              <div className="text-center text-white">Upcoming Movies Content</div>
+            )}
+          </div>
         </div>
       </section>
     </div>

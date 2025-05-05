@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MovieMateLogo from '../../components/header/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
+import TabGroup from '../../components/movies/tab-group';
+import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
 
 const TABS = [
   { key: 'trending', label: 'Trending' },
@@ -8,28 +10,28 @@ const TABS = [
   { key: 'upcoming', label: 'Upcoming' },
 ];
 
-const TabGroup = ({ tabs, activeTab, onTabChange }) => (
-  <div className="mb-8 flex justify-center gap-2" role="tablist">
-    {tabs.map((tab) => (
-      <button
-        key={tab.key}
-        role="tab"
-        aria-selected={activeTab === tab.key}
-        tabIndex={activeTab === tab.key ? 0 : -1}
-        onClick={() => onTabChange(tab.key)}
-        className={`rounded px-2 py-1 font-sans transition-colors
-          ${
-            activeTab === tab.key
-              ? 'bg-red-600 font-semibold text-white shadow'
-              : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700 hover:text-white'
-          }
-        `}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
-);
+// const TabGroup = ({ tabs, activeTab, onTabChange }) => (
+//   <div className="mb-8 flex justify-center gap-2" role="tablist">
+//     {tabs.map((tab) => (
+//       <button
+//         key={tab.key}
+//         role="tab"
+//         aria-selected={activeTab === tab.key}
+//         tabIndex={activeTab === tab.key ? 0 : -1}
+//         onClick={() => onTabChange(tab.key)}
+//         className={`rounded px-2 py-1 font-sans transition-colors
+//           ${
+//             activeTab === tab.key
+//               ? 'bg-red-600 font-semibold text-white shadow'
+//               : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700 hover:text-white'
+//           }
+//         `}
+//       >
+//         {tab.label}
+//       </button>
+//     ))}
+//   </div>
+// );
 
 const LandingPage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -42,6 +44,15 @@ const LandingPage = () => {
   const pauseTimeoutRef = useRef(null); // Reference to timeout for resuming slideshow
   const howItWorksRef = useRef(null);
   const [activeTab, setActiveTab] = useState(TABS[0].key);
+
+  // New state for tab-based movies
+  const [moviesByTab, setMoviesByTab] = useState({
+    trending: [],
+    topRated: [],
+    upcoming: [],
+  });
+  const [tabLoading, setTabLoading] = useState(false);
+  const [tabError, setTabError] = useState(null);
 
   // TMDB Configuration
   const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -141,6 +152,54 @@ const LandingPage = () => {
       setIsLoading(false);
     }
   }, [featuredMovies]);
+
+  // New function for tab-based movie fetching
+  const fetchMoviesByTab = useCallback(async (tabKey) => {
+    setTabLoading(true);
+    setTabError(null);
+    let url = '';
+    if (tabKey === 'trending') url = `${TMDB_BASE_URL}/trending/movie/week`;
+    if (tabKey === 'topRated') url = `${TMDB_BASE_URL}/movie/top_rated`;
+    if (tabKey === 'upcoming') url = `${TMDB_BASE_URL}/movie/upcoming`;
+
+    try {
+      // Fetch movies in both languages
+      const [enResponse, viResponse] = await Promise.all([
+        fetch(`${url}?language=en-US`, options),
+        fetch(`${url}?language=vi-VN`, options),
+      ]);
+
+      if (!enResponse.ok || !viResponse.ok) {
+        throw new Error('Failed to fetch movies');
+      }
+
+      const [enData, viData] = await Promise.all([enResponse.json(), viResponse.json()]);
+
+      // Combine and prioritize Vietnamese movies
+      const combinedMovies = [...(viData.results || []), ...(enData.results || [])];
+
+      // Remove duplicates based on movie ID, keeping Vietnamese version if available
+      const uniqueMovies = combinedMovies.reduce((acc, movie) => {
+        if (!acc.find((m) => m.id === movie.id)) {
+          acc.push(movie);
+        }
+        return acc;
+      }, []);
+
+      setMoviesByTab((prev) => ({ ...prev, [tabKey]: uniqueMovies }));
+    } catch (err) {
+      setTabError('Failed to fetch movies');
+      console.error('Error fetching movies:', err);
+    }
+    setTabLoading(false);
+  }, []);
+
+  // Fetch movies for active tab
+  useEffect(() => {
+    if (moviesByTab[activeTab].length === 0) {
+      fetchMoviesByTab(activeTab);
+    }
+  }, [activeTab, fetchMoviesByTab, moviesByTab]);
 
   // Toggle language function
   const toggleLanguage = () => {
@@ -809,26 +868,63 @@ const LandingPage = () => {
         </div>
       </section>
       {/* Latest Releases */}
-      <section className="relative bg-gray-900 bg-gradient-to-b from-transparent via-gray-900 to-gray-900 py-20">
+      <section className="relative bg-gradient-to-b from-gray-900 via-gray-900 to-black py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">Latest Releases</h2>
-          <p className="pt-5 text-center text-lg text-gray-400 ">
+          <p className="pt-5 text-center text-lg text-gray-400">
             Check out the newest additions to our extensive movie collection
           </p>
           <div className="mt-10">
-            {/* Tabs */}
             <TabGroup tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
-            {/* Tab Content */}
-            {activeTab === 'trending' && (
-              <div className="text-center text-white">Trending Movies Content</div>
-            )}
-            {activeTab === 'topRated' && (
-              <div className="text-center text-white">Top Rated Movies Content</div>
-            )}
-            {activeTab === 'upcoming' && (
-              <div className="text-center text-white">Upcoming Movies Content</div>
-            )}
+            <MovieGrid movies={moviesByTab[activeTab]} loading={tabLoading} error={tabError} />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="mt-8 flex justify-center"
+            >
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                //  onClick={() =>{
+                //  }}
+                className="flex items-center rounded-sm bg-red-600 px-7 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
+              >
+                View All Movies
+                <motion.span
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="ml-2 flex items-center"
+                >
+                  <svg
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14 5l7 7m0 0l-7 7m7-7H3"
+                    />
+                  </svg>
+                </motion.span>
+              </motion.button>
+            </motion.div>
           </div>
+        </div>
+      </section>
+      {/* Explore Categories */}
+      <section className="relative bg-gray-900 bg-gradient-to-b from-transparent via-gray-900 to-gray-900 py-20">
+        <div className="container mx-auto px-4">
+          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+            Explore Categories
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
+            From heart-pounding action to thought-provoking dramas, we have something for everyone.
+          </p>
         </div>
       </section>
     </div>

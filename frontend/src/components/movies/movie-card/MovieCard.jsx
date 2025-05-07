@@ -28,7 +28,12 @@ const MovieCard = ({ movie }) => (
         <span>★</span>
         <span>{movie.vote_average}</span>
         <span className="text-xs text-gray-400">
-          ({movie.vote_count && (movie.vote_count / 1e6).toFixed(1) + 'M'})
+          {typeof movie.vote_count === 'number' &&
+            (movie.vote_count >= 1_000_000
+              ? `(${(movie.vote_count / 1_000_000).toFixed(1)}M)`
+              : movie.vote_count >= 1_000
+                ? `(${(movie.vote_count / 1_000).toFixed(1)}K)`
+                : `(${movie.vote_count})`)}
         </span>
       </div>
     </div>

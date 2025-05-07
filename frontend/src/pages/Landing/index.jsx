@@ -3,6 +3,8 @@ import MovieMateLogo from '../../components/header/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
 import TabGroup from '../../components/movies/tab-group';
 import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
+import CategoryGrid from '../../components/categories/CategoryGrid';
+import { useCategories } from '../../hooks/useCategories';
 
 const TABS = [
   { key: 'trending', label: 'Trending' },
@@ -69,6 +71,8 @@ const LandingPage = () => {
         'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0YzMzOGUzYTMzNGI4ZjgxN2M0NWNlOGIwY2JhNmRmMSIsIm5iZiI6MTc0MDYwODk5Mi40MTkwMDAxLCJzdWIiOiI2N2JmOTVlMGJjNjkzNWEwMDFhMjM2MTgiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.iOVSJPSuTWhbnD5AAQBCnQ5TYXVLCwVOgPMytmB4rHs',
     },
   };
+
+  const { data: categories, isLoading: catLoading, error: catError } = useCategories();
 
   const fetchMovies = useCallback(async () => {
     try {
@@ -888,7 +892,7 @@ const LandingPage = () => {
                 whileTap={{ scale: 0.95 }}
                 //  onClick={() =>{
                 //  }}
-                className="flex items-center rounded-sm bg-red-600 px-7 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
+                className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
               >
                 View All Movies
                 <motion.span
@@ -925,6 +929,20 @@ const LandingPage = () => {
           <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
             From heart-pounding action to thought-provoking dramas, we have something for everyone.
           </p>
+          {catLoading && <div className="text-center text-white">Loading...</div>}
+          {catError && <div className="text-center text-red-500">{catError.message}</div>}
+          {categories && <CategoryGrid categories={categories} />}
+          <div className="mt-8 flex justify-center">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              //  onClick={() =>{
+              //  }}
+              className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
+            >
+              View All Categories
+            </motion.button>
+          </div>
         </div>
       </section>
     </div>

@@ -5,7 +5,7 @@ import TabGroup from '../../components/movies/tab-group';
 import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
 import CategoryGrid from '../../components/categories/CategoryGrid';
 import { useCategories } from '../../hooks/useCategories';
-
+import PlanList from '../../components/plans/PlanList';
 const TABS = [
   { key: 'trending', label: 'Trending' },
   { key: 'topRated', label: 'Top Rated' },
@@ -943,6 +943,201 @@ const LandingPage = () => {
               View All Categories
             </motion.button>
           </div>
+        </div>
+      </section>
+      {/* Choose Your Plan */}
+      <sections className="relative bg-gradient-to-b from-black via-gray-900 to-gray-900 py-20">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center"
+          >
+            <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+              Choose Your Plan
+            </h2>
+            <p className="pt-5 text-center text-lg text-gray-400">
+              Select the perfect plan that fits your viewing habits.
+            </p>
+          </motion.div>
+
+          {/* Pricing Cards Container */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-16 flex flex-col items-center justify-center gap-8 py-10 md:flex-row"
+          >
+            <PlanList />
+          </motion.div>
+
+          {/* Additional Info */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-8 text-center"
+          >
+            <p className="text-gray-400">
+              All plans include a 14-day free trial. No credit card required.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="mt-4  text-lg text-red-500 hover:text-red-400"
+            >
+              Compare all features →
+            </motion.button>
+          </motion.div>
+        </div>
+      </sections>
+      <section className="relative bg-gradient-to-b from-black via-black to-gray-900 py-20">
+        <div className="container mx-auto px-4">
+          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+            What Our Users Say
+          </h2>
+          <p className="pt-5 text-center text-lg text-gray-400">
+            Join thousands of movie enthusiasts who have found their perfect watch with MovieMate.
+          </p>
+
+          {/* Testimonials Grid */}
+          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {/* Testimonial 1 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
+              <div className="mb-4 flex items-center gap-4">
+                <img
+                  src="https://randomuser.me/api/portraits/women/1.jpg"
+                  alt="Sarah Johnson"
+                  className="size-12 rounded-full object-cover ring-2 ring-red-500"
+                />
+                <div>
+                  <h3 className="font-semibold text-white">Sarah Johnson</h3>
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <svg key={i} className="size-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-300">
+                "MovieMate has completely transformed how I discover films. The recommendations are
+                spot-on, and I've found so many hidden gems I would have never known about!"
+              </p>
+            </motion.div>
+
+            {/* Testimonial 2 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
+              <div className="mb-4 flex items-center gap-4">
+                <img
+                  src="https://randomuser.me/api/portraits/men/2.jpg"
+                  alt="Michael Chen"
+                  className="size-12 rounded-full object-cover ring-2 ring-red-500"
+                />
+                <div>
+                  <h3 className="font-semibold text-white">Michael Chen</h3>
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <svg key={i} className="size-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-300">
+                "The social features are amazing! I love being able to see what my friends are
+                watching and share my favorite movies with them. It's like having a movie club in
+                your pocket."
+              </p>
+            </motion.div>
+
+            {/* Testimonial 3 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
+              <div className="mb-4 flex items-center gap-4">
+                <img
+                  src="https://randomuser.me/api/portraits/women/3.jpg"
+                  alt="Emma Rodriguez"
+                  className="size-12 rounded-full object-cover ring-2 ring-red-500"
+                />
+                <div>
+                  <h3 className="font-semibold text-white">Emma Rodriguez</h3>
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <svg key={i} className="size-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-300">
+                "I've discovered so many international films through MovieMate. The curated
+                collections are fantastic, and the app makes it easy to explore different genres and
+                cultures."
+              </p>
+            </motion.div>
+          </div>
+
+          {/* View More Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mt-12 flex justify-center"
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
+            >
+              Read More Reviews
+              <motion.span
+                animate={{ x: [0, 5, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="ml-2 flex items-center"
+              >
+                <svg
+                  className="size-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
+              </motion.span>
+            </motion.button>
+          </motion.div>
         </div>
       </section>
     </div>

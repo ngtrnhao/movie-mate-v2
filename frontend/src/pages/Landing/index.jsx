@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MovieMateLogo from '../../components/header/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
+import TabGroup from '../../components/movies/tab-group';
+import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
+import { useCategories } from '../../hooks/useCategories';
 
 const TABS = [
   { key: 'trending', label: 'Trending' },
@@ -58,6 +61,8 @@ const LandingPage = () => {
         'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0YzMzOGUzYTMzNGI4ZjgxN2M0NWNlOGIwY2JhNmRmMSIsIm5iZiI6MTc0MDYwODk5Mi40MTkwMDAxLCJzdWIiOiI2N2JmOTVlMGJjNjkzNWEwMDFhMjM2MTgiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.iOVSJPSuTWhbnD5AAQBCnQ5TYXVLCwVOgPMytmB4rHs',
     },
   };
+
+  const { data: categories, isLoading: catLoading, error: catError } = useCategories();
 
   const fetchMovies = useCallback(async () => {
     try {
@@ -818,17 +823,55 @@ const LandingPage = () => {
           <div className="mt-10">
             {/* Tabs */}
             <TabGroup tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
-            {/* Tab Content */}
-            {activeTab === 'trending' && (
-              <div className="text-center text-white">Trending Movies Content</div>
-            )}
-            {activeTab === 'topRated' && (
-              <div className="text-center text-white">Top Rated Movies Content</div>
-            )}
-            {activeTab === 'upcoming' && (
-              <div className="text-center text-white">Upcoming Movies Content</div>
-            )}
+            <MovieGrid movies={moviesByTab[activeTab]} loading={tabLoading} error={tabError} />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="mt-8 flex justify-center"
+            >
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                //  onClick={() =>{
+                //  }}
+                className="flex items-center rounded-sm bg-red-600 px-7 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
+              >
+                View All Movies
+                <motion.span
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="ml-2 flex items-center"
+                >
+                  <svg
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14 5l7 7m0 0l-7 7m7-7H3"
+                    />
+                  </svg>
+                </motion.span>
+              </motion.button>
+            </motion.div>
           </div>
+        </div>
+      </section>
+      {/* Explore Categories */}
+      <section className="relative bg-gray-900 bg-gradient-to-b from-transparent via-gray-900 to-gray-900 py-20">
+        <div className="container mx-auto px-4">
+          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+            Explore Categories
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
+            From heart-pounding action to thought-provoking dramas, we have something for everyone.
+          </p>
         </div>
       </section>
     </div>

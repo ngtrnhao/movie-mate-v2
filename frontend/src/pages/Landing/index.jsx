@@ -6,12 +6,18 @@ import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
 import CategoryGrid from '../../components/categories/CategoryGrid';
 import { useCategories } from '../../hooks/useCategories';
 import PlanList from '../../components/plans/PlanList';
+import { CheckCircle } from 'lucide-react';
 const TABS = [
   { key: 'trending', label: 'Trending' },
   { key: 'topRated', label: 'Top Rated' },
   { key: 'upcoming', label: 'Upcoming' },
 ];
-
+const features = [
+  'Explore a vast and diverse movie library',
+  'Personalized movie recommendations',
+  'Create and manage your watchlist',
+  'Read and write movie reviews',
+];
 // const TabGroup = ({ tabs, activeTab, onTabChange }) => (
 //   <div className="mb-8 flex justify-center gap-2" role="tablist">
 //     {tabs.map((tab) => (
@@ -1140,11 +1146,60 @@ const LandingPage = () => {
           </motion.div>
         </div>
       </section>
-      <section className="relative grid grid-cols-2 bg-gradient-to-br from-gray-900 via-gray-900 to-black py-20 ">
-        <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-            Take MovieMate Anywhere
+
+      <section className="flex w-full justify-center bg-black py-16">
+        <div className="w-full max-w-7xl rounded-2xl bg-gradient-to-r from-red-900 via-gray-900 to-gray-800 py-10">
+          <h2 className="pt-10 text-center text-4xl font-bold text-white">
+            Ready to Start Your Movie Journey?
           </h2>
+          <p className="pt-5 text-center text-lg text-gray-300">
+            Join MovieMate today and discover a new world of cinema tailored just for you. No
+            subscription required.
+          </p>
+          {/* Get Started Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mt-12 flex justify-center "
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="durations-300  flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+            >
+              Get Started Now
+              <motion.span
+                animate={{ x: [0, 5, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="ml-2 flex items-center "
+              >
+                <svg
+                  className="size-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
+              </motion.span>
+            </motion.button>
+          </motion.div>
+          <div className="mx-auto mt-8 grid max-w-fit grid-cols-1 justify-items-center gap-x-8 gap-y-4 sm:grid-cols-2 md:grid-cols-2">
+            {features.map((feature, idx) => (
+              <div key={idx} className="flex items-center text-sm text-green-400">
+                <CheckCircle className="mr-2 size-5" />
+                <span className="text-white">{feature}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </div>

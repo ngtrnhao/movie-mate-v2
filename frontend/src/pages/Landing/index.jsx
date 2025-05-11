@@ -1140,6 +1140,13 @@ const LandingPage = () => {
           </motion.div>
         </div>
       </section>
+      <section className="relative grid grid-cols-2 bg-gradient-to-br from-gray-900 via-gray-900 to-black py-20 ">
+        <div className="container mx-auto px-4">
+          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+            Take MovieMate Anywhere
+          </h2>
+        </div>
+      </section>
     </div>
   );
 };

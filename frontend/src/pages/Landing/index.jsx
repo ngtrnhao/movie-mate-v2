@@ -6,6 +6,7 @@ import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
 import CategoryGrid from '../../components/categories/CategoryGrid';
 import { useCategories } from '../../hooks/useCategories';
 import PlanList from '../../components/plans/PlanList';
+import LandingFooter from '../../components/footer/LandingFooter';
 import { CheckCircle } from 'lucide-react';
 const TABS = [
   { key: 'trending', label: 'Trending' },
@@ -1202,6 +1203,7 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      <LandingFooter />
     </div>
   );
 };

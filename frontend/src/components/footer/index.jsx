@@ -64,3 +64,6 @@ const Footer = () => {
 };
 
 export default Footer;
+
+export { default as LandingFooter } from './LandingFooter';
+export { default as HomeFooter } from './HomeFooter';

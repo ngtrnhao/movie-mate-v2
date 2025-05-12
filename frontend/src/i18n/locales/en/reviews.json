@@ -1,0 +1,42 @@
+{
+  "list": {
+    "title": "Reviews",
+    "latest": "Latest Reviews",
+    "popular": "Popular Reviews",
+    "myReviews": "My Reviews",
+    "noResults": "No reviews found",
+    "loading": "Loading reviews...",
+    "error": "Error loading reviews"
+  },
+  "form": {
+    "title": "Write a Review",
+    "rating": "Rating",
+    "title": "Title",
+    "content": "Content",
+    "spoiler": "Contains Spoilers",
+    "submit": "Submit Review",
+    "cancel": "Cancel",
+    "success": "Review submitted successfully",
+    "error": "Error submitting review"
+  },
+  "details": {
+    "title": "Review Details",
+    "by": "by",
+    "on": "on",
+    "helpful": "Helpful",
+    "notHelpful": "Not Helpful",
+    "report": "Report",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Are you sure you want to delete this review?",
+    "spoilerWarning": "This review contains spoilers"
+  },
+  "filters": {
+    "rating": "Rating",
+    "date": "Date",
+    "helpful": "Most Helpful",
+    "recent": "Most Recent",
+    "apply": "Apply Filters",
+    "reset": "Reset Filters"
+  }
+}

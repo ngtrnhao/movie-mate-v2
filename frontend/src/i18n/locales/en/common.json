@@ -1,0 +1,30 @@
+{
+  "nav": {
+    "home": "Home",
+    "movies": "Movies",
+    "categories": "Categories",
+    "reviews": "Reviews"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "rememberMe": "Remember Me"
+  },
+  "search": {
+    "placeholder": "Search movies...",
+    "noResults": "No results found",
+    "error": "Error searching movies"
+  },
+  "errors": {
+    "required": "This field is required",
+    "invalidEmail": "Invalid email address",
+    "passwordMismatch": "Passwords do not match",
+    "minLength": "Must be at least {{count}} characters",
+    "maxLength": "Must be at most {{count}} characters"
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "hero": {
+    "title": "Người Bạn Đồng Hành Điện Ảnh Của Bạn",
+    "subtitle": "Khám Phá, Xem và Chia Sẻ Hành Trình Phim Của Bạn",
+    "cta": "Bắt Đầu Ngay",
+    "howItWorks": "Hướng Dẫn",
+    "learnMore": "Tìm Hiểu Thêm",
+    "nowFeaturing": "ĐANG CHIẾU",
+    "watchTrailer": "Xem Trailer"
+  },
+  "features": {
+    "title": "Tại Sao Chọn MovieMate?",
+    "items": {
+      "library": "Khám phá thư viện phim đa dạng và phong phú",
+      "recommendations": "Đề xuất phim được cá nhân hóa",
+      "watchlist": "Tạo và quản lý danh sách xem của bạn",
+      "reviews": "Đọc và viết đánh giá phim"
+    }
+  },
+  "howItWorks": {
+    "title": "MovieMate Hoạt Động Như Thế Nào?",
+    "subtitle": "Nhận đề xuất phim cá nhân hóa chỉ với vài bước đơn giản",
+    "step1": {
+      "title": "Tạo Tài Khoản",
+      "description": "Đăng ký miễn phí và thiết lập hồ sơ với sở thích phim của bạn."
+    },
+    "step2": {
+      "title": "Đánh Giá Phim",
+      "description": "Đánh giá các bộ phim bạn đã xem để thuật toán hiểu rõ gu của bạn."
+    },
+    "step3": {
+      "title": "Nhận Đề Xuất",
+      "description": "Nhận các gợi ý phim phù hợp dựa trên đánh giá và sở thích của bạn."
+    },
+    "step4": {
+      "title": "Xây Dựng Danh Sách Xem",
+      "description": "Lưu phim vào danh sách và theo dõi những gì bạn muốn xem tiếp theo."
+    }
+  },
+  "whyChoose": {
+    "title": "Tại Sao Chọn MovieMate",
+    "subtitle": "Chúng tôi không chỉ là một cơ sở dữ liệu phim. Chúng tôi là người bạn đồng hành điện ảnh của bạn.",
+    "card1": {
+      "title": "Đề Xuất Cá Nhân Hóa",
+      "description": "Nhận các gợi ý phù hợp với gu xem phim riêng của bạn."
+    },
+    "card2": {
+      "title": "Bộ Sưu Tập Được Chọn Lọc",
+      "description": "Khám phá các bộ sưu tập phim cho mọi tâm trạng, thể loại và dịp đặc biệt."
+    },
+    "card3": {
+      "title": "Xem Phim Cùng Bạn Bè",
+      "description": "Chia sẻ phim yêu thích, tạo phòng xem chung và xem bạn bè đang xem gì."
+    }
+  },
+  "latestReleases": {
+    "title": "Phim Mới Nhất",
+    "subtitle": "Khám phá những bộ phim mới nhất trong kho phim khổng lồ của chúng tôi",
+    "viewAllMovies": "Xem Tất Cả Phim"
+  },
+  "exploreCategories": {
+    "title": "Khám Phá Thể Loại",
+    "subtitle": "Từ hành động kịch tính đến tâm lý sâu sắc, chúng tôi có mọi thể loại cho bạn.",
+    "viewAllCategories": "Xem Tất Cả Thể Loại"
+  },
+  "chooseYourPlan": {
+    "title": "Chọn Gói Của Bạn",
+    "subtitle": "Chọn gói phù hợp nhất với thói quen xem phim của bạn.",
+    "additionalInfo": "Tất cả các gói đều có 14 ngày dùng thử miễn phí. Không cần thẻ tín dụng.",
+    "compareFeatures": "So sánh tất cả tính năng →"
+  },
+  "testimonials": {
+    "title": "Người Dùng Nói Gì?",
+    "subtitle": "Hàng ngàn người yêu phim đã tìm thấy bộ phim hoàn hảo cùng MovieMate.",
+    "testimonial1": {
+      "text": "MovieMate đã thay đổi hoàn toàn cách tôi khám phá phim. Đề xuất rất chính xác, tôi đã tìm được nhiều phim hay mà trước đây không biết đến!"
+    },
+    "testimonial2": {
+      "text": "Tính năng xã hội thật tuyệt! Tôi thích xem bạn bè đang xem gì và chia sẻ phim yêu thích với họ. Như một câu lạc bộ phim trong túi vậy."
+    },
+    "testimonial3": {
+      "text": "Tôi đã khám phá rất nhiều phim quốc tế nhờ MovieMate. Các bộ sưu tập chọn lọc rất tuyệt, dễ dàng tìm kiếm theo thể loại và văn hóa."
+    },
+    "viewMore": "Xem Thêm Đánh Giá"
+  },
+  "getStarted": {
+    "title": "Sẵn Sàng Bắt Đầu Hành Trình Phim Của Bạn?",
+    "subtitle": "Tham gia MovieMate ngay hôm nay và khám phá thế giới điện ảnh dành riêng cho bạn. Không cần đăng ký trả phí.",
+    "cta": "Bắt Đầu Ngay"
+  },
+  "footer": {
+    "company": {
+      "title": "MovieMate",
+      "description": "Người bạn đồng hành điện ảnh cá nhân của bạn để khám phá và thưởng thức phim."
+    },
+    "quickLinks": {
+      "title": "Liên Kết Nhanh",
+      "about": "Về Chúng Tôi",
+      "contact": "Liên Hệ",
+      "faq": "Câu Hỏi Thường Gặp",
+      "privacy": "Chính Sách Bảo Mật"
+    },
+    "categories": {
+      "title": "Thể Loại",
+      "action": "Hành Động",
+      "comedy": "Hài Hước",
+      "drama": "Tâm Lý",
+      "horror": "Kinh Dị"
+    },
+    "newsletter": {
+      "title": "Bản Tin",
+      "description": "Đăng ký nhận bản tin để cập nhật mới nhất và đề xuất phim.",
+      "placeholder": "Nhập email của bạn",
+      "button": "Đăng Ký"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "details": {
+    "title": "Chi Tiết Phim",
+    "overview": "Tóm Tắt",
+    "releaseDate": "Ngày Phát Hành",
+    "runtime": "Thời Lượng",
+    "genres": "Thể Loại",
+    "cast": "Diễn Viên",
+    "director": "Đạo Diễn",
+    "rating": "Đánh Giá",
+    "watchTrailer": "Xem Trailer",
+    "addToWatchlist": "Thêm Vào Danh Sách Xem",
+    "removeFromWatchlist": "Xóa Khỏi Danh Sách Xem",
+    "writeReview": "Viết Đánh Giá",
+    "similarMovies": "Phim Tương Tự",
+    "recommendedMovies": "Phim Đề Xuất"
+  },
+  "list": {
+    "title": "Phim",
+    "trending": "Thịnh Hành",
+    "topRated": "Đánh Giá Cao",
+    "upcoming": "Sắp Chiếu",
+    "nowPlaying": "Đang Chiếu",
+    "popular": "Phổ Biến",
+    "filterBy": "Lọc theo",
+    "sortBy": "Sắp xếp theo",
+    "viewAll": "Xem Tất Cả",
+    "noResults": "Không tìm thấy phim",
+    "loading": "Đang tải phim...",
+    "error": "Lỗi tải phim"
+  },
+  "filters": {
+    "genres": "Thể Loại",
+    "year": "Năm",
+    "rating": "Đánh Giá",
+    "language": "Ngôn Ngữ",
+    "apply": "Áp Dụng Bộ Lọc",
+    "reset": "Đặt Lại Bộ Lọc"
+  },
+  "sort": {
+    "popularity": "Độ Phổ Biến",
+    "rating": "Đánh Giá",
+    "releaseDate": "Ngày Phát Hành",
+    "title": "Tên Phim"
+  }
+}

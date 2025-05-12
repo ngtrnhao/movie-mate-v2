@@ -1,0 +1,30 @@
+{
+  "nav": {
+    "home": "Trang Chủ",
+    "movies": "Phim",
+    "categories": "Thể Loại",
+    "reviews": "Đánh Giá"
+  },
+  "auth": {
+    "signIn": "Đăng Nhập",
+    "signUp": "Đăng Ký",
+    "signOut": "Đăng Xuất",
+    "email": "Email",
+    "password": "Mật Khẩu",
+    "confirmPassword": "Xác Nhận Mật Khẩu",
+    "forgotPassword": "Quên Mật Khẩu?",
+    "rememberMe": "Ghi Nhớ Đăng Nhập"
+  },
+  "search": {
+    "placeholder": "Tìm kiếm phim...",
+    "noResults": "Không tìm thấy kết quả",
+    "error": "Lỗi tìm kiếm phim"
+  },
+  "errors": {
+    "required": "Vui lòng điền thông tin này",
+    "invalidEmail": "Email không hợp lệ",
+    "passwordMismatch": "Mật khẩu không khớp",
+    "minLength": "Phải có ít nhất {{count}} ký tự",
+    "maxLength": "Không được vượt quá {{count}} ký tự"
+  }
+}

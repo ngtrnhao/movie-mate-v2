@@ -4,37 +4,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TabGroup from '../../components/movies/tab-group';
 import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
 import { useCategories } from '../../hooks/useCategories';
-
+import PlanList from '../../components/plans/PlanList';
+import LandingFooter from '../../components/footer/LandingFooter';
+import { CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 const TABS = [
   { key: 'trending', label: 'Trending' },
   { key: 'topRated', label: 'Top Rated' },
   { key: 'upcoming', label: 'Upcoming' },
 ];
 
-const TabGroup = ({ tabs, activeTab, onTabChange }) => (
-  <div className="mb-8 flex justify-center gap-2" role="tablist">
-    {tabs.map((tab) => (
-      <button
-        key={tab.key}
-        role="tab"
-        aria-selected={activeTab === tab.key}
-        tabIndex={activeTab === tab.key ? 0 : -1}
-        onClick={() => onTabChange(tab.key)}
-        className={`rounded px-2 py-1 font-sans transition-colors
-          ${
-            activeTab === tab.key
-              ? 'bg-red-600 font-semibold text-white shadow'
-              : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700 hover:text-white'
-          }
-        `}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
-);
-
 const LandingPage = () => {
+  const { t } = useTranslation('landing');
+  const features = [
+    t('features.items.library'),
+    t('features.items.recommendations'),
+    t('features.items.watchlist'),
+    t('features.items.reviews'),
+  ];
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [featuredMovies, setFeaturedMovies] = useState([]);
@@ -509,10 +496,10 @@ const LandingPage = () => {
             className="text-center"
           >
             <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-              How MovieMate Works?
+              {t('howItWorks.title')}
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-              Get Personalized Movie Recommendations in just a few simple steps
+              {t('howItWorks.subtitle')}
             </p>
           </motion.div>
           <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -558,10 +545,10 @@ const LandingPage = () => {
                 </div>
               </div>
               <h3 className="mb-2 text-center text-lg font-semibold text-white">
-                Create an Account
+                {t('howItWorks.step1.title')}
               </h3>
               <p className="text-center text-sm text-gray-400">
-                Sign up for free and set up your profile with your movie preferences.
+                {t('howItWorks.step1.description')}
               </p>
             </motion.div>
 
@@ -606,9 +593,11 @@ const LandingPage = () => {
                   </svg>
                 </div>
               </div>
-              <h3 className="mb-2 text-center text-lg font-semibold text-white">Rate Movies</h3>
+              <h3 className="mb-2 text-center text-lg font-semibold text-white">
+                {t('howItWorks.step2.title')}
+              </h3>
               <p className="text-center text-sm text-gray-400">
-                Rate movies you've watched to help our algorithm understand your taste.
+                {t('howItWorks.step2.description')}
               </p>
             </motion.div>
 
@@ -654,10 +643,10 @@ const LandingPage = () => {
                 </div>
               </div>
               <h3 className="mb-2 text-center text-lg font-semibold text-white">
-                Get Recommendations
+                {t('howItWorks.step3.title')}
               </h3>
               <p className="text-center text-sm text-gray-400">
-                Receive personalized movie suggestions based on your ratings and preferences.
+                {t('howItWorks.step3.description')}
               </p>
             </motion.div>
 
@@ -703,10 +692,10 @@ const LandingPage = () => {
                 </div>
               </div>
               <h3 className="mb-2 text-center text-lg font-semibold text-white">
-                Build Your Watchlist
+                {t('howItWorks.step4.title')}
               </h3>
               <p className="text-center text-sm text-gray-400">
-                Save movies to your watchlist and track what you want to watch next.
+                {t('howItWorks.step4.description')}
               </p>
             </motion.div>
           </div>
@@ -718,10 +707,10 @@ const LandingPage = () => {
           <div className="inset-0 bg-gradient-to-b">
             <div className="container mx-auto px-4">
               <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-                Why choose MovieMate
+                {t('whyChoose.title')}
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-                We're more than just a movie database. We're your personal cinema companion.
+                {t('whyChoose.subtitle')}
               </p>
               {/* Grid of Card */}
               <div className="mt-16 grid grid-cols-1 gap-12 md:grid-cols-3">
@@ -747,10 +736,10 @@ const LandingPage = () => {
                     </div>
                   </div>
                   <h3 className="mb-4 text-center text-xl font-semibold text-white">
-                    Personalized Recommendations
+                    {t('whyChoose.card1.title')}
                   </h3>
                   <p className="text-center text-base text-gray-300">
-                    Our advanced algorithm learns your preferences and suggests movies you'll love.
+                    {t('whyChoose.card1.description')}
                   </p>
                 </div>
 
@@ -774,10 +763,10 @@ const LandingPage = () => {
                     </div>
                   </div>
                   <h3 className="mb-4 text-center text-xl font-semibold text-white">
-                    Curated Collections
+                    {t('whyChoose.card2.title')}
                   </h3>
                   <p className="text-center text-base text-gray-300">
-                    Explore hand-picked collections for every mood, genre, and occasion.
+                    {t('whyChoose.card2.description')}
                   </p>
                 </div>
 
@@ -801,11 +790,10 @@ const LandingPage = () => {
                     </div>
                   </div>
                   <h3 className="mb-4 text-center text-xl font-semibold text-white">
-                    Social Watching
+                    {t('whyChoose.card3.title')}
                   </h3>
                   <p className="text-center text-base text-gray-300">
-                    Share your favorites, create watch parties, and see what your friends are
-                    enjoying.
+                    {t('whyChoose.card3.description')}
                   </p>
                 </div>
               </div>
@@ -872,8 +860,254 @@ const LandingPage = () => {
           <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
             From heart-pounding action to thought-provoking dramas, we have something for everyone.
           </p>
+          {catLoading && <div className="text-center text-white">Loading...</div>}
+          {catError && <div className="text-center text-red-500">{catError.message}</div>}
+          {categories && <CategoryGrid categories={categories} />}
+          <div className="mt-8 flex justify-center">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              //  onClick={() =>{
+              //  }}
+              className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
+            >
+              View All Categories
+            </motion.button>
+          </div>
         </div>
       </section>
+      {/* Choose Your Plan */}
+      <sections className="relative bg-gradient-to-b from-black via-gray-900 to-gray-900 py-20">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center"
+          >
+            <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+              {t('chooseYourPlan.title')}
+            </h2>
+            <p className="pt-5 text-center text-lg text-gray-400">{t('chooseYourPlan.subtitle')}</p>
+          </motion.div>
+
+          {/* Pricing Cards Container */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-16 flex flex-col items-center justify-center gap-8 py-10 md:flex-row"
+          >
+            <PlanList />
+          </motion.div>
+
+          {/* Additional Info */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-8 text-center"
+          >
+            <p className="text-gray-400">{t('chooseYourPlan.additionalInfo')}</p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="mt-4  text-lg text-red-500 hover:text-red-400"
+            >
+              {t('chooseYourPlan.compareFeatures')}
+            </motion.button>
+          </motion.div>
+        </div>
+      </sections>
+      <section className="relative bg-gradient-to-b from-black via-black to-gray-900 py-20">
+        <div className="container mx-auto px-4">
+          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+            {t('testimonials.title')}
+          </h2>
+          <p className="pt-5 text-center text-lg text-gray-400">{t('testimonials.subtitle')}</p>
+
+          {/* Testimonials Grid */}
+          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {/* Testimonial 1 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
+              <div className="mb-4 flex items-center gap-4">
+                <img
+                  src="https://randomuser.me/api/portraits/women/1.jpg"
+                  alt="Sarah Johnson"
+                  className="size-12 rounded-full object-cover ring-2 ring-red-500"
+                />
+                <div>
+                  <h3 className="font-semibold text-white">Sarah Johnson</h3>
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <svg key={i} className="size-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-300">{t('testimonials.testimonial1.text')}</p>
+            </motion.div>
+
+            {/* Testimonial 2 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
+              <div className="mb-4 flex items-center gap-4">
+                <img
+                  src="https://randomuser.me/api/portraits/men/2.jpg"
+                  alt="Michael Chen"
+                  className="size-12 rounded-full object-cover ring-2 ring-red-500"
+                />
+                <div>
+                  <h3 className="font-semibold text-white">Michael Chen</h3>
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <svg key={i} className="size-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-300">{t('testimonials.testimonial2.text')}</p>
+            </motion.div>
+
+            {/* Testimonial 3 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="group relative rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:bg-gray-800/70 hover:ring-2 hover:ring-red-500"
+            >
+              <div className="mb-4 flex items-center gap-4">
+                <img
+                  src="https://randomuser.me/api/portraits/women/3.jpg"
+                  alt="Emma Rodriguez"
+                  className="size-12 rounded-full object-cover ring-2 ring-red-500"
+                />
+                <div>
+                  <h3 className="font-semibold text-white">Emma Rodriguez</h3>
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <svg key={i} className="size-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-300">{t('testimonials.testimonial3.text')}</p>
+            </motion.div>
+          </div>
+
+          {/* View More Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mt-12 flex justify-center"
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
+            >
+              {t('testimonials.viewMore')}
+              <motion.span
+                animate={{ x: [0, 5, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="ml-2 flex items-center"
+              >
+                <svg
+                  className="size-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
+              </motion.span>
+            </motion.button>
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="flex w-full justify-center bg-black py-16">
+        <div className="w-full max-w-7xl rounded-2xl bg-gradient-to-r from-red-900 via-gray-900 to-gray-800 py-10">
+          <h2 className="pt-10 text-center text-4xl font-bold text-white">
+            {t('getStarted.title')}
+          </h2>
+          <p className="pt-5 text-center text-lg text-gray-300">{t('getStarted.subtitle')}</p>
+          {/* Get Started Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mt-12 flex justify-center "
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="durations-300  flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+            >
+              {t('getStarted.cta')}
+              <motion.span
+                animate={{ x: [0, 5, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="ml-2 flex items-center "
+              >
+                <svg
+                  className="size-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
+              </motion.span>
+            </motion.button>
+          </motion.div>
+          <div className="mx-auto mt-8 grid max-w-fit grid-cols-1 justify-items-center gap-x-8 gap-y-4 sm:grid-cols-2 md:grid-cols-2">
+            {features.map((feature, idx) => (
+              <div key={idx} className="flex items-center text-sm text-green-400">
+                <CheckCircle className="mr-2 size-5" />
+                <span className="text-white">{feature}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      <LandingFooter />
     </div>
   );
 };

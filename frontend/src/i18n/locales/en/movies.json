@@ -1,0 +1,46 @@
+{
+  "details": {
+    "title": "Movie Details",
+    "overview": "Overview",
+    "releaseDate": "Release Date",
+    "runtime": "Runtime",
+    "genres": "Genres",
+    "cast": "Cast",
+    "director": "Director",
+    "rating": "Rating",
+    "watchTrailer": "Watch Trailer",
+    "addToWatchlist": "Add to Watchlist",
+    "removeFromWatchlist": "Remove from Watchlist",
+    "writeReview": "Write a Review",
+    "similarMovies": "Similar Movies",
+    "recommendedMovies": "Recommended Movies"
+  },
+  "list": {
+    "title": "Movies",
+    "trending": "Trending",
+    "topRated": "Top Rated",
+    "upcoming": "Upcoming",
+    "nowPlaying": "Now Playing",
+    "popular": "Popular",
+    "filterBy": "Filter by",
+    "sortBy": "Sort by",
+    "viewAll": "View All",
+    "noResults": "No movies found",
+    "loading": "Loading movies...",
+    "error": "Error loading movies"
+  },
+  "filters": {
+    "genres": "Genres",
+    "year": "Year",
+    "rating": "Rating",
+    "language": "Language",
+    "apply": "Apply Filters",
+    "reset": "Reset Filters"
+  },
+  "sort": {
+    "popularity": "Popularity",
+    "rating": "Rating",
+    "releaseDate": "Release Date",
+    "title": "Title"
+  }
+}

@@ -3,29 +3,17 @@ import { useTranslation } from '../../i18n/hooks/useTranslation';
 const LanguageSwitcher = () => {
   const { currentLanguage, changeLanguage } = useTranslation();
 
+  const toggleLanguage = () => {
+    changeLanguage(currentLanguage === 'en' ? 'vi' : 'en');
+  };
+
   return (
-    <div className="flex items-center space-x-2">
-      <button
-        onClick={() => changeLanguage('en')}
-        className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-          currentLanguage === 'en'
-            ? 'bg-red-600 text-white'
-            : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-        }`}
-      >
-        EN
-      </button>
-      <button
-        onClick={() => changeLanguage('vi')}
-        className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-          currentLanguage === 'vi'
-            ? 'bg-red-600 text-white'
-            : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-        }`}
-      >
-        VI
-      </button>
-    </div>
+    <button
+      onClick={toggleLanguage}
+      className="rounded-md border border-gray-600 px-4 py-2 text-white transition-colors hover:bg-white/10"
+    >
+      {currentLanguage === 'en' ? 'VI' : 'EN'}
+    </button>
   );
 };
 

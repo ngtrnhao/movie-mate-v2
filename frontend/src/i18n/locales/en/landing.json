@@ -1,7 +1,9 @@
 {
   "hero": {
-    "title": "Your Personal Cinema Companion",
-    "subtitle": "Discover, Watch, and Share Your Movie Journey",
+    "signIn": "Sign In",
+    "title": "Discover Your Next",
+    "title-Favorite": "Favorite",
+    "subtitle": " Movie",
     "cta": "Get Started Now",
     "howItWorks": "How It Works",
     "learnMore": "Learn More",

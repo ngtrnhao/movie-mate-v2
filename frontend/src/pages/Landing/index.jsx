@@ -8,7 +8,9 @@ import { useCategories } from '../../hooks/useCategories';
 import PlanList from '../../components/plans/PlanList';
 import LandingFooter from '../../components/footer/LandingFooter';
 import { CheckCircle } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
+import LanguageSwitcher from '../../components/language/LanguageSwitcher';
+
 const TABS = [
   { key: 'trending', label: 'Trending' },
   { key: 'topRated', label: 'Top Rated' },
@@ -16,7 +18,7 @@ const TABS = [
 ];
 
 const LandingPage = () => {
-  const { t } = useTranslation('landing');
+  const { t, i18n, app_language } = useTranslation('landing');
   const features = [
     t('features.items.library'),
     t('features.items.recommendations'),
@@ -27,10 +29,8 @@ const LandingPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [featuredMovies, setFeaturedMovies] = useState([]);
   const [error, setError] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
-  const [language, setLanguage] = useState('en-US'); // Default to English
-  const [isPaused, setIsPaused] = useState(false); // Track if slideshow is paused
-  const pauseTimeoutRef = useRef(null); // Reference to timeout for resuming slideshow
+  const [isPaused, setIsPaused] = useState(false);
+  const pauseTimeoutRef = useRef(null);
   const howItWorksRef = useRef(null);
   const [activeTab, setActiveTab] = useState(TABS[0].key);
 
@@ -133,7 +133,6 @@ const LandingPage = () => {
         );
 
         setFeaturedMovies(moviesWithDetails);
-        setLastUpdate(Date.now());
       }
 
       setIsLoading(false);
@@ -192,11 +191,6 @@ const LandingPage = () => {
     }
   }, [activeTab, fetchMoviesByTab, moviesByTab]);
 
-  // Toggle language function
-  const toggleLanguage = () => {
-    setLanguage((prev) => (prev === 'en-US' ? 'vi-VN' : 'en-US'));
-  };
-
   // Initial fetch
   useEffect(() => {
     fetchMovies();
@@ -205,28 +199,22 @@ const LandingPage = () => {
   // Auto-refresh movies
   useEffect(() => {
     const intervalId = setInterval(() => {
-      const now = Date.now();
-      if (now - lastUpdate >= REFRESH_INTERVAL) {
-        fetchMovies();
-      }
+      fetchMovies();
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [fetchMovies, lastUpdate, REFRESH_INTERVAL]);
+  }, [fetchMovies, REFRESH_INTERVAL]);
 
   // Slide show interval with pause functionality
   useEffect(() => {
-    if (featuredMovies.length === 0) return;
-
-    // Only set interval if not paused
     if (!isPaused) {
-      const interval = setInterval(() => {
+      const intervalId = setInterval(() => {
         setCurrentSlide((prev) => (prev + 1) % featuredMovies.length);
       }, SLIDE_INTERVAL);
 
-      return () => clearInterval(interval);
+      return () => clearInterval(intervalId);
     }
-  }, [featuredMovies.length, isPaused]);
+  }, [isPaused, featuredMovies.length]);
 
   // Function to handle user interaction with slides
   const handleSlideInteraction = (index) => {
@@ -287,14 +275,9 @@ const LandingPage = () => {
           <div className="flex h-20 items-center justify-between">
             <MovieMateLogo />
             <div className="flex items-center gap-4">
-              <button
-                onClick={toggleLanguage}
-                className="rounded-md border border-gray-600 px-4 py-2 text-white transition-colors hover:bg-white/10"
-              >
-                {language === 'en-US' ? 'VI' : 'EN'}
-              </button>
+              <LanguageSwitcher />
               <button className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white">
-                Sign In
+                {t('hero.signIn')}
               </button>
             </div>
           </div>
@@ -343,7 +326,7 @@ const LandingPage = () => {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="mb-6 text-6xl font-bold tracking-tight text-white"
             >
-              {language === 'en-US' ? (
+              {app_language === 'en' ? (
                 <>
                   Discover Your Next
                   <br />
@@ -374,7 +357,7 @@ const LandingPage = () => {
               )}
             </motion.h1>
 
-            {/* Description - Full content with fixed container */}
+            {/* Description */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -383,10 +366,8 @@ const LandingPage = () => {
             >
               <div className="flex min-h-[80px] max-w-2xl items-center">
                 <p className="text-lg text-gray-300">
-                  {currentMovie?.description?.[language === 'en-US' ? 'en' : 'vi'] ||
-                    (language === 'en-US'
-                      ? 'Discover your next favorite movie with our personalized recommendations.'
-                      : 'Khám phá bộ phim yêu thích tiếp theo của bạn với các đề xuất được cá nhân hóa của chúng tôi.')}
+                  {currentMovie?.description?.[i18n.language === 'en' ? 'en' : 'vi'] ||
+                    t('hero.discoverDescription')}
                 </p>
               </div>
             </motion.div>
@@ -403,7 +384,7 @@ const LandingPage = () => {
                 whileTap={{ scale: 0.95 }}
                 className="flex h-11 items-center justify-center rounded-md bg-red-600 px-8 text-sm font-medium text-white transition-colors hover:bg-red-700"
               >
-                {language === 'en-US' ? 'Explore Movies' : 'Khám Phá Phim'}
+                {t('hero.exploreMovies')}
                 <motion.span
                   animate={{ x: [0, 5, 0] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
@@ -430,17 +411,17 @@ const LandingPage = () => {
                 whileTap={{ scale: 0.95 }}
                 className="flex h-11 items-center justify-center rounded-md border border-gray-600 px-8 text-sm font-medium text-white transition-colors hover:bg-white/50"
               >
-                {language === 'en-US' ? 'How It Works' : 'Hướng Dẫn'}
+                {t('hero.howItWorks')}
               </motion.button>
             </motion.div>
 
             {/* Featured Movie Info */}
             <div className="text-center">
               <p className="mb-4 text-sm uppercase tracking-wider text-gray-400">
-                {language === 'en-US' ? 'NOW FEATURING' : 'ĐANG CHIẾU'}
+                {t('hero.nowFeaturing')}
               </p>
               <h2 className="mb-2 text-2xl font-bold text-white">
-                {currentMovie?.title?.[language === 'en-US' ? 'en' : 'vi']}
+                {currentMovie?.title?.[i18n.language === 'en' ? 'en' : 'vi']}
               </h2>
               <div className="mb-4 flex items-center justify-center gap-2">
                 <span className="text-yellow-500">★</span>
@@ -455,11 +436,11 @@ const LandingPage = () => {
                 disabled={!currentMovie?.trailerUrl}
               >
                 <span className="mr-2">▶</span>
-                {language === 'en-US' ? 'Watch Trailer' : 'Xem Trailer'}
+                {t('hero.watchTrailer')}
               </button>
             </div>
 
-            {/* Scroll Indicator - Updated positioning */}
+            {/* Scroll Indicator */}
             <div className="mt-16 flex w-full justify-center">
               <motion.div
                 initial={{ opacity: 0 }}
@@ -481,9 +462,7 @@ const LandingPage = () => {
                   onClick={scrollToHowItWorks}
                   className="flex flex-col items-center text-gray-400 transition-colors hover:text-gray-300"
                 >
-                  <span className="mb-2 text-sm">
-                    {language === 'en-US' ? 'Learn More' : 'Tìm Hiểu Thêm'}
-                  </span>
+                  <span className="mb-2 text-sm">{t('hero.learnMore')}</span>
                   <motion.svg
                     className="size-6 animate-bounce"
                     fill="none"
@@ -499,7 +478,7 @@ const LandingPage = () => {
                     />
                   </motion.svg>
                 </button>
-                {/* Slide Navigation Dots - Updated with interaction handler */}
+                {/* Slide Navigation Dots */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -878,8 +857,6 @@ const LandingPage = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                //  onClick={() =>{
-                //  }}
                 className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
               >
                 View All Movies
@@ -924,8 +901,6 @@ const LandingPage = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              //  onClick={() =>{
-              //  }}
               className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
             >
               View All Categories

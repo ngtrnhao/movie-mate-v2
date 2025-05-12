@@ -1,0 +1,42 @@
+{
+  "list": {
+    "title": "Đánh Giá",
+    "latest": "Đánh Giá Mới Nhất",
+    "popular": "Đánh Giá Phổ Biến",
+    "myReviews": "Đánh Giá Của Tôi",
+    "noResults": "Không tìm thấy đánh giá",
+    "loading": "Đang tải đánh giá...",
+    "error": "Lỗi tải đánh giá"
+  },
+  "form": {
+    "title": "Viết Đánh Giá",
+    "rating": "Đánh Giá",
+    "title": "Tiêu Đề",
+    "content": "Nội Dung",
+    "spoiler": "Có Spoiler",
+    "submit": "Gửi Đánh Giá",
+    "cancel": "Hủy",
+    "success": "Gửi đánh giá thành công",
+    "error": "Lỗi gửi đánh giá"
+  },
+  "details": {
+    "title": "Chi Tiết Đánh Giá",
+    "by": "bởi",
+    "on": "vào",
+    "helpful": "Hữu Ích",
+    "notHelpful": "Không Hữu Ích",
+    "report": "Báo Cáo",
+    "edit": "Chỉnh Sửa",
+    "delete": "Xóa",
+    "confirmDelete": "Bạn có chắc muốn xóa đánh giá này?",
+    "spoilerWarning": "Đánh giá này có chứa spoiler"
+  },
+  "filters": {
+    "rating": "Đánh Giá",
+    "date": "Ngày",
+    "helpful": "Hữu Ích Nhất",
+    "recent": "Mới Nhất",
+    "apply": "Áp Dụng Bộ Lọc",
+    "reset": "Đặt Lại Bộ Lọc"
+  }
+}

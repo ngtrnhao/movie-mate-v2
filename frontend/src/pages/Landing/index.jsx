@@ -8,41 +8,21 @@ import { useCategories } from '../../hooks/useCategories';
 import PlanList from '../../components/plans/PlanList';
 import LandingFooter from '../../components/footer/LandingFooter';
 import { CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 const TABS = [
   { key: 'trending', label: 'Trending' },
   { key: 'topRated', label: 'Top Rated' },
   { key: 'upcoming', label: 'Upcoming' },
 ];
-const features = [
-  'Explore a vast and diverse movie library',
-  'Personalized movie recommendations',
-  'Create and manage your watchlist',
-  'Read and write movie reviews',
-];
-// const TabGroup = ({ tabs, activeTab, onTabChange }) => (
-//   <div className="mb-8 flex justify-center gap-2" role="tablist">
-//     {tabs.map((tab) => (
-//       <button
-//         key={tab.key}
-//         role="tab"
-//         aria-selected={activeTab === tab.key}
-//         tabIndex={activeTab === tab.key ? 0 : -1}
-//         onClick={() => onTabChange(tab.key)}
-//         className={`rounded px-2 py-1 font-sans transition-colors
-//           ${
-//             activeTab === tab.key
-//               ? 'bg-red-600 font-semibold text-white shadow'
-//               : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700 hover:text-white'
-//           }
-//         `}
-//       >
-//         {tab.label}
-//       </button>
-//     ))}
-//   </div>
-// );
 
 const LandingPage = () => {
+  const { t } = useTranslation('landing');
+  const features = [
+    t('features.items.library'),
+    t('features.items.recommendations'),
+    t('features.items.watchlist'),
+    t('features.items.reviews'),
+  ];
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [featuredMovies, setFeaturedMovies] = useState([]);
@@ -574,10 +554,10 @@ const LandingPage = () => {
             className="text-center"
           >
             <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-              How MovieMate Works?
+              {t('howItWorks.title')}
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-              Get Personalized Movie Recommendations in just a few simple steps
+              {t('howItWorks.subtitle')}
             </p>
           </motion.div>
           <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -623,10 +603,10 @@ const LandingPage = () => {
                 </div>
               </div>
               <h3 className="mb-2 text-center text-lg font-semibold text-white">
-                Create an Account
+                {t('howItWorks.step1.title')}
               </h3>
               <p className="text-center text-sm text-gray-400">
-                Sign up for free and set up your profile with your movie preferences.
+                {t('howItWorks.step1.description')}
               </p>
             </motion.div>
 
@@ -671,9 +651,11 @@ const LandingPage = () => {
                   </svg>
                 </div>
               </div>
-              <h3 className="mb-2 text-center text-lg font-semibold text-white">Rate Movies</h3>
+              <h3 className="mb-2 text-center text-lg font-semibold text-white">
+                {t('howItWorks.step2.title')}
+              </h3>
               <p className="text-center text-sm text-gray-400">
-                Rate movies you've watched to help our algorithm understand your taste.
+                {t('howItWorks.step2.description')}
               </p>
             </motion.div>
 
@@ -719,10 +701,10 @@ const LandingPage = () => {
                 </div>
               </div>
               <h3 className="mb-2 text-center text-lg font-semibold text-white">
-                Get Recommendations
+                {t('howItWorks.step3.title')}
               </h3>
               <p className="text-center text-sm text-gray-400">
-                Receive personalized movie suggestions based on your ratings and preferences.
+                {t('howItWorks.step3.description')}
               </p>
             </motion.div>
 
@@ -768,10 +750,10 @@ const LandingPage = () => {
                 </div>
               </div>
               <h3 className="mb-2 text-center text-lg font-semibold text-white">
-                Build Your Watchlist
+                {t('howItWorks.step4.title')}
               </h3>
               <p className="text-center text-sm text-gray-400">
-                Save movies to your watchlist and track what you want to watch next.
+                {t('howItWorks.step4.description')}
               </p>
             </motion.div>
           </div>
@@ -783,10 +765,10 @@ const LandingPage = () => {
           <div className="inset-0 bg-gradient-to-b">
             <div className="container mx-auto px-4">
               <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-                Why choose MovieMate
+                {t('whyChoose.title')}
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-                We're more than just a movie database. We're your personal cinema companion.
+                {t('whyChoose.subtitle')}
               </p>
               {/* Grid of Card */}
               <div className="mt-16 grid grid-cols-1 gap-12 md:grid-cols-3">
@@ -812,10 +794,10 @@ const LandingPage = () => {
                     </div>
                   </div>
                   <h3 className="mb-4 text-center text-xl font-semibold text-white">
-                    Personalized Recommendations
+                    {t('whyChoose.card1.title')}
                   </h3>
                   <p className="text-center text-base text-gray-300">
-                    Our advanced algorithm learns your preferences and suggests movies you'll love.
+                    {t('whyChoose.card1.description')}
                   </p>
                 </div>
 
@@ -839,10 +821,10 @@ const LandingPage = () => {
                     </div>
                   </div>
                   <h3 className="mb-4 text-center text-xl font-semibold text-white">
-                    Curated Collections
+                    {t('whyChoose.card2.title')}
                   </h3>
                   <p className="text-center text-base text-gray-300">
-                    Explore hand-picked collections for every mood, genre, and occasion.
+                    {t('whyChoose.card2.description')}
                   </p>
                 </div>
 
@@ -866,11 +848,10 @@ const LandingPage = () => {
                     </div>
                   </div>
                   <h3 className="mb-4 text-center text-xl font-semibold text-white">
-                    Social Watching
+                    {t('whyChoose.card3.title')}
                   </h3>
                   <p className="text-center text-base text-gray-300">
-                    Share your favorites, create watch parties, and see what your friends are
-                    enjoying.
+                    {t('whyChoose.card3.description')}
                   </p>
                 </div>
               </div>
@@ -963,11 +944,9 @@ const LandingPage = () => {
             className="text-center"
           >
             <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-              Choose Your Plan
+              {t('chooseYourPlan.title')}
             </h2>
-            <p className="pt-5 text-center text-lg text-gray-400">
-              Select the perfect plan that fits your viewing habits.
-            </p>
+            <p className="pt-5 text-center text-lg text-gray-400">{t('chooseYourPlan.subtitle')}</p>
           </motion.div>
 
           {/* Pricing Cards Container */}
@@ -989,15 +968,13 @@ const LandingPage = () => {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="mt-8 text-center"
           >
-            <p className="text-gray-400">
-              All plans include a 14-day free trial. No credit card required.
-            </p>
+            <p className="text-gray-400">{t('chooseYourPlan.additionalInfo')}</p>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="mt-4  text-lg text-red-500 hover:text-red-400"
             >
-              Compare all features →
+              {t('chooseYourPlan.compareFeatures')}
             </motion.button>
           </motion.div>
         </div>
@@ -1005,11 +982,9 @@ const LandingPage = () => {
       <section className="relative bg-gradient-to-b from-black via-black to-gray-900 py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-            What Our Users Say
+            {t('testimonials.title')}
           </h2>
-          <p className="pt-5 text-center text-lg text-gray-400">
-            Join thousands of movie enthusiasts who have found their perfect watch with MovieMate.
-          </p>
+          <p className="pt-5 text-center text-lg text-gray-400">{t('testimonials.subtitle')}</p>
 
           {/* Testimonials Grid */}
           <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -1038,10 +1013,7 @@ const LandingPage = () => {
                   </div>
                 </div>
               </div>
-              <p className="text-gray-300">
-                "MovieMate has completely transformed how I discover films. The recommendations are
-                spot-on, and I've found so many hidden gems I would have never known about!"
-              </p>
+              <p className="text-gray-300">{t('testimonials.testimonial1.text')}</p>
             </motion.div>
 
             {/* Testimonial 2 */}
@@ -1069,11 +1041,7 @@ const LandingPage = () => {
                   </div>
                 </div>
               </div>
-              <p className="text-gray-300">
-                "The social features are amazing! I love being able to see what my friends are
-                watching and share my favorite movies with them. It's like having a movie club in
-                your pocket."
-              </p>
+              <p className="text-gray-300">{t('testimonials.testimonial2.text')}</p>
             </motion.div>
 
             {/* Testimonial 3 */}
@@ -1101,11 +1069,7 @@ const LandingPage = () => {
                   </div>
                 </div>
               </div>
-              <p className="text-gray-300">
-                "I've discovered so many international films through MovieMate. The curated
-                collections are fantastic, and the app makes it easy to explore different genres and
-                cultures."
-              </p>
+              <p className="text-gray-300">{t('testimonials.testimonial3.text')}</p>
             </motion.div>
           </div>
 
@@ -1122,7 +1086,7 @@ const LandingPage = () => {
               whileTap={{ scale: 0.95 }}
               className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
             >
-              Read More Reviews
+              {t('testimonials.viewMore')}
               <motion.span
                 animate={{ x: [0, 5, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
@@ -1151,12 +1115,9 @@ const LandingPage = () => {
       <section className="flex w-full justify-center bg-black py-16">
         <div className="w-full max-w-7xl rounded-2xl bg-gradient-to-r from-red-900 via-gray-900 to-gray-800 py-10">
           <h2 className="pt-10 text-center text-4xl font-bold text-white">
-            Ready to Start Your Movie Journey?
+            {t('getStarted.title')}
           </h2>
-          <p className="pt-5 text-center text-lg text-gray-300">
-            Join MovieMate today and discover a new world of cinema tailored just for you. No
-            subscription required.
-          </p>
+          <p className="pt-5 text-center text-lg text-gray-300">{t('getStarted.subtitle')}</p>
           {/* Get Started Button */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1170,7 +1131,7 @@ const LandingPage = () => {
               whileTap={{ scale: 0.95 }}
               className="durations-300  flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
             >
-              Get Started Now
+              {t('getStarted.cta')}
               <motion.span
                 animate={{ x: [0, 5, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity }}

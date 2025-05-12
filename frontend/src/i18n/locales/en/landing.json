@@ -1,0 +1,117 @@
+{
+  "hero": {
+    "title": "Your Personal Cinema Companion",
+    "subtitle": "Discover, Watch, and Share Your Movie Journey",
+    "cta": "Get Started Now",
+    "howItWorks": "How It Works",
+    "learnMore": "Learn More",
+    "nowFeaturing": "NOW FEATURING",
+    "watchTrailer": "Watch Trailer"
+  },
+  "features": {
+    "title": "Why Choose MovieMate?",
+    "items": {
+      "library": "Explore a vast and diverse movie library",
+      "recommendations": "Personalized movie recommendations",
+      "watchlist": "Create and manage your watchlist",
+      "reviews": "Read and write movie reviews"
+    }
+  },
+  "howItWorks": {
+    "title": "How MovieMate Works?",
+    "subtitle": "Get Personalized Movie Recommendations in just a few simple steps",
+    "step1": {
+      "title": "Create an Account",
+      "description": "Sign up for free and set up your profile with your movie preferences."
+    },
+    "step2": {
+      "title": "Rate Movies",
+      "description": "Rate movies you've watched to help our algorithm understand your taste."
+    },
+    "step3": {
+      "title": "Get Recommendations",
+      "description": "Receive personalized movie suggestions based on your ratings and preferences."
+    },
+    "step4": {
+      "title": "Build Your Watchlist",
+      "description": "Save movies to your watchlist and track what you want to watch next."
+    }
+  },
+  "whyChoose": {
+    "title": "Why choose MovieMate",
+    "subtitle": "We're more than just a movie database. We're your personal cinema companion.",
+    "card1": {
+      "title": "Personalized Picks",
+      "description": "Get recommendations tailored to your unique taste."
+    },
+    "card2": {
+      "title": "Curated Collections",
+      "description": "Explore hand-picked collections for every mood, genre, and occasion."
+    },
+    "card3": {
+      "title": "Social Watching",
+      "description": "Share your favorites, create watch parties, and see what your friends are enjoying."
+    }
+  },
+  "latestReleases": {
+    "title": "Latest Releases",
+    "subtitle": "Check out the newest additions to our extensive movie collection",
+    "viewAllMovies": "View All Movies"
+  },
+  "exploreCategories": {
+    "title": "Explore Categories",
+    "subtitle": "From heart-pounding action to thought-provoking dramas, we have something for everyone.",
+    "viewAllCategories": "View All Categories"
+  },
+  "chooseYourPlan": {
+    "title": "Choose Your Plan",
+    "subtitle": "Select the perfect plan that fits your viewing habits.",
+    "additionalInfo": "All plans include a 14-day free trial. No credit card required.",
+    "compareFeatures": "Compare all features →"
+  },
+  "testimonials": {
+    "title": "What Our Users Say",
+    "subtitle": "Join thousands of movie enthusiasts who have found their perfect watch with MovieMate.",
+    "testimonial1": {
+      "text": "MovieMate has completely transformed how I discover films. The recommendations are spot-on, and I've found so many hidden gems I would have never known about!"
+    },
+    "testimonial2": {
+      "text": "The social features are amazing! I love being able to see what my friends are watching and share my favorite movies with them. It's like having a movie club in your pocket."
+    },
+    "testimonial3": {
+      "text": "I've discovered so many international films through MovieMate. The curated collections are fantastic, and the app makes it easy to explore different genres and cultures."
+    },
+    "viewMore": "Read More Reviews"
+  },
+  "getStarted": {
+    "title": "Ready to Start Your Movie Journey?",
+    "subtitle": "Join MovieMate today and discover a new world of cinema tailored just for you. No subscription required.",
+    "cta": "Get Started Now"
+  },
+  "footer": {
+    "company": {
+      "title": "MovieMate",
+      "description": "Your personal cinema companion for discovering and enjoying movies."
+    },
+    "quickLinks": {
+      "title": "Quick Links",
+      "about": "About Us",
+      "contact": "Contact",
+      "faq": "FAQ",
+      "privacy": "Privacy Policy"
+    },
+    "categories": {
+      "title": "Categories",
+      "action": "Action",
+      "comedy": "Comedy",
+      "drama": "Drama",
+      "horror": "Horror"
+    },
+    "newsletter": {
+      "title": "Newsletter",
+      "description": "Subscribe to our newsletter for the latest updates and movie recommendations.",
+      "placeholder": "Enter your email",
+      "button": "Subscribe"
+    }
+  }
+}

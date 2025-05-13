@@ -1,18 +1,18 @@
 // import React from 'react';
 import { motion } from 'framer-motion';
 import { Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 
 const LandingFooter = () => {
+  const { t } = useTranslation('landing');
   return (
     <footer className=" border-t-2 border-gray-800 bg-black py-12">
       <div className="container mx-auto px-4 ">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           {/* Company Info */}
           <div className="space-y-4">
-            <h3 className="text-xl font-bold text-white">MovieMate</h3>
-            <p className="text-gray-400">
-              Your personal cinema companion for discovering and enjoying movies.
-            </p>
+            <h3 className="text-xl font-bold text-white">{t('footer.company.title')}</h3>
+            <p className="text-gray-400">{t('footer.company.description')}</p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-red-500">
                 <Facebook className="size-5" />
@@ -31,26 +31,28 @@ const LandingFooter = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="mb-4 text-lg font-semibold text-white">Quick Links</h4>
+            <h4 className="mb-4 text-lg font-semibold text-white">
+              {t('footer.quickLinks.title')}
+            </h4>
             <ul className="space-y-2">
               <li>
                 <a href="#" className="text-gray-400 hover:text-red-500">
-                  About Us
+                  {t('footer.quickLinks.about')}
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-red-500">
-                  Contact
+                  {t('footer.quickLinks.contact')}
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-red-500">
-                  FAQ
+                  {t('footer.quickLinks.faq')}
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-red-500">
-                  Privacy Policy
+                  {t('footer.quickLinks.privacy')}
                 </a>
               </li>
             </ul>
@@ -58,26 +60,28 @@ const LandingFooter = () => {
 
           {/* Categories */}
           <div>
-            <h4 className="mb-4 text-lg font-semibold text-white">Categories</h4>
+            <h4 className="mb-4 text-lg font-semibold text-white">
+              {t('footer.categories.title')}
+            </h4>
             <ul className="space-y-2">
               <li>
                 <a href="#" className="text-gray-400 hover:text-red-500">
-                  Action
+                  {t('footer.categories.action')}
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-red-500">
-                  Drama
+                  {t('footer.categories.drama')}
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-red-500">
-                  Comedy
+                  {t('footer.categories.comedy')}
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-red-500">
-                  Horror
+                  {t('footer.categories.horror')}
                 </a>
               </li>
             </ul>
@@ -85,14 +89,14 @@ const LandingFooter = () => {
 
           {/* Newsletter */}
           <div>
-            <h4 className="mb-4 text-lg font-semibold text-white">Newsletter</h4>
-            <p className="mb-4 text-gray-400">
-              Subscribe to get updates on new releases and special offers.
-            </p>
+            <h4 className="mb-4 text-lg font-semibold text-white">
+              {t('footer.newsletter.title')}
+            </h4>
+            <p className="mb-4 text-gray-400">{t('footer.newsletter.description')}</p>
             <form className="space-y-2">
               <input
                 type="email"
-                placeholder="Enter your email"
+                placeholder={t('footer.newsletter.placeholder')}
                 className="w-full rounded-md bg-gray-800 px-4 py-2 text-white placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
               <motion.button
@@ -100,7 +104,7 @@ const LandingFooter = () => {
                 whileTap={{ scale: 0.98 }}
                 className="w-full rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
               >
-                Subscribe
+                {t('footer.newsletter.button')}
               </motion.button>
             </form>
           </div>

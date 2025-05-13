@@ -12,9 +12,9 @@ import { useTranslation } from '../../i18n/hooks/useTranslation';
 import LanguageSwitcher from '../../components/language/LanguageSwitcher';
 
 const TABS = [
-  { key: 'trending', label: 'Trending' },
-  { key: 'topRated', label: 'Top Rated' },
-  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'trending', label: 'latestReleases.tabs.trending' },
+  { key: 'topRated', label: 'latestReleases.tabs.topRated' },
+  { key: 'upcoming', label: 'latestReleases.tabs.upcoming' },
 ];
 
 const LandingPage = () => {
@@ -34,11 +34,11 @@ const LandingPage = () => {
   const howItWorksRef = useRef(null);
   const [activeTab, setActiveTab] = useState(TABS[0].key);
 
-  // New state for tab-based movies
+  // State lưu cache phim theo tab và ngôn ngữ
   const [moviesByTab, setMoviesByTab] = useState({
-    trending: [],
-    topRated: [],
-    upcoming: [],
+    trending: { 'en-US': [], 'vi-VN': [] },
+    topRated: { 'en-US': [], 'vi-VN': [] },
+    upcoming: { 'en-US': [], 'vi-VN': [] },
   });
   const [tabLoading, setTabLoading] = useState(false);
   const [tabError, setTabError] = useState(null);
@@ -143,53 +143,43 @@ const LandingPage = () => {
     }
   }, [featuredMovies]);
 
-  // New function for tab-based movie fetching
-  const fetchMoviesByTab = useCallback(async (tabKey) => {
-    setTabLoading(true);
-    setTabError(null);
-    let url = '';
-    if (tabKey === 'trending') url = `${TMDB_BASE_URL}/trending/movie/week`;
-    if (tabKey === 'topRated') url = `${TMDB_BASE_URL}/movie/top_rated`;
-    if (tabKey === 'upcoming') url = `${TMDB_BASE_URL}/movie/upcoming`;
+  // Hàm fetch phim cho tab và ngôn ngữ
+  const fetchMoviesByTab = useCallback(
+    async (tabKey, lang) => {
+      setTabLoading(true);
+      setTabError(null);
+      let url = '';
+      if (tabKey === 'trending') url = `${TMDB_BASE_URL}/trending/movie/week`;
+      if (tabKey === 'topRated') url = `${TMDB_BASE_URL}/movie/top_rated`;
+      if (tabKey === 'upcoming') url = `${TMDB_BASE_URL}/movie/upcoming`;
 
-    try {
-      // Fetch movies in both languages
-      const [enResponse, viResponse] = await Promise.all([
-        fetch(`${url}?language=en-US`, options),
-        fetch(`${url}?language=vi-VN`, options),
-      ]);
-
-      if (!enResponse.ok || !viResponse.ok) {
-        throw new Error('Failed to fetch movies');
+      try {
+        const response = await fetch(`${url}?language=${lang}`, options);
+        if (!response.ok) throw new Error('Failed to fetch movies');
+        const data = await response.json();
+        setMoviesByTab((prev) => ({
+          ...prev,
+          [tabKey]: { ...prev[tabKey], [lang]: data.results || [] },
+        }));
+      } catch (err) {
+        setTabError('Failed to fetch movies');
+        console.error('Error fetching movies:', err);
       }
+      setTabLoading(false);
+    },
+    [TMDB_BASE_URL, options]
+  );
 
-      const [enData, viData] = await Promise.all([enResponse.json(), viResponse.json()]);
+  // Lấy ngôn ngữ hiện tại
+  const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
-      // Combine and prioritize Vietnamese movies
-      const combinedMovies = [...(viData.results || []), ...(enData.results || [])];
-
-      // Remove duplicates based on movie ID, keeping Vietnamese version if available
-      const uniqueMovies = combinedMovies.reduce((acc, movie) => {
-        if (!acc.find((m) => m.id === movie.id)) {
-          acc.push(movie);
-        }
-        return acc;
-      }, []);
-
-      setMoviesByTab((prev) => ({ ...prev, [tabKey]: uniqueMovies }));
-    } catch (err) {
-      setTabError('Failed to fetch movies');
-      console.error('Error fetching movies:', err);
-    }
-    setTabLoading(false);
-  }, []);
-
-  // Fetch movies for active tab
+  // Fetch phim cho tab active và ngôn ngữ hiện tại nếu chưa có
   useEffect(() => {
-    if (moviesByTab[activeTab].length === 0) {
-      fetchMoviesByTab(activeTab);
+    if (!moviesByTab[activeTab][currentLang] || moviesByTab[activeTab][currentLang].length === 0) {
+      fetchMoviesByTab(activeTab, currentLang);
     }
-  }, [activeTab, fetchMoviesByTab, moviesByTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, currentLang]);
 
   // Initial fetch
   useEffect(() => {
@@ -277,7 +267,7 @@ const LandingPage = () => {
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
               <button className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white">
-                {t('hero.signIn')}
+                {t('header.signIn')}
               </button>
             </div>
           </div>
@@ -841,13 +831,24 @@ const LandingPage = () => {
       {/* Latest Releases */}
       <section className="relative bg-gradient-to-b from-gray-900 via-gray-900 to-black py-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">Latest Releases</h2>
-          <p className="pt-5 text-center text-lg text-gray-400">
-            Check out the newest additions to our extensive movie collection
-          </p>
+          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
+            {t('latestReleases.title')}
+          </h2>
+          <p className="pt-5 text-center text-lg text-gray-400">{t('latestReleases.subtitle')}</p>
           <div className="mt-10">
-            <TabGroup tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
-            <MovieGrid movies={moviesByTab[activeTab]} loading={tabLoading} error={tabError} />
+            <TabGroup
+              tabs={TABS.map((tab) => ({
+                ...tab,
+                label: t(tab.label),
+              }))}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+            <MovieGrid
+              movies={moviesByTab[activeTab][currentLang] || []}
+              loading={tabLoading}
+              error={tabError}
+            />
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -859,7 +860,7 @@ const LandingPage = () => {
                 whileTap={{ scale: 0.95 }}
                 className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
               >
-                View All Movies
+                {t('latestReleases.viewAllMovies')}
                 <motion.span
                   animate={{ x: [0, 5, 0] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
@@ -889,10 +890,10 @@ const LandingPage = () => {
       <section className="relative bg-gray-900 bg-gradient-to-b from-transparent via-gray-900 to-gray-900 py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-            Explore Categories
+            {t('exploreCategories.title')}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-            From heart-pounding action to thought-provoking dramas, we have something for everyone.
+            {t('exploreCategories.subtitle')}
           </p>
           {catLoading && <div className="text-center text-white">Loading...</div>}
           {catError && <div className="text-center text-red-500">{catError.message}</div>}
@@ -903,7 +904,7 @@ const LandingPage = () => {
               whileTap={{ scale: 0.95 }}
               className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
             >
-              View All Categories
+              {t('exploreCategories.viewAllCategories')}
             </motion.button>
           </div>
         </div>

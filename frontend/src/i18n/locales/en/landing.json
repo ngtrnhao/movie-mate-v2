@@ -1,6 +1,8 @@
 {
+  "header":{
+    "signIn": "Sign In"
+  },
   "hero": {
-    "signIn": "Sign In",
     "title": "Discover Your Next",
     "title-Favorite": "Favorite",
     "subtitle": " Movie",
@@ -8,7 +10,9 @@
     "howItWorks": "How It Works",
     "learnMore": "Learn More",
     "nowFeaturing": "NOW FEATURING",
-    "watchTrailer": "Watch Trailer"
+    "watchTrailer": "Watch Trailer",
+    "discoverDescription":"Discover your next favorite movie with our personalized recommendations.",
+    "exploreMovies":"Explore Movies"
   },
   "features": {
     "title": "Why Choose MovieMate?",
@@ -58,7 +62,12 @@
   "latestReleases": {
     "title": "Latest Releases",
     "subtitle": "Check out the newest additions to our extensive movie collection",
-    "viewAllMovies": "View All Movies"
+    "viewAllMovies": "View All Movies",
+    "tabs": {
+      "trending": "Trending",
+      "topRated": "Top Rated",
+      "upcoming": "Upcoming"
+    }
   },
   "exploreCategories": {
     "title": "Explore Categories",
@@ -71,6 +80,45 @@
     "additionalInfo": "All plans include a 14-day free trial. No credit card required.",
     "compareFeatures": "Compare all features →"
   },
+  "plans": {
+  "basic": {
+    "name": "Basic",
+    "description": "Perfect for casual movie fans",
+    "features": [
+      "Explore a vast and diverse movie library",
+      "Limited personalized recommendations",
+      "Create a basic watchlist",
+      "Read and write reviews"
+    ],
+    "cta": "Get Started"
+  },
+  "premium": {
+    "name": "Premium",
+    "description": "Ideal for movie enthusiasts",
+    "features": [
+      "Unlimited personalized recommendations",
+      "Advanced movie discovery filters",
+      "Unlimited watchlists",
+      "Priority access to new features",
+      "Ad-free experience",
+      "Community badges & stats"
+    ],
+    "cta": "Go Premium",
+    "badge": "Most Popular"
+  },
+  "family": {
+    "name": "Family",
+    "description": "Great for the whole family",
+    "features": [
+      "Everything in Premium",
+      "Up to 5 user profiles",
+      "Parental controls for watchlists",
+      "Share recommendations with family",
+      "Collaborative family watchlist"
+    ],
+    "cta": "Start Family Plan"
+  }
+},
   "testimonials": {
     "title": "What Our Users Say",
     "subtitle": "Join thousands of movie enthusiasts who have found their perfect watch with MovieMate.",

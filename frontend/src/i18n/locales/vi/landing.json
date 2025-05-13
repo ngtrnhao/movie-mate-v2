@@ -1,4 +1,7 @@
 {
+  "header":{
+    "signIn": "Đăng Nhập"
+  },
   "hero": {
     "title": "Người Bạn Đồng Hành Điện Ảnh Của Bạn",
     "subtitle": "Khám Phá, Xem và Chia Sẻ Hành Trình Phim Của Bạn",
@@ -6,7 +9,9 @@
     "howItWorks": "Hướng Dẫn",
     "learnMore": "Tìm Hiểu Thêm",
     "nowFeaturing": "ĐANG CHIẾU",
-    "watchTrailer": "Xem Trailer"
+    "watchTrailer": "Xem Trailer",
+    "discoverDescription": "Khám phá bộ phim yêu thích tiếp theo của bạn với các đề xuất được cá nhân hóa của chúng tôi.",
+     "exploreMovies":"Khám Phá Phim"
   },
   "features": {
     "title": "Tại Sao Chọn MovieMate?",
@@ -56,7 +61,12 @@
   "latestReleases": {
     "title": "Phim Mới Nhất",
     "subtitle": "Khám phá những bộ phim mới nhất trong kho phim khổng lồ của chúng tôi",
-    "viewAllMovies": "Xem Tất Cả Phim"
+    "viewAllMovies": "Xem Tất Cả Phim",
+    "tabs":{
+      "trending": "Phim Nổi Bật",
+      "topRated": "Phim Được Đánh Giá Cao",
+      "upcoming": "Phim Sắp Ra Mắt"
+    }
   },
   "exploreCategories": {
     "title": "Khám Phá Thể Loại",
@@ -69,6 +79,45 @@
     "additionalInfo": "Tất cả các gói đều có 14 ngày dùng thử miễn phí. Không cần thẻ tín dụng.",
     "compareFeatures": "So sánh tất cả tính năng →"
   },
+  "plans": {
+  "basic": {
+    "name": "Cơ Bản",
+    "description": "Phù hợp cho người xem phim giải trí nhẹ nhàng",
+    "features": [
+      "Khám phá thư viện phim đa dạng và phong phú",
+      "Đề xuất cá nhân hóa giới hạn",
+      "Tạo danh sách xem cơ bản",
+      "Đọc và viết đánh giá phim"
+    ],
+    "cta": "Bắt Đầu"
+  },
+  "premium": {
+    "name": "Cao Cấp",
+    "description": "Lý tưởng cho người đam mê điện ảnh",
+    "features": [
+      "Đề xuất cá nhân hóa không giới hạn",
+      "Bộ lọc khám phá phim nâng cao",
+      "Tạo danh sách xem không giới hạn",
+      "Ưu tiên trải nghiệm tính năng mới",
+      "Không quảng cáo",
+      "Huy hiệu & thống kê cộng đồng"
+    ],
+    "cta": "Nâng Cấp Ngay",
+    "badge": "Phổ Biến Nhất"
+  },
+  "family": {
+    "name": "Gia Đình",
+    "description": "Tuyệt vời cho cả gia đình",
+    "features": [
+      "Bao gồm tất cả tính năng của Cao Cấp",
+      "Tối đa 5 hồ sơ người dùng",
+      "Kiểm soát danh sách xem cho trẻ em",
+      "Chia sẻ đề xuất với gia đình",
+      "Danh sách xem gia đình cùng hợp tác"
+    ],
+    "cta": "Bắt Đầu Gói Gia Đình"
+  }
+},
   "testimonials": {
     "title": "Người Dùng Nói Gì?",
     "subtitle": "Hàng ngàn người yêu phim đã tìm thấy bộ phim hoàn hảo cùng MovieMate.",

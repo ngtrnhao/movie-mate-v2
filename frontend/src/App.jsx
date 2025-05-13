@@ -8,6 +8,11 @@ import HomePage from './pages/Home';
 import ErrorPage from './pages/error';
 import { QueryProvider } from './providers/QueryProvider';
 import I18nProvider from './i18n/I18nProvider';
+import AuthLayout from './layouts/AuthLayout';
+import LoginForm from './components/users/Auth/LoginForm';
+import RegisterForm from './components/users/Auth/RegisterForm';
+// import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
+// import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
 
 function App() {
   return (
@@ -15,6 +20,7 @@ function App() {
       <BrowserRouter>
         <QueryProvider>
           <Routes>
+            {/* Landing Page Route */}
             <Route
               path="/"
               element={
@@ -25,6 +31,16 @@ function App() {
                 </LandingThemeProvider>
               }
             />
+
+            {/* Auth Routes */}
+            <Route element={<AuthLayout />}>
+              <Route path="/login" element={<LoginForm />} />
+              <Route path="/register" element={<RegisterForm />} />
+              {/* <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+              <Route path="/reset-password" element={<ResetPasswordForm />} /> */}
+            </Route>
+
+            {/* Main App Routes */}
             <Route
               path="/*"
               element={

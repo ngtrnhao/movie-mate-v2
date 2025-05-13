@@ -3,7 +3,8 @@
     "home": "Trang Chủ",
     "movies": "Phim",
     "categories": "Thể Loại",
-    "reviews": "Đánh Giá"
+    "reviews": "Đánh Giá",
+    "watchlist": "Danh Sách Xem"
   },
   "auth": {
     "signIn": "Đăng Nhập",

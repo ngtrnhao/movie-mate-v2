@@ -1,6 +1,7 @@
 import { useState } from 'react';
-
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 const SearchBar = () => {
+  const { t } = useTranslation('common');
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearch = (e) => {
@@ -30,7 +31,7 @@ const SearchBar = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="bg-muted/50 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring h-10 w-full rounded-md border-0 pl-10 pr-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-          placeholder="Search for movies..."
+          placeholder={t('search.placeholder')}
         />
       </div>
     </form>

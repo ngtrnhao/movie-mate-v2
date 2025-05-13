@@ -1,0 +1,175 @@
+/* Auth Theme Variables - Always Dark Mode for Auth Pages */
+:root {
+  --auth-background: #000000; /* Full black background */
+  --auth-foreground: #ffffff; /* Main text: white */
+  --auth-muted: #71717a; /* Muted text: zinc-400 */
+  --auth-muted-foreground: #a1a1aa; /* Muted foreground: zinc-400/300 */
+  --auth-border: #27272a; /* Border: zinc-800 */
+  --auth-input: #18181b; /* Input/card: zinc-900 */
+  --auth-ring: #ef4444; /* Red-500 for focus ring */
+  --auth-primary: #ef4444; /* Red-500 for buttons/links */
+  --auth-primary-foreground: #ffffff;
+  --auth-secondary: #232326; /* Slightly lighter than card for secondary buttons */
+  --auth-secondary-foreground: #f4f4f5;
+  --auth-accent: #232326;
+  --auth-accent-foreground: #f4f4f5;
+  --auth-destructive: #ef4444;
+  --auth-destructive-foreground: #ffffff;
+  --auth-card: #18181b; /* Card: zinc-900 */
+  --auth-card-foreground: #ffffff;
+  --auth-popover: #18181b;
+  --auth-popover-foreground: #ffffff;
+}
+
+.auth-layout {
+  background-color: var(--auth-background);
+  color: var(--auth-foreground);
+  min-height: 100vh;
+}
+
+.auth-card {
+  background-color: var(--auth-card);
+  color: var(--auth-card-foreground);
+  border: 1px solid var(--auth-border);
+  border-radius: 0.75rem;
+  padding: 2.5rem 2rem 2rem 2rem;
+  box-shadow: 0 6px 32px 0 rgba(0, 0, 0, 0.25);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.auth-label {
+  color: var(--auth-foreground);
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.auth-input {
+  background-color: var(--auth-input);
+  border: 1px solid var(--auth-border);
+  color: var(--auth-foreground);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  font-size: 1rem;
+  margin-bottom: 1.25rem;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.auth-input:focus {
+  border-color: var(--auth-ring);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+  outline: none;
+}
+.auth-input::placeholder {
+  color: var(--auth-muted-foreground);
+  opacity: 1;
+}
+
+.auth-button-primary {
+  background-color: var(--auth-primary);
+  color: var(--auth-primary-foreground);
+  border-radius: 0.5rem;
+  padding: 0.75rem 0;
+  font-weight: 600;
+  font-size: 1rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  margin-bottom: 1.25rem;
+  border: none;
+  transition:
+    background 0.2s,
+    transform 0.1s;
+  box-shadow: 0 2px 8px 0 rgba(239, 68, 68, 0.08);
+}
+.auth-button-primary:hover {
+  background-color: #dc2626; /* Red-600 */
+  transform: translateY(-1px) scale(1.01);
+}
+
+.auth-button-secondary {
+  background-color: var(--auth-secondary);
+  color: var(--auth-secondary-foreground);
+  border-radius: 0.5rem;
+  padding: 0.75rem 0;
+  font-weight: 500;
+  font-size: 1rem;
+  width: 100%;
+  border: none;
+  margin-bottom: 1rem;
+  transition:
+    background 0.2s,
+    transform 0.1s;
+}
+.auth-button-secondary:hover {
+  background-color: #27272a;
+  transform: translateY(-1px) scale(1.01);
+}
+
+.auth-link {
+  color: var(--auth-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.auth-link:hover {
+  color: #dc2626;
+  opacity: 0.85;
+}
+
+.auth-text-muted {
+  color: var(--auth-muted-foreground);
+}
+
+.auth-error {
+  color: var(--auth-destructive);
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.auth-divider {
+  border: none;
+  border-top: 1px solid var(--auth-border);
+  margin: 1.5rem 0;
+}
+
+.auth-checkbox {
+  accent-color: var(--auth-primary);
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+}
+
+/* Center the card vertically */
+.auth-center {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Logo and heading improvements */
+.auth-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.auth-logo-title {
+  color: var(--auth-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-left: 0.5rem;
+}
+
+.auth-footer {
+  color: var(--auth-muted-foreground);
+  font-size: 0.95rem;
+  text-align: center;
+  margin-top: 2.5rem;
+  padding-bottom: 1.5rem;
+}

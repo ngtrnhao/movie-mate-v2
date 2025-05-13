@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import MovieMateLogo from '../../components/header/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
 import TabGroup from '../../components/movies/tab-group';
@@ -10,7 +10,7 @@ import LandingFooter from '../../components/footer/LandingFooter';
 import { CheckCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import LanguageSwitcher from '../../components/language/LanguageSwitcher';
-
+import { useNavigate } from 'react-router-dom';
 const TABS = [
   { key: 'trending', label: 'latestReleases.tabs.trending' },
   { key: 'topRated', label: 'latestReleases.tabs.topRated' },
@@ -19,6 +19,7 @@ const TABS = [
 
 const LandingPage = () => {
   const { t, i18n, app_language } = useTranslation('landing');
+  const navigate = useNavigate();
   const features = [
     t('features.items.library'),
     t('features.items.recommendations'),
@@ -50,14 +51,17 @@ const LandingPage = () => {
   const SLIDE_INTERVAL = 3000; // 5 seconds between slides
   const PAUSE_DURATION = 5000; // 15 seconds pause after user interaction
 
-  const options = {
-    method: 'GET',
-    headers: {
-      accept: 'application/json',
-      Authorization:
-        'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0YzMzOGUzYTMzNGI4ZjgxN2M0NWNlOGIwY2JhNmRmMSIsIm5iZiI6MTc0MDYwODk5Mi40MTkwMDAxLCJzdWIiOiI2N2JmOTVlMGJjNjkzNWEwMDFhMjM2MTgiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.iOVSJPSuTWhbnD5AAQBCnQ5TYXVLCwVOgPMytmB4rHs',
-    },
-  };
+  const options = useMemo(
+    () => ({
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        Authorization:
+          'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0YzMzOGUzYTMzNGI4ZjgxN2M0NWNlOGIwY2JhNmRmMSIsIm5iZiI6MTc0MDYwODk5Mi40MTkwMDAxLCJzdWIiOiI2N2JmOTVlMGJjNjkzNWEwMDFhMjM2MTgiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.iOVSJPSuTWhbnD5AAQBCnQ5TYXVLCwVOgPMytmB4rHs',
+      },
+    }),
+    []
+  );
 
   const { data: categories, isLoading: catLoading, error: catError } = useCategories();
 
@@ -266,7 +270,10 @@ const LandingPage = () => {
             <MovieMateLogo />
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
-              <button className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white">
+              <button
+                onClick={() => navigate('/login')}
+                className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+              >
                 {t('header.signIn')}
               </button>
             </div>

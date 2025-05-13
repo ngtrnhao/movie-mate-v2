@@ -3,7 +3,8 @@
     "home": "Home",
     "movies": "Movies",
     "categories": "Categories",
-    "reviews": "Reviews"
+    "reviews": "Reviews",
+    "watchlist": "Watchlist"
   },
   "auth": {
     "signIn": "Sign In",
@@ -22,7 +23,10 @@
   },
   "errors": {
     "required": "This field is required",
+    "emailRequired": "Email is required",
     "invalidEmail": "Invalid email address",
+    "passwordRequired": "Password is required",
+    "passwordLength": "Password must be at least 6 characters",
     "passwordMismatch": "Passwords do not match",
     "minLength": "Must be at least {{count}} characters",
     "maxLength": "Must be at most {{count}} characters"

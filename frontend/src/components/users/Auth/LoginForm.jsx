@@ -231,7 +231,7 @@ const LoginForm = () => {
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#1877f3] py-2.5 font-medium text-white transition-colors hover:bg-[#145db2]"
           >
             <img
-              src="https://www.svgrepo.com/show/475654/facebook-color.svg"
+              src="https://www.svgrepo.com/show/475647/facebook-color.svg"
               alt="Facebook"
               className="size-5"
             />

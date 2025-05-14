@@ -146,3 +146,5 @@ node_modules/
 .cache/
 requirement.txt
 .requirement.txt
+prompt.txt
+promptfe.txt 

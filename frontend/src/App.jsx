@@ -11,7 +11,7 @@ import I18nProvider from './i18n/I18nProvider';
 import AuthLayout from './layouts/AuthLayout';
 import LoginForm from './components/users/Auth/LoginForm';
 import RegisterForm from './components/users/Auth/RegisterForm';
-// import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
+// import ForgotPasswordForm from './components/users/Auth/RegisterForm';
 // import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
 
 function App() {
@@ -36,8 +36,8 @@ function App() {
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginForm />} />
               <Route path="/register" element={<RegisterForm />} />
-              {/* <Route path="/forgot-password" element={<ForgotPasswordForm />} />
-              <Route path="/reset-password" element={<ResetPasswordForm />} /> */}
+              {/* <Route path="/forgot-password" element={<ForgotPasswordForm />} /> */}
+              {/* <Route path="/reset-password" element={<ResetPasswordForm />} /> */}
             </Route>
 
             {/* Main App Routes */}

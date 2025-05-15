@@ -20,7 +20,7 @@ module.exports = {
     ecmaVersion: 'latest',
     sourceType: 'module',
   },
-  plugins: ['react', 'tailwindcss', 'prettier'],
+  plugins: ['react', 'tailwindcss', 'prettier', 'unused-imports'],
   rules: {
     'prettier/prettier': [
       'error',
@@ -35,6 +35,12 @@ module.exports = {
     'tailwindcss/classnames-order': 'warn',
     'tailwindcss/no-custom-classname': 'off',
     'tailwindcss/no-contradicting-classname': 'error',
+    'no-unused-vars': 'warn',
+    'unused-imports/no-unused-imports': 'warn',
+    'unused-imports/no-unused-vars': [
+      'warn',
+      { vars: 'all', varsIgnorePattern: '^_', args: 'after-used', argsIgnorePattern: '^_' },
+    ],
   },
   settings: {
     react: {

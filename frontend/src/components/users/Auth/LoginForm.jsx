@@ -115,7 +115,7 @@ const LoginForm = () => {
       }
     } catch (err) {
       // Error is handled by the reducer
-      console.error('Login failed:', err);
+      console.error(t('signIn.error'), err);
     }
   };
 
@@ -197,7 +197,7 @@ const LoginForm = () => {
             {t('signIn.rememberMe', 'Remember me for 30 days')}
           </label>
         </div>
-        {error && <div className="mb-2 text-sm text-red-500">{error}</div>}
+        {error && <div className="mb-2 text-center text-sm text-red-500">{error}</div>}
         <button
           className="mb-4 w-full rounded-lg bg-red-600 py-2.5 text-base font-semibold text-white transition-colors hover:bg-red-700"
           type="submit"

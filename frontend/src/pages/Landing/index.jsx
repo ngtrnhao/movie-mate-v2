@@ -82,7 +82,7 @@ const LandingPage = () => {
       // Get detailed information for each movie including videos
       const moviesWithDetails = await Promise.all(
         enData.results.slice(0, 3).map(async (enMovie, index) => {
-          const viMovie = viData.results[index]; // Get corresponding Vietnamese data
+          const viMovie = viData.results[index];
 
           // Fetch detailed information in both languages
           const [enDetails] = await Promise.all([
@@ -98,17 +98,29 @@ const LandingPage = () => {
 
           return {
             id: enMovie.id,
-            title: {
+            title: enMovie.title,
+            poster_path: enMovie.poster_path,
+            adult: enMovie.adult,
+            vote_average: enMovie.vote_average,
+            vote_count: enMovie.vote_count,
+            release_date: enMovie.release_date,
+            overview: enMovie.overview,
+            genre_ids: enMovie.genre_ids,
+            // Additional fields for featured movies
+            backdrop_path: enMovie.backdrop_path,
+            popularity: enMovie.popularity,
+            original_language: enMovie.original_language,
+            original_title: enMovie.original_title,
+            // Bilingual content
+            title_translations: {
               en: enMovie.title,
               vi: viMovie.title,
             },
-            year: new Date(enMovie.release_date).getFullYear(),
-            rating: enMovie.vote_average.toFixed(1),
-            description: {
+            overview_translations: {
               en: enMovie.overview,
               vi: viMovie.overview,
             },
-            imageUrl: `${TMDB_IMAGE_BASE_URL}${enMovie.backdrop_path}`,
+            // Trailer information
             trailerUrl: enDetails.videos?.results?.[0]?.key
               ? `https://www.youtube.com/watch?v=${enDetails.videos.results[0].key}`
               : null,
@@ -129,7 +141,7 @@ const LandingPage = () => {
           moviesWithDetails.map((movie) => {
             return new Promise((resolve, reject) => {
               const img = new Image();
-              img.src = movie.imageUrl;
+              img.src = `https://image.tmdb.org/t/p/original${movie.backdrop_path}`;
               img.onload = resolve;
               img.onerror = reject;
             });
@@ -158,12 +170,79 @@ const LandingPage = () => {
       if (tabKey === 'upcoming') url = `${TMDB_BASE_URL}/movie/upcoming`;
 
       try {
-        const response = await fetch(`${url}?language=${lang}`, options);
-        if (!response.ok) throw new Error('Failed to fetch movies');
-        const data = await response.json();
+        // Fetch movies with both languages
+        const [response, genresResponse] = await Promise.all([
+          fetch(`${url}?language=${lang}`, options),
+          fetch(`${TMDB_BASE_URL}/genre/movie/list?language=${lang}`, options),
+        ]);
+
+        if (!response.ok || !genresResponse.ok) {
+          throw new Error('Failed to fetch movies');
+        }
+
+        const [data, genresData] = await Promise.all([response.json(), genresResponse.json()]);
+
+        // Create a map of genre IDs to names for quick lookup
+        const genreMap = genresData.genres.reduce((acc, genre) => {
+          acc[genre.id] = genre.name;
+          return acc;
+        }, {});
+
+        // Transform the data to match MovieCard props
+        const transformedMovies = await Promise.all(
+          data.results.map(async (movie) => {
+            // Fetch additional details for each movie
+            const [detailsResponse, viResponse] = await Promise.all([
+              fetch(
+                `${TMDB_BASE_URL}/movie/${movie.id}?language=${lang}&append_to_response=videos`,
+                options
+              ),
+              fetch(
+                `${TMDB_BASE_URL}/movie/${movie.id}?language=vi-VN&append_to_response=videos`,
+                options
+              ),
+            ]);
+
+            const [details, viDetails] = await Promise.all([
+              detailsResponse.json(),
+              viResponse.json(),
+            ]);
+
+            // Map genre IDs to genre names
+            const movieGenres = movie.genre_ids.map((id) => genreMap[id]).filter(Boolean); // Remove any undefined values
+
+            return {
+              id: movie.id,
+              title: movie.title,
+              poster_path: movie.poster_path,
+              adult: movie.adult,
+              vote_average: movie.vote_average,
+              vote_count: movie.vote_count,
+              release_date: movie.release_date,
+              overview: movie.overview,
+              genres: movieGenres, // Use the mapped genre names
+              backdrop_path: movie.backdrop_path,
+              popularity: movie.popularity,
+              original_language: movie.original_language,
+              original_title: movie.original_title,
+              title_translations: {
+                en: movie.title,
+                vi: viDetails.title,
+              },
+              overview_translations: {
+                en: movie.overview,
+                vi: viDetails.overview,
+              },
+              trailerUrl: details.videos?.results?.[0]?.key
+                ? `https://www.youtube.com/watch?v=${details.videos.results[0].key}`
+                : null,
+            };
+          })
+        );
+
         setMoviesByTab((prev) => ({
           ...prev,
-          [tabKey]: { ...prev[tabKey], [lang]: data.results || [] },
+          [tabKey]: { ...prev[tabKey], [lang]: transformedMovies || [] },
         }));
       } catch (err) {
         setTabError('Failed to fetch movies');
@@ -182,8 +261,7 @@ const LandingPage = () => {
     if (!moviesByTab[activeTab][currentLang] || moviesByTab[activeTab][currentLang].length === 0) {
       fetchMoviesByTab(activeTab, currentLang);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, currentLang]);
+  }, [activeTab, currentLang, fetchMoviesByTab]);
 
   // Initial fetch
   useEffect(() => {
@@ -300,7 +378,9 @@ const LandingPage = () => {
               {/* Background Image */}
               <div
                 className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${movie.imageUrl})` }}
+                style={{
+                  backgroundImage: `url(${movie.backdrop_path ? TMDB_IMAGE_BASE_URL + movie.backdrop_path : ''})`,
+                }}
               />
               {/* Gradient Overlay */}
               <motion.div
@@ -363,7 +443,7 @@ const LandingPage = () => {
             >
               <div className="flex min-h-[80px] max-w-2xl items-center">
                 <p className="text-lg text-gray-300">
-                  {currentMovie?.description?.[i18n.language === 'en' ? 'en' : 'vi'] ||
+                  {currentMovie?.overview_translations?.[i18n.language === 'en' ? 'en' : 'vi'] ||
                     t('hero.discoverDescription')}
                 </p>
               </div>
@@ -418,12 +498,16 @@ const LandingPage = () => {
                 {t('hero.nowFeaturing')}
               </p>
               <h2 className="mb-2 text-2xl font-bold text-white">
-                {currentMovie?.title?.[i18n.language === 'en' ? 'en' : 'vi']}
+                {currentMovie?.title_translations?.[i18n.language === 'en' ? 'en' : 'vi']}
               </h2>
               <div className="mb-4 flex items-center justify-center gap-2">
                 <span className="text-yellow-500">★</span>
-                <span className="font-medium text-white">{currentMovie?.rating}</span>
-                <span className="text-gray-400">| {currentMovie?.year}</span>
+                <span className="font-medium text-white">
+                  {currentMovie?.vote_average.toFixed(1)}
+                </span>
+                <span className="text-gray-400">
+                  | {new Date(currentMovie?.release_date).getFullYear()}
+                </span>
               </div>
               <button
                 onClick={() => handleTrailerClick(currentMovie?.trailerUrl)}

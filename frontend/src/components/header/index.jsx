@@ -4,11 +4,29 @@ import Navigation from './Navigation';
 import MovieMateLogo from './Logo';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+
 const Header = () => {
   const { t } = useTranslation('common');
   const navigate = useNavigate();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      setIsScrolled(scrollPosition > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <header className="bg-background relative transition-colors duration-150">
+    <header
+      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+        isScrolled ? 'bg-black/90 backdrop-blur-md' : 'bg-transparent'
+      }`}
+    >
       <div className="mx-auto max-w-[1400px] px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo/Brand */}

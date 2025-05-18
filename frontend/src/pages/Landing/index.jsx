@@ -501,9 +501,24 @@ const LandingPage = () => {
                 {currentMovie?.title_translations?.[i18n.language === 'en' ? 'en' : 'vi']}
               </h2>
               <div className="mb-4 flex items-center justify-center gap-2">
-                <span className="text-yellow-500">★</span>
-                <span className="font-medium text-white">
-                  {currentMovie?.vote_average.toFixed(1)}
+                <div className="flex">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`text-lg ${
+                        star <= Math.round((currentMovie?.vote_average || 0) / 2)
+                          ? 'text-yellow-400'
+                          : 'text-gray-400'
+                      }`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <span className="ml-1 font-medium text-white">
+                  {currentMovie?.vote_average
+                    ? `${Math.round(currentMovie.vote_average / 2)}/5`
+                    : 'N/A'}
                 </span>
                 <span className="text-gray-400">
                   | {new Date(currentMovie?.release_date).getFullYear()}

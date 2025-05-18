@@ -42,5 +42,14 @@
     "rating": "Rating",
     "releaseDate": "Release Date",
     "title": "Title"
+  },
+  "rating": {
+    "votes": "votes",
+    "notRated": "Not Rated",
+    "veryBad": "Very Bad",
+    "bad": "Bad",
+    "average": "Average",
+    "good": "Good",
+    "excellent": "Excellent"
   }
 }

@@ -42,5 +42,14 @@
     "rating": "Đánh Giá",
     "releaseDate": "Ngày Phát Hành",
     "title": "Tên Phim"
+  },
+  "rating": {
+    "votes": "Đánh Giá",
+    "notRated": "Không Đánh Giá",
+    "veryBad": "Rất Tệ",
+    "bad": "Tệ",
+    "average": "Trung Bình",
+    "good": "Tốt",
+    "excellent": "Xuất Sắc"
   }
 }

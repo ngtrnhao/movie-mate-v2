@@ -11,7 +11,7 @@
   "form": {
     "title": "Viết Đánh Giá",
     "rating": "Đánh Giá",
-    "title": "Tiêu Đề",
+    "reviewTitle": "Tiêu Đề Đánh Giá",
     "content": "Nội Dung",
     "spoiler": "Có Spoiler",
     "submit": "Gửi Đánh Giá",

@@ -2,7 +2,7 @@ import QuickLink from './QuickLink';
 
 const Footer = () => {
   return (
-    <footer className="bg-background border-border mt-auto border-t py-12 transition-colors duration-200">
+    <footer className="border-border mt-auto border-t bg-gray-900 py-12 transition-colors duration-200">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           {/* MovieMate Section */}

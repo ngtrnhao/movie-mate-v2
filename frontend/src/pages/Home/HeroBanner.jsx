@@ -12,7 +12,7 @@ const HeroBannerRecommendation = ({ movie = mockMovie }) => {
   const userRating = movie.vote_average ? Math.round(movie.vote_average / 2) : 0;
 
   return (
-    <section className="relative flex min-h-[60vh] flex-col items-start justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-16">
+    <section className="relative flex min-h-[60vh] flex-col items-start justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pb-48 pt-80">
       <div className="mx-auto ml-60 max-w-[1400px] px-4 text-left">
         {/* Genre */}
         <div className="mb-4 flex gap-2">

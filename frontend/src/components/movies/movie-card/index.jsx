@@ -47,7 +47,7 @@ const MovieCard = ({ movie }) => {
             <Actions movieId={id} onlyMainButton />
             {match && (
               <button
-                className="flex-1 rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white shadow transition hover:bg-white/20"
+                className="rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white shadow transition hover:bg-white/20"
                 type="button"
               >
                 Why Recommend?

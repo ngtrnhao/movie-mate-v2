@@ -4,6 +4,7 @@ import Info from './Info';
 import Rating from './Rating';
 import Badge from './Badge';
 import Actions from './Actions';
+import RecommendedInfo from './RecommendedInfo';
 
 const MovieCard = ({ movie }) => {
   const {
@@ -16,6 +17,8 @@ const MovieCard = ({ movie }) => {
     release_date,
     overview,
     genres,
+    match,
+    recommendReason,
   } = movie;
 
   return (
@@ -36,9 +39,23 @@ const MovieCard = ({ movie }) => {
       <div className="flex min-h-[180px] flex-1 flex-col justify-between p-4">
         <div>
           <Info title={title} releaseDate={release_date} overview={overview} genres={genres} />
+          <RecommendedInfo match={match} recommendReason={recommendReason} />
           <Rating voteAverage={vote_average} voteCount={vote_count} />
         </div>
-        <Actions movieId={id} />
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex flex-1 gap-2">
+            <Actions movieId={id} onlyMainButton />
+            {match && (
+              <button
+                className="flex-1 rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white shadow transition hover:bg-white/20"
+                type="button"
+              >
+                Why Recommend?
+              </button>
+            )}
+          </div>
+          <Actions movieId={id} onlyBookmark />
+        </div>
       </div>
     </motion.div>
   );

@@ -96,10 +96,18 @@ const MovieCarousel = ({ title = 'Recommended Movies', movies = mockMovies }) =>
           opacity: 1 !important;
           pointer-events: auto !important;
           background: rgba(0,0,0,0.6) !important;
-          border-radius: 9999px;
-          width: 56px !important;
-          height: 100px !important;
+          border-radius: 0 !important;
+          width: 40px !important;
+          height: 100% !important;
           transition: opacity 0.2s;
+          top: 0 !important;
+          margin-top: 0 !important;
+        }
+        .swiper-button-prev{
+            left:0 !important;        
+        }
+        .swiper-button-next{
+            right:0 !important;        
         }
         .swiper-button-prev,
         .swiper-button-next {
@@ -116,36 +124,57 @@ const MovieCarousel = ({ title = 'Recommended Movies', movies = mockMovies }) =>
           color: #ef4444 !important;
           font-size: 28px !important;
         }
+        .swiper-slide {
+          transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s;
+        }
+        .swiper-slide-active {
+          transform: scale(1.04);
+          z-index: 2;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        }
+        .swiper-slide img {
+          transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .swiper-slide-active img {
+          box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        }
       `}</style>
       <h2 className="mb-4 ml-14 text-3xl font-bold text-white">{title}</h2>
-      <div className="ml-14">
+      <div className="relative ml-14">
         <Swiper
           modules={[Navigation, Scrollbar, A11y]}
           spaceBetween={12}
           slidesPerView={5.5}
           navigation
+          slidesPerGroup={5.5}
           scrollbar={{ draggable: true }}
+          speed={800}
           className="!px-0"
           breakpoints={{
             320: {
               slidesPerView: 2.2,
-              spaceBetween: 12,
+              slidesPerGroup: 2.2,
+              spaceBetween: 8,
             },
             480: {
               slidesPerView: 3.2,
-              spaceBetween: 12,
+              slidesPerGroup: 3.2,
+              spaceBetween: 10,
             },
             768: {
               slidesPerView: 4.2,
+              slidesPerGroup: 4.2,
               spaceBetween: 12,
             },
             1024: {
               slidesPerView: 5.2,
-              spaceBetween: 12,
+              slidesPerGroup: 5.2,
+              spaceBetween: 16,
             },
             1280: {
               slidesPerView: 5.5,
-              spaceBetween: 12,
+              slidesPerGroup: 5.5,
+              spaceBetween: 20,
             },
           }}
         >
@@ -155,7 +184,7 @@ const MovieCarousel = ({ title = 'Recommended Movies', movies = mockMovies }) =>
                 <img
                   src={movie.poster_path}
                   alt={movie.title}
-                  className="h-36 w-64 rounded-md object-cover shadow transition-transform hover:scale-105"
+                  className="h-28 w-48 rounded-md object-cover shadow transition-transform hover:scale-105 sm:w-56 md:w-64 lg:h-40 lg:w-72 xl:h-44 xl:w-80"
                 />
                 <span className="mt-2 line-clamp-2 text-center text-sm text-white ">
                   {movie.title}

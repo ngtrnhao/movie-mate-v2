@@ -2,6 +2,7 @@ import HeroBannerRecommendation from './HeroBanner';
 import MovieCarousel from '../../components/movies/movie-carousel';
 import FeaturedCategories from '../../components/categories/featured-categories';
 import RecommendForYou from '../../components/recommend/recommend-for-you';
+import RecentlyReviewed from '../../components/reviewed';
 
 const HomePage = () => {
   return (
@@ -9,6 +10,7 @@ const HomePage = () => {
       <HeroBannerRecommendation />
       <MovieCarousel />
       <RecommendForYou />
+      <RecentlyReviewed />
       <FeaturedCategories />
     </div>
   );

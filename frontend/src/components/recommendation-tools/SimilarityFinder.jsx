@@ -8,18 +8,9 @@ const FindSimilarMovies = () => {
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [similarMovies, setSimilarMovies] = useState([]);
 
-  // Debounce function to limit API calls
-  const debounce = (func, wait) => {
-    let timeout;
-    return (...args) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  };
-
   // Search function with debounce
-  const debouncedSearch = useCallback(
-    debounce((query) => {
+  const debouncedSearch = useCallback((query) => {
+    const timeoutId = setTimeout(() => {
       if (query.length < 2) {
         setSearchResults([]);
         return;
@@ -29,9 +20,10 @@ const FindSimilarMovies = () => {
         movie.title.toLowerCase().includes(query.toLowerCase())
       );
       setSearchResults(results);
-    }, 300),
-    []
-  );
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();

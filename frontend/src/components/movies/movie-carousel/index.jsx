@@ -180,15 +180,22 @@ const MovieCarousel = ({ title = 'Recommended Movies', movies = mockMovies }) =>
         >
           {movies.map((movie) => (
             <SwiperSlide key={movie.id}>
-              <div className="flex flex-col">
-                <img
-                  src={movie.poster_path}
-                  alt={movie.title}
-                  className="h-28 w-48 rounded-md object-cover shadow transition-transform hover:scale-105 sm:w-56 md:w-64 lg:h-40 lg:w-72 xl:h-44 xl:w-80"
-                />
-                <span className="mt-2 line-clamp-2 text-center text-sm text-white ">
-                  {movie.title}
-                </span>
+              <div className="group relative flex flex-col">
+                <div className="relative">
+                  <img
+                    src={movie.poster_path}
+                    alt={movie.title}
+                    className="h-28 w-48 rounded-md object-cover shadow transition-transform hover:scale-105 sm:w-56 md:w-64 lg:h-40 lg:w-72 xl:h-44 xl:w-80"
+                  />
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 rounded-md bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <div className="absolute inset-x-0 bottom-0 p-4">
+                      <h3 className="line-clamp-2 text-lg font-semibold text-white">
+                        {movie.title}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
               </div>
             </SwiperSlide>
           ))}

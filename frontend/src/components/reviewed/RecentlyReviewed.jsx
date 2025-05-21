@@ -21,9 +21,9 @@ const RecentlyReviewed = () => {
           transition={{ delay: 0.2 }}
           whileHover={{
             scale: 1.08,
-            boxShadow: '0 4px 24px 0 rgba(236, 72, 153, 0.25)', // pink glow
-            color: '#fff', // text-pink-500
-            backgroundColor: '#dc2626', // subtle bg
+            boxShadow: '0 4px 24px 0 rgba(236, 72, 153, 0.25)',
+            color: '#fff',
+            backgroundColor: '#dc2626',
           }}
           whileTap={{ scale: 0.96, rotate: 0 }}
           className="mx-8 rounded-lg px-5 py-2 font-semibold text-pink-400 transition-colors duration-200 "
@@ -50,7 +50,6 @@ const RecentlyReviewed = () => {
           </SwiperSlide>
         ))}
       </Swiper>
-      {/* Pagination dots nằm ngoài Swiper */}
       <div className="custom-swiper-pagination mt-4 flex justify-center" />
     </section>
   );

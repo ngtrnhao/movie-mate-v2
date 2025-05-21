@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // Mock movies reused from movie-carousel
 const mockMovies = [
@@ -58,6 +59,7 @@ const TABS = [
 ];
 
 export default function TopRatedGrid() {
+  const { t } = useTranslation('movies');
   const [activeTab, setActiveTab] = useState('all');
   const topRatedMovies = [...mockMovies]
     .sort((a, b) => b.vote_average - a.vote_average)
@@ -141,7 +143,7 @@ export default function TopRatedGrid() {
                               d="M5 3v18l15-9-15-9z"
                             />
                           </svg>
-                          <span>Watch</span>
+                          <span>{t('details.watchTrailer')}</span>
                         </button>
                       </>
                     )}

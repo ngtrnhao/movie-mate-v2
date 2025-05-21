@@ -187,6 +187,22 @@ const FindSimilarMovies = () => {
                             {new Date(movie.release_date).getFullYear()}
                           </span>
                         </div>
+                        <div className="mt-1 text-xs text-gray-300">
+                          <p className="line-clamp-2">{movie.overview}</p>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {movie.genres.map((genre) => (
+                            <span
+                              key={genre}
+                              className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300"
+                            >
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="mt-1 text-xs text-green-400">
+                          Similarity Score: {movie.similarity_score}
+                        </div>
                       </div>
                     </div>
                   ))}

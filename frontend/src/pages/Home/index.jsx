@@ -5,6 +5,8 @@ import RecommendForYou from '../../components/recommend/recommend-for-you';
 import RecentlyReviewed from '../../components/reviewed';
 import TopRatedGrid from '../../components/movies/movie-grid/TopRatedGrid';
 import FindSimilarMovies from '../../components/recommendation-tools/SimilarityFinder';
+import TopGenreRecommendations from '../../components/movies/movie-grid/TopGenreRecommendations';
+
 const HomePage = () => {
   return (
     <div className="bg-gray-900">
@@ -12,6 +14,7 @@ const HomePage = () => {
       <MovieCarousel />
       <RecommendForYou />
       <TopRatedGrid />
+      <TopGenreRecommendations />
       <RecentlyReviewed />
       <FindSimilarMovies />
       <FeaturedCategories />

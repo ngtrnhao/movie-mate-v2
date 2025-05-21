@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import MovieCard from '../movies/movie-card';
 
 const mockRecommendations = [
@@ -48,14 +49,76 @@ const mockRecommendations = [
   },
 ];
 
+const MOVIES_PER_VIEW = 5;
+const CARD_WIDTH = 270; // px (desktop)
+const SCROLL_AMOUNT = MOVIES_PER_VIEW * CARD_WIDTH + (MOVIES_PER_VIEW - 1) * 28;
+
 const RecommendForYou = () => {
+  const scrollRef = useRef(null);
+
+  const handleScroll = (direction) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({
+        left: direction === 'left' ? -SCROLL_AMOUNT : SCROLL_AMOUNT,
+        behavior: 'smooth',
+      });
+    }
+  };
+
   return (
     <section className="mb-8 mt-12 w-full">
-      <div className="ml-14">
-        <h2 className="mb-6 text-3xl font-bold text-white">Recommend For You</h2>
-        <div className="scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 flex gap-6 overflow-x-auto pb-2">
+      <div className="ml-2 sm:ml-8 md:ml-14">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white sm:text-3xl">Recommend For You</h2>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-full p-2 text-gray-700 hover:bg-gray-200"
+              onClick={() => handleScroll('left')}
+              aria-label="Scroll left"
+            >
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              className="rounded-full p-2 text-gray-700 hover:bg-gray-200"
+              onClick={() => handleScroll('right')}
+              aria-label="Scroll right"
+            >
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="9 6 15 12 9 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div
+          ref={scrollRef}
+          className="scrollbar-none md:scrollbar-thin md:scrollbar-thumb-gray-700 md:scrollbar-track-gray-900 flex gap-4 overflow-x-auto pb-2 md:gap-6 lg:gap-7"
+          style={{ scrollBehavior: 'smooth' }}
+        >
           {mockRecommendations.map((movie) => (
-            <MovieCard key={movie.id} movie={movie} />
+            <div
+              key={movie.id}
+              className="min-w-[70vw] max-w-[70vw] shrink-0 sm:min-w-[40vw] sm:max-w-[40vw] md:min-w-[210px] md:max-w-[210px] lg:min-w-[240px] lg:max-w-[240px] xl:min-w-[270px] xl:max-w-[270px]"
+            >
+              <MovieCard movie={movie} />
+            </div>
           ))}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import MovieMateLogo from '../../components/header/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
 import TabGroup from '../../components/movies/tab-group';
@@ -11,6 +11,13 @@ import { CheckCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import LanguageSwitcher from '../../components/language/LanguageSwitcher';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchFeaturedMovies,
+  fetchMoviesByTab,
+  setCurrentTab,
+} from '../../store/slices/movieSlice';
+
 const TABS = [
   { key: 'trending', label: 'latestReleases.tabs.trending' },
   { key: 'topRated', label: 'latestReleases.tabs.topRated' },
@@ -20,6 +27,15 @@ const TABS = [
 const LandingPage = () => {
   const { t, i18n, app_language } = useTranslation('landing');
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  // Redux selectors
+  const featuredMovies = useSelector((state) => state.movies.featuredMovies);
+  const moviesByTab = useSelector((state) => state.movies.moviesByTab);
+  const currentTab = useSelector((state) => state.movies.currentTab);
+  const loading = useSelector((state) => state.movies.loading);
+  const error = useSelector((state) => state.movies.error);
+
   const features = [
     t('features.items.library'),
     t('features.items.recommendations'),
@@ -27,259 +43,38 @@ const LandingPage = () => {
     t('features.items.reviews'),
   ];
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [featuredMovies, setFeaturedMovies] = useState([]);
-  const [error, setError] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const pauseTimeoutRef = useRef(null);
   const howItWorksRef = useRef(null);
-  const [activeTab, setActiveTab] = useState(TABS[0].key);
-
-  // State lưu cache phim theo tab và ngôn ngữ
-  const [moviesByTab, setMoviesByTab] = useState({
-    trending: { 'en-US': [], 'vi-VN': [] },
-    topRated: { 'en-US': [], 'vi-VN': [] },
-    upcoming: { 'en-US': [], 'vi-VN': [] },
-  });
-  const [tabLoading, setTabLoading] = useState(false);
-  const [tabError, setTabError] = useState(null);
 
   // TMDB Configuration
-  const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
   const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
-  const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
   const SLIDE_INTERVAL = 3000; // 5 seconds between slides
   const PAUSE_DURATION = 5000; // 15 seconds pause after user interaction
 
-  const options = useMemo(
-    () => ({
-      method: 'GET',
-      headers: {
-        accept: 'application/json',
-        Authorization:
-          'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0YzMzOGUzYTMzNGI4ZjgxN2M0NWNlOGIwY2JhNmRmMSIsIm5iZiI6MTc0MDYwODk5Mi40MTkwMDAxLCJzdWIiOiI2N2JmOTVlMGJjNjkzNWEwMDFhMjM2MTgiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.iOVSJPSuTWhbnD5AAQBCnQ5TYXVLCwVOgPMytmB4rHs',
-      },
-    }),
-    []
-  );
-
   const { data: categories, isLoading: catLoading, error: catError } = useCategories();
-
-  const fetchMovies = useCallback(async () => {
-    try {
-      // Fetch trending movies with both languages
-      const [enResponse, viResponse] = await Promise.all([
-        fetch(`${TMDB_BASE_URL}/trending/movie/week?language=en-US`, options),
-        fetch(`${TMDB_BASE_URL}/trending/movie/week?language=vi-VN`, options),
-      ]);
-
-      if (!enResponse.ok || !viResponse.ok) {
-        throw new Error('Failed to fetch movies');
-      }
-
-      const [enData, viData] = await Promise.all([enResponse.json(), viResponse.json()]);
-
-      // Get detailed information for each movie including videos
-      const moviesWithDetails = await Promise.all(
-        enData.results.slice(0, 3).map(async (enMovie, index) => {
-          const viMovie = viData.results[index];
-
-          // Fetch detailed information in both languages
-          const [enDetails] = await Promise.all([
-            fetch(
-              `${TMDB_BASE_URL}/movie/${enMovie.id}?language=en-US&append_to_response=videos`,
-              options
-            ).then((res) => res.json()),
-            fetch(
-              `${TMDB_BASE_URL}/movie/${enMovie.id}?language=vi-VN&append_to_response=videos`,
-              options
-            ).then((res) => res.json()),
-          ]);
-
-          return {
-            id: enMovie.id,
-            title: enMovie.title,
-            poster_path: enMovie.poster_path,
-            adult: enMovie.adult,
-            vote_average: enMovie.vote_average,
-            vote_count: enMovie.vote_count,
-            release_date: enMovie.release_date,
-            overview: enMovie.overview,
-            genre_ids: enMovie.genre_ids,
-            // Additional fields for featured movies
-            backdrop_path: enMovie.backdrop_path,
-            popularity: enMovie.popularity,
-            original_language: enMovie.original_language,
-            original_title: enMovie.original_title,
-            // Bilingual content
-            title_translations: {
-              en: enMovie.title,
-              vi: viMovie.title,
-            },
-            overview_translations: {
-              en: enMovie.overview,
-              vi: viMovie.overview,
-            },
-            // Trailer information
-            trailerUrl: enDetails.videos?.results?.[0]?.key
-              ? `https://www.youtube.com/watch?v=${enDetails.videos.results[0].key}`
-              : null,
-          };
-        })
-      );
-
-      // Compare new movies with current ones
-      const hasNewMovies =
-        !featuredMovies.length ||
-        moviesWithDetails.some(
-          (newMovie) => !featuredMovies.find((currentMovie) => currentMovie.id === newMovie.id)
-        );
-
-      if (hasNewMovies) {
-        // Preload images
-        await Promise.all(
-          moviesWithDetails.map((movie) => {
-            return new Promise((resolve, reject) => {
-              const img = new Image();
-              img.src = `https://image.tmdb.org/t/p/original${movie.backdrop_path}`;
-              img.onload = resolve;
-              img.onerror = reject;
-            });
-          })
-        );
-
-        setFeaturedMovies(moviesWithDetails);
-      }
-
-      setIsLoading(false);
-    } catch (err) {
-      console.error('Error fetching movies:', err);
-      setError(err.message);
-      setIsLoading(false);
-    }
-  }, [featuredMovies]);
-
-  // Hàm fetch phim cho tab và ngôn ngữ
-  const fetchMoviesByTab = useCallback(
-    async (tabKey, lang) => {
-      setTabLoading(true);
-      setTabError(null);
-      let url = '';
-      if (tabKey === 'trending') url = `${TMDB_BASE_URL}/trending/movie/week`;
-      if (tabKey === 'topRated') url = `${TMDB_BASE_URL}/movie/top_rated`;
-      if (tabKey === 'upcoming') url = `${TMDB_BASE_URL}/movie/upcoming`;
-
-      try {
-        // Fetch movies with both languages
-        const [response, genresResponse] = await Promise.all([
-          fetch(`${url}?language=${lang}`, options),
-          fetch(`${TMDB_BASE_URL}/genre/movie/list?language=${lang}`, options),
-        ]);
-
-        if (!response.ok || !genresResponse.ok) {
-          throw new Error('Failed to fetch movies');
-        }
-
-        const [data, genresData] = await Promise.all([response.json(), genresResponse.json()]);
-
-        // Create a map of genre IDs to names for quick lookup
-        const genreMap = genresData.genres.reduce((acc, genre) => {
-          acc[genre.id] = genre.name;
-          return acc;
-        }, {});
-
-        // Transform the data to match MovieCard props
-        const transformedMovies = await Promise.all(
-          data.results.map(async (movie) => {
-            // Fetch additional details for each movie
-            const [detailsResponse, viResponse] = await Promise.all([
-              fetch(
-                `${TMDB_BASE_URL}/movie/${movie.id}?language=${lang}&append_to_response=videos`,
-                options
-              ),
-              fetch(
-                `${TMDB_BASE_URL}/movie/${movie.id}?language=vi-VN&append_to_response=videos`,
-                options
-              ),
-            ]);
-
-            const [details, viDetails] = await Promise.all([
-              detailsResponse.json(),
-              viResponse.json(),
-            ]);
-
-            // Map genre IDs to genre names
-            const movieGenres = movie.genre_ids.map((id) => genreMap[id]).filter(Boolean); // Remove any undefined values
-
-            return {
-              id: movie.id,
-              title: movie.title,
-              poster_path: movie.poster_path,
-              adult: movie.adult,
-              vote_average: movie.vote_average,
-              vote_count: movie.vote_count,
-              release_date: movie.release_date,
-              overview: movie.overview,
-              genres: movieGenres, // Use the mapped genre names
-              backdrop_path: movie.backdrop_path,
-              popularity: movie.popularity,
-              original_language: movie.original_language,
-              original_title: movie.original_title,
-              title_translations: {
-                en: movie.title,
-                vi: viDetails.title,
-              },
-              overview_translations: {
-                en: movie.overview,
-                vi: viDetails.overview,
-              },
-              trailerUrl: details.videos?.results?.[0]?.key
-                ? `https://www.youtube.com/watch?v=${details.videos.results[0].key}`
-                : null,
-            };
-          })
-        );
-
-        setMoviesByTab((prev) => ({
-          ...prev,
-          [tabKey]: { ...prev[tabKey], [lang]: transformedMovies || [] },
-        }));
-      } catch (err) {
-        setTabError('Failed to fetch movies');
-        console.error('Error fetching movies:', err);
-      }
-      setTabLoading(false);
-    },
-    [TMDB_BASE_URL, options]
-  );
 
   // Lấy ngôn ngữ hiện tại
   const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
   // Fetch phim cho tab active và ngôn ngữ hiện tại nếu chưa có
   useEffect(() => {
-    if (!moviesByTab[activeTab][currentLang] || moviesByTab[activeTab][currentLang].length === 0) {
-      fetchMoviesByTab(activeTab, currentLang);
+    if (
+      !moviesByTab[currentTab][currentLang] ||
+      moviesByTab[currentTab][currentLang].length === 0
+    ) {
+      dispatch(fetchMoviesByTab({ tabKey: currentTab, lang: currentLang }));
     }
-  }, [activeTab, currentLang, fetchMoviesByTab]);
+  }, [currentTab, currentLang, dispatch, moviesByTab]);
 
-  // Initial fetch
+  // Initial fetch featured movies
   useEffect(() => {
-    fetchMovies();
-  }, [fetchMovies]);
-
-  // Auto-refresh movies
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchMovies();
-    }, REFRESH_INTERVAL);
-
-    return () => clearInterval(intervalId);
-  }, [fetchMovies, REFRESH_INTERVAL]);
+    dispatch(fetchFeaturedMovies());
+  }, [dispatch]);
 
   // Slide show interval with pause functionality
   useEffect(() => {
-    if (!isPaused) {
+    if (!isPaused && featuredMovies.length > 0) {
       const intervalId = setInterval(() => {
         setCurrentSlide((prev) => (prev + 1) % featuredMovies.length);
       }, SLIDE_INTERVAL);
@@ -290,18 +85,13 @@ const LandingPage = () => {
 
   // Function to handle user interaction with slides
   const handleSlideInteraction = (index) => {
-    // Clear any existing timeout
     if (pauseTimeoutRef.current) {
       clearTimeout(pauseTimeoutRef.current);
     }
 
-    // Set the current slide
     setCurrentSlide(index);
-
-    // Pause the slideshow
     setIsPaused(true);
 
-    // Resume slideshow after pause duration
     pauseTimeoutRef.current = setTimeout(() => {
       setIsPaused(false);
     }, PAUSE_DURATION);
@@ -311,18 +101,18 @@ const LandingPage = () => {
     howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  if (error) {
+  if (error.featured) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="text-center text-red-600">
           <h2 className="mb-2 text-2xl font-bold">Error</h2>
-          <p>{error}</p>
+          <p>{error.featured}</p>
         </div>
       </div>
     );
   }
 
-  if (isLoading || featuredMovies.length === 0) {
+  if (loading.featured || featuredMovies.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="size-8 animate-spin rounded-full border-4 border-red-600 border-t-transparent"></div>
@@ -947,13 +737,13 @@ const LandingPage = () => {
                 ...tab,
                 label: t(tab.label),
               }))}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
+              activeTab={currentTab}
+              onTabChange={(tab) => dispatch(setCurrentTab(tab))}
             />
             <MovieGrid
-              movies={moviesByTab[activeTab][currentLang] || []}
-              loading={tabLoading}
-              error={tabError}
+              movies={moviesByTab[currentTab][currentLang] || []}
+              loading={loading.moviesByTab}
+              error={error.moviesByTab}
             />
             <motion.div
               initial={{ opacity: 0, y: 20 }}

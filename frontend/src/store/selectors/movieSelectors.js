@@ -1,4 +1,3 @@
-// frontend/src/store/selectors/movieSelectors.js
 export const selectFeaturedMovies = (state) => state.movies.featuredMovies;
 export const selectMoviesByTab = (state) => state.movies.moviesByTab;
 export const selectCurrentTab = (state) => state.movies.currentTab;

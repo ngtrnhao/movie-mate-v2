@@ -13,6 +13,7 @@ import LoginForm from './components/users/Auth/LoginForm';
 import RegisterForm from './components/users/Auth/RegisterForm';
 import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
 // import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
+import MovieDetails from './components/movies/movie-details';
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
                   <main className="bg-background flex-1 transition-colors duration-200">
                     <Routes>
                       <Route path="/home" element={<HomePage />} />
+                      <Route path="/movies/:movieId" element={<MovieDetails />} />
                       <Route path="*" element={<ErrorPage />} />
                     </Routes>
                   </main>

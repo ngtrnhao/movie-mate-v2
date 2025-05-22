@@ -53,8 +53,8 @@ INSTALLED_APPS = [
 ELASTICSEARCH_DSL = {
     'default': {
         'hosts': 'https://localhost:9200',
-        'http_auth': ('elastic', 'vrQlvhx8r*=G3EVwzxls'),  # Thay 'your_password' bằng mật khẩu của bạn
-        'verify_certs': False  # Tắt xác minh chứng chỉ (chỉ nên dùng trong môi trường phát triển)
+        'http_auth': ('elastic', 'vrQlvhx8r*=G3EVwzxls'),
+        'verify_certs': False
 
     }
 }

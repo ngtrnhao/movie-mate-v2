@@ -51,5 +51,15 @@
     "average": "Average",
     "good": "Good",
     "excellent": "Excellent"
+  },
+  "errors": {
+    "loading": {
+      "title": "Error Loading Movies",
+      "message": "There was an error loading the movies. Please try again later."
+    }
+  },
+  "empty": {
+    "title": "No Movies Found",
+    "message": "We couldn't find any movies matching your criteria."
   }
 }

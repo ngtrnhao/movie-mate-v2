@@ -13,7 +13,29 @@
     "removeFromWatchlist": "Xóa Khỏi Danh Sách Xem",
     "writeReview": "Viết Đánh Giá",
     "similarMovies": "Phim Tương Tự",
-    "recommendedMovies": "Phim Đề Xuất"
+    "recommendedMovies": "Phim Đề Xuất",
+    "ratingOverview": "Tổng Quan Đánh Giá",
+    "totalRatings": "lượt đánh giá",
+    "filterReviews": "Lọc Đánh Giá",
+    "sortBy": "Sắp xếp theo",
+    "newest": "Mới nhất",
+    "mostHelpful": "Hữu ích nhất",
+    "highestRating": "Đánh giá cao nhất",
+    "lowestRating": "Đánh giá thấp nhất",
+    "filterByRating": "Lọc theo đánh giá",
+    "helpful": "Hữu ích",
+    "replies": "Phản hồi",
+    "loadMore": "Xem thêm",
+    "viewAllReviews": "Xem tất cả đánh giá",
+    "collapseReviews": "Thu gọn đánh giá",
+    "writeYourReview": "Viết đánh giá của bạn",
+    "yourRating": "Đánh giá của bạn",
+    "selectRating": "Chọn số sao đánh giá",
+    "ratingSelected": "Bạn đã chọn {{rating}} sao",
+    "yourReview": "Đánh giá của bạn",
+    "reviewPlaceholder": "Viết đánh giá của bạn tại đây...",
+    "submitReview": "Gửi đánh giá",
+    "cancel": "Hủy"
   },
   "list": {
     "title": "Phim",
@@ -51,5 +73,15 @@
     "average": "Trung Bình",
     "good": "Tốt",
     "excellent": "Xuất Sắc"
+  },
+  "errors": {
+    "loading": {
+      "title": "Lỗi Tải Phim",
+      "message": "Đã xảy ra lỗi khi tải phim. Vui lòng thử lại sau."
+    }
+  },
+  "empty": {
+    "title": "Không Tìm Thấy Phim",
+    "message": "Không tìm thấy phim nào phù hợp với tiêu chí của bạn."
   }
 }

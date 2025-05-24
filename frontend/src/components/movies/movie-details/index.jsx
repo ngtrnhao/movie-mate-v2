@@ -5,6 +5,9 @@ import { useParams } from 'react-router-dom';
 // import { fetchMovieDetails } from '../../../store/slices/movieSlice';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import InfoSection from './InfoSection';
+import CastSection from './CastSection';
+import ReviewSection from './ReviewSection';
+import SimilarMovies from './SimilarMovies';
 // Constants
 // const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
 
@@ -42,17 +45,49 @@ const mockMovie = {
       // Add more cast if needed
     ],
   },
-  recommendations: {
+  similar: {
     results: [
       {
         id: 2,
         title: 'Inception',
         poster_path: '/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
+        vote_average: 8.8,
+        release_date: '2010-07-16',
       },
       {
         id: 3,
         title: 'Interstellar',
         poster_path: '/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+        vote_average: 8.6,
+        release_date: '2014-11-07',
+      },
+      {
+        id: 4,
+        title: 'The Prestige',
+        poster_path: '/5MXyQfz8xUP3dIFPTubhTsbFY6N.jpg',
+        vote_average: 8.5,
+        release_date: '2006-10-20',
+      },
+      {
+        id: 5,
+        title: 'Memento',
+        poster_path: '/fQMSaP8cfV0BNe1eC8gX0Fwt0cK.jpg',
+        vote_average: 8.4,
+        release_date: '2000-10-11',
+      },
+      {
+        id: 6,
+        title: 'Dunkirk',
+        poster_path: '/ebSnODDg9lbsDaL9r4hJSQfhp1i.jpg',
+        vote_average: 7.8,
+        release_date: '2017-07-19',
+      },
+      {
+        id: 7,
+        title: 'Tenet',
+        poster_path: '/k68nPLbIST6NP96JmTxmZijErCA.jpg',
+        vote_average: 7.4,
+        release_date: '2020-08-22',
       },
     ],
   },
@@ -115,6 +150,9 @@ const MovieDetails = () => {
   return (
     <div className="min-h-screen bg-gray-900">
       <InfoSection />
+      <CastSection />
+      <ReviewSection />
+      <SimilarMovies />
     </div>
   );
 };

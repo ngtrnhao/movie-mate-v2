@@ -13,6 +13,7 @@ const mockMovie = {
   vote_average: 8.5,
   overview:
     'When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.',
+  director: 'Robert Zemeckis',
   genres: [
     { id: 28, name: 'Action' },
     { id: 80, name: 'Crime' },
@@ -72,9 +73,9 @@ const InfoSection = () => {
   const { t } = useTranslation('movies');
   const movie = mockMovie;
   return (
-    <div className="min-h-screen bg-gray-900">
+    <>
       {/* Hero Section with Backdrop */}
-      <div className="relative h-[60vh] w-full ">
+      <div className="relative h-[60vh] w-full">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
@@ -84,9 +85,9 @@ const InfoSection = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent" />
 
         {/* Movie Info Overlay */}
-        <div className="absolute inset-x-0  pt-20">
-          <div className="pt-30 container mx-auto">
-            <div className="flex flex-col gap-6 px-2 sm:flex-col md:flex-row md:gap-8 md:px-0">
+        <div className="absolute inset-x-0 pt-24">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col gap-6 md:flex-row md:gap-8">
               {/* Poster */}
               <motion.img
                 initial={{ opacity: 0, y: 20 }}
@@ -98,8 +99,8 @@ const InfoSection = () => {
 
               {/* Info */}
               <div className="flex-1 text-white">
-                <h1 className="text-4xl font-bold">{movie.title}</h1>
-                <div className="mt-2 flex items-center gap-4">
+                <h1 className="text-3xl font-bold sm:text-4xl">{movie.title}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-4 text-base sm:text-lg">
                   <span>{new Date(movie.release_date).getFullYear()}</span>
                   <span>•</span>
                   <span>{movie.runtime} min</span>
@@ -110,7 +111,7 @@ const InfoSection = () => {
                   </div>
                 </div>
                 {/* Genres */}
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   {movie.genres?.map((genre) => (
                     <span
                       key={genre.id}
@@ -121,17 +122,34 @@ const InfoSection = () => {
                   ))}
                 </div>
                 {/* Overview */}
-                <p className="mt-6 text-lg text-gray-300">{movie.overview}</p>
-
-                <div className="mt-8 flex gap-4 pt-52">
+                <div className="mt-4">
+                  <h2 className="text-2xl font-bold text-white">OverView</h2>
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.5 }}
+                    className="mb-6 line-clamp-3 overflow-hidden text-ellipsis text-gray-300"
+                  >
+                    {movie.overview}
+                  </motion.p>
+                </div>
+                {/* Director */}
+                <div className="mt-4">
+                  <h2 className="text-2xl font-bold text-white">Director</h2>
+                  <p className="mt-2 text-xs text-gray-300 sm:text-lg">{movie.director}</p>
+                </div>
+                <div className="mt-16 flex flex-wrap gap-4">
+                  <button className="flex items-center gap-1 rounded-md bg-red-600 px-4 py-3 text-sm text-white hover:bg-red-700 sm:text-base">
+                    Rate this movie
+                  </button>
                   <button
                     onClick={() => window.open(movie.trailerUrl, '_blank')}
-                    className="flex items-center gap-1 rounded-md bg-red-600 px-4 py-3 text-white hover:bg-red-700"
+                    className="flex items-center gap-3 rounded-md border border-white/20 px-4 py-3 text-sm text-white hover:bg-white/10 sm:text-base"
                   >
                     <Play className="size-5" />
                     {t('details.watchTrailer')}
                   </button>
-                  <button className="flex items-center gap-2 rounded-md border border-white/20 px-4 py-3 text-white hover:bg-white/10">
+                  <button className="flex items-center gap-3 rounded-md border border-white/20 px-4 py-3 text-sm text-white hover:bg-white/10 sm:text-base">
                     <Bookmark className="size-5" />
                     {t('details.addToWatchlist')}
                   </button>
@@ -141,7 +159,7 @@ const InfoSection = () => {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

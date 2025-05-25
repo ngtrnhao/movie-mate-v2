@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Footer from './components/footer';
 import LandingPage from './pages/Landing';
 import HomePage from './pages/Home';
+import MoviesPage from './pages/Movies';
 import ErrorPage from './pages/error';
 import { QueryProvider } from './providers/QueryProvider';
 import I18nProvider from './i18n/I18nProvider';
@@ -14,6 +15,7 @@ import RegisterForm from './components/users/Auth/RegisterForm';
 import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
 // import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
 import MovieDetails from './components/movies/movie-details';
+import Recommendation from './pages/recommendation';
 
 function App() {
   return (
@@ -50,7 +52,9 @@ function App() {
                   <main className="bg-background flex-1 transition-colors duration-200">
                     <Routes>
                       <Route path="/home" element={<HomePage />} />
+                      <Route path="/movies" element={<MoviesPage />} />
                       <Route path="/movies/:movieId" element={<MovieDetails />} />
+                      <Route path="/recommendation" element={<Recommendation />} />
                       <Route path="*" element={<ErrorPage />} />
                     </Routes>
                   </main>

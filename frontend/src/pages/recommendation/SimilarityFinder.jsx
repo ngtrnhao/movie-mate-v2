@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { mockMovies } from '../../mocks/movies';
 import { useNavigate } from 'react-router-dom';
-const FindSimilarMovies = () => {
+
+const SimilarityFinder = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -201,9 +202,6 @@ const FindSimilarMovies = () => {
                             </span>
                           ))}
                         </div>
-                        <div className="mt-1 text-xs text-green-400">
-                          Similarity Score: {movie.similarity_score}
-                        </div>
                       </div>
                     </div>
                   ))}
@@ -212,18 +210,9 @@ const FindSimilarMovies = () => {
             )}
           </div>
         )}
-
-        <div className="mt-6 flex justify-center">
-          <button
-            onClick={() => navigate('/recommendation')}
-            className="rounded border border-gray-300 bg-red-600 px-6 py-2 font-semibold text-white transition hover:bg-red-700"
-          >
-            View All Recommendation Tools
-          </button>
-        </div>
       </div>
     </section>
   );
 };
 
-export default FindSimilarMovies;
+export default SimilarityFinder;

@@ -53,11 +53,14 @@
   },
   "filters": {
     "genres": "Genres",
-    "year": "Year",
-    "rating": "Rating",
+    "year": "Release Year",
+    "rating": "Minimum Rating",
     "language": "Language",
     "apply": "Apply Filters",
-    "reset": "Reset Filters"
+    "reset": "Reset Filters",
+    "sortBy": "Sort By",
+    "selectYear": "Select Year",
+    "selectRating": "Select Rating"
   },
   "sort": {
     "popularity": "Popularity",
@@ -83,5 +86,14 @@
   "empty": {
     "title": "No Movies Found",
     "message": "We couldn't find any movies matching your criteria."
+  },
+  "title": "Movies",
+  "showFilters": "Show Filters",
+  "hideFilters": "Hide Filters",
+  "sortOptions": {
+    "popularity": "Most Popular",
+    "rating": "Highest Rated",
+    "release_date": "Newest",
+    "title": "Title A-Z"
   }
 }

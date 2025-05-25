@@ -53,11 +53,14 @@
   },
   "filters": {
     "genres": "Thể Loại",
-    "year": "Năm",
-    "rating": "Đánh Giá",
+    "year": "Năm Phát Hành",
+    "rating": "Đánh Giá Tối Thiểu",
     "language": "Ngôn Ngữ",
     "apply": "Áp Dụng Bộ Lọc",
-    "reset": "Đặt Lại Bộ Lọc"
+    "reset": "Đặt Lại Bộ Lọc",
+    "sortBy": "Sắp Xếp Theo",
+    "selectYear": "Chọn Năm",
+    "selectRating": "Chọn Đánh Giá"
   },
   "sort": {
     "popularity": "Độ Phổ Biến",
@@ -83,5 +86,14 @@
   "empty": {
     "title": "Không Tìm Thấy Phim",
     "message": "Không tìm thấy phim nào phù hợp với tiêu chí của bạn."
+  },
+  "title": "Phim",
+  "showFilters": "Hiện Bộ Lọc",
+  "hideFilters": "Ẩn Bộ Lọc",
+  "sortOptions": {
+    "popularity": "Phổ Biến Nhất",
+    "rating": "Đánh Giá Cao Nhất",
+    "release_date": "Mới Nhất",
+    "title": "Tên A-Z"
   }
 }

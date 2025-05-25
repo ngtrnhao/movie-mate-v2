@@ -13,6 +13,14 @@ const Navigation = () => {
         {t('nav.home')}
       </NavLink>
       <NavLink
+        to="/movies"
+        className={({ isActive }) =>
+          isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'
+        }
+      >
+        {t('nav.movies')}
+      </NavLink>
+      <NavLink
         to="/watchlist"
         className={({ isActive }) =>
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'

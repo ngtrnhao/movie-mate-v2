@@ -1,6 +1,5 @@
 import './App.css';
 import Header from './components/header';
-import { LandingThemeProvider } from './context/LandingThemeContext';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Footer from './components/footer';
 import LandingPage from './pages/Landing';
@@ -27,11 +26,9 @@ function App() {
             <Route
               path="/"
               element={
-                <LandingThemeProvider>
-                  <div className="text-foreground flex min-h-screen flex-col">
-                    <LandingPage />
-                  </div>
-                </LandingThemeProvider>
+                <div className="text-foreground flex min-h-screen flex-col">
+                  <LandingPage />
+                </div>
               }
             />
 

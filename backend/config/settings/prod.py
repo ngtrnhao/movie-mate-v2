@@ -7,10 +7,15 @@ ALLOWED_HOSTS = env('ALLOWED_HOSTS', default='.onrender.com,localhost,127.0.0.1'
 
 # Database
 DATABASES = {
-    'default': dj_database_url.config(
-        default=env('DATABASE_URL'),
-        conn_max_age=600
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'),
+        'PORT': env('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': 600,
+    }
 }
 
 # ROOT_URLCONF

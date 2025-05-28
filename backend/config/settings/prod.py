@@ -1,5 +1,10 @@
+"""
+Production settings for the project.
+"""
+
 from .base import *
 import dj_database_url
+import os
 
 # Security
 DEBUG = False
@@ -37,5 +42,38 @@ SECURE_HSTS_PRELOAD = True
 
 # CORS
 CORS_ALLOWED_ORIGINS = [
-    "https://movie-mate-v2.vercel.app/",
+    "https://movie-mate.onrender.com",  # Add your production frontend URL
+    "https://*.onrender.com",
 ]
+
+# Cache settings
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL'),
+    }
+}
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}

@@ -3,7 +3,7 @@ import dj_database_url
 
 # Security
 DEBUG = False
-ALLOWED_HOSTS = env('ALLOWED_HOSTS').split(',')
+ALLOWED_HOSTS = env('ALLOWED_HOSTS', default='.onrender.com,localhost,127.0.0.1').split(',')
 
 # Database
 DATABASES = {
@@ -32,5 +32,5 @@ SECURE_HSTS_PRELOAD = True
 
 # CORS
 CORS_ALLOWED_ORIGINS = [
-    "https://your-frontend-domain.com",
+    "https://movie-mate-v2.vercel.app/",
 ]

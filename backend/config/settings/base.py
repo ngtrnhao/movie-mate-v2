@@ -10,6 +10,14 @@ env = environ.Env()
 # Load .env.production for production environment
 environ.Env.read_env(os.path.join(BASE_DIR, '.env.production'))
 
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = env('DJANGO_SECRET_KEY')
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = env.bool('DEBUG', False)
+
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+
 # Application definition 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -24,18 +32,20 @@ INSTALLED_APPS = [
     'django_filters',
     'drf_yasg',
     'corsheaders',
+    'whitenoise.runserver_nostatic',
 
     # Local apps
-    'apps.core',
-    'apps.movies',
-    'apps.metadata',
-    'apps.users',
-    'apps.recommendations',
-    'apps.api',
+    'apps.core.apps.CoreConfig',
+    'apps.movies.apps.MoviesConfig',
+    'apps.metadata.apps.MetadataConfig',
+    'apps.users.apps.UsersConfig',
+    'apps.recommendations.apps.RecommendationsConfig',
+    'apps.api.apps.ApiConfig',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -52,11 +62,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST'),
-        'PORT': env('DB_PORT', default='5432'),
+        'NAME': env('POSTGRES_DB'),
+        'USER': env('POSTGRES_USER'),
+        'PASSWORD': env('POSTGRES_PASSWORD'),
+        'HOST': env('POSTGRES_HOST'),
+        'PORT': env('POSTGRES_PORT', default='5432'),
         'CONN_MAX_AGE': 600,
     }
 }
@@ -91,10 +101,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+CORS_ALLOW_CREDENTIALS = True
 
 # Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -106,3 +118,23 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env('EMAIL_HOST')
+EMAIL_PORT = env.int('EMAIL_PORT')
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS')
+
+# Redis settings
+REDIS_URL = env('REDIS_URL')
+
+# Elasticsearch settings
+ELASTICSEARCH_DSL_AUTOSYNC = env.bool('ELASTICSEARCH_DSL_AUTOSYNC', True)
+ELASTICSEARCH_DSL_AUTO_REFRESH = env.bool('ELASTICSEARCH_DSL_AUTO_REFRESH', True)
+
+# AWS settings (if using)
+AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID', default=None)
+AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default=None)
+AWS_STORAGE_BUCKET_NAME = env('AWS_STORAGE_BUCKET_NAME', default=None)

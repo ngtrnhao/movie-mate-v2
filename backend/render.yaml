@@ -4,35 +4,33 @@ services:
     env: python
     rootDir: backend
     buildCommand: |
-      cat requirements/prod.txt
-      cat requirements/base.txt
       pip install -r requirements/prod.txt
       python manage.py collectstatic --noinput
     startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: DJANGO_ENV
         value: production
-      - key: DB_NAME
+      - key: POSTGRES_DB
         fromDatabase:
           name: movie-mate-db
           property: databaseName
-      - key: DB_USER
+      - key: POSTGRES_USER
         fromDatabase:
           name: movie-mate-db
           property: user
-      - key: DB_PASSWORD
+      - key: POSTGRES_PASSWORD
         fromDatabase:
           name: movie-mate-db
           property: password
-      - key: DB_HOST
+      - key: POSTGRES_HOST
         fromDatabase:
           name: movie-mate-db
           property: host
-      - key: DB_PORT
+      - key: POSTGRES_PORT
         fromDatabase:
           name: movie-mate-db
           property: port
-      - key: SECRET_KEY
+      - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: false
@@ -57,6 +55,10 @@ services:
         sync: false
       - key: AWS_STORAGE_BUCKET_NAME
         sync: false
+      - key: ELASTICSEARCH_DSL_AUTOSYNC
+        value: true
+      - key: ELASTICSEARCH_DSL_AUTO_REFRESH
+        value: true
 
 databases:
   - name: movie-mate-db

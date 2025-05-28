@@ -7,8 +7,10 @@ import environ
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = environ.Env()
-# Load .env.production for production environment
-environ.Env.read_env(os.path.join(BASE_DIR, '.env.production'))
+# Load environment file based on DJANGO_ENV
+DJANGO_ENV = os.getenv('DJANGO_ENV', 'development')
+env_file = f'.env.{DJANGO_ENV}'
+environ.Env.read_env(os.path.join(BASE_DIR, env_file))
 
 # Application definition 
 INSTALLED_APPS = [

@@ -13,6 +13,9 @@ DATABASES = {
     )
 }
 
+# ROOT_URLCONF
+ROOT_URLCONF = 'config.urls'
+
 # Static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 

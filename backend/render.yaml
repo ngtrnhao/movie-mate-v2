@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: movie-mate-backend
+    env: python
+    rootDir: backend
+    buildCommand: |
+      pip install -r requirements/prod.txt
+      python manage.py collectstatic --noinput
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DB_NAME
+        fromDatabase:
+          name: movie-mate-db
+          property: databaseName
+      - key: DB_USER
+        fromDatabase:
+          name: movie-mate-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: movie-mate-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: movie-mate-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: movie-mate-db
+          property: port
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: false
+      - key: ALLOWED_HOSTS
+        value: "*.onrender.com,localhost,127.0.0.1"
+
+databases:
+  - name: movie-mate-db
+    databaseName: movie_mate
+    user: movie_mate_user
+    plan: free
+
+services:
+  - type: redis
+    name: movie-mate-redis
+    ipAllowList: []
+
+  - type: elasticsearch
+    name: movie-mate-elasticsearch
+    ipAllowList: []
+    

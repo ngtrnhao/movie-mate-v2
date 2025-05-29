@@ -1,5 +1,5 @@
 from django.db import models
-from django.utils.text import slugtify
+from django.utils.text import slugify
 
 
 class Genre(models.Model):
@@ -16,10 +16,10 @@ class Genre(models.Model):
         ]
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugtify(self.name)
+            self.slug = slugify(self.name)
         super().save(*args,**kwargs)
 
-class Person(models.Model) : 
+class Person(models.Model) :
     name = models.CharField(max_length=255)
     biography = models.TextField(blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null =True)
@@ -29,12 +29,12 @@ class Person(models.Model) :
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta: 
+    class Meta:
         db_table = 'metadata_person'
         indexes  = [
             models.Index(fields=['name']),
         ]
-class MovieCrew(models.model): 
+class MovieCrew(models.Model):
     ROLE_CHOICES = [
         ('ACTOR','Actor'),
         ('DIRECTOR','Director'),
@@ -42,14 +42,14 @@ class MovieCrew(models.model):
         ('PRODUCER','Producer'),
     ]
 
-    movie = models.ForeignKey('movie.Movie',on_delete= models.CASCADE)
+    movie = models.ForeignKey('movies.Movie',on_delete= models.CASCADE)
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
     role = models.CharField(max_length=50, choices = ROLE_CHOICES)
     character_name = models.CharField(max_length=255, blank=True,null=True)
     order_credit = models.DateTimeField(auto_now_add=True)
     updated_at  = models.DateTimeField(auto_now=True)
 
-    class Meta: 
+    class Meta:
         db_table = 'metadata_moviecrew'
         unique_together = ('movie','person','role')
         indexes = [

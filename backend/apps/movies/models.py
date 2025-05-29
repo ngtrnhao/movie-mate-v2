@@ -1,5 +1,5 @@
 from django.db import models
-from metadata.models import Genre
+from apps.metadata.models import Genre
 # Create your models here.
 
 class Movie(models.Model):
@@ -87,8 +87,8 @@ class MovieImage(models.Model):
     movie = models.ForeignKey(Movie,on_delete=models.CASCADE)
     image_url = models.CharField(max_length=255)
     type = models.CharField(max_length=20,choices=TYPE_CHOICES)
-    width = models.IntergerField(blank=True,null=True)
-    height = models.IntergerField(blank=True,null=True)
+    width = models.IntegerField(blank=True,null=True)
+    height = models.IntegerField(blank=True,null=True)
     aspect_ratio = models.DecimalField(max_digits=5,decimal_places=2,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

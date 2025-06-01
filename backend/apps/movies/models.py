@@ -17,7 +17,7 @@ class Movie(models.Model):
     poster_url = models.CharField(max_length=255,blank=True,null=True)
     backdrop_url = models.CharField(max_length=255,blank=True,null=True)
     imdb_rating = models.DecimalField(max_digits=3,decimal_places=1,blank=True,null=True)
-    tmdb_id = models.DecimalField(max_digits=3,decimal_places=1,blank=True,null=True)
+    tmdb_id = models.CharField(max_length=20,unique=True,blank=True,null=True)
     runtime = models.IntegerField(blank=True,null=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES,blank=True,null=True)
     genres = models.ManyToManyField(Genre,through='MovieGenre')
@@ -31,6 +31,7 @@ class Movie(models.Model):
             models.Index(fields=['release_date']),
             models.Index(fields=['imdb_rating']),
             models.Index(fields=['status']),
+            models.Index(fields=['tmdb_id']),
         ]
 class MovieMetadata(models.Model):
     movie = models.OneToOneField(Movie, on_delete=models.CASCADE)
@@ -46,17 +47,20 @@ class MovieMetadata(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'movies_movie_metadata'
+        db_table = 'movies_moviemetadata'
+        constraints =[
+            models.UniqueConstraint(fields=['movie'],name='unique_movie_metadata')
+        ]
 
 class MovieGenre(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
-    genre = models.ForeignKey(Genre, on_delete= models.CASCADE)
+    genre = models.ForeignKey(Genre, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'movies_movie_genre'
-        unique_together = ('movie','genre')
+        db_table = 'movies_movie_genres'
+        unique_together = ('movie', 'genre')
 
 class MovieTrailer(models.Model):
     TYPE_CHOICES = [
@@ -72,7 +76,7 @@ class MovieTrailer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'movies_movie_trailer'
+        db_table = 'movies_trailer'
         indexes = [
             models.Index(fields=['movie']),
         ]
@@ -93,13 +97,13 @@ class MovieImage(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'movies_movie_image'
+        db_table = 'movies_movieimage'
         indexes = [
             models.Index(fields=['movie']),
         ]
 
 class MovieNews(models.Model):
-    movie = models.ForeignKey(Movie,on_delete= models.CASCADE)
+    movie = models.ForeignKey(Movie,on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     content = models.TextField()
     source_url = models.CharField(max_length=255,blank=True,null=True)
@@ -107,7 +111,7 @@ class MovieNews(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'movies_movie_news'
+        db_table = 'movies_movienews'
         indexes = [
             models.Index(fields=['movie']),
             models.Index(fields=['published_at']),

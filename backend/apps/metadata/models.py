@@ -46,7 +46,7 @@ class MovieCrew(models.Model):
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
     role = models.CharField(max_length=50, choices = ROLE_CHOICES)
     character_name = models.CharField(max_length=255, blank=True,null=True)
-    order_credit = models.DateTimeField(auto_now_add=True)
+    order_credit = models.IntegerField()
     updated_at  = models.DateTimeField(auto_now=True)
 
     class Meta:

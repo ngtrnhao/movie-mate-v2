@@ -15,6 +15,7 @@ import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
 // import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
 import MovieDetails from './components/movies/movie-details';
 import Recommendation from './pages/recommendation';
+import VerifyEmail from './pages/VerifyEmail';
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
                       <Route path="/movies" element={<MoviesPage />} />
                       <Route path="/movies/:movieId" element={<MovieDetails />} />
                       <Route path="/recommendation" element={<Recommendation />} />
+                      <Route path="/verify-email" element={<VerifyEmail />} />
                       <Route path="*" element={<ErrorPage />} />
                     </Routes>
                   </main>

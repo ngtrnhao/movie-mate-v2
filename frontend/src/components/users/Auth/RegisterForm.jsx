@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { register } from '../../../store/slices/authSlice';
 import { selectAuthLoading, selectAuthError } from '../../../store/selectors/authSelectors';
+import EmailVerificationMessage from './EmailVerificationMessage';
+
 const EyeIcon = ({ className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -43,15 +45,22 @@ const EyeOffIcon = ({ className }) => (
 const RegisterForm = () => {
   const { t } = useTranslation('auth');
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const loading = useSelector(selectAuthLoading);
   const error = useSelector(selectAuthError);
 
-  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [formError, setFormError] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setFormError({ ...formError, [e.target.name]: '' });
@@ -68,13 +77,13 @@ const RegisterForm = () => {
     //Email validation
     if (!form.email) {
       errors.email = t('validation.emailRequired');
-    } else if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+    } else if (!/\S+@\S+\.\S+/.test(form.email)) {
       errors.email = t('validation.invalidEmail');
     }
     //Password validation
     if (!form.password) {
       errors.password = t('validation.passwordRequired');
-    } else if (form.password.length < 8) {
+    } else if (form.password.length < 6) {
       errors.password = t('validation.passwordLength');
     }
     //Confirm password validation
@@ -94,22 +103,34 @@ const RegisterForm = () => {
       setFormError(errors);
       return;
     }
+
     try {
       //Dispatch register action
-      const resultAction = await dispatch(
-        register({
-          username: form.username,
-          email: form.email,
-          password: form.password,
-        })
-      );
+      const resultAction = await dispatch(register(form));
+
       if (register.fulfilled.match(resultAction)) {
         //Register successful
-        navigate('/login');
+        setIsRegistered(true);
+      } else if (register.rejected.match(resultAction)) {
+        // Handle specific field errors
+        if (resultAction.payload && typeof resultAction.payload === 'object') {
+          const backendErrors = {};
+          Object.keys(resultAction.payload).forEach((key) => {
+            // Map backend field names to form field names
+            const formField = key === 'password2' ? 'confirmPassword' : key;
+            backendErrors[formField] = resultAction.payload[key];
+          });
+          setFormError(backendErrors);
+        } else {
+          // Handle general error
+          setFormError({
+            general: resultAction.payload || 'Registration failed. Please try again.',
+          });
+        }
       }
     } catch (err) {
-      //Error is handled by the reducer
       console.error('Register failed:', err);
+      setFormError({ general: 'An unexpected error occurred. Please try again.' });
     }
   };
   const handleGoogleLogin = () => {
@@ -118,26 +139,31 @@ const RegisterForm = () => {
   const handleFacebookLogin = () => {
     alert('Facebook registration coming soon!');
   };
+
+  if (isRegistered) {
+    return <EmailVerificationMessage />;
+  }
+
   return (
-    <div className="mx-auto w-full max-w-sm rounded-2xl bg-[#18181b] p-8 shadow-xl ">
-      <h2 className="mb-2 text-center text-2xl font-bold text-white ">
-        {t('signUp.title', 'Create an account')}
+    <div className="mx-auto w-full max-w-sm rounded-2xl bg-[#18181b] p-8 shadow-xl">
+      <h2 className="mb-2 text-center text-2xl font-bold text-white">
+        {t('signUp.title', 'Create your account')}
       </h2>
       <p className="mb-6 text-center text-gray-400">
-        {t('signUp.subtitle', 'Join MovieMate to get started')}
+        {t('signUp.subtitle', 'Sign up to get started')}
       </p>
       <form onSubmit={handleSubmit} autoComplete="off">
         {/* Username field */}
         <div className="mb-4">
-          <label className="mb-1 block text-sm font-medium text-white " htmlFor="username">
+          <label className="mb-1 block text-sm font-medium text-white" htmlFor="username">
             {t('signUp.username', 'Username')}
           </label>
           <input
-            className="placholder:text-gray-400 w-full rounded-lg border border-[#27272a] bg-[#232326] px-4 py-2 text-white outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+            className="w-full rounded-lg border border-[#27272a] bg-[#232326] px-4 py-2 text-white outline-none placeholder:text-gray-400 focus:border-red-500 focus:ring-1 focus:ring-red-500"
             type="text"
             id="username"
             name="username"
-            placeholder="justin bieber"
+            placeholder="johndoe"
             value={form.username}
             onChange={handleChange}
             autoComplete="username"
@@ -147,25 +173,25 @@ const RegisterForm = () => {
           )}
         </div>
         {/* Email field */}
-        <div className="mb-4 ">
-          <label className="mb-1 block text-sm font-medium text-white " htmlFor="email">
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium text-white" htmlFor="email">
             {t('signUp.email', 'Email')}
           </label>
           <input
-            className="w-full rounded-lg border border-[#27272a] bg-[#232326] px-4 py-2 text-white outline-none placeholder:text-gray-400 focus:border-red-500 focus:ring-1 focus:ring-red-500 "
+            className="w-full rounded-lg border border-[#27272a] bg-[#232326] px-4 py-2 text-white outline-none placeholder:text-gray-400 focus:border-red-500 focus:ring-1 focus:ring-red-500"
             type="email"
             id="email"
             name="email"
-            placeholder="your.email@example.com"
+            placeholder="john@example.com"
             value={form.email}
             onChange={handleChange}
             autoComplete="email"
-          ></input>
+          />
           {formError.email && <div className="mt-1 text-sm text-red-500">{formError.email}</div>}
         </div>
         {/* Password field */}
         <div className="relative mb-4">
-          <label className="mb-1 block text-sm font-medium text-white " htmlFor="password">
+          <label className="mb-1 block text-sm font-medium text-white" htmlFor="password">
             {t('signUp.password', 'Password')}
           </label>
           <input
@@ -173,11 +199,11 @@ const RegisterForm = () => {
             type={showPassword ? 'text' : 'password'}
             id="password"
             name="password"
-            value={form.password}
             placeholder="********"
+            value={form.password}
             onChange={handleChange}
             autoComplete="new-password"
-          ></input>
+          />
           <button
             type="button"
             aria-label="Show password"
@@ -193,7 +219,7 @@ const RegisterForm = () => {
         </div>
         {/* Confirm password field */}
         <div className="relative mb-4">
-          <label className="mb-1 block text-sm font-medium text-white " htmlFor="confirmPassword">
+          <label className="mb-1 block text-sm font-medium text-white" htmlFor="confirmPassword">
             {t('signUp.confirmPassword', 'Confirm Password')}
           </label>
           <input
@@ -205,7 +231,7 @@ const RegisterForm = () => {
             value={form.confirmPassword}
             onChange={handleChange}
             autoComplete="new-password"
-          ></input>
+          />
           <button
             type="button"
             aria-label="Show confirm password"
@@ -223,15 +249,16 @@ const RegisterForm = () => {
             <div className="mt-1 text-sm text-red-500">{formError.confirmPassword}</div>
           )}
         </div>
-        {error && <div className="mb-2 text-sm text-red-500">{error}</div>}
+        {formError.general && (
+          <div className="mb-2 text-center text-sm text-red-500">{formError.general}</div>
+        )}
+        {error && <div className="mb-2 text-center text-sm text-red-500">{error}</div>}
         <button
-          className="mb-4 w-full rounded-lg bg-red-600 py-2.5 text-base font-semibold text-white transition-colors hover:bg-red-700 disabled:bg-gray-500"
+          className="mb-4 w-full rounded-lg bg-red-600 py-2.5 text-base font-semibold text-white transition-colors hover:bg-red-700"
           type="submit"
           disabled={loading}
         >
-          {loading
-            ? t('signUp.loading', 'Creating account...')
-            : t('signUp.submit', 'Create account')}
+          {loading ? t('signUp.loading', 'Creating account...') : t('signUp.submit', 'Sign up')}
         </button>
         <div className="my-4 flex items-center ">
           <div className="h-px flex-1 bg-gray-700" />

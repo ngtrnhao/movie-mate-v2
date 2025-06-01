@@ -9,7 +9,21 @@ import {
 } from '../../api/auth';
 
 const initialState = {
-  user: null,
+  user: {
+    id: null,
+    username: null,
+    email: null,
+    firstName: null,
+    lastName: null,
+    avatarUrl: null,
+    bio: null,
+    age: null,
+    gender: null,
+    location: null,
+    isEmailVerified: false,
+    createdAt: null,
+    updatedAt: null,
+  },
   isAuthenticated: false,
   token: null,
   refreshToken: null,
@@ -29,12 +43,25 @@ export const login = createAsyncThunk(
     try {
       const response = await loginAPI(email, password);
       if (rememberMe) {
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('refreshToken', response.refreshToken);
+        localStorage.setItem('token', response.access);
+        localStorage.setItem('refreshToken', response.refresh);
       }
       return response;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Login failed');
+      const errorData = error.response?.data || {};
+      let errorMessage = 'Login failed';
+
+      if (errorData.code === 'email_not_verified') {
+        errorMessage = 'Please verify your email before logging in.';
+      } else if (errorData.code === 'invalid_password') {
+        errorMessage = 'The password you entered is incorrect.';
+      } else if (errorData.code === 'validation_error') {
+        errorMessage = Object.values(errorData.message).join(', ');
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      }
+
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -42,7 +69,20 @@ export const login = createAsyncThunk(
 export const register = createAsyncThunk('auth/register', async (userData, { rejectWithValue }) => {
   try {
     const response = await registerAPI(userData);
-    return response;
+    return {
+      ...response,
+      user: {
+        ...response.user,
+        isEmailVerified: false,
+        avatarUrl: null,
+        bio: null,
+        age: null,
+        gender: null,
+        location: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    };
   } catch (error) {
     return rejectWithValue(error.response?.data || 'Registration failed');
   }

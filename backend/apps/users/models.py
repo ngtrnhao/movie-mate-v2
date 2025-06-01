@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from apps.metadata.models import Genre
+from django.utils.crypto import get_random_string
+from django.utils import timezone
+from datetime import timedelta
 
 class User(AbstractUser):
     avatar_url = models.CharField(max_length=255, blank=True, null=True)
@@ -8,8 +11,16 @@ class User(AbstractUser):
     age = models.IntegerField(blank=True, null=True)
     gender = models.CharField(max_length=10, choices=[('M', 'Male'), ('F', 'Female'), ('O', 'Other')], blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
+    email = models.EmailField(unique=True)
+    is_email_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
+
+    def __str__(self):
+        return self.email
 
     # Add related_name to resolve clash with auth.User
     groups = models.ManyToManyField(
@@ -64,6 +75,7 @@ class Rating(models.Model):
             models.Index(fields=['movie']),
             models.Index(fields=['created_at']),
         ]
+
 class Comment(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)
     movie = models.ForeignKey('movies.Movie',on_delete=models.CASCADE)
@@ -73,7 +85,7 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
-        db_table = 'users_comments'
+        db_table = 'users_comment'
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['movie']),
@@ -86,7 +98,7 @@ class CommentLike(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'user_commentlike'
+        db_table = 'users_commentlike'
         unique_together = ('user','comment')
 
 class Watchlist(models.Model):
@@ -109,17 +121,49 @@ class Watchlist(models.Model):
             models.Index(fields=['user']),
             models.Index(fields=['status']),
         ]
-class UserActivityLog(models.Model):
-    user = models.ForeignKey(User, on_delete= models.CASCADE)
-    activity_type = models.CharField(max_length=50)
-    activity_data = models.JSONField(null=True)
-    ip_address =models.CharField(max_length=45,null=True)
-    user_agent = models.TextField(null=True)
+
+class SearchHistory(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    search_query = models.CharField(max_length=255)
+    search_results_count = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'user_useractivitylog'
+        db_table = 'users_searchhistory'
         indexes = [
-            models.Index(fields=['user','activity_type']),
+            models.Index(fields=['user', 'created_at']),
+        ]
+
+class UserActivityLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    activity_type = models.CharField(max_length=50)
+    activity_data = models.JSONField()
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'users_useractivitylog'
+        indexes = [
+            models.Index(fields=['user', 'activity_type']),
             models.Index(fields=['created_at']),
         ]
+
+class EmailVerificationToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = get_random_string(64)
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=1)
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return timezone.now() <= self.expires_at
+
+    def __str__(self):
+        return f"Verification token for {self.user.email}"

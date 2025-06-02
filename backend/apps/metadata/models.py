@@ -47,6 +47,7 @@ class MovieCrew(models.Model):
     role = models.CharField(max_length=50, choices = ROLE_CHOICES)
     character_name = models.CharField(max_length=255, blank=True,null=True)
     order_credit = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at  = models.DateTimeField(auto_now=True)
 
     class Meta:

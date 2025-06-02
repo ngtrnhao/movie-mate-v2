@@ -145,7 +145,7 @@ const movieSlice = createSlice({
     setCurrentTab: (state, action) => {
       state.currentTab = action.payload;
     },
-    clearCache: (state) => {
+    clearCache: () => {
       apiCache.clear();
     },
   },

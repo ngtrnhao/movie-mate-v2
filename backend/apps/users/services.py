@@ -21,8 +21,6 @@ def send_verification_email(user):
 
 
 
-
-
     send_mail(
         subject='Verify your email address',
         message=plain_message,

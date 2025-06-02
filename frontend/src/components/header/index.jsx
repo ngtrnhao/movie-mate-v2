@@ -4,11 +4,16 @@ import MovieMateLogo from './Logo';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import { Avatar, Menu, MenuItem, IconButton } from '@mui/material';
+import { AccountCircle } from '@mui/icons-material';
 
 const Header = () => {
   const { t } = useTranslation('common');
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -19,6 +24,25 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleProfileMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleProfileClick = () => {
+    handleProfileMenuClose();
+    navigate(`/profile/${user.id}`);
+  };
+
+  const handleLogout = () => {
+    handleProfileMenuClose();
+    // Add logout logic here
+    navigate('/login');
+  };
 
   return (
     <header
@@ -41,13 +65,61 @@ const Header = () => {
           {/* Right section */}
           <div className="flex items-center space-x-6">
             <Navigation />
-            <div className="flex items-center gap-4"></div>
-            <button
-              onClick={() => navigate('/login')}
-              className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
-            >
-              {t('auth.signIn')}
-            </button>
+            <div className="flex items-center gap-4">
+              {user ? (
+                <>
+                  <IconButton
+                    onClick={handleProfileMenuOpen}
+                    size="large"
+                    edge="end"
+                    aria-label="account of current user"
+                    aria-haspopup="true"
+                    color="inherit"
+                  >
+                    {user.avatar_url ? (
+                      <Avatar
+                        src={user.avatar_url}
+                        alt={user.username}
+                        sx={{ width: 32, height: 32 }}
+                      />
+                    ) : (
+                      <AccountCircle />
+                    )}
+                  </IconButton>
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleProfileMenuClose}
+                    PaperProps={{
+                      elevation: 0,
+                      sx: {
+                        overflow: 'visible',
+                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                        mt: 1.5,
+                        '& .MuiAvatar-root': {
+                          width: 32,
+                          height: 32,
+                          ml: -0.5,
+                          mr: 1,
+                        },
+                      },
+                    }}
+                    transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                    anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                  >
+                    <MenuItem onClick={handleProfileClick}>Profile</MenuItem>
+                    <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                >
+                  {t('auth.signIn')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

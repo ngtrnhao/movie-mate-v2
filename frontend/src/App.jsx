@@ -16,6 +16,8 @@ import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
 import MovieDetails from './components/movies/movie-details';
 import Recommendation from './pages/recommendation';
 import VerifyEmail from './pages/VerifyEmail';
+import Profile from './pages/Profile';
+import PrivateRoute from './components/auth/PrivateRoute';
 
 function App() {
   return (
@@ -54,6 +56,14 @@ function App() {
                       <Route path="/movies/:movieId" element={<MovieDetails />} />
                       <Route path="/recommendation" element={<Recommendation />} />
                       <Route path="/verify-email" element={<VerifyEmail />} />
+                      <Route
+                        path="/profile/:userId"
+                        element={
+                          <PrivateRoute>
+                            <Profile />
+                          </PrivateRoute>
+                        }
+                      />
                       <Route path="*" element={<ErrorPage />} />
                     </Routes>
                   </main>

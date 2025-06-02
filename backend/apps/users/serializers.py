@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import User
+from .models import User, Rating, Watchlist, UserFavoriteGenre
+from apps.movies.serializers import MovieSerializer
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
@@ -55,3 +56,40 @@ class ResetPasswordSerializer(serializers.Serializer):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
         return attrs
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
+            'location', 'is_email_verified', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at']
+
+class UserStatsSerializer(serializers.Serializer):
+    watched_movies_count = serializers.IntegerField()
+    reviews_count = serializers.IntegerField()
+    ratings_count = serializers.IntegerField()
+    followers_count = serializers.IntegerField()
+    following_count = serializers.IntegerField()
+
+class UserRatingSerializer(serializers.ModelSerializer):
+    movie = MovieSerializer()
+
+    class Meta:
+        model = Rating
+        fields = ['id', 'movie', 'rating', 'review_title', 'review_text', 'created_at']
+
+class UserWatchlistSerializer(serializers.ModelSerializer):
+    movie = MovieSerializer()
+
+    class Meta:
+        model = Watchlist
+        fields = ['id', 'movie', 'status', 'created_at']
+
+class UserFavoriteGenreSerializer(serializers.ModelSerializer):
+    genre_name = serializers.CharField(source='genre.name')
+
+    class Meta:
+        model = UserFavoriteGenre
+        fields = ['id', 'genre_name']

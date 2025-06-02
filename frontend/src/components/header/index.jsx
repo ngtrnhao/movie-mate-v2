@@ -4,13 +4,15 @@ import MovieMateLogo from './Logo';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Avatar, Menu, MenuItem, IconButton } from '@mui/material';
-import { AccountCircle } from '@mui/icons-material';
+import { useSelector, useDispatch } from 'react-redux';
+import { Avatar, Menu, MenuItem, IconButton, Tooltip } from '@mui/material';
+import { AccountCircle, Settings, Logout } from '@mui/icons-material';
+import { logout } from '../../store/slices/authSlice';
 
 const Header = () => {
   const { t } = useTranslation('common');
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [isScrolled, setIsScrolled] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const user = useSelector((state) => state.auth.user);
@@ -38,9 +40,14 @@ const Header = () => {
     navigate(`/profile/${user.id}`);
   };
 
+  const handleSettingsClick = () => {
+    handleProfileMenuClose();
+    navigate('/settings');
+  };
+
   const handleLogout = () => {
     handleProfileMenuClose();
-    // Add logout logic here
+    dispatch(logout());
     navigate('/login');
   };
 
@@ -68,24 +75,26 @@ const Header = () => {
             <div className="flex items-center gap-4">
               {user ? (
                 <>
-                  <IconButton
-                    onClick={handleProfileMenuOpen}
-                    size="large"
-                    edge="end"
-                    aria-label="account of current user"
-                    aria-haspopup="true"
-                    color="inherit"
-                  >
-                    {user.avatar_url ? (
-                      <Avatar
-                        src={user.avatar_url}
-                        alt={user.username}
-                        sx={{ width: 32, height: 32 }}
-                      />
-                    ) : (
-                      <AccountCircle />
-                    )}
-                  </IconButton>
+                  <Tooltip title={user.username}>
+                    <IconButton
+                      onClick={handleProfileMenuOpen}
+                      size="large"
+                      edge="end"
+                      aria-label="account of current user"
+                      aria-haspopup="true"
+                      color="inherit"
+                    >
+                      {user.avatar_url ? (
+                        <Avatar
+                          src={user.avatar_url}
+                          alt={user.username}
+                          sx={{ width: 32, height: 32 }}
+                        />
+                      ) : (
+                        <AccountCircle sx={{ width: 32, height: 32 }} />
+                      )}
+                    </IconButton>
+                  </Tooltip>
                   <Menu
                     anchorEl={anchorEl}
                     open={Boolean(anchorEl)}
@@ -107,17 +116,35 @@ const Header = () => {
                     transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                     anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                   >
-                    <MenuItem onClick={handleProfileClick}>Profile</MenuItem>
-                    <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                    <MenuItem onClick={handleProfileClick}>
+                      <AccountCircle fontSize="small" sx={{ mr: 1 }} />
+                      {t('auth.profile')}
+                    </MenuItem>
+                    <MenuItem onClick={handleSettingsClick}>
+                      <Settings fontSize="small" sx={{ mr: 1 }} />
+                      {t('auth.settings')}
+                    </MenuItem>
+                    <MenuItem onClick={handleLogout}>
+                      <Logout fontSize="small" sx={{ mr: 1 }} />
+                      {t('auth.logout')}
+                    </MenuItem>
                   </Menu>
                 </>
               ) : (
-                <button
-                  onClick={() => navigate('/login')}
-                  className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
-                >
-                  {t('auth.signIn')}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate('/register')}
+                    className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                  >
+                    {t('auth.signUp')}
+                  </button>
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
+                  >
+                    {t('auth.signIn')}
+                  </button>
+                </div>
               )}
             </div>
           </div>

@@ -14,7 +14,10 @@
     "password": "Password",
     "confirmPassword": "Confirm Password",
     "forgotPassword": "Forgot Password?",
-    "rememberMe": "Remember Me"
+    "rememberMe": "Remember Me",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
   },
   "search": {
     "placeholder": "Search movies...",

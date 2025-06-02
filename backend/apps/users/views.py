@@ -4,12 +4,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .models import User, EmailVerificationToken
+from .models import User, EmailVerificationToken, Rating, Watchlist, UserFavoriteGenre
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
     ForgotPasswordSerializer,
-    ResetPasswordSerializer
+    ResetPasswordSerializer,
+    UserProfileSerializer,
+    UserStatsSerializer,
+    UserRatingSerializer,
+    UserWatchlistSerializer,
+    UserFavoriteGenreSerializer
 )
 from .services import send_verification_email
 
@@ -170,3 +175,126 @@ class ResetPasswordView(generics.CreateAPIView):
             {"message": "Password has been reset successfully."},
             status=status.HTTP_200_OK
         )
+
+class ProfileView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserProfileSerializer
+
+    def get_object(self):
+        return self.request.user
+
+    def get(self, request, *args, **kwargs):
+        user_id = kwargs.get('userId')
+        try:
+            user = User.objects.get(id=user_id)
+            serializer = self.get_serializer(user)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def put(self, request, *args, **kwargs):
+        user_id = kwargs.get('userId')
+        try:
+            user = User.objects.get(id=user_id)
+            if user != request.user:
+                return Response(
+                    {"error": "You can only update your own profile"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            serializer = self.get_serializer(user, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class UploadAvatarView(generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserProfileSerializer
+
+    def put(self, request, *args, **kwargs):
+        user_id = kwargs.get('userId')
+        try:
+            user = User.objects.get(id=user_id)
+            if user != request.user:
+                return Response(
+                    {"error": "You can only update your own avatar"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if 'avatar' not in request.FILES:
+                return Response(
+                    {"error": "No avatar file provided"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Handle avatar upload logic here
+            # You might want to use a storage service like AWS S3
+            # For now, we'll just store the URL
+            user.avatar_url = request.FILES['avatar'].name
+            user.save()
+
+            serializer = self.get_serializer(user)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class UserStatsView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserStatsSerializer
+
+    def get(self, request, *args, **kwargs):
+        user_id = kwargs.get('userId')
+        try:
+            user = User.objects.get(id=user_id)
+
+            # Calculate stats
+            stats = {
+                'watched_movies_count': Watchlist.objects.filter(user=user, status='WATCHED').count(),
+                'reviews_count': Rating.objects.filter(user=user).count(),
+                'ratings_count': Rating.objects.filter(user=user).count(),
+                'followers_count': 0,  # Implement if you have followers functionality
+                'following_count': 0,  # Implement if you have following functionality
+            }
+
+            serializer = self.get_serializer(stats)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class UserReviewsView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserRatingSerializer
+
+    def get_queryset(self):
+        user_id = self.kwargs.get('userId')
+        return Rating.objects.filter(user_id=user_id).select_related('movie')
+
+class UserRatingsView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserRatingSerializer
+
+    def get_queryset(self):
+        user_id = self.kwargs.get('userId')
+        return Rating.objects.filter(user_id=user_id).select_related('movie')
+
+class UserFavoriteGenresView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserFavoriteGenreSerializer
+
+    def get_queryset(self):
+        user_id = self.kwargs.get('userId')
+        return UserFavoriteGenre.objects.filter(user_id=user_id).select_related('genre')

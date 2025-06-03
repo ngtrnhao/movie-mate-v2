@@ -8,6 +8,7 @@ import {
   selectAuthError,
   selectRememberMe,
 } from '../../../store/selectors/authSelectors';
+import GoogleLogin from './GoogleLogin';
 
 // Heroicons v2 Eye
 const EyeIcon = ({ className }) => (
@@ -120,9 +121,6 @@ const LoginForm = () => {
   };
 
   // Social login handlers (placeholders)
-  const handleGoogleLogin = () => {
-    alert('Google login coming soon!');
-  };
   const handleFacebookLogin = () => {
     alert('Facebook login coming soon!');
   };
@@ -213,18 +211,7 @@ const LoginForm = () => {
           <div className="h-px flex-1 bg-gray-700" />
         </div>
         <div className="mb-4 flex gap-3">
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-white py-2.5 font-medium text-black transition-colors hover:bg-gray-100"
-          >
-            <img
-              src="https://www.svgrepo.com/show/475656/google-color.svg"
-              alt="Google"
-              className="size-5"
-            />
-            Google
-          </button>
+          <GoogleLogin />
           <button
             type="button"
             onClick={handleFacebookLogin}

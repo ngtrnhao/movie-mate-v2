@@ -139,6 +139,17 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
+export const googleLogin = createAsyncThunk(
+  'auth/googleLogin',
+  async (userData, { rejectWithValue }) => {
+    try {
+      return userData;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Google login failed');
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -154,13 +165,30 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.refreshToken = action.payload.refreshToken;
       state.error = null;
+      localStorage.setItem('token', action.payload.token);
+      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
     loginFailure: (state, action) => {
       state.loading = false;
       state.error = action.payload;
     },
     logout: (state) => {
-      state.user = null;
+      state.user = {
+        id: null,
+        username: null,
+        email: null,
+        firstName: null,
+        lastName: null,
+        avatarUrl: null,
+        bio: null,
+        age: null,
+        gender: null,
+        location: null,
+        isEmailVerified: false,
+        createdAt: null,
+        updatedAt: null,
+      };
       state.isAuthenticated = false;
       state.token = null;
       state.refreshToken = null;
@@ -180,6 +208,22 @@ const authSlice = createSlice({
         ...action.payload,
       };
     },
+    /**
+     * rehydrateAuth
+     * Khôi phục trạng thái đăng nhập từ localStorage vào Redux state khi app khởi động hoặc reload.
+     * Nếu localStorage có token và user, sẽ cập nhật lại state đăng nhập.
+     */
+    rehydrateAuth: (state) => {
+      const token = localStorage.getItem('token');
+      const refreshToken = localStorage.getItem('refreshToken');
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (token && user) {
+        state.isAuthenticated = true;
+        state.token = token;
+        state.refreshToken = refreshToken;
+        state.user = user;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -195,6 +239,9 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.refreshToken = action.payload.refreshToken;
         state.error = null;
+        localStorage.setItem('token', action.payload.token);
+        localStorage.setItem('refreshToken', action.payload.refreshToken);
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -270,6 +317,26 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Google Login
+      .addCase(googleLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(googleLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
+        state.error = null;
+        localStorage.setItem('token', action.payload.token);
+        localStorage.setItem('refreshToken', action.payload.refreshToken);
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+      })
+      .addCase(googleLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
@@ -282,6 +349,7 @@ export const {
   clearError,
   setRememberMe,
   updateUserPreferences,
+  rehydrateAuth,
 } = authSlice.actions;
 
 export default authSlice.reducer;

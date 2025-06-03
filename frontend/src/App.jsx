@@ -18,63 +18,75 @@ import Recommendation from './pages/recommendation';
 import VerifyEmail from './pages/VerifyEmail';
 import Profile from './pages/Profile';
 import PrivateRoute from './components/auth/PrivateRoute';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { useEffect } from 'react';
+import { useDispatch } from 'react-redux';
+import { rehydrateAuth } from './store/slices/authSlice';
 
 function App() {
+  const dispatch = useDispatch();
+  // Khi app khởi động, gọi rehydrateAuth để khôi phục trạng thái đăng nhập từ localStorage vào Redux
+  useEffect(() => {
+    dispatch(rehydrateAuth());
+  }, [dispatch]);
+
   return (
-    <I18nProvider>
-      <BrowserRouter>
-        <QueryProvider>
-          <Routes>
-            {/* Landing Page Route */}
-            <Route
-              path="/"
-              element={
-                <div className="text-foreground flex min-h-screen flex-col">
-                  <LandingPage />
-                </div>
-              }
-            />
+    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+      <I18nProvider>
+        <BrowserRouter>
+          <QueryProvider>
+            <Routes>
+              {/* Landing Page Route */}
+              <Route
+                path="/"
+                element={
+                  <div className="text-foreground flex min-h-screen flex-col">
+                    <LandingPage />
+                  </div>
+                }
+              />
 
-            {/* Auth Routes */}
-            <Route element={<AuthLayout />}>
-              <Route path="/login" element={<LoginForm />} />
-              <Route path="/register" element={<RegisterForm />} />
-              <Route path="/forgot-password" element={<ForgotPasswordForm />} />
-              {/* <Route path="/reset-password" element={<ResetPasswordForm />} /> */}
-            </Route>
+              {/* Auth Routes */}
+              <Route element={<AuthLayout />}>
+                <Route path="/login" element={<LoginForm />} />
+                <Route path="/register" element={<RegisterForm />} />
+                <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+                {/* <Route path="/reset-password" element={<ResetPasswordForm />} /> */}
+              </Route>
 
-            {/* Main App Routes */}
-            <Route
-              path="/*"
-              element={
-                <div className="text-foreground flex min-h-screen flex-col transition-colors duration-200">
-                  <Header />
-                  <main className="bg-background flex-1 transition-colors duration-200">
-                    <Routes>
-                      <Route path="/home" element={<HomePage />} />
-                      <Route path="/movies" element={<MoviesPage />} />
-                      <Route path="/movies/:movieId" element={<MovieDetails />} />
-                      <Route path="/recommendation" element={<Recommendation />} />
-                      <Route path="/verify-email" element={<VerifyEmail />} />
-                      <Route
-                        path="/profile/:userId"
-                        element={
-                          <PrivateRoute>
-                            <Profile />
-                          </PrivateRoute>
-                        }
-                      />
-                      <Route path="*" element={<ErrorPage />} />
-                    </Routes>
-                  </main>
-                  <Footer />
-                </div>
-              }
-            />
-          </Routes>
-        </QueryProvider>
-      </BrowserRouter>
-    </I18nProvider>
+              {/* Main App Routes */}
+              <Route
+                path="/*"
+                element={
+                  <div className="text-foreground flex min-h-screen flex-col transition-colors duration-200">
+                    <Header />
+                    <main className="bg-background flex-1 transition-colors duration-200">
+                      <Routes>
+                        <Route path="/home" element={<HomePage />} />
+                        <Route path="/movies" element={<MoviesPage />} />
+                        <Route path="/movies/:movieId" element={<MovieDetails />} />
+                        <Route path="/recommendation" element={<Recommendation />} />
+                        <Route path="/verify-email" element={<VerifyEmail />} />
+                        <Route
+                          path="/profile/:userId"
+                          element={
+                            <PrivateRoute>
+                              <Profile />
+                            </PrivateRoute>
+                          }
+                        />
+                        <Route path="*" element={<ErrorPage />} />
+                      </Routes>
+                    </main>
+                    <Footer />
+                  </div>
+                }
+              />
+            </Routes>
+          </QueryProvider>
+        </BrowserRouter>
+      </I18nProvider>
+    </GoogleOAuthProvider>
   );
 }
 

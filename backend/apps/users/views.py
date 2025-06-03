@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import status, generics, serializers
+from rest_framework import status, generics, serializers, viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -14,9 +14,11 @@ from .serializers import (
     UserStatsSerializer,
     UserRatingSerializer,
     UserWatchlistSerializer,
-    UserFavoriteGenreSerializer
+    UserFavoriteGenreSerializer,
+    GoogleAuthSerializer
 )
 from .services import send_verification_email
+from rest_framework.views import APIView
 
 # Create your views here.
 
@@ -298,3 +300,75 @@ class UserFavoriteGenresView(generics.ListAPIView):
     def get_queryset(self):
         user_id = self.kwargs.get('userId')
         return UserFavoriteGenre.objects.filter(user_id=user_id).select_related('genre')
+
+class GoogleAuthView(APIView):
+    permission_classes = []  # Allow unauthenticated access
+
+    def post(self, request):
+        serializer = GoogleAuthSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data['user']
+
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                'access_token': str(refresh.access_token),
+                'refresh_token': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'avatar_url': user.avatar_url
+                }
+            })
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return User.objects.all()
+
+    def get_permissions(self):
+        if self.action in ['create', 'list']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    def get_object(self):
+        return self.request.user
+
+class UserRatingViewSet(viewsets.ModelViewSet):
+    serializer_class = UserRatingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Rating.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class UserWatchlistViewSet(viewsets.ModelViewSet):
+    serializer_class = UserWatchlistSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Watchlist.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class UserFavoriteGenreViewSet(viewsets.ModelViewSet):
+    serializer_class = UserFavoriteGenreSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return UserFavoriteGenre.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

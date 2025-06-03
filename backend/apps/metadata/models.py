@@ -5,15 +5,20 @@ from django.utils.text import slugify
 class Genre(models.Model):
     name = models.CharField(max_length=255, unique=True)
     slug = models.SlugField(max_length=255, unique=True)
-    description = models.TextField(blank=True, null = True)
-    created_at = models.DateTimeField(auto_now_add =True)
-    updated_at = models.DateTimeField(auto_now = True)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'metadata_genre'
         indexes = [
             models.Index(fields=['name']),
+            models.Index(fields=['slug']),
         ]
+
+    def __str__(self):
+        return self.name
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
@@ -34,6 +39,7 @@ class Person(models.Model) :
         indexes  = [
             models.Index(fields=['name']),
         ]
+
 class MovieCrew(models.Model):
     ROLE_CHOICES = [
         ('ACTOR','Actor'),
@@ -42,17 +48,17 @@ class MovieCrew(models.Model):
         ('PRODUCER','Producer'),
     ]
 
-    movie = models.ForeignKey('movies.Movie',on_delete= models.CASCADE)
+    movie = models.ForeignKey('movies.Movie',on_delete=models.CASCADE)
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
-    role = models.CharField(max_length=50, choices = ROLE_CHOICES)
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
     character_name = models.CharField(max_length=255, blank=True,null=True)
     order_credit = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'metadata_moviecrew'
         unique_together = ('movie','person','role')
         indexes = [
-            models.Index(fields = ['movie','role']),
+            models.Index(fields=['movie','role']),
         ]

@@ -4,18 +4,26 @@ from apps.metadata.models import Genre
 from django.utils.crypto import get_random_string
 from django.utils import timezone
 from datetime import timedelta
+from django.utils.translation import gettext_lazy as _
 
 class User(AbstractUser):
-    avatar_url = models.CharField(max_length=255, blank=True, null=True)
+    email = models.EmailField(_('email address'), unique=True)
+    avatar_url = models.URLField(max_length=500, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     age = models.IntegerField(blank=True, null=True)
     gender = models.CharField(max_length=10, choices=[('M', 'Male'), ('F', 'Female'), ('O', 'Other')], blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
-    email = models.EmailField(unique=True)
     is_email_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Google OAuth2 fields
+    # google_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    # google_access_token = models.CharField(max_length=500, blank=True, null=True)
+    # google_refresh_token = models.CharField(max_length=500, blank=True, null=True)
+    # google_token_expiry = models.DateTimeField(blank=True, null=True)
+
+    # Make email the username field
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
@@ -42,10 +50,15 @@ class User(AbstractUser):
 
     class Meta:
         db_table = 'users_users'
+        verbose_name = _('user')
+        verbose_name_plural = _('users')
         indexes = [
             models.Index(fields=['username']),
             models.Index(fields=['email']),
         ]
+
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}".strip() or self.username
 
 class UserFavoriteGenre(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -103,20 +116,20 @@ class CommentLike(models.Model):
 
 class Watchlist(models.Model):
     STATUS_CHOICES = [
-        ('PLANNED','Planned'),
-        ('WATCHING','Watching'),
-        ('WATCHED','Watched'),
+        ('PLANNED', 'Planned to Watch'),
+        ('WATCHING', 'Currently Watching'),
+        ('WATCHED', 'Watched'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    movie = models.ForeignKey('movies.Movie',on_delete=models.CASCADE)
+    movie = models.ForeignKey('movies.Movie', on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'users_watchlist'
-        unique_together = ('user','movie')
+        unique_together = ('user', 'movie')
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['status']),

@@ -1,6 +1,9 @@
 {
   "header":{
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "logout": "Logout",
+    "profile": "Profile",
+    "settings": "Settings"
   },
   "hero": {
     "title": "Discover Your Next",

@@ -167,7 +167,7 @@ const LandingPage = () => {
             <MovieMateLogo />
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
-              {user ? (
+              {user && user.id ? (
                 <>
                   <Tooltip title={user.username}>
                     <IconButton
@@ -212,31 +212,25 @@ const LandingPage = () => {
                   >
                     <MenuItem onClick={handleProfileClick}>
                       <AccountCircle fontSize="small" sx={{ mr: 1 }} />
-                      {t('auth.profile')}
+                      {t('header.profile')}
                     </MenuItem>
                     <MenuItem onClick={handleSettingsClick}>
                       <Settings fontSize="small" sx={{ mr: 1 }} />
-                      {t('auth.settings')}
+                      {t('header.settings')}
                     </MenuItem>
                     <MenuItem onClick={handleLogout}>
                       <Logout fontSize="small" sx={{ mr: 1 }} />
-                      {t('auth.logout')}
+                      {t('header.logout')}
                     </MenuItem>
                   </Menu>
                 </>
               ) : (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => navigate('/register')}
+                    onClick={() => navigate('/login')}
                     className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
                   >
-                    {t('auth.signUp')}
-                  </button>
-                  <button
-                    onClick={() => navigate('/login')}
-                    className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
-                  >
-                    {t('auth.signIn')}
+                    {t('header.signIn')}
                   </button>
                 </div>
               )}

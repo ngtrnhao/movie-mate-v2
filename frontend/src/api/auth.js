@@ -3,7 +3,7 @@ import axiosInstance from './axios';
 // Login API
 export const loginAPI = async (email, password) => {
   try {
-    const response = await axiosInstance.post('/auth/login/', {
+    const response = await axiosInstance.post('/api/auth/login/', {
       email,
       password,
     });
@@ -16,7 +16,7 @@ export const loginAPI = async (email, password) => {
 // Register API
 export const registerAPI = async (userData) => {
   try {
-    const response = await axiosInstance.post('/auth/register/', {
+    const response = await axiosInstance.post('/api/auth/register/', {
       username: userData.username,
       email: userData.email,
       password: userData.password,
@@ -45,7 +45,7 @@ export const registerAPI = async (userData) => {
 
 // Refresh Token API
 export const refreshTokenAPI = async (refreshToken) => {
-  const response = await axiosInstance.post('/auth/token/refresh/', {
+  const response = await axiosInstance.post('/api/auth/token/refresh/', {
     refresh: refreshToken,
   });
   return response.data;
@@ -53,7 +53,7 @@ export const refreshTokenAPI = async (refreshToken) => {
 
 // Forgot Password API
 export const forgotPasswordAPI = async (email) => {
-  const response = await axiosInstance.post('/auth/forgot-password/', {
+  const response = await axiosInstance.post('/api/auth/forgot-password/', {
     email,
   });
   return response.data;
@@ -61,7 +61,7 @@ export const forgotPasswordAPI = async (email) => {
 
 // Reset Password API
 export const resetPasswordAPI = async (token, password, confirm_password) => {
-  const response = await axiosInstance.post('/auth/reset-password/', {
+  const response = await axiosInstance.post('/api/auth/reset-password/', {
     token,
     password,
     confirm_password,
@@ -71,19 +71,19 @@ export const resetPasswordAPI = async (token, password, confirm_password) => {
 
 // Get User Profile
 export const getProfileAPI = async () => {
-  const response = await axiosInstance.get('/auth/profile/');
+  const response = await axiosInstance.get('/api/auth/profile/');
   return response.data;
 };
 
 // Update User Profile
 export const updateProfileAPI = async (userData) => {
-  const response = await axiosInstance.put('/auth/profile/', userData);
+  const response = await axiosInstance.put('/api/auth/profile/', userData);
   return response.data;
 };
 
 export const verifyEmailAPI = async (token) => {
   try {
-    const response = await axiosInstance.get(`/auth/verify-email/?token=${token}`);
+    const response = await axiosInstance.get(`/api/auth/verify-email/?token=${token}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { error: 'Failed to verify email' };

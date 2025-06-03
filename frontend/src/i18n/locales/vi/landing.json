@@ -1,6 +1,9 @@
 {
   "header":{
-    "signIn": "Đăng Nhập"
+    "signIn": "Đăng Nhập",
+    "logout": "Đăng Xuất",
+    "profile": "Hồ Sơ",
+    "settings": "Cài Đặt"
   },
   "hero": {
     "title": "Người Bạn Đồng Hành Điện Ảnh Của Bạn",

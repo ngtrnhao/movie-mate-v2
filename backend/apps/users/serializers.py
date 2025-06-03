@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from .models import User, Rating, Watchlist, UserFavoriteGenre
 from apps.movies.serializers import MovieSerializer
+from django.conf import settings
+import requests
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
@@ -93,3 +95,38 @@ class UserFavoriteGenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserFavoriteGenre
         fields = ['id', 'genre_name']
+
+class GoogleAuthSerializer(serializers.Serializer):
+    access_token = serializers.CharField()
+
+    def validate(self, data):
+        access_token = data.get('access_token')
+
+        # Verify the token with Google
+        response = requests.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            headers={'Authorization': f'Bearer {access_token}'}
+        )
+
+        if response.status_code != 200:
+            raise serializers.ValidationError('Invalid Google token')
+
+        user_data = response.json()
+
+        # Get or create user
+        try:
+            user = User.objects.get(email=user_data['email'])
+        except User.DoesNotExist:
+            # Create new user
+            user = User.objects.create_user(
+                username=user_data['email'].split('@')[0],
+                email=user_data['email'],
+                first_name=user_data.get('given_name', ''),
+                last_name=user_data.get('family_name', ''),
+                avatar_url=user_data.get('picture', '')
+            )
+
+        return {
+            'user': user,
+            'access_token': access_token
+        }

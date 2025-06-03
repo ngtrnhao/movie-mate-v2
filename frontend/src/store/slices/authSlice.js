@@ -94,7 +94,8 @@ export const refreshToken = createAsyncThunk(
     try {
       const { refreshToken } = getState().auth;
       const response = await refreshTokenAPI(refreshToken);
-      localStorage.setItem('token', response.token);
+      localStorage.setItem('token', response.access);
+      localStorage.setItem('refreshToken', response.refresh);
       return response;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Token refresh failed');
@@ -162,11 +163,11 @@ const authSlice = createSlice({
       state.loading = false;
       state.isAuthenticated = true;
       state.user = action.payload.user;
-      state.token = action.payload.token;
-      state.refreshToken = action.payload.refreshToken;
+      state.token = action.payload.access;
+      state.refreshToken = action.payload.refresh;
       state.error = null;
-      localStorage.setItem('token', action.payload.token);
-      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      localStorage.setItem('token', action.payload.access);
+      localStorage.setItem('refreshToken', action.payload.refresh);
       localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
     loginFailure: (state, action) => {
@@ -236,11 +237,11 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.refreshToken = action.payload.refreshToken;
+        state.token = action.payload.access;
+        state.refreshToken = action.payload.refresh;
         state.error = null;
-        localStorage.setItem('token', action.payload.token);
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
+        localStorage.setItem('token', action.payload.access);
+        localStorage.setItem('refreshToken', action.payload.refresh);
         localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
       .addCase(login.rejected, (state, action) => {
@@ -268,8 +269,11 @@ const authSlice = createSlice({
       })
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.loading = false;
-        state.token = action.payload.token;
+        state.token = action.payload.access;
+        state.refreshToken = action.payload.refresh;
         state.error = null;
+        localStorage.setItem('token', action.payload.access);
+        localStorage.setItem('refreshToken', action.payload.refresh);
       })
       .addCase(refreshToken.rejected, (state, action) => {
         state.loading = false;
@@ -327,11 +331,11 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.refreshToken = action.payload.refreshToken;
+        state.token = action.payload.access;
+        state.refreshToken = action.payload.refresh;
         state.error = null;
-        localStorage.setItem('token', action.payload.token);
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
+        localStorage.setItem('token', action.payload.access);
+        localStorage.setItem('refreshToken', action.payload.refresh);
         localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
       .addCase(googleLogin.rejected, (state, action) => {

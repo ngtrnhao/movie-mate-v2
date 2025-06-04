@@ -12,7 +12,7 @@ import AuthLayout from './layouts/AuthLayout';
 import LoginForm from './components/users/Auth/LoginForm';
 import RegisterForm from './components/users/Auth/RegisterForm';
 import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
-// import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
+import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
 import MovieDetails from './components/movies/movie-details';
 import Recommendation from './pages/recommendation';
 import VerifyEmail from './pages/VerifyEmail';
@@ -51,7 +51,7 @@ function App() {
                 <Route path="/login" element={<LoginForm />} />
                 <Route path="/register" element={<RegisterForm />} />
                 <Route path="/forgot-password" element={<ForgotPasswordForm />} />
-                {/* <Route path="/reset-password" element={<ResetPasswordForm />} /> */}
+                <Route path="/reset-password" element={<ResetPasswordForm />} />
               </Route>
 
               {/* Main App Routes */}

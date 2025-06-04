@@ -14,6 +14,7 @@ class User(AbstractUser):
     gender = models.CharField(max_length=10, choices=[('M', 'Male'), ('F', 'Female'), ('O', 'Other')], blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
     is_email_verified = models.BooleanField(default=False)
+    is_google_account = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -180,3 +181,29 @@ class EmailVerificationToken(models.Model):
 
     def __str__(self):
         return f"Verification token for {self.user.email}"
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User, on_delete= models.CASCADE)
+    token = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = get_random_string(64)
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return timezone.now() <= self.expires_at
+    def __str__(self):
+        return f"Password reset token for {self.user.email}"
+
+
+    class Meta:
+        db_table = 'users_passwordresettoken'
+        indexes =[
+            models.Index(fields=['token']),
+            models.Index(fields=['user']),
+            models.Index(fields=['expires_at']),
+        ]

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import User, Rating, Watchlist, UserFavoriteGenre
+from .models import User, Rating, Watchlist, UserFavoriteGenre, PasswordResetToken
 from apps.movies.serializers import MovieSerializer
 from django.conf import settings
 import requests
@@ -48,16 +48,59 @@ class LoginSerializer(serializers.Serializer):
         return value
 
 class ForgotPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email = serializers.EmailField(
+        error_messages={
+            'required': 'Email is required',
+            'invalid': 'Please enter a valid email address',
+            'blank': 'Email cannot be blank'
+        }
+    )
+
+    def validate_email(self, value):
+        try:
+            User.objects.get(email=value)
+        except User.DoesNotExist:
+            # Don't raise error here to prevent email enumeration
+            pass
+        return value
 
 class ResetPasswordSerializer(serializers.Serializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True)
+    token = serializers.CharField(required=True)
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        validators=[validate_password],
+        error_messages={
+            'required': 'Password is required',
+            'blank': 'Password cannot be blank',
+            'invalid': 'Please enter a valid password'
+        }
+    )
+    password2 = serializers.CharField(
+        write_only=True,
+        required=True,
+        error_messages={
+            'required': 'Please confirm your password',
+            'blank': 'Please confirm your password'
+        }
+    )
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
+            raise serializers.ValidationError({
+                "password": "Password fields didn't match.",
+                "password2": "Password fields didn't match."
+            })
         return attrs
+
+    def validate_token(self, value):
+        try:
+            token = PasswordResetToken.objects.get(token=value)
+            if not token.is_valid():
+                raise serializers.ValidationError("Password reset link has expired. Please request a new one.")
+            return value
+        except PasswordResetToken.DoesNotExist:
+            raise serializers.ValidationError("Invalid password reset link.")
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -116,6 +159,12 @@ class GoogleAuthSerializer(serializers.Serializer):
         # Get or create user
         try:
             user = User.objects.get(email=user_data['email'])
+            # Update existing user if needed
+            if not user.is_google_account:
+                user.is_google_account = True
+            if not user.is_email_verified:
+                user.is_email_verified = True
+            user.save()
         except User.DoesNotExist:
             # Create new user
             user = User.objects.create_user(
@@ -123,7 +172,9 @@ class GoogleAuthSerializer(serializers.Serializer):
                 email=user_data['email'],
                 first_name=user_data.get('given_name', ''),
                 last_name=user_data.get('family_name', ''),
-                avatar_url=user_data.get('picture', '')
+                avatar_url=user_data.get('picture', ''),
+                is_google_account=True,
+                is_email_verified=True  # Auto verify email for Google accounts
             )
 
         return {

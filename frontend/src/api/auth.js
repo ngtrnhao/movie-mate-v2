@@ -64,7 +64,7 @@ export const resetPasswordAPI = async (token, password, confirm_password) => {
   const response = await axiosInstance.post('/api/auth/reset-password/', {
     token,
     password,
-    confirm_password,
+    password2: confirm_password,
   });
   return response.data;
 };

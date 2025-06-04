@@ -46,7 +46,7 @@ const ForgotPasswordForm = () => {
       return;
     }
     try {
-      const resultAction = await dispatch(forgotPassword({ email }));
+      const resultAction = await dispatch(forgotPassword(email));
       if (forgotPassword.fulfilled.match(resultAction)) {
         dispatch(clearError());
         setIsSubmitted(true);

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .models import User, EmailVerificationToken, Rating, Watchlist, UserFavoriteGenre
+from .models import User, EmailVerificationToken, Rating, Watchlist, UserFavoriteGenre, PasswordResetToken
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -17,8 +17,11 @@ from .serializers import (
     UserFavoriteGenreSerializer,
     GoogleAuthSerializer
 )
-from .services import send_verification_email
+from .services import send_verification_email, send_password_reset_email
 from rest_framework.views import APIView
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 
@@ -87,6 +90,19 @@ class LoginView(generics.CreateAPIView):
 
             user = User.objects.get(email=serializer.validated_data['email'])
 
+            # Check if user is a Google account
+            if user.is_google_account:
+                # If it's a Google account, check if they have set a password
+                if not user.has_usable_password():
+                    return Response(
+                        {
+                            "error": "Google account",
+                            "message": "This is a Google account. Please use Google login.",
+                            "code": "google_account"
+                        },
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
+
             if not user.is_email_verified:
                 return Response(
                     {
@@ -149,15 +165,34 @@ class ForgotPasswordView(generics.CreateAPIView):
         email = serializer.validated_data['email']
         try:
             user = User.objects.get(email=email)
-            # TODO: Implement email sending
-            return Response(
-                {"message": "Password reset email has been sent."},
-                status=status.HTTP_200_OK
-            )
+
+            # Send password reset email
+            try:
+                send_password_reset_email(user)
+                return Response(
+                    {
+                        "message": "Password reset email has been sent.",
+                        "code": "email_sent"
+                    },
+                    status=status.HTTP_200_OK
+                )
+            except Exception as e:
+                return Response(
+                    {
+                        "error": "Failed to send reset email",
+                        "message": "An error occurred while sending the reset email. Please try again.",
+                        "code": "email_send_failed"
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         except User.DoesNotExist:
+            # Return success even if user doesn't exist for security
             return Response(
-                {"error": "User with this email does not exist."},
-                status=status.HTTP_404_NOT_FOUND
+                {
+                    "message": "If an account exists with this email, you will receive a password reset link.",
+                    "code": "email_sent"
+                },
+                status=status.HTTP_200_OK
             )
 
 class ResetPasswordView(generics.CreateAPIView):
@@ -165,18 +200,67 @@ class ResetPasswordView(generics.CreateAPIView):
     serializer_class = ResetPasswordSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
 
-        # TODO: Validate reset token
-        # user = get_user_from_token(token)
-        # user.set_password(serializer.validated_data['password'])
-        # user.save()
+            token = serializer.validated_data['token']
+            password = serializer.validated_data['password']
 
-        return Response(
-            {"message": "Password has been reset successfully."},
-            status=status.HTTP_200_OK
-        )
+            try:
+                reset_token = PasswordResetToken.objects.get(token=token)
+                user = reset_token.user
+
+                # Update user's password
+                user.set_password(password)
+                # If it was a Google account, update the flag
+                if user.is_google_account:
+                    user.is_google_account = False
+                user.save()
+
+                # Delete used token
+                reset_token.delete()
+
+                logger.info(f"Password reset successful for user {user.email}")
+                return Response(
+                    {
+                        "message": "Password has been reset successfully.",
+                        "code": "password_reset_success"
+                    },
+                    status=status.HTTP_200_OK
+                )
+
+            except PasswordResetToken.DoesNotExist:
+                logger.warning(f"Invalid reset token attempted: {token}")
+                return Response(
+                    {
+                        "error": "Invalid token",
+                        "message": "Invalid password reset link.",
+                        "code": "invalid_token"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except serializers.ValidationError as e:
+            logger.warning(f"Validation error during password reset: {str(e)}")
+            return Response(
+                {
+                    "error": "Validation error",
+                    "message": e.detail,
+                    "code": "validation_error"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error during password reset: {str(e)}")
+            return Response(
+                {
+                    "error": "Reset failed",
+                    "message": "An error occurred while resetting your password. Please try again.",
+                    "code": "reset_failed"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]

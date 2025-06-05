@@ -57,6 +57,8 @@ INSTALLED_APPS = [
     'apps.metadata.apps.MetadataConfig',
     'apps.recommendations.apps.RecommendationsConfig',
     'apps.api.apps.ApiConfig',
+    'django_celery_beat',
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [
@@ -191,3 +193,8 @@ SIMPLE_JWT = {
 # Google OAuth2 Settings
 GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
 GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET')
+CELERY_BROKER_URL = os.getenv('REDIS_URL','redis://redis:6379/0')
+CELERY_RESULT_BACKEND= os.getenv('REDIS_URL','redis://redis:6379/0')
+CELERY_ACCEPT_CONTENT=['json']
+CELERY_TASK_SERIALIZER='json'
+CELERY_TIMEZONE='UTC'

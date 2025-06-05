@@ -1,6 +1,16 @@
 -r base.txt
+
+# Testing
 pytest==7.4.3
 pytest-django==4.7.0
+pytest-celery==0.0.0
+pytest-redis==3.0.0
+
+# Code Quality
 black==23.11.0
 flake8==6.1.0
 isort==5.12.0
+
+# Development Tools
+flower>=2.0.0  # Changed from celery-flower to flower
+django-debug-toolbar==4.2.0

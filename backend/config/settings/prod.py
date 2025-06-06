@@ -8,7 +8,7 @@ import os
 
 # Security
 DEBUG = False
-ALLOWED_HOSTS = env('ALLOWED_HOSTS', default='.onrender.com,localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'movie-mate-v2.onrender.com,.onrender.com,localhost,127.0.0.1').split(',')
 
 # Database
 DATABASES = {

@@ -151,9 +151,9 @@ CORS_ALLOW_HEADERS = [
 # Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-# MEDIA_URL = '/media/'
-# MEDIA_ROOT = BASE_DIR / 'media'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -176,12 +176,12 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 # Frontend URL for email verification
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 
-# # Redis settings
-# REDIS_URL = env('REDIS_URL')
+# Redis settings
+REDIS_URL = env('REDIS_URL')
 
-# # Elasticsearch settings
-# ELASTICSEARCH_DSL_AUTOSYNC = env.bool('ELASTICSEARCH_DSL_AUTOSYNC', True)
-# ELASTICSEARCH_DSL_AUTO_REFRESH = env.bool('ELASTICSEARCH_DSL_AUTO_REFRESH', True)
+# Elasticsearch settings
+ELASTICSEARCH_DSL_AUTOSYNC = env.bool('ELASTICSEARCH_DSL_AUTOSYNC', True)
+ELASTICSEARCH_DSL_AUTO_REFRESH = env.bool('ELASTICSEARCH_DSL_AUTO_REFRESH', True)
 
 # # AWS settings (if using)
 # AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID', default=None)

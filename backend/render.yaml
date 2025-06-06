@@ -1,7 +1,7 @@
 services:
   - type: web
     name: movie-mate-backend
-    env: python
+    runtime: python
     rootDir: backend
     buildCommand: |
       pip install -r requirements/prod.txt
@@ -33,7 +33,7 @@ services:
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DEBUG
-        value: false
+        value: "false"
       - key: ALLOWED_HOSTS
         value: ".onrender.com,localhost,127.0.0.1"
       - key: REDIS_URL
@@ -44,7 +44,7 @@ services:
       - key: EMAIL_HOST
         value: smtp.gmail.com
       - key: EMAIL_PORT
-        value: 587
+        value: "587"
       - key: EMAIL_HOST_USER
         sync: false
       - key: EMAIL_HOST_PASSWORD
@@ -56,17 +56,10 @@ services:
       - key: AWS_STORAGE_BUCKET_NAME
         sync: false
       - key: ELASTICSEARCH_DSL_AUTOSYNC
-        value: true
+        value: "true"
       - key: ELASTICSEARCH_DSL_AUTO_REFRESH
-        value: true
+        value: "true"
 
-databases:
-  - name: movie-mate-db
-    databaseName: movie_mate
-    user: movie_mate_user
-    plan: free
-
-services:
   - type: redis
     name: movie-mate-redis
     ipAllowList: []
@@ -74,4 +67,10 @@ services:
   - type: elasticsearch
     name: movie-mate-elasticsearch
     ipAllowList: []
-    
+
+databases:
+  - name: movie-mate-db
+    databaseName: movie_mate
+    user: movie_mate_user
+    plan: free
+

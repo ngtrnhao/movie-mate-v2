@@ -184,6 +184,9 @@ REDIS_URL = env('REDIS_URL')
 ELASTICSEARCH_DSL_AUTOSYNC = env.bool('ELASTICSEARCH_DSL_AUTOSYNC', True)
 ELASTICSEARCH_DSL_AUTO_REFRESH = env.bool('ELASTICSEARCH_DSL_AUTO_REFRESH', True)
 
+# Migration settings
+MIGRATION_SECRET_KEY = env('MIGRATION_SECRET_KEY', default='your-secret-key-here')
+
 # # AWS settings (if using)
 # AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID', default=None)
 # AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default=None)

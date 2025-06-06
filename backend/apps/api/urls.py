@@ -6,4 +6,5 @@ router = DefaultRouter()
 urlpatterns = [
     path('', include(router.urls)),
     path('auth/', include('apps.users.urls')),
+    path('', include('apps.core.urls')),
 ]

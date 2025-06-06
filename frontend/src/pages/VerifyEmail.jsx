@@ -49,7 +49,7 @@ const VerifyEmail = () => {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg">
           <div className="text-center">
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Verification Failed</h2>

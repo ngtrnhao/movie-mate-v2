@@ -16,7 +16,6 @@ const GoogleLogin = () => {
         navigate('/home');
       } catch (error) {
         console.error('Google login failed:', error);
-        // Show error message to user
         alert(error.message || 'Google login failed. Please try again.');
       }
     },

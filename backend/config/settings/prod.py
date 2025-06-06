@@ -44,6 +44,7 @@ SECURE_HSTS_PRELOAD = True
 CORS_ALLOWED_ORIGINS = [
     "https://movie-mate.onrender.com",  # Add your production frontend URL
     "https://*.onrender.com",
+    "https://movie-mate-v2.vercel.app",
 ]
 
 # Cache settings

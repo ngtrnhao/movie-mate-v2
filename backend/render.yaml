@@ -35,8 +35,6 @@ services:
         generateValue: true
       - key: DEBUG
         value: "false"
-      - key: ALLOWED_HOSTS
-        value: "movie-mate-v2.onrender.com,.onrender.com,localhost,127.0.0.1"
       - key: FRONTEND_URL
         value: "https://movie-mate-v2.vercel.app"
       - key: REDIS_URL
@@ -62,6 +60,8 @@ services:
         value: "true"
       - key: ELASTICSEARCH_DSL_AUTO_REFRESH
         value: "true"
+      - key: MIGRATION_SECRET_KEY
+        generateValue: true
 
   - type: redis
     name: movie-mate-redis

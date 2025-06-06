@@ -36,7 +36,7 @@ services:
       - key: DEBUG
         value: "false"
       - key: ALLOWED_HOSTS
-        value: ".onrender.com,localhost,127.0.0.1"
+        value: "movie-mate-v2.onrender.com,.onrender.com,localhost,127.0.0.1"
       - key: FRONTEND_URL
         value: "https://movie-mate-v2.vercel.app"
       - key: REDIS_URL

@@ -158,26 +158,34 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "https://movie-mate-v2.vercel.app",
 ]
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
+
+# Add CORS settings for production
+if os.getenv('DJANGO_ENV') == 'production':
+    CORS_ALLOWED_ORIGINS = [
+        "https://movie-mate-v2.vercel.app",
+    ]
+    CORS_ALLOW_CREDENTIALS = True
+    CORS_ALLOW_METHODS = [
+        'DELETE',
+        'GET',
+        'OPTIONS',
+        'PATCH',
+        'POST',
+        'PUT',
+    ]
+    CORS_ALLOW_HEADERS = [
+        'accept',
+        'accept-encoding',
+        'authorization',
+        'content-type',
+        'dnt',
+        'origin',
+        'user-agent',
+        'x-csrftoken',
+        'x-requested-with',
+    ]
+    CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+    CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -253,5 +261,22 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
 }
+
+# Security settings for production
+if os.getenv('DJANGO_ENV') == 'production':
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

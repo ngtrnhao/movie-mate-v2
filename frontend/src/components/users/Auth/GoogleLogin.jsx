@@ -16,10 +16,13 @@ const GoogleLogin = () => {
         navigate('/home');
       } catch (error) {
         console.error('Google login failed:', error);
+        // Show error message to user
+        alert(error.message || 'Google login failed. Please try again.');
       }
     },
-    onError: () => {
-      console.error('Google login failed');
+    onError: (error) => {
+      console.error('Google login failed:', error);
+      alert('Google login failed. Please try again.');
     },
   });
 

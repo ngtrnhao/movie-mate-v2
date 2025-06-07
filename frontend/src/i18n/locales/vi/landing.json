@@ -66,9 +66,9 @@
     "subtitle": "Khám phá những bộ phim mới nhất trong kho phim khổng lồ của chúng tôi",
     "viewAllMovies": "Xem Tất Cả Phim",
     "tabs":{
-      "trending": "Phim Nổi Bật",
-      "topRated": "Phim Được Đánh Giá Cao",
-      "upcoming": "Phim Sắp Ra Mắt"
+      "trending": "Nổi Bật",
+      "topRated": "Đánh Giá Cao",
+      "upcoming": "Sắp Ra Mắt"
     }
   },
   "exploreCategories": {

@@ -116,3 +116,116 @@ class MovieNews(models.Model):
             models.Index(fields=['movie']),
             models.Index(fields=['published_at']),
         ]
+
+class MovieRating(models.Model):
+    movie = models.ForeignKey(Movie,on_delete=models.CASCADE, related_name='ratings')
+    imdb_rating = models.DecimalField(max_digits=3,decimal_places=1, null=True,blank=True)
+    imdb_votes = models.IntegerField(null=True, blank=True)
+    metacritic_rating = models.IntegerField(null=True, blank=True)
+    rotten_tomatoes_rating = models.DecimalField(max_digits=3,decimal_places=1,null=True,blank=True)
+    rotten_tomatoes_votes = models.IntegerField(null=True,blank=True)
+    tmdb_rating = models.DecimalField(max_digits=3,decimal_places=1,null=True, blank=True)
+    tmdb_votes = models.IntegerField(null=True,blank=True)
+    film_affinity_rating = models.DecimalField(max_digits=3,decimal_places=1,null=True,blank=True)
+    film_affinity_votes = models.IntegerField(null=True,blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'movies_rating'
+        indexes =[
+            models.Index(fields=['imdb_rating']),
+            models.Index(fields=['metacritic_rating']),
+            models.Index(fields=['rotten_tomatoes_rating']),
+        ]
+
+
+class MovieAward(models.Model):
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='awards')
+    name = models.CharField(max_length=255)
+    category = models.CharField(max_length=255)
+    year = models.IntegerField()
+    won = models.BooleanField(default=False)
+    nomination = models.BooleanField(default=False)
+    is_prestigious = models.BooleanField(default=False)
+    award_event= models.CharField(max_length=255,null=True,blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'movies_award'
+        indexes = [
+            models.Index(fields=['movie','year']),
+            models.Index(fields=['name','category']),
+            models.Index(fields=['is_prestigious']),
+        ]
+
+class MovieCast(models.Model):
+    ROLE_CHOICES = [
+       ('DIRECTOR', 'Director'),
+        ('WRITER', 'Writer'),
+        ('ACTOR', 'Actor'),
+        ('PRODUCER', 'Producer'),
+        ('CINEMATOGRAPHER', 'Cinematographer'),
+        ('EDITOR', 'Editor'),
+        ('COMPOSER', 'Composer'),
+    ]
+
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='cast')
+    name = models.CharField(max_length=255)
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    character = models.CharField(max_length=255, null=True, blank=True)
+    order = models.IntegerField(null=True, blank=True)
+    imdb_id = models.CharField(max_length=20, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'movies_cast'
+        indexes = [
+            models.Index(fields=['movie','order']),
+            models.Index(fields=['name']),
+            models.Index(fields=['imdb_id']),
+        ]
+
+class MovieReview(models.Model):
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='reviews')
+    username = models.CharField(max_length=255)
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    helpful_votes = models.IntegerField(default=0)
+    total_votes = models.IntegerField(default=0)
+    is_spoiler = models.BooleanField(default=False)
+    review_id = models.CharField(max_length=50,unique=True)
+    source = models.CharField(max_length=50,default='IMDB')
+    source_url = models.URLField(max_length=500,null=True,blank=True)
+    published_at = models.DateTimeField(null=True,blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+      db_table = 'movies_review'
+      indexes = [
+        models.Index(fields=['movie','rating']),
+        models.Index(fields=['username']),
+        models.Index(fields=['published_at']),
+        models.Index(fields=['review_id']),
+      ]
+# Doanh thu của bộ phim
+class MovieBoxOffice(models.Model):
+  movie = models.OneToOneField(Movie, on_delete=models.CASCADE, related_name='box_office')
+  budget = models.BigIntegerField(null=True,blank=True)
+  domestic_gross = models.BigIntegerField(null=True,blank=True)
+  foreign_gross = models.BigIntegerField(null=True,blank=True)
+  worldwide_gross = models.BigIntegerField(null=True,blank=True)
+  opening_weekend_gross = models.BigIntegerField(null=True,blank=True)
+  created_at = models.DateTimeField(auto_now_add=True)
+  updated_at = models.DateTimeField(auto_now=True)
+
+  class Meta:
+    db_table = 'movies_boxoffice'
+    indexes = [
+      models.Index(fields=['budget']),
+      models.Index(fields=['domestic_gross']),
+    ]

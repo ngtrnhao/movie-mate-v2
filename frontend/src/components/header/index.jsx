@@ -17,7 +17,6 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
 
-  // Sử dụng selectors thay vì truy cập trực tiếp
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectUser);
 
@@ -109,11 +108,19 @@ const Header = () => {
                         overflow: 'visible',
                         filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                         mt: 1.5,
+                        backgroundColor: '#1f2937',
                         '& .MuiAvatar-root': {
                           width: 32,
                           height: 32,
                           ml: -0.5,
                           mr: 1,
+                          backgroundColor: 'gray',
+                        },
+                        '& .MuiMenuItem-root': {
+                          color: 'white',
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                          },
                         },
                       },
                     }}

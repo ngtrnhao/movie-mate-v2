@@ -10,14 +10,15 @@ class Movie(models.Model):
         ('POST_PRODUCTION','Post Production'),
         ('RELEASED','Released'),
     ]
+    imdb_id = models.CharField(max_length=20, unique=True,null=True,blank=True)
     title = models.CharField(max_length=255)
     original_title = models.CharField(max_length=255,blank=True,null=True)
     overview = models.TextField(blank=True,null=True)
     release_date = models.DateField(blank=True,null=True)
     poster_url = models.CharField(max_length=255,blank=True,null=True)
     backdrop_url = models.CharField(max_length=255,blank=True,null=True)
-    imdb_rating = models.DecimalField(max_digits=3,decimal_places=1,blank=True,null=True)
-    tmdb_id = models.CharField(max_length=20,unique=True,blank=True,null=True)
+    # imdb_rating = models.DecimalField(max_digits=3,decimal_places=1,blank=True,null=True)
+    # tmdb_id = models.CharField(max_length=20,unique=True,blank=True,null=True)
     runtime = models.IntegerField(blank=True,null=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES,blank=True,null=True)
     genres = models.ManyToManyField(Genre,through='MovieGenre')
@@ -29,9 +30,8 @@ class Movie(models.Model):
         indexes = [
             models.Index(fields=['title']),
             models.Index(fields=['release_date']),
-            models.Index(fields=['imdb_rating']),
             models.Index(fields=['status']),
-            models.Index(fields=['tmdb_id']),
+            models.Index(fields=['imdb_id']),
         ]
 class MovieMetadata(models.Model):
     movie = models.OneToOneField(Movie, on_delete=models.CASCADE)

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .models import User, EmailVerificationToken, Rating, Watchlist, UserFavoriteGenre, PasswordResetToken
+from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken, UserMovieRating
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -347,8 +347,8 @@ class UserStatsView(generics.RetrieveAPIView):
             # Calculate stats
             stats = {
                 'watched_movies_count': Watchlist.objects.filter(user=user, status='WATCHED').count(),
-                'reviews_count': Rating.objects.filter(user=user).count(),
-                'ratings_count': Rating.objects.filter(user=user).count(),
+                'reviews_count': UserMovieRating.objects.filter(user=user).count(),
+                'ratings_count': UserMovieRating.objects.filter(user=user).count(),
                 'followers_count': 0,  # Implement if you have followers functionality
                 'following_count': 0,  # Implement if you have following functionality
             }
@@ -367,7 +367,7 @@ class UserReviewsView(generics.ListAPIView):
 
     def get_queryset(self):
         user_id = self.kwargs.get('userId')
-        return Rating.objects.filter(user_id=user_id).select_related('movie')
+        return UserMovieRating.objects.filter(user_id=user_id).select_related('movie')
 
 class UserRatingsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -375,7 +375,7 @@ class UserRatingsView(generics.ListAPIView):
 
     def get_queryset(self):
         user_id = self.kwargs.get('userId')
-        return Rating.objects.filter(user_id=user_id).select_related('movie')
+        return UserMovieRating.objects.filter(user_id=user_id).select_related('movie')
 
 class UserFavoriteGenresView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -432,7 +432,7 @@ class UserRatingViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Rating.objects.filter(user=self.request.user)
+        return UserMovieRating.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

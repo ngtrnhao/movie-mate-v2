@@ -71,13 +71,15 @@ class UserFavoriteGenre(models.Model):
         db_table = 'users_users_favorite_genres'
         unique_together = ('user', 'genre')
 
-class Rating(models.Model):
+class UserMovieRating(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     movie = models.ForeignKey('movies.Movie', on_delete=models.CASCADE)
     rating = models.DecimalField(max_digits=3, decimal_places=1)
     review_title = models.CharField(max_length=255, blank=True, null=True)
     review_text = models.TextField(blank=True, null=True)
-    likes = models.IntegerField(default=0)
+    is_public = models.BooleanField(default=True)
+    helpful_votes = models.IntegerField(default=0)
+    total_votes = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

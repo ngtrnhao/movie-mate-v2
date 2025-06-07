@@ -1,5 +1,7 @@
 from django.db import models
 from apps.metadata.models import Genre
+from django.core.cache import cache
+from django.utils import timezone
 # Create your models here.
 
 class Movie(models.Model):
@@ -9,6 +11,7 @@ class Movie(models.Model):
         ('IN_PRODUCTION','In Production'),
         ('POST_PRODUCTION','Post Production'),
         ('RELEASED','Released'),
+        ('UPCOMING', 'Upcoming'),
     ]
     imdb_id = models.CharField(max_length=20, unique=True,null=True,blank=True)
     title = models.CharField(max_length=255)
@@ -24,6 +27,10 @@ class Movie(models.Model):
     genres = models.ManyToManyField(Genre,through='MovieGenre')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_popular = models.BooleanField(default=False)
+    is_top_rated = models.BooleanField(default=False)
+    is_upcoming = models.BooleanField(default=False)
+    last_synced = models.DateTimeField(null=True)
 
     class Meta:
         db_table = 'movies_movie'
@@ -32,7 +39,74 @@ class Movie(models.Model):
             models.Index(fields=['release_date']),
             models.Index(fields=['status']),
             models.Index(fields=['imdb_id']),
+            models.Index(fields=['is_popular']),
+            models.Index(fields=['is_top_rated']),
+            models.Index(fields=['is_upcoming']),
         ]
+
+    def __str__(self):
+        return self.title
+
+    @classmethod
+    def get_cached_movie(cls, movie_id, cache_timeout=3600):
+        """Get movie from cache or database"""
+        cache_key = f'movie_{movie_id}'
+        movie = cache.get(cache_key)
+
+        if movie is None:
+            try:
+                movie = cls.objects.select_related().prefetch_related('genres').get(id=movie_id)
+                cache.set(cache_key, movie, cache_timeout)
+            except cls.DoesNotExist:
+                return None
+
+        return movie
+
+    @classmethod
+    def get_popular_movies(cls, limit=50):
+        """Get popular movies with caching"""
+        cache_key = 'popular_movies'
+        movies = cache.get(cache_key)
+
+        if movies is None:
+            movies = list(cls.objects.filter(is_popular=True)
+                         .select_related()
+                         .prefetch_related('genres')
+                         .order_by('-release_date')[:limit])
+            cache.set(cache_key, movies, 3600)  # Cache for 1 hour
+
+        return movies
+
+    @classmethod
+    def get_top_rated_movies(cls, limit=50):
+        """Get top rated movies with caching"""
+        cache_key = 'top_rated_movies'
+        movies = cache.get(cache_key)
+
+        if movies is None:
+            movies = list(cls.objects.filter(is_top_rated=True)
+                         .select_related()
+                         .prefetch_related('genres')
+                         .order_by('-release_date')[:limit])
+            cache.set(cache_key, movies, 3600)  # Cache for 1 hour
+
+        return movies
+
+    @classmethod
+    def get_upcoming_movies(cls, limit=50):
+        """Get upcoming movies with caching"""
+        cache_key = 'upcoming_movies'
+        movies = cache.get(cache_key)
+
+        if movies is None:
+            movies = list(cls.objects.filter(is_upcoming=True)
+                         .select_related()
+                         .prefetch_related('genres')
+                         .order_by('release_date')[:limit])
+            cache.set(cache_key, movies, 3600)  # Cache for 1 hour
+
+        return movies
+
 class MovieMetadata(models.Model):
     movie = models.OneToOneField(Movie, on_delete=models.CASCADE)
     budget = models.BigIntegerField(blank=True,null=True)

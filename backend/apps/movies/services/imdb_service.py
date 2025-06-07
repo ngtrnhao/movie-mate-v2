@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 import time
 import json
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +16,26 @@ class IMDBService:
     MAX_RETRIES = 5
     INITIAL_BACKOFF = 2.0
     MAX_BACKOFF = 32.0
+    CACHE_TIMEOUT = 3600  # 1 hour cache timeout
 
     @classmethod
-    def _make_request(cls, endpoint: str, params: Dict = None) -> Optional[Dict]:
-        """Make request to IMDB API with improved rate limiting and retry mechanism"""
+    def _make_request(cls, endpoint: str, params: Dict = None, use_cache: bool = True) -> Optional[Dict]:
+        """Make request to IMDB API with improved rate limiting, retry mechanism and caching"""
         import os
         api_key = getattr(settings, "IMDB_API_KEY", None) or os.getenv("IMDB_API_KEY")
         if not api_key:
             logger.error("IMDB_API_KEY is not set in environment or settings.")
             return None
+
+        # Generate cache key
+        cache_key = f"imdb_{endpoint}_{json.dumps(params or {})}"
+
+        # Try to get from cache first if caching is enabled
+        if use_cache:
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                logger.debug(f"Cache hit for {cache_key}")
+                return cached_data
 
         url = f"{cls.BASE_URL}{endpoint}"
         headers = {
@@ -61,6 +73,12 @@ class IMDBService:
                     if not data:
                         logger.warning(f"Empty response received for {endpoint}")
                         return None
+
+                    # Cache the successful response if caching is enabled
+                    if use_cache:
+                        cache.set(cache_key, data, cls.CACHE_TIMEOUT)
+                        logger.debug(f"Cached data for {cache_key}")
+
                     return data
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON response: {str(e)}")
@@ -81,43 +99,53 @@ class IMDBService:
         return None
 
     @classmethod
-    def get_movie_details(cls, imdb_id: str) -> Optional[Dict]:
+    def _parse_date(cls, date_str: str) -> Optional[datetime.date]:
+        """Parse date string to datetime.date object"""
+        if not date_str:
+            return None
+        try:
+            return datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    @classmethod
+    def get_movie_details(cls, imdb_id: str, use_cache: bool = True) -> Optional[Dict]:
         """Get detailed information about a movie"""
-        return cls._make_request("/title/get-details", params={"tconst": imdb_id})
+        return cls._make_request("/title/get-details", params={"tconst": imdb_id}, use_cache=use_cache)
 
     @classmethod
-    def get_movie_full_credits(cls, imdb_id: str) -> Optional[Dict]:
+    def get_movie_full_credits(cls, imdb_id: str, use_cache: bool = True) -> Optional[Dict]:
         """Get full movie details including cast, reviews, etc."""
-        return cls._make_request("/title/get-full-credits", params={"tconst": imdb_id})
+        return cls._make_request("/title/get-full-credits", params={"tconst": imdb_id}, use_cache=use_cache)
 
     @classmethod
-    def get_movie_videos(cls, imdb_id: str) -> Optional[Dict]:
+    def get_movie_videos(cls, imdb_id: str, use_cache: bool = True) -> Optional[Dict]:
         """Get movie videos"""
-        return cls._make_request("/title/get-videos", params={"tconst": imdb_id})
+        return cls._make_request("/title/get-videos", params={"tconst": imdb_id}, use_cache=use_cache)
 
     @classmethod
-    def get_popular_movies(cls, limit: int = 50) -> List[str]:
+    def get_popular_movies(cls, limit: int = 50, use_cache: bool = True) -> List[str]:
         """Get list of popular movies"""
-        response = cls._make_request("/title/get-most-popular-movies", params={"region": "US"})
+        response = cls._make_request("/title/get-most-popular-movies", params={"region": "US"}, use_cache=use_cache)
         if response and isinstance(response, list):
             return response[:limit]
         return []
 
     @classmethod
-    def get_top_rated_movies(cls, limit: int = 50) -> List[str]:
+    def get_top_rated_movies(cls, limit: int = 50, use_cache: bool = True) -> List[str]:
         """Get list of top rated movies"""
-        response = cls._make_request("/title/get-top-rated-movies")
+        response = cls._make_request("/title/get-top-rated-movies", use_cache=use_cache)
         if response and isinstance(response, list):
             return response[:limit]
         return []
 
     @classmethod
-    def get_upcoming_movies(cls) -> List[Dict]:
+    def get_upcoming_movies(cls, use_cache: bool = True) -> List[Dict]:
         """Get list of upcoming movies"""
-        # Using get-most-popular-movies instead since get-coming-soon is deprecated
-        response = cls._make_request("/title/get-most-popular-movies", params={"region": "US"})
+        # Sử dụng endpoint chính xác cho phim sắp ra mắt
+        response = cls._make_request("/title/get-coming-soon-movies", params={"region": "US"}, use_cache=use_cache)
         if response and isinstance(response, list):
-            return [{"id": movie_id} for movie_id in response[:50]]  # Limit to 50 movies
+            return [{"id": movie_id} for movie_id in response[:50]]
         return []
 
     @classmethod
@@ -127,16 +155,6 @@ class IMDBService:
         if response and "results" in response:
             return response["results"]
         return []
-
-    @classmethod
-    def _parse_date(cls, date_str: str) -> Optional[datetime]:
-        """Parse date string to datetime object"""
-        if not date_str:
-            return None
-        try:
-            return datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
-            return None
 
     @classmethod
     def _parse_money(cls, money_str: str) -> Optional[int]:

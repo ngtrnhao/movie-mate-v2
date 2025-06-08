@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 class IMDBService:
     BASE_URL = "https://imdb8.p.rapidapi.com"
     RAPID_API_HOST = "imdb8.p.rapidapi.com"
-    RATE_LIMIT_DELAY = 1.0  # 1 request per second
-    MAX_RETRIES = 5
-    INITIAL_BACKOFF = 2.0
-    MAX_BACKOFF = 32.0
+    RATE_LIMIT_DELAY = 2.0  # Increase delay to 2 seconds
+    MAX_RETRIES = 10  # Increase max retries
+    INITIAL_BACKOFF = 4.0  # Increase initial backoff
+    MAX_BACKOFF = 64.0  # Increase max backoff
     CACHE_TIMEOUT = 3600  # 1 hour cache timeout
 
     @classmethod
@@ -56,6 +56,7 @@ class IMDBService:
                 # Log response details for debugging
                 logger.debug(f"Response status: {response.status_code}")
                 logger.debug(f"Response headers: {response.headers}")
+                logger.error(f"IMDB API raw response: status={response.status_code}, text={response.text[:500]}")
 
                 if response.status_code == 429:  # Too Many Requests
                     retry_after = int(response.headers.get('Retry-After', backoff))
@@ -72,6 +73,12 @@ class IMDBService:
                     data = response.json()
                     if not data:
                         logger.warning(f"Empty response received for {endpoint}")
+                        if retries < cls.MAX_RETRIES - 1:
+                            logger.warning(f"Retrying in {backoff} seconds...")
+                            time.sleep(backoff)
+                            backoff = min(backoff * 2, cls.MAX_BACKOFF)
+                            retries += 1
+                            continue
                         return None
 
                     # Cache the successful response if caching is enabled
@@ -83,6 +90,12 @@ class IMDBService:
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON response: {str(e)}")
                     logger.debug(f"Response content: {response.text[:500]}")  # Log first 500 chars
+                    if retries < cls.MAX_RETRIES - 1:
+                        logger.warning(f"Retrying in {backoff} seconds...")
+                        time.sleep(backoff)
+                        backoff = min(backoff * 2, cls.MAX_BACKOFF)
+                        retries += 1
+                        continue
                     return None
 
             except requests.RequestException as e:
@@ -167,3 +180,43 @@ class IMDBService:
             return int(float(clean_str))
         except (ValueError, TypeError):
             return None
+
+    @classmethod
+    def get_release_date(cls, imdb_id: str, country: str = 'US', use_cache: bool = True) -> Optional[datetime.date]:
+        """
+        Get release date for a movie from IMDB API (v2 endpoint).
+        Tự động nhận diện và mapping ngày phát hành từ cả hai kiểu response:
+        - REST: {"results": [{"releaseDate": "YYYY-MM-DD", ...}, ...]}
+        - GraphQL: {"data": {"title": {"releaseDates": {"edges": [{"node": {"year": YYYY, "month": MM, "day": DD, ...}}, ...]}}}}
+        """
+        endpoint = "/title/v2/get-release-dates"
+        params = {"tconst": imdb_id, "first": 20, "country": country, "language": "en-US"}
+        data = cls._make_request(endpoint, params=params, use_cache=use_cache)
+        if not data:
+            return None
+
+        # 1. Kiểu GraphQL: data.title.releaseDates.edges
+        try:
+            edges = data.get('data', {}).get('title', {}).get('releaseDates', {}).get('edges', [])
+            for edge in edges:
+                node = edge.get('node', {})
+                year = node.get('year')
+                month = node.get('month', 1)
+                day = node.get('day', 1)
+                if year:
+                    from datetime import date
+                    return date(year, month, day)
+        except Exception:
+            pass
+
+        # 2. Kiểu REST: results hoặc releaseDates là list các dict có releaseDate hoặc date
+        release_list = data.get('results') or data.get('releaseDates') or []
+        for item in release_list:
+            date_str = item.get('releaseDate') or item.get('date')
+            if date_str:
+                try:
+                    from datetime import datetime
+                    return datetime.strptime(date_str, "%Y-%m-%d").date()
+                except Exception:
+                    continue
+        return None

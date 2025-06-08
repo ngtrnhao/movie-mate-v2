@@ -14,3 +14,4 @@ isort==5.12.0
 # Development Tools
 flower>=2.0.0  # Changed from celery-flower to flower
 django-debug-toolbar==4.2.0
+django-redis>=5.4.0

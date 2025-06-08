@@ -1,15 +1,21 @@
 import os
-import django
 import sys
+
+import django
 
 # Add the project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Set up Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from apps.movies.tasks import sync_popular_movies, sync_top_rated_movies, sync_upcoming_movies
+from apps.movies.tasks import (
+    sync_popular_movies,
+    sync_top_rated_movies,
+    sync_upcoming_movies,
+)
+
 
 def main():
     """Test IMDB data synchronization"""
@@ -32,5 +38,6 @@ def main():
 
     print("\nTest completed!")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

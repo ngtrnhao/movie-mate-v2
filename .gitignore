@@ -148,4 +148,5 @@ node_modules/
 requirement.txt
 .requirement.txt
 prompt.txt
-promptfe.txt 
+promptfe.txt
+backend/data/imdb_datasets/*.tsv.gz

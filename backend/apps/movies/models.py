@@ -266,8 +266,16 @@ class MovieAward(models.Model):
             models.Index(fields=["name", "category"]),
             models.Index(fields=["is_prestigious"]),
         ]
-
-
+class MovieAlternativeTitle(models.Model):
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    region = models.CharField(max_length=10, null=True, blank=True)
+    language = models.CharField(max_length=10, null=True,blank=True)
+    is_original = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        db_table = 'movies_alternative_title'
 class MovieCast(models.Model):
     ROLE_CHOICES = [
         ("DIRECTOR", "Director"),
@@ -284,6 +292,8 @@ class MovieCast(models.Model):
     role = models.CharField(max_length=50, choices=ROLE_CHOICES)
     character = models.CharField(max_length=255, null=True, blank=True)
     order = models.IntegerField(null=True, blank=True)
+    job= models.CharField(max_length=255, null=True, blank=True)
+    category = models.CharField(max_length=255, null=True, blank=True)
     imdb_id = models.CharField(max_length=20, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -64,32 +64,67 @@ class IMDBDatasetService:
             return []
         return genres_str.split(",")
 
-    @transaction.atomic
-    def import_title_basic(self):
-        """Import title.basics dataset"""
-        logger.info("Starting import of title.basics.tsv.gz")
-        data = self._read_tsv_gz("title.basics.tsv.gz")
-
-        for row in data:
-            # Skip non-movie titles
-            if row["titleType"] != "movie":
-                continue
-            # Create or update movie
-            movie, created = Movie.objects.update_or_create(
-                imdb_id=row["tconst"],
-                defaults={
-                    "title": row["primaryTitle"],
-                    "original_title": row["originalTitle"],
-                    "release_date": self._parse_date(row["startYear"]),
-                    "runtime": self._parse_int(row["runtimeMinutes"]),
-                    "is_adult": row["isAdult"] == "1",
-                },
-            )
-
-            # Handle genres
-            genres = self._parse_genres(row["genres"])
-            for genre_name in genres:
-                genre, _ = Genre.objects.get_or_create(name=genre_name)
-                MovieGenre.objects.get_or_create(movie=movie, genre=genre)
-
-            logger.info(f"{'Created' if created else 'Updated'} movie: {movie.title}")
+    def import_title_basic(self, batch_size=500):
+        """Import title.basics dataset (tối ưu: bulk_create, batch, log lỗi, cache genre, không truy cập generator bằng chỉ số)"""
+        logger.info("Starting import of title.basics.tsv.gz (optimized)")
+        movies_to_create = []
+        movie_genres_data = []  # Lưu tuple (imdb_id, [genre_name, ...])
+        movie_genres_to_create = []
+        genre_cache = {}
+        success = 0
+        fail = 0
+        for i, row in enumerate(self._read_tsv_gz("title.basics.tsv.gz")):
+            try:
+                if row["titleType"] != "movie":
+                    continue
+                movie = Movie(
+                    imdb_id=row["tconst"],
+                    title=row["primaryTitle"],
+                    original_title=row["originalTitle"],
+                    release_date=self._parse_date(row["startYear"]),
+                    runtime=self._parse_int(row["runtimeMinutes"]),
+                    is_adult=row["isAdult"] == "1",
+                )
+                movies_to_create.append(movie)
+                genres = self._parse_genres(row["genres"])
+                movie_genres_data.append((row["tconst"], genres))
+                for genre_name in genres:
+                    if genre_name not in genre_cache:
+                        genre_obj, _ = Genre.objects.get_or_create(name=genre_name)
+                        genre_cache[genre_name] = genre_obj
+                if len(movies_to_create) >= batch_size:
+                    with transaction.atomic():
+                        Movie.objects.bulk_create(movies_to_create, ignore_conflicts=True)
+                        imdb_ids = [m.imdb_id for m in movies_to_create]
+                        movie_objs = {m.imdb_id: m for m in Movie.objects.filter(imdb_id__in=imdb_ids)}
+                        for imdb_id, genres in movie_genres_data:
+                            movie_obj = movie_objs.get(imdb_id)
+                            if movie_obj:
+                                for genre_name in genres:
+                                    genre = genre_cache[genre_name]
+                                    movie_genres_to_create.append(MovieGenre(movie=movie_obj, genre=genre))
+                        MovieGenre.objects.bulk_create(movie_genres_to_create, ignore_conflicts=True)
+                        movie_genres_to_create = []
+                    success += len(movies_to_create)
+                    movies_to_create = []
+                    movie_genres_data = []
+            except Exception as e:
+                logger.error(f"Error processing movie: {row.get('tconst')}:{str(e)}")
+                fail += 1
+            if i % 1000 == 0:
+                logger.info(f"Imported {success} movies, {fail} errors so far...")
+        # Xử lý phần còn lại
+        if movies_to_create:
+            with transaction.atomic():
+                Movie.objects.bulk_create(movies_to_create, ignore_conflicts=True)
+                imdb_ids = [m.imdb_id for m in movies_to_create]
+                movie_objs = {m.imdb_id: m for m in Movie.objects.filter(imdb_id__in=imdb_ids)}
+                for imdb_id, genres in movie_genres_data:
+                    movie_obj = movie_objs.get(imdb_id)
+                    if movie_obj:
+                        for genre_name in genres:
+                            genre = genre_cache[genre_name]
+                            movie_genres_to_create.append(MovieGenre(movie=movie_obj, genre=genre))
+                MovieGenre.objects.bulk_create(movie_genres_to_create, ignore_conflicts=True)
+            success += len(movies_to_create)
+        logger.info(f"Import finished: {success} movies, {fail} errors.")

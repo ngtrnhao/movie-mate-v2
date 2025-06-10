@@ -37,8 +37,12 @@ def sync_popular_movies():
     """Sync popular movies from IMDB"""
     try:
         tconsts = IMDBService.get_popular_movies()
+        Movie.objects.filter(is_top_rated=True).update(is_popular=False)
         for tconst in tconsts:
             imdb_id = tconst.split("/")[-2] if "/" in tconst else tconst
+            movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
+            movie.is_popular = True
+            movie.save(update_fields=["is_popular"])
             process_movie_data.delay(imdb_id)
             time.sleep(2)  # Thêm delay để tránh rate limit
 
@@ -56,6 +60,9 @@ def sync_top_rated_movies():
         tconsts = IMDBService.get_top_rated_movies(limit=50)
         for tconst in tconsts:
             imdb_id = tconst.split("/")[-2] if "/" in tconst else tconst
+            movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
+            movie.is_top_rated = True
+            movie.save(update_fields=["is_top_rated"])
             process_movie_data.delay(imdb_id)
             time.sleep(2)  # Thêm delay để tránh rate limit
 
@@ -71,14 +78,27 @@ def sync_upcoming_movies():
     """Sync upcoming movies from IMDB"""
     try:
         tconsts = IMDBService.get_upcoming_movies()
+        Movie.objects.filter(is_upcoming=True).update(is_upcoming=False)
         for tconst in tconsts:
-            imdb_id = (
-                tconst["id"].split("/")[-2]
-                if isinstance(tconst, dict) and "id" in tconst
-                else tconst
-            )
-            process_movie_data.delay(imdb_id)
-            time.sleep(2)  # Thêm delay để tránh rate limit
+            try:
+                # Handle both old and new response formats
+                if isinstance(tconst, dict):
+                    if "id" in tconst:
+                        imdb_id = tconst["id"].split("/")[-2] if "/" in tconst["id"] else tconst["id"]
+                    else:
+                        continue
+                else:
+                    imdb_id = tconst.split("/")[-2] if "/" in tconst else tconst
+                movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
+                movie.is_upcoming = True
+                movie.save(update_fields=["is_upcoming"])
+
+                process_movie_data.delay(imdb_id)
+                time.sleep(2)  # Add delay to avoid rate limit
+
+            except Exception as e:
+                logger.error(f"Error processing movie {tconst}: {str(e)}")
+                continue
 
         # Clear cache after successful sync
         clear_movie_cache()

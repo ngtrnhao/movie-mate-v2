@@ -267,15 +267,26 @@ class MovieAward(models.Model):
             models.Index(fields=["is_prestigious"]),
         ]
 class MovieAlternativeTitle(models.Model):
-    movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='alternative_titles')
     title = models.CharField(max_length=255)
     region = models.CharField(max_length=10, null=True, blank=True)
     language = models.CharField(max_length=10, null=True,blank=True)
+    types = models.JSONField(default=list, blank=True)
+    attributes = models.JSONField(default=list,blank=True)
+    is_original_title = models.BooleanField(default=False)
+    ordering = models.IntegerField(default=0)
     is_original = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
         db_table = 'movies_alternative_title'
+        indexes = [
+            models.Index(fields=['movie']),
+            models.Index(fields=['region']),
+            models.Index(fields=['language']),
+        ]
+        unique_together = ('movie','title','region','language')
+
 class MovieCast(models.Model):
     ROLE_CHOICES = [
         ("DIRECTOR", "Director"),
@@ -286,13 +297,13 @@ class MovieCast(models.Model):
         ("EDITOR", "Editor"),
         ("COMPOSER", "Composer"),
     ]
-
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="cast")
     name = models.CharField(max_length=255)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES)
-    character = models.CharField(max_length=255, null=True, blank=True)
-    order = models.IntegerField(null=True, blank=True)
-    job= models.CharField(max_length=255, null=True, blank=True)
+    main_character = models.CharField(max_length=255, null=True, blank=True)
+    all_characters = models.JSONField(default=list, blank=True)
+    order = models.IntegerField(default=0)
+    job = models.CharField(max_length=255, null=True, blank=True)
     category = models.CharField(max_length=255, null=True, blank=True)
     imdb_id = models.CharField(max_length=20, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -301,10 +312,16 @@ class MovieCast(models.Model):
     class Meta:
         db_table = "movies_cast"
         indexes = [
-            models.Index(fields=["movie", "order"]),
-            models.Index(fields=["name"]),
-            models.Index(fields=["imdb_id"]),
+            models.Index(fields=['movie']),
+            models.Index(fields=['imdb_id']),
+            models.Index(fields=['role']),
         ]
+        unique_together = ('movie', 'imdb_id', 'order')
+        verbose_name = "Cast Member"
+        verbose_name_plural = "Cast Members"
+
+    def __str__(self):
+        return f"{self.name} - {self.role} in {self.movie.title}"
 
 
 class MovieReview(models.Model):

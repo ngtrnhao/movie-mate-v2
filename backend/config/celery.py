@@ -18,12 +18,12 @@ app.autodiscover_tasks()
 app.conf.beat_schedule ={
     'sync_popular-movies':{
         'task': 'apps.movies.tasks.sync_popular_movies',
-        'schedule': 3600.0,
+        'schedule': 3600.0, #1 hour
         'args':(50,),
     },
     'update-movie-data':{
         'task': 'apps.movies.tasks.update_movie_data',
-        'schedule': 86400.0,
+        'schedule': 86400.0, #1 day
         'args':(7,50),
     },
     'sync_top-rated-movies':{
@@ -33,7 +33,7 @@ app.conf.beat_schedule ={
     },
     'sync_upcoming-movies':{
         'task': 'apps.movies.tasks.sync_upcoming_movies',
-        'schedule': 3600.0,
+        'schedule': 3600.0, #1 hour
     }
 }
 

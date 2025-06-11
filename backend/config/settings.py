@@ -274,7 +274,6 @@ LOGGING = {
     },
 }
 
-# Security settings for production
 if os.getenv('DJANGO_ENV') == 'production':
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True

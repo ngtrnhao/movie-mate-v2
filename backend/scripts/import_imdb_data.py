@@ -3,6 +3,8 @@ import sys
 import django
 import logging
 import time
+import requests
+import tempfile
 # import psutil  # Uncomment for memory tracking
 from pathlib import Path
 from datetime import datetime
@@ -35,6 +37,7 @@ class IMDBDataImporter:
         self.datasets_path = datasets_path
         self.service = IMDBDatasetService(datasets_path=datasets_path)
         self.start_time = None
+        self.base_url = "https://datasets.imdbws.com"
         # Uncomment for detailed statistics
         # self.stats = {
         #     'movies': 0,
@@ -45,6 +48,40 @@ class IMDBDataImporter:
         #     'cast_names': 0,
         #     'errors': 0
         # }
+
+    def _download_from_imdb(self):
+        """Download dataset files from IMDB website"""
+        required_files = [
+            'title.basics.tsv.gz',
+            'title.ratings.tsv.gz',
+            'title.crew.tsv.gz',
+            'title.principals.tsv.gz',
+            'title.akas.tsv.gz',
+            'name.basics.tsv.gz'
+        ]
+
+        # Create datasets directory if it doesn't exist
+        os.makedirs(self.datasets_path, exist_ok=True)
+
+        for file in required_files:
+            url = f"{self.base_url}/{file}"
+            local_path = os.path.join(self.datasets_path, file)
+
+            try:
+                logger.info(f"Downloading {file} from IMDB...")
+                response = requests.get(url, stream=True)
+                response.raise_for_status()
+
+                with open(local_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+
+                logger.info(f"Successfully downloaded {file}")
+            except Exception as e:
+                logger.error(f"Error downloading {file}: {str(e)}")
+                return False
+        return True
 
     def _check_dataset_files(self):
         """Check if all required dataset files exist"""
@@ -116,6 +153,10 @@ class IMDBDataImporter:
 
     def import_data(self):
         """Import all IMDB datasets"""
+        # First download files from IMDB
+        if not self._download_from_imdb():
+            return False
+
         if not self._check_dataset_files():
             return False
 
@@ -181,12 +222,31 @@ class IMDBDataImporter:
             return False
 
 def main():
-    # Get datasets path - use /app/data/imdb_datasets in Docker
-    datasets_path = "/app/data/imdb_datasets"
+    # Create a temporary directory in the workspace
+    temp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp_imdb_datasets')
+    os.makedirs(temp_dir, exist_ok=True)
 
-    # Initialize and run importer
-    importer = IMDBDataImporter(datasets_path=datasets_path)
-    importer.import_data()
+    try:
+        # Initialize and run importer
+        importer = IMDBDataImporter(datasets_path=temp_dir)
+        success = importer.import_data()
+
+        # Clean up temporary files
+        if success:
+            for file in os.listdir(temp_dir):
+                os.remove(os.path.join(temp_dir, file))
+            os.rmdir(temp_dir)
+
+        return success
+    except Exception as e:
+        logger.error(f"Error during import: {str(e)}")
+        # Clean up on error
+        if os.path.exists(temp_dir):
+            for file in os.listdir(temp_dir):
+                os.remove(os.path.join(temp_dir, file))
+            os.rmdir(temp_dir)
+        return False
 
 if __name__ == '__main__':
-    main()
+    success = main()
+    sys.exit(0 if success else 1)

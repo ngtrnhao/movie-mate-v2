@@ -174,7 +174,7 @@ class GoogleAuthSerializer(serializers.Serializer):
                 last_name=user_data.get('family_name', ''),
                 avatar_url=user_data.get('picture', ''),
                 is_google_account=True,
-                is_email_verified=True  # Auto verify email for Google accounts
+                is_email_verified=True  
             )
 
         return {

@@ -6,3 +6,5 @@ gunicorn==20.1.0
 # Production Monitoring
 sentry-sdk>=1.39.1
 django-redis>=5.4.0
+
+requests==2.31.0

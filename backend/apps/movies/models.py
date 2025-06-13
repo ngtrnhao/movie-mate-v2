@@ -15,7 +15,7 @@ class Movie(models.Model):
         ("RELEASED", "Released"),
         ("UPCOMING", "Upcoming"),
     ]
-    imdb_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    imdb_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     title = models.CharField(max_length=255)
     original_title = models.CharField(max_length=255, blank=True, null=True)
     overview = models.TextField(blank=True, null=True)

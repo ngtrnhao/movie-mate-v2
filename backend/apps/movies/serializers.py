@@ -2,9 +2,36 @@ from rest_framework import serializers
 from .models import (
     Movie, MovieRating, MovieAward, MovieCast,
     MovieReview, MovieBoxOffice, MovieMetadata,
-    MovieGenre, MovieTrailer, MovieImage, MovieNews
+    MovieGenre, MovieTrailer, MovieImage, MovieNews, Genre
 )
 
+class GenreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Genre
+        fields=['id','name']
+
+class MovieListSerializer(serializers.ModelSerializer):
+    genres = GenreSerializer(many=True, read_only=True)
+    rating = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Movie
+        fields = [
+            'id', 'title','original_title','overview','release_date',
+            'poster_url','backdrop_url','runtime','status','genres','rating',
+            'is_popular','is_top_rated','is_upcoming'
+        ]
+def get_rating(self,obj):
+    try:
+        rating = obj.ratings.first()
+        if rating:
+            return {
+                'imdb':rating.imdb_rating,
+                'imdb_votes': rating.imdb_votes,
+            }
+    except:
+        pass
+    return None
 class MovieSerializer(serializers.ModelSerializer):
     class Meta:
         model = Movie

@@ -32,19 +32,44 @@ def clear_movie_cache():
     cache.delete("upcoming_movies")
 
 
-@shared_task
-def sync_popular_movies():
+@shared_task(bind=True)
+def sync_popular_movies(self):
     """Sync popular movies from IMDB"""
     try:
         tconsts = IMDBService.get_popular_movies()
         Movie.objects.filter(is_top_rated=True).update(is_popular=False)
         for tconst in tconsts:
-            imdb_id = tconst.split("/")[-2] if "/" in tconst else tconst
-            movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
-            movie.is_popular = True
-            movie.save(update_fields=["is_popular"])
-            process_movie_data.delay(imdb_id)
-            time.sleep(2)  # Thêm delay để tránh rate limit
+            try:
+                # Handle both old and new response formats
+                if isinstance(tconst, dict):
+                    if "id" in tconst:
+                        if isinstance(tconst["id"], dict) and "id" in tconst["id"]:
+                            imdb_id = tconst["id"]["id"]
+                        else:
+                            imdb_id = tconst["id"]
+                    else:
+                        continue
+                else:
+                    imdb_id = tconst
+
+                # Extract ttxxxxxxx from /title/ttxxxxxxx/
+                if isinstance(imdb_id, str) and "/" in imdb_id:
+                    imdb_id = imdb_id.split("/")[-2]
+
+                # Validate imdb_id format
+                if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
+                    logger.error(f"Invalid IMDB ID format: {imdb_id}")
+                    continue
+
+                movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
+                movie.is_popular = True
+                movie.save(update_fields=["is_popular"])
+                process_movie_data.delay(imdb_id)
+                time.sleep(2)
+
+            except Exception as e:
+                logger.error(f"Error processing movie {tconst}: {str(e)}")
+                continue
 
         # Clear cache after successful sync
         clear_movie_cache()
@@ -53,18 +78,43 @@ def sync_popular_movies():
         raise
 
 
-@shared_task
-def sync_top_rated_movies():
+@shared_task(bind=True)
+def sync_top_rated_movies(self):
     """Sync top rated movies from IMDB"""
     try:
         tconsts = IMDBService.get_top_rated_movies(limit=50)
         for tconst in tconsts:
-            imdb_id = tconst.split("/")[-2] if "/" in tconst else tconst
-            movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
-            movie.is_top_rated = True
-            movie.save(update_fields=["is_top_rated"])
-            process_movie_data.delay(imdb_id)
-            time.sleep(2)  # Thêm delay để tránh rate limit
+            try:
+                # Handle both old and new response formats
+                if isinstance(tconst, dict):
+                    if "id" in tconst:
+                        if isinstance(tconst["id"], dict) and "id" in tconst["id"]:
+                            imdb_id = tconst["id"]["id"]
+                        else:
+                            imdb_id = tconst["id"]
+                    else:
+                        continue
+                else:
+                    imdb_id = tconst
+
+                # Extract ttxxxxxxx from /title/ttxxxxxxx/
+                if isinstance(imdb_id, str) and "/" in imdb_id:
+                    imdb_id = imdb_id.split("/")[-2]
+
+                # Validate imdb_id format
+                if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
+                    logger.error(f"Invalid IMDB ID format: {imdb_id}")
+                    continue
+
+                movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
+                movie.is_top_rated = True
+                movie.save(update_fields=["is_top_rated"])
+                process_movie_data.delay(imdb_id)
+                time.sleep(2)
+
+            except Exception as e:
+                logger.error(f"Error processing movie {tconst}: {str(e)}")
+                continue
 
         # Clear cache after successful sync
         clear_movie_cache()
@@ -73,8 +123,8 @@ def sync_top_rated_movies():
         raise
 
 
-@shared_task
-def sync_upcoming_movies():
+@shared_task(bind=True)
+def sync_upcoming_movies(self):
     """Sync upcoming movies from IMDB"""
     try:
         tconsts = IMDBService.get_upcoming_movies()
@@ -84,17 +134,30 @@ def sync_upcoming_movies():
                 # Handle both old and new response formats
                 if isinstance(tconst, dict):
                     if "id" in tconst:
-                        imdb_id = tconst["id"].split("/")[-2] if "/" in tconst["id"] else tconst["id"]
+                        if isinstance(tconst["id"], dict) and "id" in tconst["id"]:
+                            imdb_id = tconst["id"]["id"]
+                        else:
+                            imdb_id = tconst["id"]
                     else:
                         continue
                 else:
-                    imdb_id = tconst.split("/")[-2] if "/" in tconst else tconst
+                    imdb_id = tconst
+
+                # Extract ttxxxxxxx from /title/ttxxxxxxx/
+                if isinstance(imdb_id, str) and "/" in imdb_id:
+                    imdb_id = imdb_id.split("/")[-2]
+
+                # Validate imdb_id format
+                if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
+                    logger.error(f"Invalid IMDB ID format: {imdb_id}")
+                    continue
+
                 movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
                 movie.is_upcoming = True
                 movie.save(update_fields=["is_upcoming"])
 
                 process_movie_data.delay(imdb_id)
-                time.sleep(2)  # Add delay to avoid rate limit
+                time.sleep(2)
 
             except Exception as e:
                 logger.error(f"Error processing movie {tconst}: {str(e)}")
@@ -109,7 +172,7 @@ def sync_upcoming_movies():
 
 @shared_task(
     bind=True, max_retries=3, rate_limit="20/m"
-)  # Rate limit 1 task per minute
+)
 def process_movie_data(self, imdb_id: str):
     """Process movie data from IMDB"""
     try:

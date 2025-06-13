@@ -213,7 +213,6 @@ class ResetPasswordView(generics.CreateAPIView):
 
                 # Update user's password
                 user.set_password(password)
-                # If it was a Google account, update the flag
                 if user.is_google_account:
                     user.is_google_account = False
                 user.save()

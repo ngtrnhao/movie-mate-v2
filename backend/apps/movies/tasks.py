@@ -201,38 +201,56 @@ def process_movie_data(self, imdb_id: str):
 
         # Mapping với cấu trúc mới
         try:
-            title_data = movie_data.get("data", {}).get("title", {}) or movie_data
-            title = title_data.get("titleText", {}).get("text", "") or title_data.get(
-                "title", ""
-            )
-            original_title = title_data.get("originalTitleText", {}).get("text", "")
-            release_date = IMDBService.get_release_date(imdb_id)
-            poster_url = title_data.get("primaryImage", {}).get("url", "")
-            runtime_seconds = title_data.get("runtime", {}).get("seconds")
-            runtime = runtime_seconds // 60 if runtime_seconds else None
-            # Ngôn ngữ
-            languages = []
-            spoken_languages = title_data.get("spokenLanguages", {}).get(
-                "spokenLanguages", []
-            )
-            for lang in spoken_languages:
-                if "text" in lang:
-                    languages.append(lang["text"])
-            # Quốc gia
-            countries = []
-            country_list = title_data.get("countriesOfOrigin", {}).get("countries", [])
-            for c in country_list:
-                if "text" in c:
-                    countries.append(c["text"])
-            # Homepage/links
-            links = []
-            for edge in title_data.get("officialLinks", {}).get("edges", []):
-                node = edge.get("node", {})
-                if "url" in node:
-                    links.append(node["url"])
+            if "data" in movie_data:
+                title_data = movie_data["data"]["title"]
+                logger.debug(f"Title data structure: {title_data}")
+                title = title_data["titleText"]["text"]
+                original_title = title_data["originalTitleText"]["text"]
+                release_date = IMDBService.get_release_date(imdb_id)
+                poster_url = title_data.get("primaryImage", {}).get("url", "")
+                runtime_seconds = title_data.get("runtime", {}).get("seconds")
+                runtime = runtime_seconds // 60 if runtime_seconds else None
+
+                # Ngôn ngữ
+                languages = []
+                spoken_languages = title_data.get("spokenLanguages", {}).get("spokenLanguages", [])
+                for lang in spoken_languages:
+                    if "text" in lang:
+                        languages.append(lang["text"])
+
+                # Quốc gia
+                countries = []
+                country_list = title_data.get("countriesOfOrigin", {}).get("countries", [])
+                for c in country_list:
+                    if "text" in c:
+                        countries.append(c["text"])
+
+                # Homepage/links
+                links = []
+                for edge in title_data.get("officialLinks", {}).get("edges", []):
+                    node = edge.get("node", {})
+                    if "url" in node:
+                        links.append(node["url"])
+
+            else:
+                # Fallback cho REST API format
+                title = movie_data.get("title", "")
+                original_title = title  # Trong REST API không có original title
+                poster_url = movie_data.get("image", {}).get("url", "")
+                runtime_seconds = movie_data.get("runningTimeInMinutes", 0) * 60
+                runtime = runtime_seconds // 60 if runtime_seconds else None
+                release_date = IMDBService.get_release_date(imdb_id)
+                languages = []
+                countries = []
+                links = []
+
+            logger.debug(f"Processed data - Title: {title}, Original title: {original_title}")
+            logger.debug(f"Poster URL: {poster_url}, Runtime: {runtime}")
+            logger.debug(f"Languages: {languages}, Countries: {countries}")
+
         except Exception as e:
             logger.error(f"Error mapping movie data for {imdb_id}: {e}")
-            return
+            return False
 
         with transaction.atomic():
             # Xác định status dựa trên release_date

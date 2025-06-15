@@ -9,7 +9,7 @@ const GoogleLogin = () => {
   const dispatch = useDispatch();
 
   const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (response) => {
+    onSuccess: async response => {
       try {
         const userData = await authService.googleLogin(response.access_token);
         dispatch(googleLogin(userData));
@@ -19,7 +19,7 @@ const GoogleLogin = () => {
         alert(error.message || 'Google login failed. Please try again.');
       }
     },
-    onError: (error) => {
+    onError: error => {
       console.error('Google login failed:', error);
       alert('Google login failed. Please try again.');
     },

@@ -54,7 +54,7 @@ const TrendingNow = () => {
         </p>
 
         <div className="mb-6 flex justify-center gap-4">
-          {timeRanges.map((range) => (
+          {timeRanges.map(range => (
             <button
               key={range.id}
               onClick={() => setSelectedRange(range.id)}
@@ -73,7 +73,7 @@ const TrendingNow = () => {
           <div className="text-center text-gray-400">Loading trending movies...</div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {trendingMovies.map((movie) => (
+            {trendingMovies.map(movie => (
               <div
                 key={movie.id}
                 className="group cursor-pointer overflow-hidden rounded-lg bg-gray-800"
@@ -92,7 +92,7 @@ const TrendingNow = () => {
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {movie.genres.map((genre) => (
+                    {movie.genres.map(genre => (
                       <span
                         key={genre}
                         className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300"

@@ -1,6 +1,6 @@
 import axiosInstance from './axios';
 
-export const getProfileAPI = async (userId) => {
+export const getProfileAPI = async userId => {
   try {
     const response = await axiosInstance.get(`/user/profile/${userId}`);
     return response.data;
@@ -19,7 +19,7 @@ export const updateProfileAPI = async (userId, userData) => {
       const errorData = error.response.data;
       if (typeof errorData === 'object') {
         const formattedError = {};
-        Object.keys(errorData).forEach((key) => {
+        Object.keys(errorData).forEach(key => {
           if (Array.isArray(errorData[key])) {
             formattedError[key] = errorData[key][0];
           } else {
@@ -48,7 +48,7 @@ export const uploadAvatarAPI = async (userId, formData) => {
 };
 
 //Statistics API
-export const getUserStatsAPI = async (userId) => {
+export const getUserStatsAPI = async userId => {
   try {
     const response = await axiosInstance.get(`/users/profile/${userId}/stats/`);
     return response.data;
@@ -68,7 +68,7 @@ export const followUserAPI = async (userId, followData) => {
 };
 
 //Get followers/following API
-export const getFollowersAPI = async (userId) => {
+export const getFollowersAPI = async userId => {
   try {
     const response = await axiosInstance.get(`/users/followers/${userId}`);
     return response.data;
@@ -136,7 +136,7 @@ export const updateProfileSettingsAPI = async (userId, settings) => {
 };
 
 //delete Account
-export const deleteAccountAPI = async (userId) => {
+export const deleteAccountAPI = async userId => {
   try {
     const response = await axiosInstance.delete(`/users/profile/${userId}`);
     return response.data;

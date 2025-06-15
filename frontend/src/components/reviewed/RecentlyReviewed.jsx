@@ -44,7 +44,7 @@ const RecentlyReviewed = () => {
         }}
         className="pb-0"
       >
-        {mockReviews.map((review) => (
+        {mockReviews.map(review => (
           <SwiperSlide key={review.id}>
             <ReviewCard review={review} />
           </SwiperSlide>

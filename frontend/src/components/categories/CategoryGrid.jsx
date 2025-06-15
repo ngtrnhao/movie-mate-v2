@@ -2,7 +2,7 @@
 
 const CategoryGrid = ({ categories, onCategoryClick }) => (
   <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-    {categories.map((cat) => (
+    {categories.map(cat => (
       <div
         key={cat.id}
         className="group relative cursor-pointer rounded-lg bg-gradient-to-b from-gray-200 to-gray-700 p-6 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:ring-2 hover:ring-red-500"

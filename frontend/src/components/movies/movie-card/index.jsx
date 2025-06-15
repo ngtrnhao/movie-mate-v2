@@ -1,23 +1,28 @@
 import { motion } from 'framer-motion';
-import Poster from './Poster';
-import Info from './Info';
-import Rating from './Rating';
-import Badge from './Badge';
-import Actions from './Actions';
-import RecommendedInfo from './RecommendedInfo';
 import { Link } from 'react-router-dom';
+import Actions from './Actions';
+import Badge from './Badge';
+import Info from './Info';
+import Poster from './Poster';
+import Rating from './Rating';
+import RecommendedInfo from './RecommendedInfo';
 
 const MovieCard = ({ movie }) => {
   const {
     id,
     title,
+    original_title,
     poster_path,
-    adult,
+    overview_en,
+    release_date,
+    genres,
+    rating,
     vote_average,
     vote_count,
-    release_date,
-    overview,
-    genres,
+    is_popular,
+    is_top_rated,
+    is_upcoming,
+    adult,
     match,
     recommendReason,
   } = movie;
@@ -34,17 +39,26 @@ const MovieCard = ({ movie }) => {
       {adult && <Badge />}
 
       {/* Movie Poster with Link */}
-      <Link to={`/movies/${movie.id}`} className="block">
+      <Link to={`/movies/${id}`} className="block">
         <Poster posterPath={poster_path} title={title} />
       </Link>
 
       {/* Movie Info Section */}
       <div className="flex min-h-[180px] flex-1 flex-col justify-between p-4">
-        <Link to={`/movies/${movie.id}`} className="block">
+        <Link to={`/movies/${id}`} className="block">
           <div>
-            <Info title={title} releaseDate={release_date} overview={overview} genres={genres} />
+            <Info
+              title={title}
+              originalTitle={original_title}
+              releaseDate={release_date}
+              overview={overview_en}
+              genres={genres}
+              isPopular={is_popular}
+              isTopRated={is_top_rated}
+              isUpcoming={is_upcoming}
+            />
             <RecommendedInfo match={match} recommendReason={recommendReason} />
-            <Rating voteAverage={vote_average} voteCount={vote_count} />
+            <Rating rating={rating} voteAverage={vote_average} voteCount={vote_count} />
           </div>
         </Link>
         <div className="mt-3 flex items-center gap-2">

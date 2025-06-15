@@ -72,7 +72,7 @@ const SimilarMovies = () => {
         </motion.h2>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {displayMovies.map((movie) => (
+          {displayMovies.map(movie => (
             <motion.div
               key={movie.id}
               initial={{ opacity: 0, y: 20 }}
@@ -88,7 +88,7 @@ const SimilarMovies = () => {
                     src={`${TMDB_IMAGE_BASE_URL}${movie.poster_path}`}
                     alt={movie.title}
                     className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    onError={(e) => {
+                    onError={e => {
                       e.target.onerror = null;
                       e.target.src = 'https://via.placeholder.com/500x750?text=No+Image';
                     }}

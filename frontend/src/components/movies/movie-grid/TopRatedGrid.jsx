@@ -76,7 +76,7 @@ export default function TopRatedGrid() {
         </div>
         <div className="mb-6 flex justify-end">
           <div className="inline-flex rounded-md bg-gray-800 p-1">
-            {TABS.map((tab) => (
+            {TABS.map(tab => (
               <button
                 key={tab.value}
                 className={`rounded-md px-4 py-1 text-sm font-medium transition-colors duration-150 ${activeTab === tab.value ? 'bg-white text-gray-900' : 'text-gray-300 hover:bg-gray-700'}`}

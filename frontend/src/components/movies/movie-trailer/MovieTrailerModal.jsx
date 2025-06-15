@@ -57,7 +57,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
 
   // Handle keyboard events
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = e => {
       if (e.key === 'Escape') {
         handleClose();
       }
@@ -94,7 +94,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: 'spring', duration: 0.5 }}
             className="relative mx-4 w-full max-w-4xl rounded-lg bg-gray-900 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-800 p-4">

@@ -14,7 +14,7 @@ const QuickLink = () => {
         Quick Links
       </h3>
       <ul className="space-y-2">
-        {links.map((link) => (
+        {links.map(link => (
           <li key={link.path}>
             <Link
               to={link.path}

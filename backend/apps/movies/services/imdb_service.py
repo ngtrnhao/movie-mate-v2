@@ -175,7 +175,6 @@ class IMDBService:
     @classmethod
     def get_upcoming_movies(cls, use_cache: bool = True) -> List[Dict]:
         """Get list of upcoming movies"""
-        # Sử dụng endpoint chính xác cho phim sắp ra mắt
         response = cls._make_request(
             "/title/get-coming-soon-movies",
             params={"region": "US"},
@@ -258,3 +257,35 @@ class IMDBService:
                 except Exception:
                     continue
         return None
+
+    @classmethod
+    def get_movie_overview(cls, imdb_id:str, use_cache: bool=True) -> Dict[str,str]:
+        """Get movie overview in both US and VN"""
+        overviews = {}
+
+        #Get English overview
+        en_response = cls._make_request(
+            "/title/get-plots",
+            params={
+                "tconst": imdb_id,
+                "language": "en-US"
+            },
+            use_cache=use_cache
+        )
+        if en_response and "plots" in en_response and len(en_response["plots"]) > 0:
+            overviews["en"] = en_response["plots"][0]["text"]
+
+        #Get Vietnamese overview
+        vn_response = cls._make_request(
+            "/title/get-plots",
+            params={
+                "tconst": imdb_id,
+                "language": "vi-VN"
+            },
+            use_cache=use_cache
+        )
+        if vn_response and "plots" in vn_response and len(vn_response["plots"]) > 0:
+            overviews["vi"] = vn_response["plots"][0]["text"]
+
+        return overviews
+

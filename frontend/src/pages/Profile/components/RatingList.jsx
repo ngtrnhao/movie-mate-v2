@@ -55,7 +55,7 @@ const RatingList = ({ ratings }) => {
 
   return (
     <Grid container spacing={2}>
-      {ratings.map((rating) => (
+      {ratings.map(rating => (
         <Grid item xs={12} sm={6} key={rating.id}>
           <RatingCard elevation={1}>
             <RatingHeader>

@@ -35,7 +35,7 @@ const GenreList = ({ genres }) => {
         Favorite Genres
       </Typography>
       <Box display="flex" flexWrap="wrap" gap={1}>
-        {genres.map((genre) => (
+        {genres.map(genre => (
           <GenreChip key={genre.id} label={genre.name} size="small" />
         ))}
       </Box>

@@ -14,7 +14,7 @@ export const loginAPI = async (email, password) => {
 };
 
 // Register API
-export const registerAPI = async (userData) => {
+export const registerAPI = async userData => {
   try {
     const response = await axiosInstance.post('/api/auth/register/', {
       username: userData.username,
@@ -28,7 +28,7 @@ export const registerAPI = async (userData) => {
       const errorData = error.response.data;
       if (typeof errorData === 'object') {
         const formattedErrors = {};
-        Object.keys(errorData).forEach((key) => {
+        Object.keys(errorData).forEach(key => {
           if (Array.isArray(errorData[key])) {
             formattedErrors[key] = errorData[key][0];
           } else {
@@ -44,7 +44,7 @@ export const registerAPI = async (userData) => {
 };
 
 // Refresh Token API
-export const refreshTokenAPI = async (refreshToken) => {
+export const refreshTokenAPI = async refreshToken => {
   const response = await axiosInstance.post('/api/auth/token/refresh/', {
     refresh: refreshToken,
   });
@@ -52,7 +52,7 @@ export const refreshTokenAPI = async (refreshToken) => {
 };
 
 // Forgot Password API
-export const forgotPasswordAPI = async (email) => {
+export const forgotPasswordAPI = async email => {
   const response = await axiosInstance.post('/api/auth/forgot-password/', {
     email,
   });
@@ -76,12 +76,12 @@ export const getProfileAPI = async () => {
 };
 
 // Update User Profile
-export const updateProfileAPI = async (userData) => {
+export const updateProfileAPI = async userData => {
   const response = await axiosInstance.put('/api/auth/profile/', userData);
   return response.data;
 };
 
-export const verifyEmailAPI = async (token) => {
+export const verifyEmailAPI = async token => {
   try {
     const response = await axiosInstance.get(`/api/auth/verify-email/?token=${token}`);
     return response.data;

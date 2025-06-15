@@ -1,25 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
-import MovieMateLogo from '../../components/header/Logo';
-import { motion, AnimatePresence } from 'framer-motion';
-import TabGroup from '../../components/movies/tab-group';
-import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
-import CategoryGrid from '../../components/categories/CategoryGrid';
-import { useCategories } from '../../hooks/useCategories';
-import PlanList from '../../components/plans/PlanList';
-import LandingFooter from '../../components/footer/LandingFooter';
+import { AccountCircle, Logout, Settings } from '@mui/icons-material';
+import { Avatar, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
+import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
-import { useTranslation } from '../../i18n/hooks/useTranslation';
-import LanguageSwitcher from '../../components/language/LanguageSwitcher';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-  fetchFeaturedMovies,
-  fetchMoviesByTab,
-  setCurrentTab,
-} from '../../store/slices/movieSlice';
-import { Avatar, Menu, MenuItem, IconButton, Tooltip } from '@mui/material';
-import { AccountCircle, Settings, Logout } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { getTopRatedMovies, getTrendingMovies, getUpcomingMovies } from '../../api/movieService';
+import CategoryGrid from '../../components/categories/CategoryGrid';
+import LandingFooter from '../../components/footer/LandingFooter';
+import MovieMateLogo from '../../components/header/Logo';
+import LanguageSwitcher from '../../components/language/LanguageSwitcher';
+import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
+import TabGroup from '../../components/movies/tab-group';
+import PlanList from '../../components/plans/PlanList';
+import { useCategories } from '../../hooks/useCategories';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { logout } from '../../store/slices/authSlice';
+import { fetchFeaturedMovies, setCurrentTab, setMoviesByTab } from '../../store/slices/movieSlice';
 
 const TABS = [
   { key: 'trending', label: 'latestReleases.tabs.trending' },
@@ -32,14 +29,14 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = useState(null);
-  const user = useSelector((state) => state.auth.user);
+  const user = useSelector(state => state.auth.user);
 
   // Redux selectors
-  const featuredMovies = useSelector((state) => state.movies.featuredMovies);
-  const moviesByTab = useSelector((state) => state.movies.moviesByTab);
-  const currentTab = useSelector((state) => state.movies.currentTab);
-  const loading = useSelector((state) => state.movies.loading);
-  const error = useSelector((state) => state.movies.error);
+  const featuredMovies = useSelector(state => state.movies.featuredMovies || []);
+  const moviesByTab = useSelector(state => state.movies.moviesByTab);
+  const currentTab = useSelector(state => state.movies.currentTab);
+  const loading = useSelector(state => state.movies.loading);
+  const error = useSelector(state => state.movies.error);
 
   const features = [
     t('features.items.library'),
@@ -52,8 +49,6 @@ const LandingPage = () => {
   const pauseTimeoutRef = useRef(null);
   const howItWorksRef = useRef(null);
 
-  // TMDB Configuration
-  const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
   const SLIDE_INTERVAL = 3000; // 5 seconds between slides
   const PAUSE_DURATION = 5000; // 15 seconds pause after user interaction
 
@@ -62,26 +57,39 @@ const LandingPage = () => {
   // Lấy ngôn ngữ hiện tại
   const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
-  // Fetch phim cho tab active và ngôn ngữ hiện tại nếu chưa có
+  // Fetch movies on component mount
   useEffect(() => {
-    if (
-      !moviesByTab[currentTab][currentLang] ||
-      moviesByTab[currentTab][currentLang].length === 0
-    ) {
-      dispatch(fetchMoviesByTab({ tabKey: currentTab, lang: currentLang }));
-    }
-  }, [currentTab, currentLang, dispatch, moviesByTab]);
+    const fetchMovies = async () => {
+      try {
+        // Fetch featured movies using Redux thunk
+        await dispatch(fetchFeaturedMovies());
 
-  // Initial fetch featured movies
-  useEffect(() => {
-    dispatch(fetchFeaturedMovies());
+        // Fetch movies for each tab
+        const tabs = {
+          trending: getTrendingMovies,
+          topRated: getTopRatedMovies,
+          upcoming: getUpcomingMovies,
+        };
+
+        for (const [tab, fetchFn] of Object.entries(tabs)) {
+          const data = await fetchFn();
+          if (data) {
+            dispatch(setMoviesByTab({ tab, movies: data }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching movies:', error);
+      }
+    };
+
+    fetchMovies();
   }, [dispatch]);
 
   // Slide show interval with pause functionality
   useEffect(() => {
     if (!isPaused && featuredMovies.length > 0) {
       const intervalId = setInterval(() => {
-        setCurrentSlide((prev) => (prev + 1) % featuredMovies.length);
+        setCurrentSlide(prev => (prev + 1) % featuredMovies.length);
       }, SLIDE_INTERVAL);
 
       return () => clearInterval(intervalId);
@@ -89,7 +97,7 @@ const LandingPage = () => {
   }, [isPaused, featuredMovies.length]);
 
   // Function to handle user interaction with slides
-  const handleSlideInteraction = (index) => {
+  const handleSlideInteraction = index => {
     if (pauseTimeoutRef.current) {
       clearTimeout(pauseTimeoutRef.current);
     }
@@ -106,7 +114,7 @@ const LandingPage = () => {
     howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleProfileMenuOpen = (event) => {
+  const handleProfileMenuOpen = event => {
     setAnchorEl(event.currentTarget);
   };
 
@@ -141,7 +149,7 @@ const LandingPage = () => {
     );
   }
 
-  if (loading.featured || featuredMovies.length === 0) {
+  if (loading.featured || !Array.isArray(featuredMovies) || featuredMovies.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="size-8 animate-spin rounded-full border-4 border-red-600 border-t-transparent"></div>
@@ -152,7 +160,7 @@ const LandingPage = () => {
   const currentMovie = featuredMovies[currentSlide];
 
   // Function to handle trailer click
-  const handleTrailerClick = (trailerUrl) => {
+  const handleTrailerClick = trailerUrl => {
     if (trailerUrl) {
       window.open(trailerUrl, '_blank');
     }
@@ -259,7 +267,7 @@ const LandingPage = () => {
               <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={{
-                  backgroundImage: `url(${movie.backdrop_path ? TMDB_IMAGE_BASE_URL + movie.backdrop_path : ''})`,
+                  backgroundImage: `url(${movie.poster_path || '/placeholder-poster.jpg'})`,
                 }}
               />
               {/* Gradient Overlay */}
@@ -323,8 +331,8 @@ const LandingPage = () => {
             >
               <div className="flex min-h-[80px] max-w-2xl items-center">
                 <p className="text-lg text-gray-300">
-                  {currentMovie?.overview_translations?.[i18n.language === 'en' ? 'en' : 'vi'] ||
-                    t('hero.discoverDescription')}
+                  {currentMovie?.[i18n.language === 'en' ? 'overview_en' : 'overview_vi'] ||
+                    'Khám phá bộ phim yêu thích tiếp theo của bạn với các đề xuất được cá nhân hóa của chúng tôi.'}
                 </p>
               </div>
             </motion.div>
@@ -378,11 +386,17 @@ const LandingPage = () => {
                 {t('hero.nowFeaturing')}
               </p>
               <h2 className="mb-2 text-2xl font-bold text-white">
-                {currentMovie?.title_translations?.[i18n.language === 'en' ? 'en' : 'vi']}
+                {currentMovie?.title}
+                {currentMovie?.original_title &&
+                  currentMovie.original_title !== currentMovie.title && (
+                    <span className="ml-2 text-lg font-normal text-gray-400">
+                      ({currentMovie.original_title})
+                    </span>
+                  )}
               </h2>
               <div className="mb-4 flex items-center justify-center gap-2">
                 <div className="flex">
-                  {[1, 2, 3, 4, 5].map((star) => (
+                  {[1, 2, 3, 4, 5].map(star => (
                     <span
                       key={star}
                       className={`text-lg ${
@@ -498,6 +512,7 @@ const LandingPage = () => {
           )}
         </AnimatePresence>
       </section>
+
       {/* How it works sections */}
       <section ref={howItWorksRef} className="relative bg-gray-900 py-20">
         <div className="absolute  bg-gradient-to-b from-transparent via-gray-900 to-gray-900" />
@@ -823,12 +838,12 @@ const LandingPage = () => {
           <p className="pt-5 text-center text-lg text-gray-400">{t('latestReleases.subtitle')}</p>
           <div className="mt-10">
             <TabGroup
-              tabs={TABS.map((tab) => ({
+              tabs={TABS.map(tab => ({
                 ...tab,
                 label: t(tab.label),
               }))}
               activeTab={currentTab}
-              onTabChange={(tab) => dispatch(setCurrentTab(tab))}
+              onTabChange={tab => dispatch(setCurrentTab(tab))}
             />
             <MovieGrid
               movies={moviesByTab[currentTab][currentLang] || []}
@@ -896,7 +911,7 @@ const LandingPage = () => {
         </div>
       </section>
       {/* Choose Your Plan */}
-      <sections className="relative bg-gradient-to-b from-black via-gray-900 to-gray-900 py-20">
+      <section className="relative bg-gradient-to-b from-black via-gray-900 to-gray-900 py-20">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -940,7 +955,7 @@ const LandingPage = () => {
             </motion.button>
           </motion.div>
         </div>
-      </sections>
+      </section>
       <section className="relative bg-gradient-to-b from-black via-black to-gray-900 py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">

@@ -17,7 +17,7 @@ const GENRES = [
 
 function getTopMoviesByGenre(genreId, limit = 10) {
   return mockMovies
-    .filter((movie) => movie.genres.map((g) => g.toLowerCase()).includes(genreId))
+    .filter(movie => movie.genres.map(g => g.toLowerCase()).includes(genreId))
     .sort((a, b) => b.vote_average - a.vote_average)
     .slice(0, limit);
 }
@@ -41,7 +41,7 @@ const TopGenreRecommendations = () => {
 
   return (
     <div className="w-full py-8">
-      {GENRES.map((genre) => {
+      {GENRES.map(genre => {
         const movies = getTopMoviesByGenre(genre.id, 10);
         return (
           <section key={genre.id} className="mb-12 ml-14">
@@ -91,11 +91,11 @@ const TopGenreRecommendations = () => {
               </div>
             </div>
             <div
-              ref={(el) => (scrollRefs.current[genre.id] = el)}
+              ref={el => (scrollRefs.current[genre.id] = el)}
               className="scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 flex gap-7 overflow-x-auto pb-2"
               style={{ scrollBehavior: 'smooth' }}
             >
-              {movies.map((movie) => (
+              {movies.map(movie => (
                 <div key={movie.id} className="min-w-[270px] max-w-[270px] shrink-0">
                   <MovieCard movie={movie} />
                 </div>

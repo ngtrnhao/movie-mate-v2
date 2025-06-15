@@ -31,7 +31,7 @@ const MovieGrid = memo(({ movies, loading, error, onMovieClick, className = '' }
 
   // Memoized handlers
   const handleMovieClick = useCallback(
-    (movie) => {
+    movie => {
       if (onMovieClick) {
         onMovieClick(movie);
       }
@@ -75,7 +75,7 @@ const MovieGrid = memo(({ movies, loading, error, onMovieClick, className = '' }
         exit="exit"
         className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${className}`}
       >
-        {movies.map((movie) => (
+        {movies.map(movie => (
           <motion.div
             key={movie.id}
             variants={itemVariants}

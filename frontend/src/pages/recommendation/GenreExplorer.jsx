@@ -25,9 +25,9 @@ const GenreExplorer = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleGenreToggle = (genre) => {
-    setSelectedGenres((prev) =>
-      prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
+  const handleGenreToggle = genre => {
+    setSelectedGenres(prev =>
+      prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
     );
   };
 
@@ -38,7 +38,7 @@ const GenreExplorer = () => {
     // Simulate API call with mock data
     setTimeout(() => {
       const genreMovies = mockMovies
-        .filter((movie) => selectedGenres.every((genre) => movie.genres.includes(genre)))
+        .filter(movie => selectedGenres.every(genre => movie.genres.includes(genre)))
         .slice(0, 8);
 
       setRecommendations(genreMovies);
@@ -68,7 +68,7 @@ const GenreExplorer = () => {
         </p>
 
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
-          {genres.map((genre) => (
+          {genres.map(genre => (
             <button
               key={genre}
               onClick={() => handleGenreToggle(genre)}
@@ -107,7 +107,7 @@ const GenreExplorer = () => {
           <div>
             <h3 className="mb-4 text-xl font-semibold text-white">Recommended Movies</h3>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-              {recommendations.map((movie) => (
+              {recommendations.map(movie => (
                 <div
                   key={movie.id}
                   className="group cursor-pointer overflow-hidden rounded-lg bg-gray-800"
@@ -126,7 +126,7 @@ const GenreExplorer = () => {
                       </span>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {movie.genres.map((genre) => (
+                      {movie.genres.map(genre => (
                         <span
                           key={genre}
                           className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300"

@@ -2,9 +2,11 @@ from apps.metadata.models import Genre
 from django.core.cache import cache
 from django.db import models
 from django.utils import timezone
+import logging
 
 # Create your models here.
 
+logger = logging.getLogger(__name__)
 
 class Movie(models.Model):
     STATUS_CHOICES = [
@@ -18,7 +20,8 @@ class Movie(models.Model):
     imdb_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     title = models.CharField(max_length=255)
     original_title = models.CharField(max_length=255, blank=True, null=True)
-    overview = models.TextField(blank=True, null=True)
+    overview_en = models.TextField(blank=True, null=True)
+    overview_vi = models.TextField(blank=True, null=True)
     release_date = models.DateField(blank=True, null=True)
     poster_url = models.CharField(max_length=255, blank=True, null=True)
     backdrop_url = models.CharField(max_length=255, blank=True, null=True)
@@ -54,6 +57,14 @@ class Movie(models.Model):
     def __str__(self):
         return self.title
 
+    def update_overviews(self, overviews: dict):
+        """Update movie overviews from IMDB data"""
+        if "en" in overviews:
+            self.overview_en = overviews["en"]
+        if "vi" in overviews:
+            self.overview_vi = overviews["vi"]
+        self.save()
+
     @classmethod
     def get_cached_movie(cls, movie_id, cache_timeout=3600):
         """Get movie from cache or database"""
@@ -76,41 +87,72 @@ class Movie(models.Model):
     @classmethod
     def get_popular_movies(cls, limit=50):
         """Get popular movies with caching"""
-        cache_key = "popular_movies"
-        movies = cache.get(cache_key)
+        cache_key = f"popular_movies_{limit}"
+        try:
+            movies = cache.get(cache_key)
 
-        if movies is None:
-            movies = list(
+            if movies is None:
+                logger.info("Cache miss for popular movies, fetching from database...")
+                movies = list(
+                    cls.objects.filter(is_popular=True)
+                    .select_related()
+                    .prefetch_related("genres")
+                    .order_by("-release_date")[:limit]
+                )
+                if movies:
+                    logger.info(f"Caching {len(movies)} popular movies")
+                    cache.set(cache_key, movies, 3600)
+                else:
+                    logger.warning("No popular movies found in database")
+
+            return movies
+        except Exception as e:
+            logger.error(f"Error getting popular movies: {str(e)}", exc_info=True)
+            # Fallback to database query without cache
+            return list(
                 cls.objects.filter(is_popular=True)
                 .select_related()
                 .prefetch_related("genres")
                 .order_by("-release_date")[:limit]
             )
-            cache.set(cache_key, movies, 3600)  # Cache for 1 hour
-
-        return movies
 
     @classmethod
     def get_top_rated_movies(cls, limit=50):
         """Get top rated movies with caching"""
-        cache_key = "top_rated_movies"
-        movies = cache.get(cache_key)
+        cache_key = f"top_rated_movies_{limit}"
+        try:
+            logger.info("Checking cache for top rated movies...")
+            movies = cache.get(cache_key)
 
-        if movies is None:
-            movies = list(
+            if movies is None:
+                logger.info("Cache miss for top rated movies, fetching from database...")
+                movies = list(
+                    cls.objects.filter(is_top_rated=True)
+                    .select_related()
+                    .prefetch_related("genres")
+                    .order_by("-release_date")[:limit]
+                )
+                if movies:
+                    logger.info(f"Caching {len(movies)} top rated movies")
+                    cache.set(cache_key, movies, 3600)
+                else:
+                    logger.warning("No top rated movies found in database")
+
+            return movies
+        except Exception as e:
+            logger.error(f"Error getting top rated movies: {str(e)}", exc_info=True)
+            # Fallback to database query without cache
+            return list(
                 cls.objects.filter(is_top_rated=True)
                 .select_related()
                 .prefetch_related("genres")
                 .order_by("-release_date")[:limit]
             )
-            cache.set(cache_key, movies, 3600)  # Cache for 1 hour
-
-        return movies
 
     @classmethod
     def get_upcoming_movies(cls, limit=50):
         """Get upcoming movies with caching"""
-        cache_key = "upcoming_movies"
+        cache_key = f"upcoming_movies_{limit}"
         movies = cache.get(cache_key)
 
         if movies is None:
@@ -120,7 +162,7 @@ class Movie(models.Model):
                 .prefetch_related("genres")
                 .order_by("release_date")[:limit]
             )
-            cache.set(cache_key, movies, 3600)  # Cache for 1 hour
+            cache.set(cache_key, movies, 3600)
 
         return movies
 

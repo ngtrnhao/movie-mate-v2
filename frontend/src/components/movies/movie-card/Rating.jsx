@@ -1,15 +1,26 @@
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 
-const Rating = ({ voteAverage, voteCount }) => {
+const Rating = ({ rating, voteAverage, voteCount }) => {
   const { t } = useTranslation('movies');
 
-  // Convert TMDB rating (1-10) to user rating (1-5)
-  const convertToFiveStarRating = (rating) => {
+  // Get the highest available rating
+  const getHighestRating = () => {
+    if (rating?.imdb) return { value: rating.imdb, source: 'IMDB' };
+    if (rating?.tmdb) return { value: rating.tmdb, source: 'TMDB' };
+    if (rating?.rotten_tomatoes)
+      return { value: rating.rotten_tomatoes, source: 'Rotten Tomatoes' };
+    if (voteAverage) return { value: voteAverage, source: 'Average' };
+    return null;
+  };
+
+  // Convert rating to 5-star scale
+  const convertToFiveStarRating = rating => {
     if (!rating) return 0;
     return Math.round((rating / 10) * 5);
   };
 
-  const formatVoteCount = (count) => {
+  const formatVoteCount = count => {
+    if (!count) return '0';
     if (count >= 1_000_000) {
       return `${(count / 1_000_000).toFixed(1)}M`;
     }
@@ -20,7 +31,7 @@ const Rating = ({ voteAverage, voteCount }) => {
   };
 
   // Get rating description using i18n
-  const getRatingDescription = (rating) => {
+  const getRatingDescription = rating => {
     switch (rating) {
       case 1:
         return t('rating.veryBad');
@@ -37,14 +48,16 @@ const Rating = ({ voteAverage, voteCount }) => {
     }
   };
 
-  const userRating = convertToFiveStarRating(voteAverage);
+  const highestRating = getHighestRating();
+  const userRating = highestRating ? convertToFiveStarRating(highestRating.value) : 0;
+  const totalVotes = voteCount || rating?.imdb_votes || 0;
 
   return (
     <div className="mt-2 flex items-center gap-2">
       {/* Star Rating */}
       <div className="flex items-center gap-1">
         <div className="flex">
-          {[1, 2, 3, 4, 5].map((star) => (
+          {[1, 2, 3, 4, 5].map(star => (
             <span
               key={star}
               className={`text-lg ${star <= userRating ? 'text-yellow-400' : 'text-gray-400'}`}
@@ -63,10 +76,10 @@ const Rating = ({ voteAverage, voteCount }) => {
         <span className="text-sm text-gray-400">({getRatingDescription(userRating)})</span>
       )}
 
-      {/* Vote Count */}
-      {voteCount > 0 && (
+      {/* Vote Count and Source */}
+      {totalVotes > 0 && (
         <span className="text-sm text-gray-400">
-          ({formatVoteCount(voteCount)} {t('rating.votes')})
+          ({formatVoteCount(totalVotes)} {t('rating.votes')} - {highestRating.source})
         </span>
       )}
     </div>

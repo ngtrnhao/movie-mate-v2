@@ -12,7 +12,7 @@ const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
   const [review, setReview] = useState('');
   const [hoveredRating, setHoveredRating] = useState(0);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = e => {
     e.preventDefault();
     onSubmit({ rating, review });
     setRating(0);
@@ -51,7 +51,7 @@ const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
             <div>
               <label className="mb-2 block text-sm text-gray-400">{t('details.yourRating')}</label>
               <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
+                {[1, 2, 3, 4, 5].map(star => (
                   <button
                     key={star}
                     type="button"
@@ -83,7 +83,7 @@ const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
               <textarea
                 id="review"
                 value={review}
-                onChange={(e) => setReview(e.target.value)}
+                onChange={e => setReview(e.target.value)}
                 placeholder={t('details.reviewPlaceholder')}
                 className="h-32 w-full rounded-md bg-gray-700 p-3 text-white placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                 required
@@ -169,7 +169,7 @@ const ReviewSection = ({ reviews }) => {
 
   // Lọc theo rating
   if (selectedRating) {
-    filteredReviews = filteredReviews.filter((review) => review.rating === selectedRating);
+    filteredReviews = filteredReviews.filter(review => review.rating === selectedRating);
   }
 
   // Sắp xếp reviews
@@ -192,14 +192,14 @@ const ReviewSection = ({ reviews }) => {
   const hasMoreReviews = !showAllReviews && visibleCount < filteredReviews.length;
 
   const handleLoadMore = () => {
-    setVisibleCount((prev) => prev + LOAD_MORE_COUNT);
+    setVisibleCount(prev => prev + LOAD_MORE_COUNT);
   };
 
   const handleViewAll = () => {
     setShowAllReviews(true);
   };
 
-  const handleSubmitReview = (reviewData) => {
+  const handleSubmitReview = reviewData => {
     // TODO: Gửi review lên server
     console.log('New review:', reviewData);
     // Thêm review mới vào danh sách
@@ -244,7 +244,7 @@ const ReviewSection = ({ reviews }) => {
                   </div>
                 </div>
                 <div className="flex-1">
-                  {[5, 4, 3, 2, 1].map((rating) => {
+                  {[5, 4, 3, 2, 1].map(rating => {
                     const count = ratingStats.distribution[rating] || 0;
                     const percentage = (count / ratingStats.count) * 100;
                     return (
@@ -274,7 +274,7 @@ const ReviewSection = ({ reviews }) => {
                   <label className="mb-2 block text-sm text-gray-400">{t('details.sortBy')}</label>
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
+                    onChange={e => setSortBy(e.target.value)}
                     className="w-full rounded-md bg-gray-700 px-4 py-2 text-white"
                   >
                     <option value="newest">{t('details.newest')}</option>
@@ -288,7 +288,7 @@ const ReviewSection = ({ reviews }) => {
                     {t('details.filterByRating')}
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {[5, 4, 3, 2, 1].map((rating) => (
+                    {[5, 4, 3, 2, 1].map(rating => (
                       <button
                         key={rating}
                         onClick={() => setSelectedRating(selectedRating === rating ? null : rating)}
@@ -310,7 +310,7 @@ const ReviewSection = ({ reviews }) => {
 
         {/* Reviews List */}
         <div className="space-y-6">
-          {visibleReviews.map((review) => (
+          {visibleReviews.map(review => (
             <motion.div
               key={review.id}
               initial={{ opacity: 0, y: 20 }}

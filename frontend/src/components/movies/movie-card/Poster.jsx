@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 
 const Poster = ({ posterPath, title }) => {
-  const imageUrl = posterPath ? `https://image.tmdb.org/t/p/w500/${posterPath}` : null;
+  // Use posterPath directly as it's already the full URL from our API
+  const imageUrl = posterPath;
 
   return (
     <motion.div

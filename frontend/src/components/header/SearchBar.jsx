@@ -4,7 +4,7 @@ const SearchBar = () => {
   const { t } = useTranslation('common');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleSearch = (e) => {
+  const handleSearch = e => {
     e.preventDefault();
     // Implement search logic (Call API)
   };
@@ -29,7 +29,7 @@ const SearchBar = () => {
         <input
           type="search"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={e => setSearchQuery(e.target.value)}
           className="bg-muted/50 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring h-10 w-full rounded-md border-0 pl-10 pr-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           placeholder={t('search.placeholder')}
         />

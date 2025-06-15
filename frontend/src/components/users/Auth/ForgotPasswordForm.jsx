@@ -28,15 +28,15 @@ const ForgotPasswordForm = () => {
     }
     return errors;
   };
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { value } = e.target;
     setEmail(value);
-    setFormError((prev) => ({ ...prev, email: '' }));
+    setFormError(prev => ({ ...prev, email: '' }));
     if (error) {
       dispatch(clearError());
     }
   };
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setFormError({});
     dispatch(clearError());

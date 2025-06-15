@@ -54,15 +54,15 @@ const MoodBasedRecommendations = () => {
   const [selectedMood, setSelectedMood] = useState('uplifting');
   const navigate = useNavigate();
 
-  const getMoodRecommendations = (mood) => {
+  const getMoodRecommendations = mood => {
     const genres = moodToGenres[mood] || [];
     return mockMovies
-      .filter((movie) => movie.genres.some((genre) => genres.includes(genre)))
+      .filter(movie => movie.genres.some(genre => genres.includes(genre)))
       .sort(() => Math.random() - 0.5)
       .slice(0, 6);
   };
 
-  const selectedMoodObj = moods.find((m) => m.id === selectedMood);
+  const selectedMoodObj = moods.find(m => m.id === selectedMood);
 
   return (
     <section className="w-full py-8 md:col-span-2">
@@ -77,7 +77,7 @@ const MoodBasedRecommendations = () => {
 
         {/* Mood Selector */}
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
-          {moods.map((mood) => (
+          {moods.map(mood => (
             <button
               key={mood.id}
               onClick={() => setSelectedMood(mood.id)}
@@ -100,7 +100,7 @@ const MoodBasedRecommendations = () => {
 
         {/* Movie Recommendations */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3">
-          {getMoodRecommendations(selectedMood).map((movie) => (
+          {getMoodRecommendations(selectedMood).map(movie => (
             <div
               key={movie.id}
               className="group cursor-pointer overflow-hidden rounded-lg bg-gray-800"
@@ -119,7 +119,7 @@ const MoodBasedRecommendations = () => {
                   </span>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {movie.genres.map((genre) => (
+                  {movie.genres.map(genre => (
                     <span
                       key={genre}
                       className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300"

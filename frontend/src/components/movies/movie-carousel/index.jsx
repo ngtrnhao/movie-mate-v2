@@ -178,7 +178,7 @@ const MovieCarousel = ({ title = 'Recommended Movies', movies = mockMovies }) =>
             },
           }}
         >
-          {movies.map((movie) => (
+          {movies.map(movie => (
             <SwiperSlide key={movie.id}>
               <div className="group relative flex flex-col">
                 <div className="relative">

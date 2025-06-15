@@ -49,7 +49,7 @@ const ReviewList = ({ reviews }) => {
 
   return (
     <Box>
-      {reviews.map((review) => (
+      {reviews.map(review => (
         <ReviewCard key={review.id} elevation={1}>
           <ReviewHeader>
             <MovieTitle component={Link} to={`/movies/${review.movie.id}`}>

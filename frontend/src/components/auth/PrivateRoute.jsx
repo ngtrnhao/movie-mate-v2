@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 
 const PrivateRoute = ({ children }) => {
   const location = useLocation();
-  const user = useSelector((state) => state.auth.user);
+  const user = useSelector(state => state.auth.user);
 
   if (!user) {
     // Redirect to login page but save the attempted url

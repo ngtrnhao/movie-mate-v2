@@ -16,7 +16,7 @@ const fetchCategories = async () => {
   const data = await res.json();
   // data.genres: [{id, name}]
   // Lấy số lượng phim cho từng thể loại (có thể cần API khác, tạm để count = 0)
-  return data.genres.map((genre) => ({ ...genre, count: 0 }));
+  return data.genres.map(genre => ({ ...genre, count: 0 }));
 };
 
 export const useCategories = () => {

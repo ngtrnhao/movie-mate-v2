@@ -56,7 +56,7 @@ const SCROLL_AMOUNT = MOVIES_PER_VIEW * CARD_WIDTH + (MOVIES_PER_VIEW - 1) * 28;
 const RecommendForYou = () => {
   const scrollRef = useRef(null);
 
-  const handleScroll = (direction) => {
+  const handleScroll = direction => {
     if (scrollRef.current) {
       scrollRef.current.scrollBy({
         left: direction === 'left' ? -SCROLL_AMOUNT : SCROLL_AMOUNT,
@@ -112,7 +112,7 @@ const RecommendForYou = () => {
           className="scrollbar-none md:scrollbar-thin md:scrollbar-thumb-gray-700 md:scrollbar-track-gray-900 flex gap-4 overflow-x-auto pb-2 md:gap-6 lg:gap-7"
           style={{ scrollBehavior: 'smooth' }}
         >
-          {mockRecommendations.map((movie) => (
+          {mockRecommendations.map(movie => (
             <div
               key={movie.id}
               className="min-w-[70vw] max-w-[70vw] shrink-0 sm:min-w-[40vw] sm:max-w-[40vw] md:min-w-[210px] md:max-w-[210px] lg:min-w-[240px] lg:max-w-[240px] xl:min-w-[270px] xl:max-w-[270px]"

@@ -41,7 +41,7 @@ const FeaturedCategories = () => {
       <div className="ml-14">
         <h2 className="mb-8 text-3xl font-bold text-white">Featured Categories</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {categories.map((category) => (
+          {categories.map(category => (
             <Link
               key={category.id}
               to={`/category/${category.slug}`}

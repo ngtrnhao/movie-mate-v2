@@ -43,7 +43,7 @@ const HeroBannerRecommendation = ({ movie = mockMovie }) => {
             <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-lg">
               Recommended
             </span>
-            {movie.genres?.map((genre) => (
+            {movie.genres?.map(genre => (
               <span
                 key={genre}
                 className="rounded-full bg-gray-800/80 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
@@ -59,7 +59,7 @@ const HeroBannerRecommendation = ({ movie = mockMovie }) => {
           {/* Rating,Year,Match */}
           <div className="mb-4 flex items-center gap-3">
             <div className="flex items-center">
-              {[1, 2, 3, 4, 5].map((star) => (
+              {[1, 2, 3, 4, 5].map(star => (
                 <span
                   key={star}
                   className={`text-lg ${star <= userRating ? 'text-yellow-400' : 'text-gray-400'}`}

@@ -2,6 +2,7 @@ import csv
 import gzip
 import logging
 import os
+import json
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -250,6 +251,19 @@ class IMDBDatasetService:
                     'editor': 'EDITOR',
                     'composer': 'COMPOSER'
                 }
+                #Parse characters field correctly
+                if row['characters'] != '\\N':
+                    try:
+                        char_list = json.loads(row['characters'])
+                    except Exception:
+                        char_list = []
+                    else:
+                        main_character = char_list[0] if char_list else None
+                        all_characters = char_list
+                else:
+                    main_character = None
+                    all_characters = []
+
 
                 # Create or update cast member
                 MovieCast.objects.update_or_create(
@@ -260,8 +274,8 @@ class IMDBDatasetService:
                         'role': role_mapping.get(row['category'].lower(), 'ACTOR'),
                         'category': row['category'],
                         'job': row['job'] if row['job'] != '\\N' else None,
-                        'main_character': row['characters'].split(',')[0] if row['characters'] != '\\N' else None,
-                        'all_characters': row['characters'].split(',') if row['characters'] != '\\N' else []
+                        'main_character': main_character,
+                        'all_characters': all_characters
                     }
                 )
                 success += 1

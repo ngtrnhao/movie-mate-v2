@@ -112,7 +112,7 @@ const CastSection = ({ cast }) => {
         </motion.h2>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {displayCast.slice(0, 6).map((actor) => (
+          {displayCast.slice(0, 6).map(actor => (
             <motion.div
               key={actor.cast_id}
               initial={{ opacity: 0, y: 20 }}
@@ -127,7 +127,7 @@ const CastSection = ({ cast }) => {
                   src={`${TMDB_IMAGE_BASE_URL}${actor.profile_path}`}
                   alt={actor.name}
                   className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  onError={(e) => {
+                  onError={e => {
                     e.target.onerror = null;
                     e.target.src = 'https://via.placeholder.com/500x750?text=No+Image';
                   }}

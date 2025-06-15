@@ -7,7 +7,7 @@ const DEFAULT_LANGUAGE = 'en';
 export const useTranslation = (ns = 'common') => {
   const { t, i18n } = useTranslationOriginal(ns);
 
-  const changeLanguage = (lng) => {
+  const changeLanguage = lng => {
     try {
       localStorage.setItem(LANGUAGE_KEY, lng);
       i18n.changeLanguage(lng);

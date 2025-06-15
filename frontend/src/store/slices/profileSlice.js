@@ -15,7 +15,7 @@ import {
 } from '../../api/profileService';
 
 //Async Thunk
-export const fetchProfile = createAsyncThunk('profile/fetchProfile', async (userId) => {
+export const fetchProfile = createAsyncThunk('profile/fetchProfile', async userId => {
   const response = await getProfileAPI(userId);
   return response;
 });
@@ -36,17 +36,17 @@ export const uploadAvatar = createAsyncThunk(
   }
 );
 
-export const fetchUserStats = createAsyncThunk('profile/fetchUserStats', async (userId) => {
+export const fetchUserStats = createAsyncThunk('profile/fetchUserStats', async userId => {
   const response = await getUserStatsAPI(userId);
   return response;
 });
 
-export const fetchFollowers = createAsyncThunk('profile/fetchFollowers', async (userId) => {
+export const fetchFollowers = createAsyncThunk('profile/fetchFollowers', async userId => {
   const response = await followUserAPI(userId);
   return response;
 });
 
-export const fetchFollowing = createAsyncThunk('profile/fetchFollowing', async (userId) => {
+export const fetchFollowing = createAsyncThunk('profile/fetchFollowing', async userId => {
   const response = await getFollowersAPI(userId);
   return response;
 });
@@ -91,7 +91,7 @@ export const updateProfileSettings = createAsyncThunk(
   }
 );
 
-export const deleteAccount = createAsyncThunk('profile/deleteAccount', async (userId) => {
+export const deleteAccount = createAsyncThunk('profile/deleteAccount', async userId => {
   const response = await deleteAccountAPI(userId);
   return response;
 });
@@ -159,10 +159,10 @@ const profileSlice = createSlice({
       state[type].currentPage = page;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
       //Fetch Profile
-      .addCase(fetchProfile.pending, (state) => {
+      .addCase(fetchProfile.pending, state => {
         state.loading.profile = true;
         state.error.profile = null;
       })
@@ -175,7 +175,7 @@ const profileSlice = createSlice({
         state.error.profile = action.error.message;
       })
       //Update Profile
-      .addCase(updateProfile.pending, (state) => {
+      .addCase(updateProfile.pending, state => {
         state.loading.profile = true;
         state.error.profile = null;
       })
@@ -188,7 +188,7 @@ const profileSlice = createSlice({
         state.error.profile = action.error.message;
       })
       //Upload Avatar
-      .addCase(uploadAvatar.pending, (state) => {
+      .addCase(uploadAvatar.pending, state => {
         state.loading.profile = true;
         state.error.profile = null;
       })
@@ -202,7 +202,7 @@ const profileSlice = createSlice({
       })
 
       //Fetch User Stats
-      .addCase(fetchUserStats.pending, (state) => {
+      .addCase(fetchUserStats.pending, state => {
         state.loading.stats = true;
         state.error.stats = null;
       })
@@ -216,7 +216,7 @@ const profileSlice = createSlice({
       })
 
       //Fetch Watched Movies
-      .addCase(fetchWatchedMovies.pending, (state) => {
+      .addCase(fetchWatchedMovies.pending, state => {
         state.loading.watchedMovies = true;
         state.error.watchedMovies = null;
       })
@@ -234,7 +234,7 @@ const profileSlice = createSlice({
         state.error.watchedMovies = action.error.message;
       })
       //Fetch User Reviews
-      .addCase(fetchUserReviews.pending, (state) => {
+      .addCase(fetchUserReviews.pending, state => {
         state.loadingReviews = true;
         state.error.reviews = null;
       })
@@ -252,7 +252,7 @@ const profileSlice = createSlice({
         state.error.reviews = action.error.message;
       })
       //Fetch User Ratings
-      .addCase(fetchUserRatings.pending, (state) => {
+      .addCase(fetchUserRatings.pending, state => {
         state.loading.ratings = true;
         state.error.ratings = null;
       })
@@ -270,7 +270,7 @@ const profileSlice = createSlice({
         state.error.ratings = action.error.message;
       })
       //Fetch Favorite Genres
-      .addCase(fetchFavoriteGenres.pending, (state) => {
+      .addCase(fetchFavoriteGenres.pending, state => {
         state.loading.genres = true;
         state.error.genres = null;
       })
@@ -283,7 +283,7 @@ const profileSlice = createSlice({
         state.error.genres = action.error.message;
       })
       //Update Profile Settings
-      .addCase(updateProfileSettings.pending, (state) => {
+      .addCase(updateProfileSettings.pending, state => {
         state.loading.settings = true;
         state.error.settings = null;
       })
@@ -296,11 +296,11 @@ const profileSlice = createSlice({
         state.error.settings = action.error.message;
       })
       //Delete Account
-      .addCase(deleteAccount.pending, (state) => {
+      .addCase(deleteAccount.pending, state => {
         state.loading.profile = true;
         state.error.profile = null;
       })
-      .addCase(deleteAccount.fulfilled, (state) => {
+      .addCase(deleteAccount.fulfilled, state => {
         state.loading.profile = false;
       });
   },

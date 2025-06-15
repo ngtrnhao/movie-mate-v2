@@ -61,7 +61,7 @@ const RegisterForm = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setFormError({ ...formError, [e.target.name]: '' });
   };
@@ -94,7 +94,7 @@ const RegisterForm = () => {
     }
     return errors;
   };
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
 
     //Validate form
@@ -115,7 +115,7 @@ const RegisterForm = () => {
         // Handle specific field errors
         if (resultAction.payload && typeof resultAction.payload === 'object') {
           const backendErrors = {};
-          Object.keys(resultAction.payload).forEach((key) => {
+          Object.keys(resultAction.payload).forEach(key => {
             // Map backend field names to form field names
             const formField = key === 'password2' ? 'confirmPassword' : key;
             backendErrors[formField] = resultAction.payload[key];
@@ -207,7 +207,7 @@ const RegisterForm = () => {
           <button
             type="button"
             aria-label="Show password"
-            onClick={() => setShowPassword((v) => !v)}
+            onClick={() => setShowPassword(v => !v)}
             className="absolute right-3 top-9 border-none bg-transparent p-0 text-lg text-gray-400 hover:text-red-500"
             tabIndex={-1}
           >
@@ -235,7 +235,7 @@ const RegisterForm = () => {
           <button
             type="button"
             aria-label="Show confirm password"
-            onClick={() => setShowConfirmPassword((v) => !v)}
+            onClick={() => setShowConfirmPassword(v => !v)}
             className="absolute right-3 top-9 border-none bg-transparent p-0 text-lg text-gray-400 hover:text-red-500"
             tabIndex={-1}
           >

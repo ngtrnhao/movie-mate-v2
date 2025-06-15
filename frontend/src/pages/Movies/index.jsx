@@ -34,7 +34,7 @@ const MoviesPage = () => {
   ];
 
   const handleFilterChange = (type, value) => {
-    setFilters((prev) => ({
+    setFilters(prev => ({
       ...prev,
       [type]: value,
     }));
@@ -70,14 +70,14 @@ const MoviesPage = () => {
                 {t('filters.genres')}
               </label>
               <div className="flex flex-wrap gap-2">
-                {genres.map((genre) => (
+                {genres.map(genre => (
                   <button
                     key={genre.id}
                     onClick={() =>
                       handleFilterChange(
                         'genres',
                         filters.genres.includes(genre.id)
-                          ? filters.genres.filter((id) => id !== genre.id)
+                          ? filters.genres.filter(id => id !== genre.id)
                           : [...filters.genres, genre.id]
                       )
                     }
@@ -100,11 +100,11 @@ const MoviesPage = () => {
               </label>
               <select
                 value={filters.year}
-                onChange={(e) => handleFilterChange('year', e.target.value)}
+                onChange={e => handleFilterChange('year', e.target.value)}
                 className="w-full rounded-md bg-gray-700 p-2 text-white"
               >
                 <option value="">{t('filters.selectYear')}</option>
-                {years.map((year) => (
+                {years.map(year => (
                   <option key={year} value={year}>
                     {year}
                   </option>
@@ -119,11 +119,11 @@ const MoviesPage = () => {
               </label>
               <select
                 value={filters.rating}
-                onChange={(e) => handleFilterChange('rating', e.target.value)}
+                onChange={e => handleFilterChange('rating', e.target.value)}
                 className="w-full rounded-md bg-gray-700 p-2 text-white"
               >
                 <option value="">{t('filters.selectRating')}</option>
-                {ratings.map((rating) => (
+                {ratings.map(rating => (
                   <option key={rating} value={rating}>
                     {rating}
                   </option>
@@ -138,10 +138,10 @@ const MoviesPage = () => {
               </label>
               <select
                 value={filters.sortBy}
-                onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                onChange={e => handleFilterChange('sortBy', e.target.value)}
                 className="w-full rounded-md bg-gray-700 p-2 text-white"
               >
-                {sortOptions.map((option) => (
+                {sortOptions.map(option => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

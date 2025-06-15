@@ -1,7 +1,7 @@
 const TabGroup = ({ tabs, activeTab, onTabChange }) => {
   return (
     <div className="mb-8 flex justify-center gap-2" role="tablist">
-      {tabs.map((tab) => (
+      {tabs.map(tab => (
         <button
           key={tab.key}
           role="tab"

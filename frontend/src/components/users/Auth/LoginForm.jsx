@@ -63,13 +63,13 @@ const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   // Handle input change
-  const handleChange = (e) => {
+  const handleChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setFormError({ ...formError, [e.target.name]: '' });
   };
 
   // Handle remember me checkbox
-  const handleRememberMe = (e) => {
+  const handleRememberMe = e => {
     dispatch(setRememberMe(e.target.checked));
   };
 
@@ -90,7 +90,7 @@ const LoginForm = () => {
   };
 
   // Handle form submission
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
 
     // Validate form
@@ -167,7 +167,7 @@ const LoginForm = () => {
           <button
             type="button"
             aria-label="Show password"
-            onClick={() => setShowPassword((v) => !v)}
+            onClick={() => setShowPassword(v => !v)}
             className="absolute right-3 top-9 border-none bg-transparent p-0 text-lg text-gray-400 hover:text-red-500"
             tabIndex={-1}
           >

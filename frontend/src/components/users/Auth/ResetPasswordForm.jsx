@@ -85,16 +85,16 @@ const ResetPasswordForm = () => {
     return errors;
   };
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    setFormError((prev) => ({ ...prev, [name]: '' }));
+    setForm(prev => ({ ...prev, [name]: value }));
+    setFormError(prev => ({ ...prev, [name]: '' }));
     if (error) {
       dispatch(clearError());
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setFormError({});
     dispatch(clearError());
@@ -178,7 +178,7 @@ const ResetPasswordForm = () => {
           <button
             type="button"
             aria-label="Show password"
-            onClick={() => setShowPassword((v) => !v)}
+            onClick={() => setShowPassword(v => !v)}
             className="absolute right-3 top-9 border-none bg-transparent p-0 text-lg text-gray-400 hover:text-red-500"
             tabIndex={-1}
           >
@@ -206,7 +206,7 @@ const ResetPasswordForm = () => {
           <button
             type="button"
             aria-label="Show confirm password"
-            onClick={() => setShowConfirmPassword((v) => !v)}
+            onClick={() => setShowConfirmPassword(v => !v)}
             className="absolute right-3 top-9 border-none bg-transparent p-0 text-lg text-gray-400 hover:text-red-500"
             tabIndex={-1}
           >

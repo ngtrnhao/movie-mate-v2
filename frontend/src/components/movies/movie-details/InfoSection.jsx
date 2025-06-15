@@ -112,7 +112,7 @@ const InfoSection = () => {
                 </div>
                 {/* Genres */}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {movie.genres?.map((genre) => (
+                  {movie.genres?.map(genre => (
                     <span
                       key={genre.id}
                       className="rounded-full bg-red-600/20 px-3 py-1 text-sm text-red-400"

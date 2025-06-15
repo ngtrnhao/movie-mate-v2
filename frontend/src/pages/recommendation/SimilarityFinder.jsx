@@ -11,14 +11,14 @@ const SimilarityFinder = () => {
   const navigate = useNavigate();
 
   // Search function with debounce
-  const debouncedSearch = useCallback((query) => {
+  const debouncedSearch = useCallback(query => {
     const timeoutId = setTimeout(() => {
       if (query.length < 2) {
         setSearchResults([]);
         return;
       }
 
-      const results = mockMovies.filter((movie) =>
+      const results = mockMovies.filter(movie =>
         movie.title.toLowerCase().includes(query.toLowerCase())
       );
       setSearchResults(results);
@@ -27,14 +27,14 @@ const SimilarityFinder = () => {
     return () => clearTimeout(timeoutId);
   }, []);
 
-  const handleSearch = (e) => {
+  const handleSearch = e => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsLoading(true);
     // Simulate API call delay
     setTimeout(() => {
-      const results = mockMovies.filter((movie) =>
+      const results = mockMovies.filter(movie =>
         movie.title.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setSearchResults(results);
@@ -42,18 +42,18 @@ const SimilarityFinder = () => {
     }, 500);
   };
 
-  const handleMovieSelect = (movie) => {
+  const handleMovieSelect = movie => {
     setSelectedMovie(movie);
     setSearchQuery(movie.title);
     setSearchResults([]);
 
     // Find similar movies based on genres and rating
     const similar = mockMovies
-      .filter((m) => m.id !== movie.id)
+      .filter(m => m.id !== movie.id)
       .sort((a, b) => {
         // Calculate similarity score based on genres and rating
-        const genreMatchA = a.genres.filter((g) => movie.genres.includes(g)).length;
-        const genreMatchB = b.genres.filter((g) => movie.genres.includes(g)).length;
+        const genreMatchA = a.genres.filter(g => movie.genres.includes(g)).length;
+        const genreMatchB = b.genres.filter(g => movie.genres.includes(g)).length;
         const ratingDiffA = Math.abs(a.vote_average - movie.vote_average);
         const ratingDiffB = Math.abs(b.vote_average - movie.vote_average);
 
@@ -96,7 +96,7 @@ const SimilarityFinder = () => {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => {
+              onChange={e => {
                 setSearchQuery(e.target.value);
                 debouncedSearch(e.target.value);
               }}
@@ -106,7 +106,7 @@ const SimilarityFinder = () => {
             {/* Search Results Dropdown */}
             {searchResults.length > 0 && (
               <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-700 bg-gray-800 shadow-lg">
-                {searchResults.map((movie) => (
+                {searchResults.map(movie => (
                   <button
                     key={movie.id}
                     onClick={() => handleMovieSelect(movie)}
@@ -151,7 +151,7 @@ const SimilarityFinder = () => {
                   <h3 className="text-xl font-semibold text-white">{selectedMovie.title}</h3>
                   <p className="mt-1 text-sm text-gray-400">{selectedMovie.overview}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedMovie.genres.map((genre) => (
+                    {selectedMovie.genres.map(genre => (
                       <span
                         key={genre}
                         className="rounded-full bg-red-500/20 px-3 py-1 text-xs text-red-500"
@@ -171,7 +171,7 @@ const SimilarityFinder = () => {
                   Similar Movies You Might Like
                 </h3>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {similarMovies.map((movie) => (
+                  {similarMovies.map(movie => (
                     <div
                       key={movie.id}
                       className="group cursor-pointer overflow-hidden rounded-lg bg-gray-800"
@@ -193,7 +193,7 @@ const SimilarityFinder = () => {
                           <p className="line-clamp-2">{movie.overview}</p>
                         </div>
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {movie.genres.map((genre) => (
+                          {movie.genres.map(genre => (
                             <span
                               key={genre}
                               className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300"

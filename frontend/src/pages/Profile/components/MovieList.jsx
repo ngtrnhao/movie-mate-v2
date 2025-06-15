@@ -1,4 +1,4 @@
-import { Grid, Card, CardMedia, CardContent, Typography, Box } from '@mui/material';
+import { Box, Card, CardContent, CardMedia, Grid, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Link } from 'react-router-dom';
 
@@ -50,7 +50,7 @@ const MovieList = ({ movies }) => {
 
   return (
     <Grid container spacing={3}>
-      {movies.map((movie) => (
+      {movies.map(movie => (
         <Grid item xs={12} sm={6} md={4} key={movie.id}>
           <MovieLink to={`/movies/${movie.id}`}>
             <MovieCard>

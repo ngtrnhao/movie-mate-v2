@@ -155,7 +155,7 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    loginStart: (state) => {
+    loginStart: state => {
       state.loading = true;
       state.error = null;
     },
@@ -174,7 +174,7 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-    logout: (state) => {
+    logout: state => {
       state.user = {
         id: null,
         username: null,
@@ -197,7 +197,7 @@ const authSlice = createSlice({
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
     },
-    clearError: (state) => {
+    clearError: state => {
       state.error = null;
     },
     setRememberMe: (state, action) => {
@@ -214,7 +214,7 @@ const authSlice = createSlice({
      * Khôi phục trạng thái đăng nhập từ localStorage vào Redux state khi app khởi động hoặc reload.
      * Nếu localStorage có token và user, sẽ cập nhật lại state đăng nhập.
      */
-    rehydrateAuth: (state) => {
+    rehydrateAuth: state => {
       const token = localStorage.getItem('token');
       const refreshToken = localStorage.getItem('refreshToken');
       const user = JSON.parse(localStorage.getItem('user'));
@@ -226,10 +226,10 @@ const authSlice = createSlice({
       }
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
       // Login
-      .addCase(login.pending, (state) => {
+      .addCase(login.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -249,7 +249,7 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
       // Register
-      .addCase(register.pending, (state) => {
+      .addCase(register.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -263,7 +263,7 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
       // Refresh Token
-      .addCase(refreshToken.pending, (state) => {
+      .addCase(refreshToken.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -283,7 +283,7 @@ const authSlice = createSlice({
         state.refreshToken = null;
       })
       // Update Profile
-      .addCase(updateProfile.pending, (state) => {
+      .addCase(updateProfile.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -297,11 +297,11 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
       // Forgot Password
-      .addCase(forgotPassword.pending, (state) => {
+      .addCase(forgotPassword.pending, state => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(forgotPassword.fulfilled, (state) => {
+      .addCase(forgotPassword.fulfilled, state => {
         state.loading = false;
         state.error = null;
       })
@@ -310,11 +310,11 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
       // Reset Password
-      .addCase(resetPassword.pending, (state) => {
+      .addCase(resetPassword.pending, state => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(resetPassword.fulfilled, (state) => {
+      .addCase(resetPassword.fulfilled, state => {
         state.loading = false;
         state.error = null;
       })
@@ -323,7 +323,7 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
       // Google Login
-      .addCase(googleLogin.pending, (state) => {
+      .addCase(googleLogin.pending, state => {
         state.loading = true;
         state.error = null;
       })

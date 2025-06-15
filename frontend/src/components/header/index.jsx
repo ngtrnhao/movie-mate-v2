@@ -30,7 +30,7 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleProfileMenuOpen = (event) => {
+  const handleProfileMenuOpen = event => {
     setAnchorEl(event.currentTarget);
   };
 

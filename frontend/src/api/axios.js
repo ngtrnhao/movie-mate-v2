@@ -7,26 +7,27 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 seconds timeout
 });
 
 // Request interceptor
 axiosInstance.interceptors.request.use(
-  (config) => {
+  config => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
+  error => {
     return Promise.reject(error);
   }
 );
 
 // Response interceptor
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error) => {
+  response => response,
+  async error => {
     const originalRequest = error.config;
 
     // If error is 401 and we haven't tried to refresh token yet
@@ -51,6 +52,16 @@ axiosInstance.interceptors.response.use(
         localStorage.removeItem('refreshToken');
         window.location.href = '/login';
         return Promise.reject(refreshError);
+      }
+    }
+
+    // Handle empty response errors
+    if (error.code === 'ERR_EMPTY_RESPONSE' || error.code === 'ECONNABORTED') {
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+        // Wait for 1 second before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return axiosInstance(originalRequest);
       }
     }
 

@@ -18,6 +18,7 @@ from .models import (
     MovieRating,
     MovieReview,
     MovieTrailer,
+    MovieAlternativeTitle,
 )
 from .services.imdb_service import IMDBService
 
@@ -199,6 +200,10 @@ def process_movie_data(self, imdb_id: str):
             logger.error(f"Failed to get movie details for {imdb_id}")
             return False
 
+        # Get movie overviews
+        overviews = IMDBService.get_movie_overview(imdb_id)
+        logger.debug(f"Movie overviews for {imdb_id}: {overviews}")
+
         # Mapping với cấu trúc mới
         try:
             if "data" in movie_data:
@@ -268,7 +273,8 @@ def process_movie_data(self, imdb_id: str):
                 defaults={
                     "title": title,
                     "original_title": original_title,
-                    "overview": "",  # Không có trong response
+                    "overview_en": overviews.get("en", ""),
+                    "overview_vi": overviews.get("vi", ""),
                     "release_date": release_date,
                     "poster_url": poster_url,
                     "backdrop_url": "",  # Không có trong response
@@ -299,6 +305,14 @@ def process_movie_data(self, imdb_id: str):
             cache.delete(f"movie_{movie.id}")
 
             print(f"[DEBUG] Successfully processed movie data for {imdb_id}")
+
+            # Sau khi cập nhật dữ liệu phim:
+            if not MovieTrailer.objects.filter(movie=movie).exists():
+                sync_movie_trailers.delay(imdb_id)
+            if not MovieAlternativeTitle.objects.filter(movie=movie).exists():
+                sync_movie_alternative_titles.delay(imdb_id)
+            if not MovieCast.objects.filter(movie=movie).exists():
+                sync_movie_cast.delay(imdb_id)
             return True
 
     except Exception as e:
@@ -329,3 +343,90 @@ def update_movie_data(days: int = 7, limit: int = 50):
     except Exception as e:
         logger.error(f"Error updating movie data: {str(e)}")
         raise
+
+
+@shared_task(bind=True)
+def sync_movie_trailers(self, imdb_id):
+    """Sync trailers for a movie from IMDB, chỉ khi chưa có trailer"""
+    try:
+        movie = Movie.objects.filter(imdb_id=imdb_id).first()
+        if not movie:
+            logger.error(f"Movie not found for imdb_id {imdb_id}")
+            return
+        if MovieTrailer.objects.filter(movie=movie).exists():
+            logger.info(f"Movie {imdb_id} already has trailers, skip syncing.")
+            return
+        videos = IMDBService.get_movie_videos(imdb_id)
+        if not videos or "resource" not in videos:
+            logger.warning(f"No videos found for movie {imdb_id}")
+            return
+        for video in videos.get("resource", []):
+            MovieTrailer.objects.create(
+                movie=movie,
+                title=video.get("title", ""),
+                youtube_key=video.get("id", ""),
+                type=video.get("type", "TRAILER")
+            )
+        logger.info(f"Synced trailers for movie {imdb_id}")
+    except Exception as e:
+        logger.error(f"Error syncing trailers for movie {imdb_id}: {str(e)}")
+
+
+@shared_task(bind=True)
+def sync_movie_alternative_titles(self, imdb_id):
+    """Sync alternative titles for a movie from IMDB, chỉ khi chưa có alternative title"""
+    try:
+        movie = Movie.objects.filter(imdb_id=imdb_id).first()
+        if not movie:
+            logger.error(f"Movie not found for imdb_id {imdb_id}")
+            return
+        if MovieAlternativeTitle.objects.filter(movie=movie).exists():
+            logger.info(f"Movie {imdb_id} already has alternative titles, skip syncing.")
+            return
+        alt_titles = IMDBService.get_alternative_titles(imdb_id) if hasattr(IMDBService, 'get_alternative_titles') else None
+        if not alt_titles or "titles" not in alt_titles:
+            logger.warning(f"No alternative titles found for movie {imdb_id}")
+            return
+        for title in alt_titles.get("titles", []):
+            MovieAlternativeTitle.objects.create(
+                movie=movie,
+                title=title.get("title", ""),
+                region=title.get("region"),
+                language=title.get("language"),
+                types=title.get("types", []),
+                attributes=title.get("attributes", []),
+                is_original_title=title.get("isOriginalTitle", False),
+                ordering=title.get("ordering", 0)
+            )
+        logger.info(f"Synced alternative titles for movie {imdb_id}")
+    except Exception as e:
+        logger.error(f"Error syncing alternative titles for movie {imdb_id}: {str(e)}")
+
+
+@shared_task(bind=True)
+def sync_movie_cast(self, imdb_id):
+    """Sync cast for a movie from IMDB, chỉ khi chưa có cast"""
+    try:
+        movie = Movie.objects.filter(imdb_id=imdb_id).first()
+        if not movie:
+            logger.error(f"Movie not found for imdb_id {imdb_id}")
+            return
+        if MovieCast.objects.filter(movie=movie).exists():
+            logger.info(f"Movie {imdb_id} already has cast, skip syncing.")
+            return
+        credits = IMDBService.get_movie_full_credits(imdb_id)
+        if not credits or "cast" not in credits:
+            logger.warning(f"No cast found for movie {imdb_id}")
+            return
+        for cast_member in credits.get("cast", []):
+            MovieCast.objects.create(
+                movie=movie,
+                name=cast_member.get("name", ""),
+                role="ACTOR",
+                main_character=cast_member.get("characters", [None])[0],
+                imdb_id=cast_member.get("nconst", None),
+                order=cast_member.get("order", 0)
+            )
+        logger.info(f"Synced cast for movie {imdb_id}")
+    except Exception as e:
+        logger.error(f"Error syncing cast for movie {imdb_id}: {str(e)}")

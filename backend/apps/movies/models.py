@@ -19,6 +19,8 @@ class Movie(models.Model):
     ]
     imdb_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     title = models.CharField(max_length=255)
+    title_en = models.CharField(max_length=255, blank=True, null=True)
+    title_vi = models.CharField(max_length=255, blank=True, null=True)
     original_title = models.CharField(max_length=255, blank=True, null=True)
     overview_en = models.TextField(blank=True, null=True)
     overview_vi = models.TextField(blank=True, null=True)
@@ -45,7 +47,8 @@ class Movie(models.Model):
     class Meta:
         db_table = "movies_movie"
         indexes = [
-            models.Index(fields=["title"]),
+            models.Index(fields=["title_en"]),
+            models.Index(fields=["title_vi"]),
             models.Index(fields=["release_date"]),
             models.Index(fields=["status"]),
             models.Index(fields=["imdb_id"]),

@@ -26,7 +26,7 @@ class MovieViewSet(viewsets.ModelViewSet):
         data = serializer.data
 
         #Get overviews from IMDB
-        if instance.imdb_id:  
+        if instance.imdb_id:
             overviews = IMDBService.get_movie_overview(instance.imdb_id)
             data['overviews'] = overviews
         return Response({
@@ -36,22 +36,66 @@ class MovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def featured(self, request):
-        """Get 3 featured movies for hero section"""
+        """Get 3 featured movies for hero section with complete data"""
         try:
             logger.info("Fetching featured movies...")
-            movies = Movie.get_popular_movies(limit=3)
-            logger.info(f"Found {len(movies)} popular movies")
+
+            # Get movies that are popular, have poster, backdrop and overview
+            movies = Movie.objects.filter(
+                is_popular=True,
+                poster_url__isnull=False,
+                backdrop_url__isnull=False,
+                overview_en__isnull=False,
+                overview_en__gt=''  # Ensure overview is not empty
+            ).select_related(
+                'ratings'  # Prefetch ratings to avoid N+1 queries
+            ).prefetch_related(
+                'genres'  # Prefetch genres to avoid N+1 queries
+            ).order_by(
+                '-release_date'  # Get latest movies first
+            )[:3]
+
+            logger.info(f"Found {len(movies)} featured movies")
 
             if not movies:
-                logger.warning("No popular movies found in database")
+                logger.warning("No featured movies found in database")
+                # Fallback to top rated movies if no popular movies found
+                movies = Movie.objects.filter(
+                    is_top_rated=True,
+                    poster_url__isnull=False,
+                    backdrop_url__isnull=False,
+                    overview_en__isnull=False,
+                    overview_en__gt=''
+                ).select_related(
+                    'ratings'
+                ).prefetch_related(
+                    'genres'
+                ).order_by(
+                    '-release_date'
+                )[:3]
+
+                logger.info(f"Using {len(movies)} top rated movies as fallback")
+
+            if not movies:
+                logger.warning("No suitable movies found for featured section")
                 return Response({
                     'status': 'success',
                     'count': 0,
                     'data': []
                 })
 
+            # Get additional data for each movie
+            for movie in movies:
+                if movie.imdb_id:
+                    # Get overviews from IMDB
+                    overviews = IMDBService.get_movie_overview(movie.imdb_id)
+                    if overviews:
+                        movie.overview_en = overviews.get('en', movie.overview_en)
+                        movie.overview_vi = overviews.get('vi', movie.overview_vi)
+                        movie.save(update_fields=['overview_en', 'overview_vi'])
+
             serializer = self.get_serializer(movies, many=True)
-            logger.info("Successfully serialized movies")
+            logger.info("Successfully serialized featured movies")
 
             return Response({
                 'status': 'success',

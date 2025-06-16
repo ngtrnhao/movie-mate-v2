@@ -1,5 +1,6 @@
 import os
 from celery import Celery
+from celery.schedules import crontab
 from django.conf import settings
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings')
@@ -15,26 +16,23 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 # Configure celery beat schedule
-app.conf.beat_schedule ={
-    'sync_popular-movies':{
-        'task': 'apps.movies.tasks.sync_popular_movies',
-        'schedule': 3600.0, #1 hour
-        'args':(50,),
+app.conf.beat_schedule = {
+    "sync_popular_movies": {
+        "task": "apps.movies.tasks.sync_popular_movies",
+        "schedule": crontab(hour="0", minute="0"),  # Once per day at midnight
     },
-    'update-movie-data':{
-        'task': 'apps.movies.tasks.update_movie_data',
-        'schedule': 86400.0, #1 day
-        'args':(7,50),
+    "sync_top_rated_movies": {
+        "task": "apps.movies.tasks.sync_top_rated_movies",
+        "schedule": crontab(hour="0", minute="30"),  # Once per day at 00:30
     },
-    'sync_top-rated-movies':{
-        'task': 'apps.movies.tasks.sync_top_rated_movies',
-        'schedule': 3600.0,
-        'args':(50,),
+    "sync_upcoming_movies": {
+        "task": "apps.movies.tasks.sync_upcoming_movies",
+        "schedule": crontab(hour="1", minute="0"),  # Once per day at 1:00
     },
-    'sync_upcoming-movies':{
-        'task': 'apps.movies.tasks.sync_upcoming_movies',
-        'schedule': 3600.0, #1 hour
-    }
+    "update_movie_cache": {
+        "task": "apps.movies.tasks.update_movie_cache",
+        "schedule": crontab(hour="*/2"),  # Every 2 hours
+    },
 }
 
 # Optional: Configure result backend for Celery to use Redis as result backend

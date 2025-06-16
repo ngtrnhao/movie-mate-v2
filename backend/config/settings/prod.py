@@ -42,7 +42,7 @@ SECURE_HSTS_PRELOAD = True
 
 # CORS
 CORS_ALLOWED_ORIGINS = [
-    "https://movie-mate.onrender.com",  # Add your production frontend URL
+    "https://movie-mate.onrender.com",
     "https://*.onrender.com",
     "https://movie-mate-v2.vercel.app",
 ]

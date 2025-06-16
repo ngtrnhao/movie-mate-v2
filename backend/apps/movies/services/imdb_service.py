@@ -14,11 +14,34 @@ logger = logging.getLogger(__name__)
 class IMDBService:
     BASE_URL = "https://imdb8.p.rapidapi.com"
     RAPID_API_HOST = "imdb8.p.rapidapi.com"
-    RATE_LIMIT_DELAY = 2.0  # Increase delay to 2 seconds
-    MAX_RETRIES = 10  # Increase max retries
-    INITIAL_BACKOFF = 4.0  # Increase initial backoff
-    MAX_BACKOFF = 64.0  # Increase max backoff
+    RATE_LIMIT_DELAY = 5.0  # Increase delay to 5 seconds between requests
+    MAX_RETRIES = 5  # Reduce max retries to avoid excessive requests
+    INITIAL_BACKOFF = 10.0  # Increase initial backoff to 10 seconds
+    MAX_BACKOFF = 120.0  # Increase max backoff to 2 minutes
     CACHE_TIMEOUT = 3600  # 1 hour cache timeout
+    MAX_REQUESTS_PER_MINUTE = 10  # Limit requests per minute
+
+    # Class variable to track request timestamps
+    _request_timestamps = []
+
+    @classmethod
+    def _enforce_rate_limit(cls):
+        """Enforce rate limit by tracking request timestamps"""
+        current_time = time.time()
+        # Remove timestamps older than 1 minute
+        cls._request_timestamps = [ts for ts in cls._request_timestamps if current_time - ts < 60]
+
+        # If we've made too many requests in the last minute, wait
+        if len(cls._request_timestamps) >= cls.MAX_REQUESTS_PER_MINUTE:
+            wait_time = 60 - (current_time - cls._request_timestamps[0])
+            if wait_time > 0:
+                logger.warning(f"Rate limit reached. Waiting {wait_time:.2f} seconds...")
+                time.sleep(wait_time)
+                # Clear timestamps after waiting
+                cls._request_timestamps = []
+
+        # Add current timestamp
+        cls._request_timestamps.append(current_time)
 
     @classmethod
     def _make_request(
@@ -50,7 +73,10 @@ class IMDBService:
 
         while retries < cls.MAX_RETRIES:
             try:
-                # Rate limiting: wait before making the request
+                # Enforce rate limit before making request
+                cls._enforce_rate_limit()
+
+                # Additional delay between requests
                 time.sleep(cls.RATE_LIMIT_DELAY)
 
                 response = requests.get(url, headers=headers, params=params)

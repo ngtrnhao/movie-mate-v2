@@ -1,5 +1,8 @@
 import logging
 import time
+import re
+from datetime import datetime
+from typing import Optional
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
@@ -38,7 +41,9 @@ def sync_popular_movies(self):
     """Sync popular movies from IMDB"""
     try:
         tconsts = IMDBService.get_popular_movies()
-        Movie.objects.filter(is_top_rated=True).update(is_popular=False)
+        # Track newly synced movies
+        synced_movies = []
+
         for tconst in tconsts:
             try:
                 # Handle both old and new response formats
@@ -62,9 +67,14 @@ def sync_popular_movies(self):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
 
-                movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
+                movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
                 movie.is_popular = True
                 movie.save(update_fields=["is_popular"])
+
+                # Add to synced movies list
+                synced_movies.append(movie)
+
+                # Process movie data
                 process_movie_data.delay(imdb_id)
                 time.sleep(2)
 
@@ -72,8 +82,25 @@ def sync_popular_movies(self):
                 logger.error(f"Error processing movie {tconst}: {str(e)}")
                 continue
 
-        # Clear cache after successful sync
-        clear_movie_cache()
+        # Update cache for different limits
+        for limit in [3, 10, 20, 50, 100]:
+            cache_key = f"popular_movies_{limit}"
+            movies = list(
+                Movie.objects.filter(is_popular=True)
+                .select_related()
+                .prefetch_related("genres")
+                .order_by("-release_date")[:limit]
+            )
+            if movies:
+                cache.set(cache_key, movies, 3600)
+                logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
+
+        # Clear IMDB API cache
+        cache.delete_pattern("imdb_*")
+
+        logger.info(f"Successfully synced {len(synced_movies)} popular movies")
+        return len(synced_movies)
+
     except Exception as e:
         logger.error(f"Error syncing popular movies: {str(e)}")
         raise
@@ -84,6 +111,9 @@ def sync_top_rated_movies(self):
     """Sync top rated movies from IMDB"""
     try:
         tconsts = IMDBService.get_top_rated_movies(limit=50)
+        # Track newly synced movies
+        synced_movies = []
+
         for tconst in tconsts:
             try:
                 # Handle both old and new response formats
@@ -107,9 +137,14 @@ def sync_top_rated_movies(self):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
 
-                movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
+                movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
                 movie.is_top_rated = True
                 movie.save(update_fields=["is_top_rated"])
+
+                # Add to synced movies list
+                synced_movies.append(movie)
+
+                # Process movie data
                 process_movie_data.delay(imdb_id)
                 time.sleep(2)
 
@@ -117,8 +152,25 @@ def sync_top_rated_movies(self):
                 logger.error(f"Error processing movie {tconst}: {str(e)}")
                 continue
 
-        # Clear cache after successful sync
-        clear_movie_cache()
+        # Update cache for different limits
+        for limit in [3, 10, 20, 50, 100]:
+            cache_key = f"top_rated_movies_{limit}"
+            movies = list(
+                Movie.objects.filter(is_top_rated=True)
+                .select_related()
+                .prefetch_related("genres")
+                .order_by("-release_date")[:limit]
+            )
+            if movies:
+                cache.set(cache_key, movies, 3600)
+                logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
+
+        # Clear IMDB API cache
+        cache.delete_pattern("imdb_*")
+
+        logger.info(f"Successfully synced {len(synced_movies)} top rated movies")
+        return len(synced_movies)
+
     except Exception as e:
         logger.error(f"Error syncing top rated movies: {str(e)}")
         raise
@@ -129,7 +181,9 @@ def sync_upcoming_movies(self):
     """Sync upcoming movies from IMDB"""
     try:
         tconsts = IMDBService.get_upcoming_movies()
-        Movie.objects.filter(is_upcoming=True).update(is_upcoming=False)
+        # Track newly synced movies
+        synced_movies = []
+
         for tconst in tconsts:
             try:
                 # Handle both old and new response formats
@@ -153,10 +207,14 @@ def sync_upcoming_movies(self):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
 
-                movie, _ = Movie.objects.get_or_create(imdb_id=imdb_id)
+                movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
                 movie.is_upcoming = True
                 movie.save(update_fields=["is_upcoming"])
 
+                # Add to synced movies list
+                synced_movies.append(movie)
+
+                # Process movie data
                 process_movie_data.delay(imdb_id)
                 time.sleep(2)
 
@@ -164,8 +222,25 @@ def sync_upcoming_movies(self):
                 logger.error(f"Error processing movie {tconst}: {str(e)}")
                 continue
 
-        # Clear cache after successful sync
-        clear_movie_cache()
+        # Update cache for different limits
+        for limit in [3, 10, 20, 50, 100]:
+            cache_key = f"upcoming_movies_{limit}"
+            movies = list(
+                Movie.objects.filter(is_upcoming=True)
+                .select_related()
+                .prefetch_related("genres")
+                .order_by("release_date")[:limit]
+            )
+            if movies:
+                cache.set(cache_key, movies, 3600)
+                logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
+
+        # Clear IMDB API cache
+        cache.delete_pattern("imdb_*")
+
+        logger.info(f"Successfully synced {len(synced_movies)} upcoming movies")
+        return len(synced_movies)
+
     except Exception as e:
         logger.error(f"Error syncing upcoming movies: {str(e)}")
         raise
@@ -174,146 +249,120 @@ def sync_upcoming_movies(self):
 @shared_task(
     bind=True, max_retries=3, rate_limit="20/m"
 )
-def process_movie_data(self, imdb_id: str):
-    """Process movie data from IMDB"""
+def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
+    """
+    Process movie data from IMDB service and save to database.
+    Also updates cache for the movie and related lists.
+    """
     try:
-        # Clean up imdb_id - handle all possible cases
-        if isinstance(imdb_id, dict):
-            if "id" in imdb_id:
-                if isinstance(imdb_id["id"], dict) and "id" in imdb_id["id"]:
-                    imdb_id = imdb_id["id"]["id"]
-                else:
-                    imdb_id = imdb_id["id"]
-
-        # Extract ttxxxxxxx from /title/ttxxxxxxx/
-        imdb_id = imdb_id.split("/")[-2] if "/" in imdb_id else imdb_id
+        # Clean up imdb_id
+        imdb_id = imdb_id.strip()
+        if not imdb_id.startswith("tt"):
+            imdb_id = f"tt{imdb_id}"
 
         # Validate imdb_id format
-        if not imdb_id.startswith("tt"):
+        if not re.match(r"^tt\d+$", imdb_id):
             logger.error(f"Invalid IMDB ID format: {imdb_id}")
-            return False
+            return None
 
-        # Get movie details
-        movie_data = IMDBService.get_movie_details(imdb_id)
-        print(f"[DEBUG] Movie data for {imdb_id}: {movie_data}")
-        if not movie_data:
-            logger.error(f"Failed to get movie details for {imdb_id}")
-            return False
+        # Get movie details and overview from IMDB service
+        movie_details = IMDBService.get_movie_details(imdb_id)
+        movie_overview = IMDBService.get_movie_overview(imdb_id)
 
-        # Get movie overviews
-        overviews = IMDBService.get_movie_overview(imdb_id)
-        logger.debug(f"Movie overviews for {imdb_id}: {overviews}")
+        if not movie_details or not movie_overview:
+            logger.error(f"Failed to get movie data for {imdb_id}")
+            return None
 
-        # Mapping với cấu trúc mới
-        try:
-            if "data" in movie_data:
-                title_data = movie_data["data"]["title"]
-                logger.debug(f"Title data structure: {title_data}")
-                title = title_data["titleText"]["text"]
-                original_title = title_data["originalTitleText"]["text"]
-                release_date = IMDBService.get_release_date(imdb_id)
-                poster_url = title_data.get("primaryImage", {}).get("url", "")
-                runtime_seconds = title_data.get("runtime", {}).get("seconds")
-                runtime = runtime_seconds // 60 if runtime_seconds else None
+        # Map the data to our structure
+        mapped_data = {
+            "imdb_id": imdb_id,
+            "title": movie_details.get("title", {}).get("title"),
+            "original_title": movie_details.get("title", {}).get("originalTitle"),
+            "release_date": movie_details.get("title", {}).get("releaseDate"),
+            "poster_url": movie_details.get("title", {}).get("image", {}).get("url"),
+            "runtime": movie_details.get("title", {}).get("runningTimeInMinutes"),
+            "languages": [lang.get("id") for lang in movie_details.get("title", {}).get("languages", [])],
+            "countries": [country.get("id") for country in movie_details.get("title", {}).get("countries", [])],
+            "links": {
+                "imdb": f"https://www.imdb.com/title/{imdb_id}/",
+                "poster": movie_details.get("title", {}).get("image", {}).get("url"),
+            },
+        }
 
-                # Ngôn ngữ
-                languages = []
-                spoken_languages = title_data.get("spokenLanguages", {}).get("spokenLanguages", [])
-                for lang in spoken_languages:
-                    if "text" in lang:
-                        languages.append(lang["text"])
+        # Get existing movie if any
+        existing_movie = Movie.objects.filter(imdb_id=imdb_id).first()
 
-                # Quốc gia
-                countries = []
-                country_list = title_data.get("countriesOfOrigin", {}).get("countries", [])
-                for c in country_list:
-                    if "text" in c:
-                        countries.append(c["text"])
+        # Determine status and is_upcoming based on release_date
+        if mapped_data["release_date"]:
+            try:
+                release_date = datetime.strptime(mapped_data["release_date"], "%Y-%m-%d").date()
+                mapped_data["status"] = "released" if release_date <= timezone.now().date() else "upcoming"
+                # Keep is_upcoming value from existing movie if it exists
+                mapped_data["is_upcoming"] = existing_movie.is_upcoming if existing_movie else (release_date > timezone.now().date())
+            except ValueError:
+                logger.warning(f"Invalid release date format for {imdb_id}: {mapped_data['release_date']}")
+                mapped_data["status"] = "unknown"
+                mapped_data["is_upcoming"] = existing_movie.is_upcoming if existing_movie else False
+        else:
+            mapped_data["status"] = "unknown"
+            mapped_data["is_upcoming"] = existing_movie.is_upcoming if existing_movie else False
 
-                # Homepage/links
-                links = []
-                for edge in title_data.get("officialLinks", {}).get("edges", []):
-                    node = edge.get("node", {})
-                    if "url" in node:
-                        links.append(node["url"])
+        # Preserve existing flags
+        if existing_movie:
+            mapped_data["is_popular"] = existing_movie.is_popular
+            mapped_data["is_top_rated"] = existing_movie.is_top_rated
 
-            else:
-                # Fallback cho REST API format
-                title = movie_data.get("title", "")
-                original_title = title  # Trong REST API không có original title
-                poster_url = movie_data.get("image", {}).get("url", "")
-                runtime_seconds = movie_data.get("runningTimeInMinutes", 0) * 60
-                runtime = runtime_seconds // 60 if runtime_seconds else None
-                release_date = IMDBService.get_release_date(imdb_id)
-                languages = []
-                countries = []
-                links = []
+        # Update or create movie
+        movie, created = Movie.objects.update_or_create(
+            imdb_id=imdb_id,
+            defaults=mapped_data,
+        )
 
-            logger.debug(f"Processed data - Title: {title}, Original title: {original_title}")
-            logger.debug(f"Poster URL: {poster_url}, Runtime: {runtime}")
-            logger.debug(f"Languages: {languages}, Countries: {countries}")
-
-        except Exception as e:
-            logger.error(f"Error mapping movie data for {imdb_id}: {e}")
-            return False
-
-        with transaction.atomic():
-            # Xác định status dựa trên release_date
-            current_date = timezone.now().date()
-            if not release_date:
-                status = "RUMORED"
-            elif release_date > current_date:
-                status = "UPCOMING"
-            else:
-                status = "RELEASED"
-
-            # Get or create movie
-            movie, created = Movie.objects.update_or_create(
-                imdb_id=imdb_id,
-                defaults={
-                    "title": title,
-                    "original_title": original_title,
-                    "overview_en": overviews.get("en", ""),
-                    "overview_vi": overviews.get("vi", ""),
-                    "release_date": release_date,
-                    "poster_url": poster_url,
-                    "backdrop_url": "",  # Không có trong response
-                    "runtime": runtime,
-                    "status": status,
-                    "last_synced": timezone.now(),
-                },
-            )
-
-            # Update metadata
+        # Update metadata
+        if movie_overview.get("plot"):
             MovieMetadata.objects.update_or_create(
                 movie=movie,
                 defaults={
-                    "budget": None,  # Không có trong response
-                    "revenue": None,  # Không có trong response
-                    "tagline": None,  # Không có trong response
-                    "homepage": links[0] if links else None,
-                    "keywords": None,  # Không có trong response
-                    "production_companies": None,  # Không có trong response
-                    "production_countries": countries,
-                    "spoken_languages": languages,
+                    "plot": movie_overview["plot"],
+                    "plot_language": movie_overview.get("language", "en"),
                 },
             )
 
-            # Không update genres vì không có trong response
+        # Update cache for this movie with longer expiration
+        cache_key = f"movie:{imdb_id}"
+        cache.set(cache_key, movie, timeout=3600 * 24)  # Cache for 24 hours
 
-            # Clear movie cache
-            cache.delete(f"movie_{movie.id}")
+        # Update cache for lists
+        for limit in [3, 10, 20, 50, 100]:
+            # Update popular movies cache
+            popular_movies = list(
+                Movie.objects.filter(is_popular=True)
+                .select_related("metadata")
+                .prefetch_related("genres", "languages", "countries")
+                .order_by("-release_date")[:limit]
+            )
+            cache.set(f"popular_movies:{limit}", popular_movies, timeout=3600 * 24)  # Cache for 24 hours
 
-            print(f"[DEBUG] Successfully processed movie data for {imdb_id}")
+            # Update top rated movies cache
+            top_rated_movies = list(
+                Movie.objects.filter(is_top_rated=True)
+                .select_related("metadata")
+                .prefetch_related("genres", "languages", "countries")
+                .order_by("-release_date")[:limit]
+            )
+            cache.set(f"top_rated_movies:{limit}", top_rated_movies, timeout=3600 * 24)  # Cache for 24 hours
 
-            # Sau khi cập nhật dữ liệu phim:
-            if not MovieTrailer.objects.filter(movie=movie).exists():
-                sync_movie_trailers.delay(imdb_id)
-            if not MovieAlternativeTitle.objects.filter(movie=movie).exists():
-                sync_movie_alternative_titles.delay(imdb_id)
-            if not MovieCast.objects.filter(movie=movie).exists():
-                sync_movie_cast.delay(imdb_id)
-            return True
+            # Update upcoming movies cache
+            upcoming_movies = list(
+                Movie.objects.filter(is_upcoming=True)
+                .select_related("metadata")
+                .prefetch_related("genres", "languages", "countries")
+                .order_by("release_date")[:limit]
+            )
+            cache.set(f"upcoming_movies:{limit}", upcoming_movies, timeout=3600 * 24)  # Cache for 24 hours
+
+        logger.info(f"Successfully processed movie {imdb_id}")
+        return movie
 
     except Exception as e:
         logger.error(f"Error processing movie {imdb_id}: {str(e)}")
@@ -430,3 +479,54 @@ def sync_movie_cast(self, imdb_id):
         logger.info(f"Synced cast for movie {imdb_id}")
     except Exception as e:
         logger.error(f"Error syncing cast for movie {imdb_id}: {str(e)}")
+
+
+@shared_task
+def update_movie_cache():
+    """
+    Periodically update the movie cache.
+    This task runs every 30 minutes to ensure cache is fresh.
+    """
+    try:
+        logger.info("Starting movie cache update")
+
+        # Update individual movie caches
+        movies = Movie.objects.all()
+        for movie in movies:
+            cache_key = f"movie:{movie.imdb_id}"
+            cache.set(cache_key, movie, timeout=3600 * 4)  # Cache for 4 hours
+
+        # Update list caches for different limits
+        for limit in [3, 10, 20, 50, 100]:
+            # Update popular movies cache
+            popular_movies = list(
+                Movie.objects.filter(is_popular=True)
+                .select_related("metadata")
+                .prefetch_related("genres", "languages", "countries")
+                .order_by("-release_date")[:limit]
+            )
+            cache.set(f"popular_movies:{limit}", popular_movies, timeout=3600 * 4)  # Cache for 4 hours
+
+            # Update top rated movies cache
+            top_rated_movies = list(
+                Movie.objects.filter(is_top_rated=True)
+                .select_related("metadata")
+                .prefetch_related("genres", "languages", "countries")
+                .order_by("-release_date")[:limit]
+            )
+            cache.set(f"top_rated_movies:{limit}", top_rated_movies, timeout=3600 * 4)  # Cache for 4 hours
+
+            # Update upcoming movies cache
+            upcoming_movies = list(
+                Movie.objects.filter(is_upcoming=True)
+                .select_related("metadata")
+                .prefetch_related("genres", "languages", "countries")
+                .order_by("release_date")[:limit]
+            )
+            cache.set(f"upcoming_movies:{limit}", upcoming_movies, timeout=3600 * 4)  # Cache for 4 hours
+
+        logger.info("Successfully updated movie cache")
+
+    except Exception as e:
+        logger.error(f"Error updating movie cache: {str(e)}")
+        raise

@@ -7,6 +7,7 @@ from .models import Movie
 from .serializers import MovieListSerializer, MovieDetailSerializer
 from .services.imdb_service import IMDBService
 import logging
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -39,69 +40,105 @@ class MovieViewSet(viewsets.ModelViewSet):
         """Get 3 featured movies for hero section with complete data"""
         try:
             logger.info("Fetching featured movies...")
+            cache_key = 'featured_movies'
+            cached_data = cache.get(cache_key)
 
-            # Get movies that are popular, have poster, backdrop and overview
+            if cached_data:
+                logger.info("Returning cached featured movies")
+                return Response(cached_data)
+
+            # Get all popular movies with at least poster
             movies = Movie.objects.filter(
                 is_popular=True,
                 poster_url__isnull=False,
-                backdrop_url__isnull=False,
-                overview_en__isnull=False,
-                overview_en__gt=''  # Ensure overview is not empty
             ).select_related(
-                'ratings'  # Prefetch ratings to avoid N+1 queries
+                'moviemetadata'
             ).prefetch_related(
-                'genres'  # Prefetch genres to avoid N+1 queries
+                'ratings',
+                'genres'
             ).order_by(
-                '-release_date'  # Get latest movies first
-            )[:3]
+                '-release_date'
+            )
 
-            logger.info(f"Found {len(movies)} featured movies")
+            logger.info(f"Found {len(movies)} popular movies")
 
             if not movies:
-                logger.warning("No featured movies found in database")
+                logger.warning("No popular movies found in database")
                 # Fallback to top rated movies if no popular movies found
                 movies = Movie.objects.filter(
                     is_top_rated=True,
                     poster_url__isnull=False,
-                    backdrop_url__isnull=False,
-                    overview_en__isnull=False,
-                    overview_en__gt=''
                 ).select_related(
-                    'ratings'
+                    'moviemetadata'
                 ).prefetch_related(
+                    'ratings',
                     'genres'
                 ).order_by(
                     '-release_date'
-                )[:3]
+                )
 
                 logger.info(f"Using {len(movies)} top rated movies as fallback")
 
             if not movies:
                 logger.warning("No suitable movies found for featured section")
-                return Response({
+                response_data = {
                     'status': 'success',
                     'count': 0,
                     'data': []
-                })
+                }
+                cache.set(cache_key, response_data, timeout=300)
+                return Response(response_data)
 
-            # Get additional data for each movie
+            # Score each movie based on data completeness
+            scored_movies = []
             for movie in movies:
-                if movie.imdb_id:
-                    # Get overviews from IMDB
-                    overviews = IMDBService.get_movie_overview(movie.imdb_id)
-                    if overviews:
-                        movie.overview_en = overviews.get('en', movie.overview_en)
-                        movie.overview_vi = overviews.get('vi', movie.overview_vi)
-                        movie.save(update_fields=['overview_en', 'overview_vi'])
+                score = 0
+                # Base score for having poster
+                score += 1
 
-            serializer = self.get_serializer(movies, many=True)
+                # Additional points for other data
+                if movie.backdrop_url:
+                    score += 1
+                if movie.overview_en and movie.overview_en.strip():
+                    score += 1
+                if movie.overview_vi and movie.overview_vi.strip():
+                    score += 1
+                if movie.ratings.exists():
+                    score += 1
+                if movie.genres.exists():
+                    score += 1
+                # if movie.moviemetadata and movie.moviemetadata.runtime:
+                #     score += 1
+
+                scored_movies.append((movie, score))
+
+            # Sort by score in descending order and take top 3
+            scored_movies.sort(key=lambda x: x[1], reverse=True)
+            top_movies = [movie for movie, score in scored_movies[:3]]
+
+            if not top_movies:
+                logger.warning("No valid movies after scoring")
+                response_data = {
+                    'status': 'success',
+                    'count': 0,
+                    'data': []
+                }
+                cache.set(cache_key, response_data, timeout=300)
+                return Response(response_data)
+
+            serializer = self.get_serializer(top_movies, many=True)
             logger.info("Successfully serialized featured movies")
 
-            return Response({
+            response_data = {
                 'status': 'success',
-                'count': len(movies),
+                'count': len(top_movies),
                 'data': serializer.data
-            })
+            }
+
+            # Cache the response for 5 minutes
+            cache.set(cache_key, response_data, timeout=300)
+
+            return Response(response_data)
         except Exception as e:
             logger.error(f"Error in featured movies: {str(e)}", exc_info=True)
             return Response({
@@ -111,28 +148,89 @@ class MovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def trending(self, request):
-        """Get 30 trending movies"""
+        """Get 30 trending movies with complete data"""
         try:
             logger.info("Fetching trending movies...")
-            movies = Movie.get_popular_movies(limit=30)
+            cache_key = 'trending_movies'
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                logger.info("Returning cached trending movies")
+                return Response(cached_data)
+
+            # Get all popular movies with at least poster
+            movies = Movie.objects.filter(
+                is_popular=True,
+                poster_url__isnull=False,
+            ).select_related(
+                'moviemetadata'
+            ).prefetch_related(
+                'ratings',
+                'genres'
+            ).order_by(
+                '-release_date'
+            )
+
             logger.info(f"Found {len(movies)} popular movies")
 
             if not movies:
                 logger.warning("No popular movies found in database")
-                return Response({
+                response_data = {
                     'status': 'success',
                     'count': 0,
                     'data': []
-                })
+                }
+                cache.set(cache_key, response_data, timeout=300)
+                return Response(response_data)
 
-            serializer = self.get_serializer(movies, many=True)
-            logger.info("Successfully serialized movies")
+            # Score each movie based on data completeness
+            scored_movies = []
+            for movie in movies:
+                score = 0
+                # Base score for having poster
+                score += 1
 
-            return Response({
+                # Additional points for other data
+                if movie.backdrop_url:
+                    score += 1
+                if movie.overview_en and movie.overview_en.strip():
+                    score += 1
+                if movie.overview_vi and movie.overview_vi.strip():
+                    score += 1
+                if movie.ratings.exists():
+                    score += 1
+                if movie.genres.exists():
+                    score += 1
+
+                scored_movies.append((movie, score))
+
+            # Sort by score in descending order and take top 30
+            scored_movies.sort(key=lambda x: x[1], reverse=True)
+            top_movies = [movie for movie, score in scored_movies[:30]]
+
+            if not top_movies:
+                logger.warning("No valid movies after scoring")
+                response_data = {
+                    'status': 'success',
+                    'count': 0,
+                    'data': []
+                }
+                cache.set(cache_key, response_data, timeout=300)
+                return Response(response_data)
+
+            serializer = self.get_serializer(top_movies, many=True)
+            logger.info("Successfully serialized trending movies")
+
+            response_data = {
                 'status': 'success',
-                'count': len(movies),
+                'count': len(top_movies),
                 'data': serializer.data
-            })
+            }
+
+            # Cache the response for 5 minutes
+            cache.set(cache_key, response_data, timeout=300)
+
+            return Response(response_data)
         except Exception as e:
             logger.error(f"Error in trending movies: {str(e)}", exc_info=True)
             return Response({
@@ -142,28 +240,89 @@ class MovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def top_rated(self, request):
-        """Get 30 top rated movies"""
+        """Get 30 top rated movies with complete data"""
         try:
             logger.info("Fetching top rated movies...")
-            movies = Movie.get_top_rated_movies(limit=30)
+            cache_key = 'top_rated_movies'
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                logger.info("Returning cached top rated movies")
+                return Response(cached_data)
+
+            # Get all top rated movies with at least poster
+            movies = Movie.objects.filter(
+                is_top_rated=True,
+                poster_url__isnull=False,
+            ).select_related(
+                'moviemetadata'
+            ).prefetch_related(
+                'ratings',
+                'genres'
+            ).order_by(
+                '-release_date'
+            )
+
             logger.info(f"Found {len(movies)} top rated movies")
 
             if not movies:
                 logger.warning("No top rated movies found in database")
-                return Response({
+                response_data = {
                     'status': 'success',
                     'count': 0,
                     'data': []
-                })
+                }
+                cache.set(cache_key, response_data, timeout=300)
+                return Response(response_data)
 
-            serializer = self.get_serializer(movies, many=True)
-            logger.info("Successfully serialized movies")
+            # Score each movie based on data completeness
+            scored_movies = []
+            for movie in movies:
+                score = 0
+                # Base score for having poster
+                score += 1
 
-            return Response({
+                # Additional points for other data
+                if movie.backdrop_url:
+                    score += 1
+                if movie.overview_en and movie.overview_en.strip():
+                    score += 1
+                if movie.overview_vi and movie.overview_vi.strip():
+                    score += 1
+                if movie.ratings.exists():
+                    score += 1
+                if movie.genres.exists():
+                    score += 1
+
+                scored_movies.append((movie, score))
+
+            # Sort by score in descending order and take top 30
+            scored_movies.sort(key=lambda x: x[1], reverse=True)
+            top_movies = [movie for movie, score in scored_movies[:30]]
+
+            if not top_movies:
+                logger.warning("No valid movies after scoring")
+                response_data = {
+                    'status': 'success',
+                    'count': 0,
+                    'data': []
+                }
+                cache.set(cache_key, response_data, timeout=300)
+                return Response(response_data)
+
+            serializer = self.get_serializer(top_movies, many=True)
+            logger.info("Successfully serialized top rated movies")
+
+            response_data = {
                 'status': 'success',
-                'count': len(movies),
+                'count': len(top_movies),
                 'data': serializer.data
-            })
+            }
+
+            # Cache the response for 5 minutes
+            cache.set(cache_key, response_data, timeout=300)
+
+            return Response(response_data)
         except Exception as e:
             logger.error(f"Error in top rated movies: {str(e)}", exc_info=True)
             return Response({
@@ -173,16 +332,91 @@ class MovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
-        """Get 30 upcoming movies"""
+        """Get 30 upcoming movies with complete data"""
         try:
-            movies = Movie.get_upcoming_movies(limit=30)
-            serializer = self.get_serializer(movies, many=True)
-            return Response({
+            logger.info("Fetching upcoming movies...")
+            cache_key = 'upcoming_movies'
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                logger.info("Returning cached upcoming movies")
+                return Response(cached_data)
+
+            # Get all upcoming movies with at least poster
+            movies = Movie.objects.filter(
+                is_upcoming=True,
+                poster_url__isnull=False,
+            ).select_related(
+                'moviemetadata'
+            ).prefetch_related(
+                'ratings',
+                'genres'
+            ).order_by(
+                'release_date'  # Sắp xếp theo ngày phát hành sớm nhất
+            )
+
+            logger.info(f"Found {len(movies)} upcoming movies")
+
+            if not movies:
+                logger.warning("No upcoming movies found in database")
+                response_data = {
+                    'status': 'success',
+                    'count': 0,
+                    'data': []
+                }
+                cache.set(cache_key, response_data, timeout=300)
+                return Response(response_data)
+
+            # Score each movie based on data completeness
+            scored_movies = []
+            for movie in movies:
+                score = 0
+                # Base score for having poster
+                score += 1
+
+                # Additional points for other data
+                if movie.backdrop_url:
+                    score += 1
+                if movie.overview_en and movie.overview_en.strip():
+                    score += 1
+                if movie.overview_vi and movie.overview_vi.strip():
+                    score += 1
+                if movie.ratings.exists():
+                    score += 1
+                if movie.genres.exists():
+                    score += 1
+
+                scored_movies.append((movie, score))
+
+            # Sort by score in descending order and take top 30
+            scored_movies.sort(key=lambda x: x[1], reverse=True)
+            top_movies = [movie for movie, score in scored_movies[:30]]
+
+            if not top_movies:
+                logger.warning("No valid movies after scoring")
+                response_data = {
+                    'status': 'success',
+                    'count': 0,
+                    'data': []
+                }
+                cache.set(cache_key, response_data, timeout=300)
+                return Response(response_data)
+
+            serializer = self.get_serializer(top_movies, many=True)
+            logger.info("Successfully serialized upcoming movies")
+
+            response_data = {
                 'status': 'success',
-                'count': len(movies),
+                'count': len(top_movies),
                 'data': serializer.data
-            })
+            }
+
+            # Cache the response for 5 minutes
+            cache.set(cache_key, response_data, timeout=300)
+
+            return Response(response_data)
         except Exception as e:
+            logger.error(f"Error in upcoming movies: {str(e)}", exc_info=True)
             return Response({
                 'status': 'error',
                 'message': str(e)

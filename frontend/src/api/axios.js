@@ -7,7 +7,7 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 seconds timeout
+  timeout: 30000, // Tăng timeout lên 30 giây
 });
 
 // Request interceptor
@@ -55,15 +55,24 @@ axiosInstance.interceptors.response.use(
       }
     }
 
-    // Handle empty response errors
-    if (error.code === 'ERR_EMPTY_RESPONSE' || error.code === 'ECONNABORTED') {
+    // Handle timeout and connection errors
+    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
       if (!originalRequest._retry) {
         originalRequest._retry = true;
-        // Wait for 1 second before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Tăng thời gian chờ giữa các lần retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
         return axiosInstance(originalRequest);
       }
     }
+
+    // Log error details for debugging
+    console.error('API Error:', {
+      url: originalRequest.url,
+      method: originalRequest.method,
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data,
+    });
 
     return Promise.reject(error);
   }

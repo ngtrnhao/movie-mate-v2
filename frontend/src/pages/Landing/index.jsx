@@ -2,7 +2,7 @@ import { AccountCircle, Logout, Settings } from '@mui/icons-material';
 import { Avatar, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { getTopRatedMovies, getTrendingMovies, getUpcomingMovies } from '../../api/movieService';
@@ -38,12 +38,27 @@ const LandingPage = () => {
   const loading = useSelector(state => state.movies.loading);
   const error = useSelector(state => state.movies.error);
 
-  const features = [
-    t('features.items.library'),
-    t('features.items.recommendations'),
-    t('features.items.watchlist'),
-    t('features.items.reviews'),
-  ];
+  // Memoize features
+  const features = useMemo(
+    () => [
+      t('features.items.library'),
+      t('features.items.recommendations'),
+      t('features.items.watchlist'),
+      t('features.items.reviews'),
+    ],
+    [t]
+  );
+
+  // Memoize translated tabs
+  const translatedTabs = useMemo(
+    () =>
+      TABS.map(tab => ({
+        ...tab,
+        label: t(tab.label),
+      })),
+    [t]
+  );
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const pauseTimeoutRef = useRef(null);
@@ -56,6 +71,12 @@ const LandingPage = () => {
 
   // Lấy ngôn ngữ hiện tại
   const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
+
+  // Memoize movies for MovieGrid to avoid unnecessary re-renders
+  const movies = useMemo(
+    () => moviesByTab[currentTab]?.[currentLang] || [],
+    [moviesByTab, currentTab, currentLang]
+  );
 
   // Fetch movies on component mount
   useEffect(() => {
@@ -96,47 +117,48 @@ const LandingPage = () => {
     }
   }, [isPaused, featuredMovies.length]);
 
-  // Function to handle user interaction with slides
-  const handleSlideInteraction = index => {
+  // Memoize handler for slide interaction
+  const handleSlideInteraction = useCallback(index => {
     if (pauseTimeoutRef.current) {
       clearTimeout(pauseTimeoutRef.current);
     }
-
     setCurrentSlide(index);
     setIsPaused(true);
-
     pauseTimeoutRef.current = setTimeout(() => {
       setIsPaused(false);
     }, PAUSE_DURATION);
-  };
+  }, []);
 
-  const scrollToHowItWorks = () => {
+  const scrollToHowItWorks = useCallback(() => {
     howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  const handleProfileMenuOpen = event => {
+  const handleProfileMenuOpen = useCallback(event => {
     setAnchorEl(event.currentTarget);
-  };
+  }, []);
 
-  const handleProfileMenuClose = () => {
+  const handleProfileMenuClose = useCallback(() => {
     setAnchorEl(null);
-  };
+  }, []);
 
-  const handleProfileClick = () => {
+  const handleProfileClick = useCallback(() => {
     handleProfileMenuClose();
     navigate(`/profile/${user.id}`);
-  };
+  }, [handleProfileMenuClose, navigate, user?.id]);
 
-  const handleSettingsClick = () => {
+  const handleSettingsClick = useCallback(() => {
     handleProfileMenuClose();
     navigate('/settings');
-  };
+  }, [handleProfileMenuClose, navigate]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     handleProfileMenuClose();
     dispatch(logout());
     navigate('/login');
-  };
+  }, [handleProfileMenuClose, dispatch, navigate]);
+
+  // Memoize tab change handler
+  const handleTabChange = useCallback(tab => dispatch(setCurrentTab(tab)), [dispatch]);
 
   if (error.featured) {
     return (
@@ -251,14 +273,11 @@ const LandingPage = () => {
       <section className="relative min-h-screen overflow-hidden">
         {/* Background Slides */}
         <AnimatePresence mode="wait">
-          {featuredMovies.map((movie, index) => (
+          {featuredMovies.length > 0 && (
             <motion.div
-              key={movie.id}
-              initial={{ opacity: 0, scal: 1.1 }}
-              animate={{
-                opacity: index === currentSlide ? 1 : 0,
-                scale: index === currentSlide ? 1 : 1.1,
-              }}
+              key={featuredMovies[currentSlide].id}
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.1 }}
               transition={{ duration: 0.8, ease: 'easeInOut' }}
               className="absolute inset-0"
@@ -267,7 +286,7 @@ const LandingPage = () => {
               <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={{
-                  backgroundImage: `url(${movie.poster_path || '/placeholder-poster.jpg'})`,
+                  backgroundImage: `url(${featuredMovies[currentSlide].poster_path || '/placeholder-poster.jpg'})`,
                 }}
               />
               {/* Gradient Overlay */}
@@ -278,7 +297,7 @@ const LandingPage = () => {
                 className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/50 to-gray-900"
               />
             </motion.div>
-          ))}
+          )}
         </AnimatePresence>
 
         {/* Content */}
@@ -837,19 +856,8 @@ const LandingPage = () => {
           </h2>
           <p className="pt-5 text-center text-lg text-gray-400">{t('latestReleases.subtitle')}</p>
           <div className="mt-10">
-            <TabGroup
-              tabs={TABS.map(tab => ({
-                ...tab,
-                label: t(tab.label),
-              }))}
-              activeTab={currentTab}
-              onTabChange={tab => dispatch(setCurrentTab(tab))}
-            />
-            <MovieGrid
-              movies={moviesByTab[currentTab][currentLang] || []}
-              loading={loading.moviesByTab}
-              error={error.moviesByTab}
-            />
+            <TabGroup tabs={translatedTabs} activeTab={currentTab} onTabChange={handleTabChange} />
+            <MovieGrid movies={movies} loading={loading.moviesByTab} error={error.moviesByTab} />
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

@@ -1,11 +1,21 @@
+import { memo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
 
-const Poster = ({ posterPath, title }) => {
-  // Use posterPath directly as it's already the full URL from our API
-  const imageUrl = posterPath;
+const Poster = memo(({ posterPath, title }) => {
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const { ref, inView } = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  });
+
+  const handleImageLoad = useCallback(() => {
+    setIsImageLoaded(true);
+  }, []);
 
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -13,13 +23,18 @@ const Poster = ({ posterPath, title }) => {
       className="relative aspect-[2/3] w-full overflow-hidden"
     >
       {/* Poster Image */}
-      {imageUrl ? (
+      {inView && (
         <img
-          src={imageUrl}
+          src={posterPath}
           alt={title}
-          className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
+          loading="lazy"
+          onLoad={handleImageLoad}
+          className={`size-full object-cover transition-transform duration-300 will-change-transform group-hover:scale-105 ${
+            isImageLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
         />
-      ) : (
+      )}
+      {!isImageLoaded && (
         <div className="flex size-full items-center justify-center bg-gray-700">
           <span className="text-4xl text-gray-400">🎬</span>
         </div>
@@ -33,6 +48,8 @@ const Poster = ({ posterPath, title }) => {
       </div>
     </motion.div>
   );
-};
+});
+
+Poster.displayName = 'Poster';
 
 export default Poster;

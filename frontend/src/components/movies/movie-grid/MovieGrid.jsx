@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import MovieCard from '../movie-card';
@@ -29,7 +29,7 @@ const itemVariants = {
 const MovieGrid = memo(({ movies, loading, error, onMovieClick, className = '' }) => {
   const { t } = useTranslation('movies');
 
-  // Memoized handlers
+  // Memoize handlers
   const handleMovieClick = useCallback(
     movie => {
       if (onMovieClick) {
@@ -38,6 +38,11 @@ const MovieGrid = memo(({ movies, loading, error, onMovieClick, className = '' }
     },
     [onMovieClick]
   );
+
+  // Memoize filtered movies
+  const filteredMovies = useMemo(() => {
+    return movies || [];
+  }, [movies]);
 
   // Loading state
   if (loading) {
@@ -58,7 +63,7 @@ const MovieGrid = memo(({ movies, loading, error, onMovieClick, className = '' }
   }
 
   // Empty state
-  if (!movies?.length) {
+  if (!filteredMovies.length) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <EmptyState title={t('empty.title')} message={t('empty.message')} />
@@ -75,7 +80,7 @@ const MovieGrid = memo(({ movies, loading, error, onMovieClick, className = '' }
         exit="exit"
         className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${className}`}
       >
-        {movies.map(movie => (
+        {filteredMovies.map(movie => (
           <motion.div
             key={movie.id}
             variants={itemVariants}

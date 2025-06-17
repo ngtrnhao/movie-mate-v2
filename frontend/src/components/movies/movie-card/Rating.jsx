@@ -1,38 +1,41 @@
+import { memo, useMemo } from 'react';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 
-const Rating = ({ rating, voteAverage, voteCount }) => {
+const Rating = memo(({ rating, voteAverage, voteCount }) => {
   const { t } = useTranslation('movies');
 
-  // Get the highest available rating
-  const getHighestRating = () => {
+  // Memoize computed values
+  const highestRating = useMemo(() => {
     if (rating?.imdb) return { value: rating.imdb, source: 'IMDB' };
     if (rating?.tmdb) return { value: rating.tmdb, source: 'TMDB' };
     if (rating?.rotten_tomatoes)
       return { value: rating.rotten_tomatoes, source: 'Rotten Tomatoes' };
     if (voteAverage) return { value: voteAverage, source: 'Average' };
     return null;
-  };
+  }, [rating, voteAverage]);
 
-  // Convert rating to 5-star scale
-  const convertToFiveStarRating = rating => {
-    if (!rating) return 0;
-    return Math.round((rating / 10) * 5);
-  };
+  const userRating = useMemo(() => {
+    if (!highestRating) return 0;
+    return Math.round((highestRating.value / 10) * 5);
+  }, [highestRating]);
 
-  const formatVoteCount = count => {
-    if (!count) return '0';
-    if (count >= 1_000_000) {
-      return `${(count / 1_000_000).toFixed(1)}M`;
+  const totalVotes = useMemo(() => {
+    return voteCount || rating?.imdb_votes || 0;
+  }, [voteCount, rating?.imdb_votes]);
+
+  const formattedVoteCount = useMemo(() => {
+    if (!totalVotes) return '0';
+    if (totalVotes >= 1_000_000) {
+      return `${(totalVotes / 1_000_000).toFixed(1)}M`;
     }
-    if (count >= 1_000) {
-      return `${(count / 1_000).toFixed(1)}K`;
+    if (totalVotes >= 1_000) {
+      return `${(totalVotes / 1_000).toFixed(1)}K`;
     }
-    return count.toString();
-  };
+    return totalVotes.toString();
+  }, [totalVotes]);
 
-  // Get rating description using i18n
-  const getRatingDescription = rating => {
-    switch (rating) {
+  const ratingDescription = useMemo(() => {
+    switch (userRating) {
       case 1:
         return t('rating.veryBad');
       case 2:
@@ -46,11 +49,7 @@ const Rating = ({ rating, voteAverage, voteCount }) => {
       default:
         return t('rating.notRated');
     }
-  };
-
-  const highestRating = getHighestRating();
-  const userRating = highestRating ? convertToFiveStarRating(highestRating.value) : 0;
-  const totalVotes = voteCount || rating?.imdb_votes || 0;
+  }, [userRating, t]);
 
   return (
     <div className="mt-2 flex items-center gap-2">
@@ -72,18 +71,18 @@ const Rating = ({ rating, voteAverage, voteCount }) => {
       </div>
 
       {/* Rating Description */}
-      {userRating > 0 && (
-        <span className="text-sm text-gray-400">({getRatingDescription(userRating)})</span>
-      )}
+      {userRating > 0 && <span className="text-sm text-gray-400">({ratingDescription})</span>}
 
       {/* Vote Count and Source */}
       {totalVotes > 0 && (
         <span className="text-sm text-gray-400">
-          ({formatVoteCount(totalVotes)} {t('rating.votes')} - {highestRating.source})
+          ({formattedVoteCount} {t('rating.votes')} - {highestRating?.source})
         </span>
       )}
     </div>
   );
-};
+});
+
+Rating.displayName = 'Rating';
 
 export default Rating;

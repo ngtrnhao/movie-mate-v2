@@ -22,8 +22,11 @@ from .models import (
     MovieReview,
     MovieTrailer,
     MovieAlternativeTitle,
+    MovieImage,
 )
 from .services.imdb_service import IMDBService
+from apps.movies.services.tmdb_service import TMDBService
+from apps.movies.services.movie_tmdb_enrich_service import MovieTMDBEnrichService
 
 logger = get_task_logger(__name__)
 
@@ -530,3 +533,51 @@ def update_movie_cache():
     except Exception as e:
         logger.error(f"Error updating movie cache: {str(e)}")
         raise
+
+
+# --- ENRICH TMDB METADATA TASKS ---
+
+@shared_task(bind=True)
+def enrich_movie_tmdb_metadata(self, imdb_id):
+    try:
+        logger.info(f"Starting enrichment for movie {imdb_id}")
+        movie = Movie.objects.filter(imdb_id=imdb_id).first()
+        if not movie:
+            logger.error(f"Movie not found for imdb_id {imdb_id}")
+            return
+
+        # Log current state
+        logger.info(f"Movie before enrichment: backdrop_url={movie.backdrop_url}, tmdb_id={getattr(movie, 'tmdb_id', None)}")
+
+        # Enrich movie data
+        MovieTMDBEnrichService.enrich_all(movie)
+
+        # Refresh movie from database to get updated data
+        movie.refresh_from_db()
+
+        # Log results
+        logger.info(f"Movie after enrichment: backdrop_url={movie.backdrop_url}, tmdb_id={getattr(movie, 'tmdb_id', None)}")
+
+        # Check if data was actually saved
+        if not movie.backdrop_url:
+            logger.warning(f"Enrichment completed but backdrop_url is still None for movie {imdb_id}")
+
+        return {
+            'imdb_id': imdb_id,
+            'backdrop_url': movie.backdrop_url,
+            'tmdb_id': getattr(movie, 'tmdb_id', None)
+        }
+    except Exception as e:
+        logger.error(f"Error enriching movie {imdb_id}: {str(e)}")
+        try:
+            self.retry(exc=e, countdown=60 * 5)  # Retry after 5 minutes
+        except MaxRetriesExceededError:
+            logger.error(f"Max retries exceeded for movie {imdb_id}")
+            raise
+
+@shared_task
+def batch_enrich_tmdb_metadata(limit=100):
+    from django.db.models import Q
+    movies = Movie.objects.filter(Q(tmdb_id__isnull=True) | Q(backdrop_url__isnull=True))[:limit]
+    for movie in movies:
+        enrich_movie_tmdb_metadata.delay(movie.imdb_id)

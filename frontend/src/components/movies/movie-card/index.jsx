@@ -9,7 +9,6 @@ import Rating from './Rating';
 import RecommendedInfo from './RecommendedInfo';
 
 const MovieCard = memo(({ movie }) => {
-  // Memoize movie data
   const movieData = useMemo(
     () => ({
       id: movie.id,
@@ -44,7 +43,7 @@ const MovieCard = memo(({ movie }) => {
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.3 }}
       layout={false}
-      className="relative flex flex-col h-full overflow-hidden rounded-lg group bg-gray-800 shadow-md transition-all duration-300 will-change-transform hover:shadow-lg"
+      className="group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md transition-all duration-300 will-change-transform hover:shadow-lg"
     >
       {/* Adult Content Badge */}
       {movieData.adult && <Badge />}

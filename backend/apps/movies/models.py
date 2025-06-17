@@ -1,7 +1,8 @@
 from apps.metadata.models import Genre
 from django.core.cache import cache
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
+from django.utils.text import slugify
 import logging
 
 # Create your models here.
@@ -18,17 +19,18 @@ class Movie(models.Model):
         ("UPCOMING", "Upcoming"),
     ]
     imdb_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, help_text="Default title (usually in English)")
     title_en = models.CharField(max_length=255, blank=True, null=True)
     title_vi = models.CharField(max_length=255, blank=True, null=True)
     original_title = models.CharField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)
     overview_en = models.TextField(blank=True, null=True)
     overview_vi = models.TextField(blank=True, null=True)
     release_date = models.DateField(blank=True, null=True)
     poster_url = models.CharField(max_length=255, blank=True, null=True)
     backdrop_url = models.CharField(max_length=255, blank=True, null=True)
     # imdb_rating = models.DecimalField(max_digits=3,decimal_places=1,blank=True,null=True)
-    # tmdb_id = models.CharField(max_length=20,unique=True,blank=True,null=True)
+    tmdb_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
     runtime = models.IntegerField(blank=True, null=True)
     status = models.CharField(
         max_length=50, choices=STATUS_CHOICES, blank=True, null=True
@@ -36,6 +38,8 @@ class Movie(models.Model):
     genres = models.ManyToManyField(Genre, through="MovieGenre")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_title_sync = models.DateTimeField(null=True, blank=True)
+    last_genre_sync = models.DateTimeField(null=True, blank=True)
     is_popular = models.BooleanField(default=False)
     is_top_rated = models.BooleanField(default=False)
     is_upcoming = models.BooleanField(default=False)
@@ -52,13 +56,113 @@ class Movie(models.Model):
             models.Index(fields=["release_date"]),
             models.Index(fields=["status"]),
             models.Index(fields=["imdb_id"]),
+            models.Index(fields=["tmdb_id"]),
             models.Index(fields=["is_popular"]),
             models.Index(fields=["is_top_rated"]),
             models.Index(fields=["is_upcoming"]),
+            models.Index(fields=["slug"]),
+
         ]
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        # Update title based on title_en or title_vi
+        if not self.title and self.title_en:
+            self.title = self.title_en
+        elif not self.title and self.title_vi:
+            self.title = self.title_vi
+
+        # Generate slug if not exists
+        if not self.slug:
+            self.slug = slugify(self.title)
+
+        super().save(*args, **kwargs)
+
+    def get_title(self, language: str = 'en') -> str:
+        """
+        Get movie title in specified language
+        Args:
+            language: Language code ('en' or 'vi')
+        Returns:
+            str: Movie title in specified language
+        """
+        if language == 'vi' and self.title_vi:
+            return self.title_vi
+        return self.title_en or self.title
+
+    @transaction.atomic
+    def update_titles(self, titles: dict) -> bool:
+        """
+        Update movie titles and sync timestamp
+        Args:
+            titles: Dict with language keys and title values
+        Returns:
+            bool: True if update was successful
+        """
+        try:
+            if "en" in titles:
+                self.title_en = titles["en"]
+                # Update default title if it's empty or same as current title
+                if not self.title or self.title == self.title_vi:
+                    self.title = titles["en"]
+
+            if "vi" in titles:
+                self.title_vi = titles["vi"]
+
+            self.last_title_sync = timezone.now()
+            self.save()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating movie titles: {str(e)}")
+            return False
+
+    @property
+    def display_title(self) -> str:
+        """
+        Get the most appropriate title for display
+        Returns the title in the following order:
+        1. title_vi (if exists)
+        2. title_en (if exists)
+        3. original_title (if exists)
+        4. title (fallback)
+        """
+        return (
+            self.title_vi or
+            self.title_en or
+            self.original_title or
+            self.title
+        )
+
+    @transaction.atomic
+    def update_genres(self, genres: dict) -> bool:
+        """
+        Update movie genres and sync timestamp
+        Args:
+            genres: Dict with language keys and genre name lists
+        Returns:
+            bool: True if update was successful
+        """
+        try:
+            # Clear existing genres
+            MovieGenre.objects.filter(movie=self).delete()
+
+            # Add new genres
+            for lang, genre_names in genres.items():
+                for genre_name in genre_names:
+                    genre, _ = Genre.objects.get_or_create(
+                        name=genre_name,
+                        language=lang
+                    )
+                    MovieGenre.objects.create(movie=self, genre=genre)
+
+            self.last_genre_sync = timezone.now()
+            self.save()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating movie genres: {str(e)}")
+            return False
 
     def update_overviews(self, overviews: dict):
         """Update movie overviews from IMDB data"""
@@ -311,6 +415,7 @@ class MovieAward(models.Model):
             models.Index(fields=["name", "category"]),
             models.Index(fields=["is_prestigious"]),
         ]
+
 class MovieAlternativeTitle(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='alternative_titles')
     title = models.CharField(max_length=255)

@@ -12,18 +12,39 @@ django.setup()
 from apps.movies.services.movie_title_genre_service import MovieTitleGenreService
 from apps.movies.models import Movie
 
-def test_title_genre(imdb_id: str):
-    print(f"\nTesting title/genres for IMDB ID: {imdb_id}")
+def needs_update(movie):
+    missing_title_en = not movie.title_en or movie.title_en.strip() == ''
+    missing_title_vi = not movie.title_vi or movie.title_vi.strip() == ''
+    missing_genres = movie.genres.count() == 0
+    return missing_title_en or missing_title_vi or missing_genres
+
+def update_and_report(movie):
+    print(f"\nChecking movie: {movie.imdb_id} | {movie.display_title}")
     print("-" * 50)
-    data = MovieTitleGenreService.get_title_and_genres(imdb_id)
-    print("Title (EN):", data["title"].get("en"))
-    print("Title (VI):", data["title"].get("vi"))
-    print("Genres (EN):", data["genres"].get("en"))
-    print("Genres (VI):", data["genres"].get("vi"))
+    before = {
+        'title_en': movie.title_en,
+        'title_vi': movie.title_vi,
+        'genres_en': list(movie.genres.filter(language='en').values_list('name', flat=True)),
+        'genres_vi': list(movie.genres.filter(language='vi').values_list('name', flat=True)),
+    }
+    print("Before update:", before)
+    success, message = MovieTitleGenreService.sync_movie_data(movie)
+    after = {
+        'title_en': movie.title_en,
+        'title_vi': movie.title_vi,
+        'genres_en': list(movie.genres.filter(language='en').values_list('name', flat=True)),
+        'genres_vi': list(movie.genres.filter(language='vi').values_list('name', flat=True)),
+    }
+    print("After update:", after)
+    print("Sync result:", message)
     print("=" * 50)
 
 if __name__ == "__main__":
-    imdb_ids = list(Movie.objects.exclude(imdb_id__isnull=True).values_list('imdb_id', flat=True))
-    print(f"Found {len(imdb_ids)} movies in database.")
-    for imdb_id in imdb_ids:
-        test_title_genre(imdb_id)
+    movies = Movie.objects.exclude(imdb_id__isnull=True)
+    print(f"Found {movies.count()} movies in database.")
+    updated = 0
+    for movie in movies:
+        if needs_update(movie):
+            update_and_report(movie)
+            updated += 1
+    print(f"\nTotal movies updated: {updated}")

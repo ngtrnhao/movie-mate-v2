@@ -5,6 +5,7 @@ import time
 import logging
 from typing import List, Dict
 from datetime import datetime
+from django.db import models
 
 # Add the project root directory to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,12 +29,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def get_movies_without_overview() -> List[Movie]:
-    """Get all movies that need overview update"""
+    """Get all movies that need overview update (cả tiếng Anh và Việt đều chưa có hoặc rỗng)"""
     return Movie.objects.filter(
         imdb_id__isnull=False
     ).filter(
-        overview_vi__isnull=True,
-        overview_en__isnull=True
+        (models.Q(overview_vi__isnull=True) | models.Q(overview_vi__exact='')) &
+        (models.Q(overview_en__isnull=True) | models.Q(overview_en__exact=''))
     )
 
 def update_movie_overview(movie: Movie) -> bool:
@@ -46,9 +47,9 @@ def update_movie_overview(movie: Movie) -> bool:
             return False
 
         # Update movie with new overviews
-        if "vi" in overviews:
+        if "vi" in overviews and overviews["vi"]:
             movie.overview_vi = overviews["vi"]
-        if "en" in overviews:
+        if "en" in overviews and overviews["en"]:
             movie.overview_en = overviews["en"]
 
         movie.save()

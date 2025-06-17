@@ -106,7 +106,10 @@ class IMDBDatasetService:
 
                 for genre_name in genres:
                     if genre_name not in genre_cache:
-                        genre_obj, _ = Genre.objects.get_or_create(name=genre_name)
+                        genre_obj, _ = Genre.objects.get_or_create(
+                            name=genre_name,
+                            defaults={'language': 'en'}
+                        )
                         genre_cache[genre_name] = genre_obj
 
                 if len(movies_to_create) >= batch_size:

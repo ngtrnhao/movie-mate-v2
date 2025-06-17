@@ -3,8 +3,11 @@ from django.utils.text import slugify
 
 
 class Genre(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-    slug = models.SlugField(max_length=255, unique=True)
+    name = models.CharField(max_length=100)
+    # name_en = models.CharField(max_length=100, blank=True, null=True)
+    # name_vi = models.CharField(max_length=100, blank=True, null=True)
+    language = models.CharField(max_length=10, blank=True, null=True)  # 'en' hoặc 'vi'
+    slug = models.SlugField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -13,15 +16,20 @@ class Genre(models.Model):
         db_table = 'metadata_genre'
         indexes = [
             models.Index(fields=['name']),
+            models.Index(fields=['language']),
             models.Index(fields=['slug']),
         ]
+        unique_together = ("name", "language")
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.language})"
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
+        base_slug = slugify(self.name)
+        if self.language:
+            self.slug = f"{base_slug}-{self.language}"
+        else:
+            self.slug = base_slug
         super().save(*args,**kwargs)
 
 class Person(models.Model) :

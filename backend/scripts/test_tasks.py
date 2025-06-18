@@ -33,35 +33,35 @@ def test_cache_and_tasks():
     cache.delete("top_rated_movies")
     cache.delete("upcoming_movies")
 
-    # # Test popular movies
-    # print("\n2. Testing popular movies task...")
-    # result = sync_popular_movies.delay()
-    # print(f"Task ID: {result.id}")
-    # time.sleep(5)  # Wait for task to complete
+    # Test popular movies
+    print("\n2. Testing popular movies task...")
+    result = sync_popular_movies.delay()
+    print(f"Task ID: {result.id}")
+    time.sleep(5)  # Wait for task to complete
 
-    # # Check cache
-    # popular_movies = cache.get("popular_movies")
-    # print(f"Popular movies in cache: {popular_movies is not None}")
+    # Check cache
+    popular_movies = cache.get("popular_movies")
+    print(f"Popular movies in cache: {popular_movies is not None}")
 
-    # # Test top rated movies
-    # print("\n3. Testing top rated movies task...")
-    # result = sync_top_rated_movies.delay()
-    # print(f"Task ID: {result.id}")
-    # time.sleep(5)  # Wait for task to complete
+    # Test top rated movies
+    print("\n3. Testing top rated movies task...")
+    result = sync_top_rated_movies.delay()
+    print(f"Task ID: {result.id}")
+    time.sleep(5)  # Wait for task to complete
 
-    # # Check cache
-    # top_rated_movies = cache.get("top_rated_movies")
-    # print(f"Top rated movies in cache: {top_rated_movies is not None}")
+    # Check cache
+    top_rated_movies = cache.get("top_rated_movies")
+    print(f"Top rated movies in cache: {top_rated_movies is not None}")
 
-    # # Test upcoming movies
-    # print("\n4. Testing upcoming movies task...")
-    # result = sync_upcoming_movies.delay()
-    # print(f"Task ID: {result.id}")
-    # time.sleep(5)  # Wait for task to complete
+    # Test upcoming movies
+    print("\n4. Testing upcoming movies task...")
+    result = sync_upcoming_movies.delay()
+    print(f"Task ID: {result.id}")
+    time.sleep(5)  # Wait for task to complete
 
-    # # Check cache
-    # upcoming_movies = cache.get("upcoming_movies")
-    # print(f"Upcoming movies in cache: {upcoming_movies is not None}")
+    # Check cache
+    upcoming_movies = cache.get("upcoming_movies")
+    print(f"Upcoming movies in cache: {upcoming_movies is not None}")
 
     # Test movie overviews for all movies
     print("\n2. Testing movie overviews for all movies...")

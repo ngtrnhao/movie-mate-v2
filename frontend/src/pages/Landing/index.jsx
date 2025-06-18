@@ -5,7 +5,6 @@ import { CheckCircle } from 'lucide-react';
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { getTopRatedMovies, getTrendingMovies, getUpcomingMovies } from '../../api/movieService';
 import CategoryGrid from '../../components/categories/CategoryGrid';
 import LandingFooter from '../../components/footer/LandingFooter';
 import MovieMateLogo from '../../components/header/Logo';
@@ -14,9 +13,15 @@ import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
 import TabGroup from '../../components/movies/tab-group';
 import PlanList from '../../components/plans/PlanList';
 import { useCategories } from '../../hooks/useCategories';
+import {
+  useFeaturedMovies,
+  useTrendingMovies,
+  useTopRatedMovies,
+  useUpcomingMovies,
+} from '../../hooks/useMovies';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { logout } from '../../store/slices/authSlice';
-import { fetchFeaturedMovies, setCurrentTab, setMoviesByTab } from '../../store/slices/movieSlice';
+import { setCurrentTab } from '../../store/slices/movieSlice';
 
 const TABS = [
   { key: 'trending', label: 'latestReleases.tabs.trending' },
@@ -31,12 +36,18 @@ const LandingPage = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const user = useSelector(state => state.auth.user);
 
-  // Redux selectors
-  const featuredMovies = useSelector(state => state.movies.featuredMovies || []);
-  const moviesByTab = useSelector(state => state.movies.moviesByTab);
+  // Redux selectors - chỉ giữ lại currentTab vì vẫn cần dùng
   const currentTab = useSelector(state => state.movies.currentTab);
-  const loading = useSelector(state => state.movies.loading);
-  const error = useSelector(state => state.movies.error);
+
+  // Custom hooks cho fetch phim
+  const {
+    data: featuredMovies = [],
+    isLoading: featuredLoading,
+    error: featuredError,
+  } = useFeaturedMovies();
+  const { data: trendingMovies = [], isLoading: trendingLoading } = useTrendingMovies();
+  const { data: topRatedMovies = [], isLoading: topRatedLoading } = useTopRatedMovies();
+  const { data: upcomingMovies = [], isLoading: upcomingLoading } = useUpcomingMovies();
 
   // Memoize features
   const features = useMemo(
@@ -72,39 +83,33 @@ const LandingPage = () => {
   // Lấy ngôn ngữ hiện tại
   const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
-  // Memoize movies for MovieGrid to avoid unnecessary re-renders
-  const movies = useMemo(
-    () => moviesByTab[currentTab]?.[currentLang] || [],
-    [moviesByTab, currentTab, currentLang]
-  );
+  // Memo hóa dữ liệu phim theo tab
+  const movies = useMemo(() => {
+    switch (currentTab) {
+      case 'trending':
+        return trendingMovies;
+      case 'topRated':
+        return topRatedMovies;
+      case 'upcoming':
+        return upcomingMovies;
+      default:
+        return [];
+    }
+  }, [currentTab, trendingMovies, topRatedMovies, upcomingMovies]);
 
-  // Fetch movies on component mount
-  useEffect(() => {
-    const fetchMovies = async () => {
-      try {
-        // Fetch featured movies using Redux thunk
-        await dispatch(fetchFeaturedMovies());
-
-        // Fetch movies for each tab
-        const tabs = {
-          trending: getTrendingMovies,
-          topRated: getTopRatedMovies,
-          upcoming: getUpcomingMovies,
-        };
-
-        for (const [tab, fetchFn] of Object.entries(tabs)) {
-          const data = await fetchFn();
-          if (data) {
-            dispatch(setMoviesByTab({ tab, movies: data }));
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching movies:', error);
-      }
-    };
-
-    fetchMovies();
-  }, [dispatch]);
+  // Memo hóa loading theo tab
+  const loading = useMemo(() => {
+    switch (currentTab) {
+      case 'trending':
+        return trendingLoading;
+      case 'topRated':
+        return topRatedLoading;
+      case 'upcoming':
+        return upcomingLoading;
+      default:
+        return false;
+    }
+  }, [currentTab, trendingLoading, topRatedLoading, upcomingLoading]);
 
   // Slide show interval with pause functionality
   useEffect(() => {
@@ -160,18 +165,19 @@ const LandingPage = () => {
   // Memoize tab change handler
   const handleTabChange = useCallback(tab => dispatch(setCurrentTab(tab)), [dispatch]);
 
-  if (error.featured) {
+  // Xử lý error/loading cho featuredMovies
+  if (featuredError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="text-center text-red-600">
           <h2 className="mb-2 text-2xl font-bold">Error</h2>
-          <p>{error.featured}</p>
+          <p>{featuredError.message}</p>
         </div>
       </div>
     );
   }
 
-  if (loading.featured || !Array.isArray(featuredMovies) || featuredMovies.length === 0) {
+  if (featuredLoading || !Array.isArray(featuredMovies) || featuredMovies.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="size-8 animate-spin rounded-full border-4 border-red-600 border-t-transparent"></div>
@@ -857,7 +863,7 @@ const LandingPage = () => {
           <p className="pt-5 text-center text-lg text-gray-400">{t('latestReleases.subtitle')}</p>
           <div className="mt-10">
             <TabGroup tabs={translatedTabs} activeTab={currentTab} onTabChange={handleTabChange} />
-            <MovieGrid movies={movies} loading={loading.moviesByTab} error={error.moviesByTab} />
+            <MovieGrid movies={movies} loading={loading} error={featuredError} />
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

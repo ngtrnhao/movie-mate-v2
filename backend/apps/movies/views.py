@@ -352,7 +352,7 @@ class MovieViewSet(viewsets.ModelViewSet):
                 'ratings',
                 'genres'
             ).order_by(
-                'release_date'  # Sắp xếp theo ngày phát hành sớm nhất
+                '-release_date'  # Sắp xếp theo ngày phát hành sớm nhất
             )
 
             logger.info(f"Found {len(movies)} upcoming movies")

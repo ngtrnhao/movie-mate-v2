@@ -1,28 +1,48 @@
 import { useQuery } from '@tanstack/react-query';
+import axiosInstance from '../api/axios';
+import { useTranslation } from 'react-i18next';
 
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
-const options = {
-  method: 'GET',
-  headers: {
-    accept: 'application/json',
-    Authorization:
-      'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0YzMzOGUzYTMzNGI4ZjgxN2M0NWNlOGIwY2JhNmRmMSIsIm5iZiI6MTc0MDYwODk5Mi40MTkwMDAxLCJzdWIiOiI2N2JmOTVlMGJjNjkzNWEwMDFhMjM2MTgiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.iOVSJPSuTWhbnD5AAQBCnQ5TYXVLCwVOgPMytmB4rHs',
-  },
-};
-
-const fetchCategories = async () => {
-  const res = await fetch(`${TMDB_BASE_URL}/genre/movie/list?language=en-US`, options);
-  if (!res.ok) throw new Error('Failed to fetch categories');
-  const data = await res.json();
-  // data.genres: [{id, name}]
-  // Lấy số lượng phim cho từng thể loại (có thể cần API khác, tạm để count = 0)
-  return data.genres.map(genre => ({ ...genre, count: 0 }));
+const fetchCategories = async language => {
+  const res = await axiosInstance.get(`/api/metadata/categories/?language=${language}`);
+  if (res.data.status !== 'success') {
+    throw new Error(res.data.message || 'Failed to fetch categories');
+  }
+  return res.data.data;
 };
 
 export const useCategories = () => {
+  const { i18n } = useTranslation();
+  const app_language = i18n.language === 'vi' ? 'vi' : 'en';
+
   return useQuery({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
-    staleTime: 5 * 60 * 1000,
+    queryKey: ['categories', app_language],
+    queryFn: () => fetchCategories(app_language),
+    staleTime: Infinity, // cache vĩnh viễn
+    cacheTime: Infinity, // cache vĩnh viễn
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+};
+
+export const useCategoryMovies = categoryId => {
+  const { i18n } = useTranslation();
+  const app_language = i18n.language === 'vi' ? 'vi' : 'en';
+
+  return useQuery({
+    queryKey: ['category-movies', categoryId, app_language],
+    queryFn: async () => {
+      const res = await axiosInstance.get(
+        `/api/metadata/categories/${categoryId}/movies/?language=${app_language}`
+      );
+      if (res.data.status !== 'success') {
+        throw new Error(res.data.message || 'Failed to fetch category movies');
+      }
+      return res.data.data;
+    },
+    enabled: !!categoryId,
+    staleTime: Infinity, // cache vĩnh viễn
+    cacheTime: Infinity, // cache vĩnh viễn
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };

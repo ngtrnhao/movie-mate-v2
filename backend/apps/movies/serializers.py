@@ -2,16 +2,11 @@ from rest_framework import serializers
 from .models import (
     Movie, MovieRating, MovieAward, MovieCast,
     MovieReview, MovieBoxOffice, MovieMetadata,
-    MovieGenre, MovieTrailer, MovieImage, MovieNews, Genre
+    MovieGenre, MovieTrailer, MovieImage, MovieNews
 )
 import logging
 
 logger = logging.getLogger(__name__)
-
-class GenreSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Genre
-        fields = ['id', 'name']
 
 class MovieListSerializer(serializers.ModelSerializer):
     genres = serializers.SerializerMethodField()

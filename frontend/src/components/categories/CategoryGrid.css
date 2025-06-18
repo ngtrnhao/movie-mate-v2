@@ -1,0 +1,17 @@
+@keyframes border-glow {
+  0% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.7); }
+  50% { box-shadow: 0 0 16px 4px rgba(229, 62, 62, 0.9); }
+  100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.7); }
+}
+.glow-hover:hover {
+  animation: border-glow 1.2s infinite;
+  border-color: #e53e3e !important;
+}
+.pulse {
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1);}
+  50% { transform: scale(1.08);}
+  100% { transform: scale(1);}
+}

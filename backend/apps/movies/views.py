@@ -3,33 +3,45 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
+from rest_framework.viewsets import GenericViewSet
+from django.core.cache import cache
+from django.db.models import Count, Prefetch
 from .models import Movie
 from .serializers import MovieListSerializer, MovieDetailSerializer
 from .services.imdb_service import IMDBService
 import logging
-from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
 class MovieViewSet(viewsets.ModelViewSet):
     queryset = Movie.objects.all()
     serializer_class = MovieListSerializer
-    permission_classes = [AllowAny]  # Allow public access to all movie endpoints
+    permission_classes = [AllowAny]
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return MovieDetailSerializer
         return MovieListSerializer
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.select_related(
+            'moviemetadata'
+        ).prefetch_related(
+            Prefetch('ratings'),
+            Prefetch('genres')
+        )
+
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         data = serializer.data
 
-        #Get overviews from IMDB
         if instance.imdb_id:
             overviews = IMDBService.get_movie_overview(instance.imdb_id)
             data['overviews'] = overviews
+
         return Response({
             'status': 'success',
             'data': data
@@ -48,14 +60,9 @@ class MovieViewSet(viewsets.ModelViewSet):
                 return Response(cached_data)
 
             # Get all popular movies with at least poster
-            movies = Movie.objects.filter(
+            movies = self.get_queryset().filter(
                 is_popular=True,
                 poster_url__isnull=False,
-            ).select_related(
-                'moviemetadata'
-            ).prefetch_related(
-                'ratings',
-                'genres'
             ).order_by(
                 '-release_date'
             )
@@ -65,14 +72,9 @@ class MovieViewSet(viewsets.ModelViewSet):
             if not movies:
                 logger.warning("No popular movies found in database")
                 # Fallback to top rated movies if no popular movies found
-                movies = Movie.objects.filter(
+                movies = self.get_queryset().filter(
                     is_top_rated=True,
                     poster_url__isnull=False,
-                ).select_related(
-                    'moviemetadata'
-                ).prefetch_related(
-                    'ratings',
-                    'genres'
                 ).order_by(
                     '-release_date'
                 )
@@ -107,8 +109,6 @@ class MovieViewSet(viewsets.ModelViewSet):
                     score += 1
                 if movie.genres.exists():
                     score += 1
-                # if movie.moviemetadata and movie.moviemetadata.runtime:
-                #     score += 1
 
                 scored_movies.append((movie, score))
 
@@ -159,14 +159,9 @@ class MovieViewSet(viewsets.ModelViewSet):
                 return Response(cached_data)
 
             # Get all popular movies with at least poster
-            movies = Movie.objects.filter(
+            movies = self.get_queryset().filter(
                 is_popular=True,
                 poster_url__isnull=False,
-            ).select_related(
-                'moviemetadata'
-            ).prefetch_related(
-                'ratings',
-                'genres'
             ).order_by(
                 '-release_date'
             )
@@ -251,14 +246,9 @@ class MovieViewSet(viewsets.ModelViewSet):
                 return Response(cached_data)
 
             # Get all top rated movies with at least poster
-            movies = Movie.objects.filter(
+            movies = self.get_queryset().filter(
                 is_top_rated=True,
                 poster_url__isnull=False,
-            ).select_related(
-                'moviemetadata'
-            ).prefetch_related(
-                'ratings',
-                'genres'
             ).order_by(
                 '-release_date'
             )
@@ -343,16 +333,11 @@ class MovieViewSet(viewsets.ModelViewSet):
                 return Response(cached_data)
 
             # Get all upcoming movies with at least poster
-            movies = Movie.objects.filter(
+            movies = self.get_queryset().filter(
                 is_upcoming=True,
                 poster_url__isnull=False,
-            ).select_related(
-                'moviemetadata'
-            ).prefetch_related(
-                'ratings',
-                'genres'
             ).order_by(
-                '-release_date'  # Sắp xếp theo ngày phát hành sớm nhất
+                'release_date'  # Sắp xếp theo ngày phát hành sớm nhất
             )
 
             logger.info(f"Found {len(movies)} upcoming movies")

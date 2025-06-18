@@ -128,9 +128,9 @@ class IMDBDataImporter:
             logger.info("Starting IMDB data import...")
 
             # 1. Import basic movie data
-            logger.info("Step 1/6: Importing basic movie data...")
-            step_start = time.time()  # Uncomment for detailed timing
-            self.service.import_title_basic(batch_size=100)
+            # logger.info("Step 1/6: Importing basic movie data...")
+            # step_start = time.time()  # Uncomment for detailed timing
+            # self.service.import_title_basic(batch_size=100)
             # self._log_progress("Basic movie data import completed", step_start)  # Uncomment for detailed logging
 
             # 2. Import ratings

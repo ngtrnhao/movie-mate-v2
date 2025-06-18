@@ -15,6 +15,12 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Load task modules from all registered Django apps
 app.autodiscover_tasks()
 
+# Windows specific configurations
+app.conf.worker_pool_restarts = True
+app.conf.worker_max_tasks_per_child = 1
+app.conf.beat_scheduler = 'celery.beat.PersistentScheduler'
+app.conf.beat_schedule_filename = 'celerybeat-schedule'
+
 # Configure celery beat schedule
 app.conf.beat_schedule = {
     "sync_popular_movies": {

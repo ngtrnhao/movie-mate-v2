@@ -8,4 +8,5 @@ urlpatterns = [
     path('auth/', include('apps.users.urls')),
     path('', include('apps.core.urls')),
     path('', include('apps.movies.urls')),
+    path('', include('apps.metadata.urls')),
 ]

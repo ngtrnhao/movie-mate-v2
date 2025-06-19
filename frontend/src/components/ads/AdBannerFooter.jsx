@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const NATIVE_BANNER_ZONE_ID = 9465583;
+const NATIVE_BANNER_ZONE_ID = 9467684;
 
 const AdBannerFooter = () => {
   const containerRef = useRef(null);

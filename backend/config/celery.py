@@ -1,6 +1,6 @@
 import os
 from celery import Celery
-from celery.schedules import crontab
+from celery.schedules import crontab, timedelta
 from django.conf import settings
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings')
@@ -25,19 +25,19 @@ app.conf.beat_schedule_filename = 'celerybeat-schedule'
 app.conf.beat_schedule = {
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": crontab(hour="0", minute="0"),  # Once per day at midnight
+        "schedule": timedelta(days=5),  # Every 5 days
     },
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": crontab(hour="0", minute="30"),  # Once per day at 00:30
+        "schedule": timedelta(days=5),  # Every 5 days
     },
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": crontab(hour="1", minute="0"),  # Once per day at 1:00
+        "schedule": timedelta(days=5),  # Every 5 days
     },
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",
-        "schedule": crontab(hour="*/2"),  # Every 2 hours
+        "schedule": timedelta(days=5),  # Every 5 days
     },
 }
 

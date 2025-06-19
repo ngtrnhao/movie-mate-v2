@@ -25,7 +25,7 @@ const AdBannerFooter = () => {
     };
   }, []);
 
-  return <div className="ad-banner-footer-container" style={{ minHeight: 90 }} />;
+  return <div className="ad-banner-footer-container" />;
 };
 
 export default AdBannerFooter;

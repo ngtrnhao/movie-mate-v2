@@ -7,8 +7,8 @@ import TopRatedGrid from '../../components/movies/movie-grid/TopRatedGrid';
 import FindSimilarMovies from '../../components/recommendation-tools/SimilarityFinder';
 import TopGenreRecommendations from '../../components/movies/movie-grid/TopGenreRecommendations';
 // import AdBannerTop from '../../components/ads/AdBannerTop';
-import AdContent from '../../components/ads/AdContent';
-import ScriptLoader from '../../components/ads/ScriptLoader';
+// import AdContent from '../../components/ads/AdContent';
+// import ScriptLoader from '../../components/ads/ScriptLoader';
 
 const HomePage = () => {
   return (
@@ -27,8 +27,8 @@ const HomePage = () => {
       <TopGenreRecommendations />
 
       {/* Quảng cáo nội dung giữa */}
-      <AdContent position="MIDDLE" />
-      <ScriptLoader zoneId={9465780} />
+      {/* <AdContent position="MIDDLE" />
+      <ScriptLoader zoneId={9465780} /> */}
 
       <RecentlyReviewed />
       <FindSimilarMovies />

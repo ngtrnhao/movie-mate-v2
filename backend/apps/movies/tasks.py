@@ -340,7 +340,7 @@ def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
             # Update popular movies cache
             popular_movies = list(
                 Movie.objects.filter(is_popular=True)
-                .select_related("metadata")
+                .select_related("moviemetadata")
                 .prefetch_related("genres", "languages", "countries")
                 .order_by("-release_date")[:limit]
             )
@@ -349,7 +349,7 @@ def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
             # Update top rated movies cache
             top_rated_movies = list(
                 Movie.objects.filter(is_top_rated=True)
-                .select_related("metadata")
+                .select_related("moviemetadata")
                 .prefetch_related("genres", "languages", "countries")
                 .order_by("-release_date")[:limit]
             )
@@ -358,7 +358,7 @@ def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
             # Update upcoming movies cache
             upcoming_movies = list(
                 Movie.objects.filter(is_upcoming=True)
-                .select_related("metadata")
+                .select_related("moviemetadata")
                 .prefetch_related("genres", "languages", "countries")
                 .order_by("release_date")[:limit]
             )
@@ -493,40 +493,34 @@ def update_movie_cache():
     try:
         logger.info("Starting movie cache update")
 
-        # Update individual movie caches
-        movies = Movie.objects.all()
-        for movie in movies:
-            cache_key = f"movie:{movie.imdb_id}"
-            cache.set(cache_key, movie, timeout=3600 * 4)  # Cache for 4 hours
-
-        # Update list caches for different limits
+        # Chỉ cache các danh sách, không cache từng movie riêng lẻ
         for limit in [3, 10, 20, 50, 100]:
             # Update popular movies cache
             popular_movies = list(
                 Movie.objects.filter(is_popular=True)
-                .select_related("metadata")
+                .select_related("moviemetadata")
                 .prefetch_related("genres", "languages", "countries")
                 .order_by("-release_date")[:limit]
             )
-            cache.set(f"popular_movies:{limit}", popular_movies, timeout=3600 * 4)  # Cache for 4 hours
+            cache.set(f"popular_movies:{limit}", popular_movies, timeout=3600 * 4)
 
             # Update top rated movies cache
             top_rated_movies = list(
                 Movie.objects.filter(is_top_rated=True)
-                .select_related("metadata")
+                .select_related("moviemetadata")
                 .prefetch_related("genres", "languages", "countries")
                 .order_by("-release_date")[:limit]
             )
-            cache.set(f"top_rated_movies:{limit}", top_rated_movies, timeout=3600 * 4)  # Cache for 4 hours
+            cache.set(f"top_rated_movies:{limit}", top_rated_movies, timeout=3600 * 4)
 
             # Update upcoming movies cache
             upcoming_movies = list(
                 Movie.objects.filter(is_upcoming=True)
-                .select_related("metadata")
+                .select_related("moviemetadata")
                 .prefetch_related("genres", "languages", "countries")
                 .order_by("release_date")[:limit]
             )
-            cache.set(f"upcoming_movies:{limit}", upcoming_movies, timeout=3600 * 4)  # Cache for 4 hours
+            cache.set(f"upcoming_movies:{limit}", upcoming_movies, timeout=3600 * 4)
 
         logger.info("Successfully updated movie cache")
 

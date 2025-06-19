@@ -1,31 +1,34 @@
-import { useEffect } from 'react';
-import PropellerAdsBanner from '../common/PropellerAdsBanner';
-import propellerAdsService from '../../services/propellerAdsService';
+import { useEffect, useRef } from 'react';
+
+const DOMAIN = 'vemtoutcheeg.com';
+const ZONE = 9465780;
 
 const AdBannerTop = () => {
+  const scriptRef = useRef(null);
+
   useEffect(() => {
-    // Khởi tạo PropellerAds service
-    propellerAdsService.init();
+    const service = require('../../services/propellerAdsService').default;
+    if (!service.canShowAd()) return;
+    service.recordAdShown();
+
+    // Inject script quảng cáo dạng IIFE
+    const s = document.createElement('script');
+    s.src = `https://${DOMAIN}/400/${ZONE}`;
+    s.async = true;
+    scriptRef.current = s;
+    try {
+      (document.body || document.documentElement).appendChild(s);
+    } catch (e) {
+      console.warn('Failed to inject ad script:', e);
+    }
+    return () => {
+      if (scriptRef.current && scriptRef.current.parentNode) {
+        scriptRef.current.parentNode.removeChild(scriptRef.current);
+      }
+    };
   }, []);
 
-  const adConfig = propellerAdsService.getAdConfig('BANNER_TOP', {
-    style: {
-      display: 'block',
-      minHeight: '90px',
-      margin: '0 auto',
-      maxWidth: '728px',
-      textAlign: 'center',
-    },
-    className: 'ad-banner-top',
-  });
-
-  return (
-    <div className="ad-banner-top-container bg-gray-800 py-4">
-      <div className="container mx-auto px-4">
-        <PropellerAdsBanner {...adConfig} />
-      </div>
-    </div>
-  );
+  return <div className="ad-banner-top-container" style={{ minHeight: 90 }} />;
 };
 
 export default AdBannerTop;

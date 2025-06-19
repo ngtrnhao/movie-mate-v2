@@ -360,7 +360,7 @@ class MovieViewSet(viewsets.ModelViewSet):
                 score += 1
 
                 # Additional points for other data
-                if movie.backdrop_url:
+                if movie.poster_url:
                     score += 1
                 if movie.overview_en and movie.overview_en.strip():
                     score += 1

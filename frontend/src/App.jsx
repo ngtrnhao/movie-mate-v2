@@ -24,12 +24,40 @@ import { useDispatch } from 'react-redux';
 import { rehydrateAuth } from './store/slices/authSlice';
 import AdManager from './components/ads/AdManager';
 
+// Global error handler để chặn lỗi Script error từ quảng cáo ngoài
+if (typeof window !== 'undefined') {
+  window.onerror = function (message, source, lineno, colno, error) {
+    if (message === 'Script error.') {
+      // Lỗi từ script quảng cáo ngoài, chỉ log warning
+      console.warn('Script error from third-party script:', source);
+      return true; // Ngăn không lan ra app
+    }
+    // Xử lý lỗi khác như bình thường
+    return false;
+  };
+}
+
 function App() {
   const dispatch = useDispatch();
   // Khi app khởi động, gọi rehydrateAuth để khôi phục trạng thái đăng nhập từ localStorage vào Redux
   useEffect(() => {
     dispatch(rehydrateAuth());
   }, [dispatch]);
+
+  // Đặt global error handler trong useEffect để luôn được gán lại
+  useEffect(() => {
+    window.onerror = function (message, source, _lineno, _colno, _error) {
+      if (
+        message === 'Script error.' ||
+        (_error && _error instanceof Event) ||
+        (!message && !_error)
+      ) {
+        console.warn('Script error or unknown error from third-party script:', source);
+        return true;
+      }
+      return false;
+    };
+  }, []);
 
   return (
     <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>

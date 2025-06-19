@@ -1,30 +1,40 @@
-import { useEffect } from 'react';
-import PropellerAdsBanner from '../common/PropellerAdsBanner';
-import propellerAdsService from '../../services/propellerAdsService';
+import { useEffect, useRef } from 'react';
+
+const NATIVE_BANNER_ZONE_ID = 9465582;
 
 const AdBannerFooter = () => {
+  const containerRef = useRef(null);
+
   useEffect(() => {
-    // Khởi tạo PropellerAds service
-    propellerAdsService.init();
+    // Xóa script cũ nếu có
+    const oldScript = document.getElementById('propeller_native_banner_script');
+    if (oldScript) oldScript.remove();
+
+    // Tạo script mới
+    const script = document.createElement('script');
+    script.id = 'propeller_native_banner_script';
+    script.async = true;
+    script.src = `https://ad.propellerads.com/zone/${NATIVE_BANNER_ZONE_ID}.js`;
+
+    // Gắn script vào đúng container
+    if (containerRef.current) {
+      containerRef.current.innerHTML = '';
+      containerRef.current.appendChild(script);
+    }
+
+    // Cleanup khi unmount
+    return () => {
+      if (containerRef.current) containerRef.current.innerHTML = '';
+    };
   }, []);
 
-  const adConfig = propellerAdsService.getAdConfig('BANNER_FOOTER', {
-    style: {
-      display: 'block',
-      minHeight: '90px',
-      margin: '0 auto',
-      maxWidth: '728px',
-      textAlign: 'center',
-    },
-    className: 'ad-banner-footer',
-  });
-
   return (
-    <div className="ad-banner-footer-container bg-gray-800 py-4">
-      <div className="container mx-auto px-4">
-        <PropellerAdsBanner {...adConfig} />
-      </div>
-    </div>
+    <div
+      ref={containerRef}
+      id="propeller_ad_native_banner"
+      className="ad-banner-footer-container"
+      style={{ minHeight: 90 }}
+    />
   );
 };
 

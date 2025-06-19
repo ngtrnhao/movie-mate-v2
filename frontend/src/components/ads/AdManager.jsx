@@ -14,7 +14,7 @@ const AdManager = () => {
         showPopup();
         popupShownRef.current = true;
       }
-    }, 10000000000); //
+    }, 1000); //
 
     // Hiển thị interstitial khi user scroll xuống 50% trang
     const handleScroll = () => {

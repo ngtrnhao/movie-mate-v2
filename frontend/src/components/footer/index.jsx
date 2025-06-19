@@ -1,8 +1,12 @@
 import QuickLink from './QuickLink';
+import AdBannerFooter from '../ads/AdBannerFooter';
 
 const Footer = () => {
   return (
     <footer className="border-border mt-auto border-t bg-gray-900 py-12 transition-colors duration-200">
+      {/* Quảng cáo banner footer */}
+      <AdBannerFooter />
+
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           {/* MovieMate Section */}

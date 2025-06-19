@@ -22,6 +22,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { rehydrateAuth } from './store/slices/authSlice';
+import AdManager from './components/ads/AdManager';
 
 function App() {
   const dispatch = useDispatch();
@@ -35,6 +36,9 @@ function App() {
       <I18nProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <QueryProvider>
+            {/* Quản lý quảng cáo popup và interstitial */}
+            <AdManager />
+
             <Routes>
               {/* Landing Page Route */}
               <Route

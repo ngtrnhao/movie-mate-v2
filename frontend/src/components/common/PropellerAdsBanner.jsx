@@ -1,56 +1,10 @@
 import { useEffect, useRef } from 'react';
 
-const PropellerAdsBanner = ({ zoneId, style, className = '', onAdLoad, onAdError, onAdClick }) => {
-  const adRef = useRef(null);
-
-  useEffect(() => {
-    // Chỉ load quảng cáo trong production và khi có zoneId
-    if (process.env.NODE_ENV === 'production' && zoneId && window.propellerads) {
-      try {
-        // Tạo container cho quảng cáo
-        const adContainer = adRef.current;
-        if (adContainer) {
-          // Xóa nội dung cũ nếu có
-          adContainer.innerHTML = '';
-
-          // Tạo script element cho PropellerAds
-          const script = document.createElement('script');
-          script.async = true;
-          script.src = `https://cdn.propellerads.com/propellerads.js`;
-          script.setAttribute('data-zone', zoneId);
-
-          // Thêm event listeners
-          script.addEventListener('load', () => {
-            if (onAdLoad) onAdLoad();
-          });
-
-          script.addEventListener('error', error => {
-            console.error('PropellerAds load error:', error);
-            if (onAdError) onAdError(error);
-          });
-
-          // Thêm script vào container
-          adContainer.appendChild(script);
-
-          // Track click events
-          adContainer.addEventListener('click', e => {
-            if (e.target.tagName === 'A' || e.target.closest('a')) {
-              if (onAdClick) onAdClick();
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error loading PropellerAds:', error);
-        if (onAdError) onAdError(error);
-      }
-    }
-  }, [zoneId, onAdLoad, onAdError, onAdClick]);
-
-  // Placeholder cho development
+const PropellerAdsBanner = ({ zoneId, style, className = '' }) => {
+  // Không inject script nữa, chỉ render container
   if (process.env.NODE_ENV !== 'production') {
     return (
       <div
-        ref={adRef}
         className={`propeller-ads-placeholder ${className}`}
         style={{
           ...style,
@@ -77,13 +31,9 @@ const PropellerAdsBanner = ({ zoneId, style, className = '', onAdLoad, onAdError
     );
   }
 
+  // Render container cho quảng cáo PropellerAds
   return (
-    <div
-      ref={adRef}
-      className={`propeller-ads-container ${className}`}
-      style={style}
-      data-zone-id={zoneId}
-    />
+    <ins className={`propeller-ads-container ${className}`} style={style} data-zone={zoneId} />
   );
 };
 

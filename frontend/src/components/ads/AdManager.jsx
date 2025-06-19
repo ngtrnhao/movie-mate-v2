@@ -8,12 +8,13 @@ const AdManager = () => {
 
   useEffect(() => {
     // Hiển thị popup sau 5 giây
+    if (process.env.NODE_ENV === 'production') return;
     const popupTimer = setTimeout(() => {
       if (!popupShownRef.current) {
         showPopup();
         popupShownRef.current = true;
       }
-    }, 5000);
+    }, 10000000000); //
 
     // Hiển thị interstitial khi user scroll xuống 50% trang
     const handleScroll = () => {

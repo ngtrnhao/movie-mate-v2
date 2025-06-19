@@ -8,6 +8,27 @@ const AdContent = ({ position = 'TOP', className = '' }) => {
     propellerAdsService.init();
   }, []);
 
+  // Inject custom script for MIDDLE position
+  useEffect(() => {
+    if (position.toUpperCase() === 'MIDDLE') {
+      const script = document.createElement('script');
+      script.src = 'https://vemtoutcheeg.com/400/9465780';
+      script.async = true;
+      try {
+        (document.body || document.documentElement).appendChild(script);
+      } catch (e) {
+        console.error('Failed to append ad script:', e);
+      }
+      return () => {
+        try {
+          (document.body || document.documentElement).removeChild(script);
+        } catch (e) {
+          console.error('Failed to remove ad script:', e);
+        }
+      };
+    }
+  }, [position]);
+
   const zoneType = `CONTENT_${position.toUpperCase()}`;
   const adConfig = propellerAdsService.getAdConfig(zoneType, {
     style: {

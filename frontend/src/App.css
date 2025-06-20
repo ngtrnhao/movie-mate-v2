@@ -36,3 +36,16 @@
     transform: rotate(360deg);
   }
 }
+.admanager-fixed-bottom-right > div {
+  padding: 0px !important;
+  margin: 0px !important;
+}
+.admanager-fixed-bottom-right > div > div {
+  margin-bottom: 8px !important; /* hoặc giá trị bạn muốn */
+  border-radius: 8px !important; /* ví dụ */
+}
+.admanager-fixed-bottom-right img {
+  border-radius: 8px !important;
+  width: 60px !important;
+  height: 60px !important;
+}

@@ -11,21 +11,21 @@ function setVemAdShown() {
   localStorage.setItem('vemAdLastShown', Date.now().toString());
 }
 
-const AdManager = ({ cooldownMinutes = 10, zoneId = 9465780, domain = 'vemtoutcheeg.com' }) => {
+const AdManager = ({ cooldownMinutes = 10 }) => {
   useEffect(() => {
+    // TEMP: Bỏ kiểm tra cooldown để test ở local
     if (!canShowVemAd(cooldownMinutes)) return;
-    const s = document.createElement('script');
-    s.src = `https://${domain}/400/${zoneId}`;
-    try {
-      (document.body || document.documentElement).appendChild(s);
-    } catch (e) {
-      // fallback: do nothing
-    }
+    const script = document.createElement('script');
+    script.src = 'https://fpyf8.com/88/tag.min.js';
+    script.async = true;
+    script.setAttribute('data-zone', '152884');
+    script.setAttribute('data-cfasync', 'false');
+    document.body.appendChild(script);
     setVemAdShown();
     return () => {
-      if (s.parentNode) s.parentNode.removeChild(s);
+      if (script.parentNode) script.parentNode.removeChild(script);
     };
-  }, [zoneId, cooldownMinutes, domain]);
+  }, [cooldownMinutes]);
   return null;
 };
 

@@ -65,8 +65,19 @@ function App() {
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <QueryProvider>
             {/* Quản lý quảng cáo popup và interstitial */}
-            <AdManager />
-
+            <div
+              style={{
+                position: 'fixed',
+                bottom: '20px',
+                right: '20px',
+                zIndex: 9999,
+                pointerEvents: 'none',
+              }}
+            >
+              <div style={{ pointerEvents: 'auto' }}>
+                <AdManager />
+              </div>
+            </div>
             <Routes>
               {/* Landing Page Route */}
               <Route

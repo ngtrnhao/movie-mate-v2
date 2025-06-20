@@ -4,14 +4,14 @@ import {
   updateProfileAPI,
   uploadAvatarAPI,
   getUserStatsAPI,
-  followUserAPI,
-  getFollowersAPI,
-  getWatchedMoviesAPI,
+  // followUserAPI,
+  // getFollowersAPI,
+  // getWatchedMoviesAPI,
   getUserReviewsAPI,
   getUserRatingsAPI,
   getFavoriteGenresAPI,
-  updateProfileSettingsAPI,
-  deleteAccountAPI,
+  // updateProfileSettingsAPI,
+  // deleteAccountAPI,
 } from '../../api/profileService';
 
 //Async Thunk
@@ -41,23 +41,23 @@ export const fetchUserStats = createAsyncThunk('profile/fetchUserStats', async u
   return response;
 });
 
-export const fetchFollowers = createAsyncThunk('profile/fetchFollowers', async userId => {
-  const response = await followUserAPI(userId);
-  return response;
-});
+// export const fetchFollowers = createAsyncThunk('profile/fetchFollowers', async userId => {
+//   const response = await followUserAPI(userId);
+//   return response;
+// });
 
-export const fetchFollowing = createAsyncThunk('profile/fetchFollowing', async userId => {
-  const response = await getFollowersAPI(userId);
-  return response;
-});
+// export const fetchFollowing = createAsyncThunk('profile/fetchFollowing', async userId => {
+//   const response = await getFollowersAPI(userId);
+//   return response;
+// });
 
-export const fetchWatchedMovies = createAsyncThunk(
-  'profile/fetchWatchedMovies',
-  async (userId, page = 1) => {
-    const response = await getWatchedMoviesAPI(userId, page);
-    return response;
-  }
-);
+// export const fetchWatchedMovies = createAsyncThunk(
+//   'profile/fetchWatchedMovies',
+//   async (userId, page = 1) => {
+//     const response = await getWatchedMoviesAPI(userId, page);
+//     return response;
+//   }
+// );
 
 export const fetchUserReviews = createAsyncThunk(
   'profile/fetchUserReviews',
@@ -83,18 +83,18 @@ export const fetchFavoriteGenres = createAsyncThunk(
   }
 );
 
-export const updateProfileSettings = createAsyncThunk(
-  'profile/updateProfileSettings',
-  async (userId, settings) => {
-    const response = await updateProfileSettingsAPI(userId, settings);
-    return response;
-  }
-);
+// export const updateProfileSettings = createAsyncThunk(
+//   'profile/updateProfileSettings',
+//   async (userId, settings) => {
+//     const response = await updateProfileSettingsAPI(userId, settings);
+//     return response;
+//   }
+// );
 
-export const deleteAccount = createAsyncThunk('profile/deleteAccount', async userId => {
-  const response = await deleteAccountAPI(userId);
-  return response;
-});
+// export const deleteAccount = createAsyncThunk('profile/deleteAccount', async userId => {
+//   const response = await deleteAccountAPI(userId);
+//   return response;
+// });
 
 const initialState = {
   data: null,
@@ -216,26 +216,26 @@ const profileSlice = createSlice({
       })
 
       //Fetch Watched Movies
-      .addCase(fetchWatchedMovies.pending, state => {
-        state.loading.watchedMovies = true;
-        state.error.watchedMovies = null;
-      })
-      .addCase(fetchWatchedMovies.fulfilled, (state, action) => {
-        state.loading.watchedMovies = false;
-        state.watchedMovies = {
-          items: [...state.watchedMovies.items, ...action.payload.results],
-          total: action.payload.count,
-          currentPage: action.payload.current_page,
-          hasMore: action.payload.next !== null,
-        };
-      })
-      .addCase(fetchWatchedMovies.rejected, (state, action) => {
-        state.loading.watchedMovies = false;
-        state.error.watchedMovies = action.error.message;
-      })
+      // .addCase(fetchWatchedMovies.pending, state => {
+      //   state.loading.watchedMovies = true;
+      //   state.error.watchedMovies = null;
+      // })
+      // .addCase(fetchWatchedMovies.fulfilled, (state, action) => {
+      //   state.loading.watchedMovies = false;
+      //   state.watchedMovies = {
+      //     items: [...state.watchedMovies.items, ...action.payload.results],
+      //     total: action.payload.count,
+      //     currentPage: action.payload.current_page,
+      //     hasMore: action.payload.next !== null,
+      //   };
+      // })
+      // .addCase(fetchWatchedMovies.rejected, (state, action) => {
+      //   state.loading.watchedMovies = false;
+      //   state.error.watchedMovies = action.error.message;
+      // })
       //Fetch User Reviews
       .addCase(fetchUserReviews.pending, state => {
-        state.loadingReviews = true;
+        state.loading.reviews = true;
         state.error.reviews = null;
       })
       .addCase(fetchUserReviews.fulfilled, (state, action) => {
@@ -281,28 +281,28 @@ const profileSlice = createSlice({
       .addCase(fetchFavoriteGenres.rejected, (state, action) => {
         state.loading.genres = false;
         state.error.genres = action.error.message;
-      })
-      //Update Profile Settings
-      .addCase(updateProfileSettings.pending, state => {
-        state.loading.settings = true;
-        state.error.settings = null;
-      })
-      .addCase(updateProfileSettings.fulfilled, (state, action) => {
-        state.loading.settings = false;
-        state.settings = action.payload;
-      })
-      .addCase(updateProfileSettings.rejected, (state, action) => {
-        state.loading.settings = false;
-        state.error.settings = action.error.message;
-      })
-      //Delete Account
-      .addCase(deleteAccount.pending, state => {
-        state.loading.profile = true;
-        state.error.profile = null;
-      })
-      .addCase(deleteAccount.fulfilled, state => {
-        state.loading.profile = false;
       });
+    //Update Profile Settings
+    // .addCase(updateProfileSettings.pending, state => {
+    //   state.loading.settings = true;
+    //   state.error.settings = null;
+    // })
+    // .addCase(updateProfileSettings.fulfilled, (state, action) => {
+    //   state.loading.settings = false;
+    //   state.settings = action.payload;
+    // })
+    // .addCase(updateProfileSettings.rejected, (state, action) => {
+    //   state.loading.settings = false;
+    //   state.error.settings = action.error.message;
+    // })
+    // //Delete Account
+    // .addCase(deleteAccount.pending, state => {
+    //   state.loading.profile = true;
+    //   state.error.profile = null;
+    // })
+    // .addCase(deleteAccount.fulfilled, state => {
+    //   state.loading.profile = false;
+    // });
   },
 });
 

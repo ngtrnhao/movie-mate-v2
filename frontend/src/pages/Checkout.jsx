@@ -56,9 +56,14 @@ const CheckoutPage = () => {
     }
 
     const interval = setInterval(async () => {
-      console.log('Polling for profile updates...');
+      // Ensure we have a valid user ID before polling
+      if (!user?.id) {
+        console.warn('Polling skipped: user ID not available.');
+        return;
+      }
+      console.log(`Polling for profile updates for user ${user.id}...`);
       // Assuming fetchProfile returns the updated user data in its payload
-      const action = await dispatch(fetchProfile());
+      const action = await dispatch(fetchProfile(user.id));
       const updatedUser = action.payload.user;
 
       if (

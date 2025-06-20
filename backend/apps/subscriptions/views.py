@@ -59,8 +59,8 @@ class PayPalWebhookView(APIView):
             }
         )
 
-        if status_paypal == 'COMPLETED':
-            logger.info("Status is COMPLETED. Entering user_type update logic...")
+        if status_paypal.upper() in ['COMPLETED', 'APPROVED']:
+            logger.info(f"Status is '{status_paypal}'. Entering user_type update logic...")
             plan_code = plan.lower()
             logger.info(f"Plan converted to lowercase: '{plan_code}'")
 
@@ -85,7 +85,7 @@ class PayPalWebhookView(APIView):
             else:
                 logger.warning(f"No plan matched for '{plan_code}'. User_type not updated.")
         else:
-            logger.warning(f"Status is '{status_paypal}', not 'COMPLETED'. Skipping user_type update.")
+            logger.warning(f"Status is '{status_paypal}', not one of ['COMPLETED', 'APPROVED']. Skipping user_type update.")
 
         logger.info("====== PAYPAL WEBHOOK PROCESSING FINISHED ======")
         return Response({'status': 'ok'})

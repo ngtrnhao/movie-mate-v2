@@ -2,7 +2,7 @@ import axiosInstance from './axios';
 
 export const getProfileAPI = async userId => {
   try {
-    const response = await axiosInstance.get(`/user/profile/${userId}`);
+    const response = await axiosInstance.get(`/api/auth/profile/${userId}/`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { error: 'Failed to fetch profile' };
@@ -12,7 +12,7 @@ export const getProfileAPI = async userId => {
 //Update profile
 export const updateProfileAPI = async (userId, userData) => {
   try {
-    const response = await axiosInstance.put(`/users/profile/${userId}`, userData);
+    const response = await axiosInstance.put(`/api/auth/profile/${userId}/`, userData);
     return response.data;
   } catch (error) {
     if (error.response?.data) {
@@ -36,7 +36,7 @@ export const updateProfileAPI = async (userId, userData) => {
 //Upload profile avatar
 export const uploadAvatarAPI = async (userId, formData) => {
   try {
-    const response = await axiosInstance.post(`/users/profile/${userId}/avatar/`, formData, {
+    const response = await axiosInstance.post(`/api/auth/profile/${userId}/avatar/`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -50,7 +50,7 @@ export const uploadAvatarAPI = async (userId, formData) => {
 //Statistics API
 export const getUserStatsAPI = async userId => {
   try {
-    const response = await axiosInstance.get(`/users/profile/${userId}/stats/`);
+    const response = await axiosInstance.get(`/api/auth/profile/${userId}/stats/`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { error: 'Failed to fetch user statistics' };
@@ -58,41 +58,41 @@ export const getUserStatsAPI = async userId => {
 };
 
 //Follow/Unfollow API
-export const followUserAPI = async (userId, followData) => {
-  try {
-    const response = await axiosInstance.post(`/users/follow/${userId}`, followData);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to follow/unfollow user' };
-  }
-};
+// export const followUserAPI = async (userId, followData) => {
+//   try {
+//     const response = await axiosInstance.post(`/users/follow/${userId}`, followData);
+//     return response.data;
+//   } catch (error) {
+//     throw error.response?.data || { error: 'Failed to follow/unfollow user' };
+//   }
+// };
 
-//Get followers/following API
-export const getFollowersAPI = async userId => {
-  try {
-    const response = await axiosInstance.get(`/users/followers/${userId}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to fetch followers/following' };
-  }
-};
+// //Get followers/following API
+// export const getFollowersAPI = async userId => {
+//   try {
+//     const response = await axiosInstance.get(`/users/followers/${userId}`);
+//     return response.data;
+//   } catch (error) {
+//     throw error.response?.data || { error: 'Failed to fetch followers/following' };
+//   }
+// };
 
-//Get watchlist history API
-export const getWatchedMoviesAPI = async (userId, page = 1) => {
-  try {
-    const response = await axiosInstance.get(`/users/watched/${userId}/watched-movies/`, {
-      params: { page },
-    });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to fetch watched movies' };
-  }
-};
+// //Get watchlist history API
+// export const getWatchedMoviesAPI = async (userId, page = 1) => {
+//   try {
+//     const response = await axiosInstance.get(`/users/watched/${userId}/watched-movies/`, {
+//       params: { page },
+//     });
+//     return response.data;
+//   } catch (error) {
+//     throw error.response?.data || { error: 'Failed to fetch watched movies' };
+//   }
+// };
 
 //Get review history API
 export const getUserReviewsAPI = async (userId, page = 1) => {
   try {
-    const response = await axiosInstance.get(`/users/profile/${userId}/reviews/`, {
+    const response = await axiosInstance.get(`/api/auth/profile/${userId}/reviews/`, {
       params: { page },
     });
     return response.data;
@@ -104,7 +104,7 @@ export const getUserReviewsAPI = async (userId, page = 1) => {
 //Get rating
 export const getUserRatingsAPI = async (userId, page = 1) => {
   try {
-    const response = await axiosInstance.get(`/users/profile/${userId}/ratings/`, {
+    const response = await axiosInstance.get(`/api/auth/profile/${userId}/ratings/`, {
       params: { page },
     });
     return response.data;
@@ -116,7 +116,7 @@ export const getUserRatingsAPI = async (userId, page = 1) => {
 //Get user favorite genre
 export const getFavoriteGenresAPI = async (userId, page = 1) => {
   try {
-    const response = await axiosInstance.get(`users/profile/${userId}/favorite-genres/`, {
+    const response = await axiosInstance.get(`/api/auth/profile/${userId}/favorite-genres/`, {
       params: { page },
     });
     return response.data;
@@ -124,23 +124,22 @@ export const getFavoriteGenresAPI = async (userId, page = 1) => {
     throw error.response?.data || { error: 'Faileed to fetch favorite genres' };
   }
 };
+// //update profile settings
+// export const updateProfileSettingsAPI = async (userId, settings) => {
+//   try {
+//     const response = await axiosInstance.put(`/users/profile/${userId}/settings/`, settings);
+//     return response.data;
+//   } catch (error) {
+//     throw error.response?.data || { error: 'Failed to update profile settings' };
+//   }
+// };
 
-//update profile settings
-export const updateProfileSettingsAPI = async (userId, settings) => {
-  try {
-    const response = await axiosInstance.put(`/users/profile/${userId}/settings/`, settings);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to update profile settings' };
-  }
-};
-
-//delete Account
-export const deleteAccountAPI = async userId => {
-  try {
-    const response = await axiosInstance.delete(`/users/profile/${userId}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { error: 'Failed to delete account' };
-  }
-};
+// //delete Account
+// export const deleteAccountAPI = async userId => {
+//   try {
+//     const response = await axiosInstance.delete(`/users/profile/${userId}`);
+//     return response.data;
+//   } catch (error) {
+//     throw error.response?.data || { error: 'Failed to delete account' };
+//   }
+// };

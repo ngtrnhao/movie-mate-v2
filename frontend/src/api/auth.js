@@ -1,5 +1,17 @@
 import axiosInstance from './axios';
 
+// Google Login API
+export const googleLoginAPI = async accessToken => {
+  try {
+    const response = await axiosInstance.post('/api/auth/google/', {
+      access_token: accessToken,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Google login failed' };
+  }
+};
+
 // Login API
 export const loginAPI = async (email, password) => {
   try {

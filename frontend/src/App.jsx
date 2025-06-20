@@ -23,10 +23,12 @@ import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { rehydrateAuth } from './store/slices/authSlice';
 import AdManager from './components/ads/AdManager';
+import PricingPage from './pages/Pricing';
+import CheckoutPage from './pages/Checkout';
 
 // Global error handler để chặn lỗi Script error từ quảng cáo ngoài
 if (typeof window !== 'undefined') {
-  window.onerror = function (message, source, lineno, colno, error) {
+  window.onerror = function (message, source) {
     if (message === 'Script error.') {
       // Lỗi từ script quảng cáo ngoài, chỉ log warning
       console.warn('Script error from third-party script:', source);
@@ -110,6 +112,8 @@ function App() {
                         <Route path="/movies/:movieId" element={<MovieDetails />} />
                         <Route path="/recommendation" element={<Recommendation />} />
                         <Route path="/verify-email" element={<VerifyEmail />} />
+                        <Route path="/pricing" element={<PricingPage />} />
+                        <Route path="/checkout" element={<CheckoutPage />} />
                         <Route
                           path="/profile/:userId"
                           element={

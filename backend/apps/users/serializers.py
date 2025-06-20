@@ -107,9 +107,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
-            'location', 'is_email_verified', 'created_at', 'updated_at'
+            'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type'
         ]
-        read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at']
+        read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at', 'user_type']
 
 class UserStatsSerializer(serializers.Serializer):
     watched_movies_count = serializers.IntegerField()
@@ -174,7 +174,7 @@ class GoogleAuthSerializer(serializers.Serializer):
                 last_name=user_data.get('family_name', ''),
                 avatar_url=user_data.get('picture', ''),
                 is_google_account=True,
-                is_email_verified=True  
+                is_email_verified=True
             )
 
         return {

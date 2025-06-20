@@ -84,7 +84,7 @@ const LandingPage = () => {
   const { data: categories, isLoading: catLoading, error: catError } = useCategories();
 
   // Lấy ngôn ngữ hiện tại
-  const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
+  // const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
   // Memo hóa dữ liệu phim theo tab
   const movies = useMemo(() => {
@@ -970,6 +970,7 @@ const LandingPage = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="mt-4  text-lg text-red-500 hover:text-red-400"
+              onClick={() => navigate('/pricing')}
             >
               {t('chooseYourPlan.compareFeatures')}
             </motion.button>

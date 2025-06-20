@@ -17,7 +17,17 @@ class User(AbstractUser):
     is_google_account = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    USER_TYPE_CHOICES = [
+        ('member','Member'),
+        ('prenium_basic','Prenium Basic'),
+        ('prenium_standard','Prenium Standard'),
+        ('prenium_vip','Prenium VIP'),
+    ]
+    user_type = models.CharField(
+        max_length=20,
+        choices=USER_TYPE_CHOICES,
+        default='member'
+    )
     # Google OAuth2 fields
     # google_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
     # google_access_token = models.CharField(max_length=500, blank=True, null=True)

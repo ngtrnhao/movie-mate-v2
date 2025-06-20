@@ -86,40 +86,43 @@
   "plans": {
     "basic": {
       "name": "Basic",
-      "description": "Perfect for casual movie fans",
+      "price": "4.99",
+      "period": "mo",
+      "description": "Enhance your movie discovery experience.",
       "features": [
-        "Explore a vast and diverse movie library",
-        "Limited personalized recommendations",
-        "Create a basic watchlist",
-        "Read and write reviews"
-      ],
-      "cta": "Get Started"
-    },
-    "premium": {
-      "name": "Premium",
-      "description": "Ideal for movie enthusiasts",
-      "features": [
-        "Unlimited personalized recommendations",
-        "Advanced movie discovery filters",
-        "Unlimited watchlists",
-        "Priority access to new features",
         "Ad-free experience",
-        "Community badges & stats"
+        "Save up to 200 favorite movies",
+        "Create up to 5 personal lists",
+        "Explainable Recommendations"
       ],
-      "cta": "Go Premium",
-      "badge": "Most Popular"
+      "cta": "Choose Basic"
     },
-    "family": {
-      "name": "Family",
-      "description": "Great for the whole family",
+    "standard": {
+      "name": "Standard",
+      "price": "9.99",
+      "period": "mo",
+      "description": "For the social movie lover and data enthusiast.",
+      "badge": "Most Popular",
       "features": [
-        "Everything in Premium",
-        "Up to 5 user profiles",
-        "Parental controls for watchlists",
-        "Share recommendations with family",
-        "Collaborative family watchlist"
+        "All features from Basic",
+        "Enhanced Recommendation (E-MRS)",
+        "Compare taste with friends",
+        "Priority support"
       ],
-      "cta": "Start Family Plan"
+      "cta": "Choose Standard"
+    },
+    "vip": {
+      "name": "VIP",
+      "price": "19.99",
+      "period": "mo",
+      "description": "The ultimate experience for the dedicated cinephile.",
+      "features": [
+        "All features from Standard",
+        "Unlimited favorites & lists",
+        "Customize the recommendation algorithm",
+        "Early access to new features"
+      ],
+      "cta": "Go VIP"
     }
   },
   "testimonials": {
@@ -165,6 +168,79 @@
       "description": "Subscribe to our newsletter for the latest updates and movie recommendations.",
       "placeholder": "Enter your email",
       "button": "Subscribe"
+    }
+  },
+  "checkout": {
+    "title": "Checkout",
+    "subtitle": "Pay securely with PayPal",
+    "user": "User",
+    "invalidPlan": "Invalid plan selected.",
+    "success": "Payment completed by",
+    "payWithPaypal": "Pay securely with PayPal"
+  },
+  "pricing": {
+    "title": "Find the Perfect Plan",
+    "subtitle": "Unlock powerful features to supercharge your movie journey. Free 14-day trial on all plans.",
+    "compareTitle": "Compare All Features",
+    "compareSubtitle": "A detailed look at what each plan offers.",
+    "comparison": {
+      "featureCol": "Feature",
+      "columns": {
+        "guest": "Guest",
+        "member": "Member",
+        "basic": "Basic",
+        "standard": "Standard",
+        "vip": "VIP"
+      },
+      "categories": {
+        "general": {
+          "title": "General Features",
+          "desc": "All the essentials for your movie journey."
+        },
+        "recommendation": {
+          "title": "Recommendation Features",
+          "desc": "Personalized and advanced recommendation tools."
+        }
+      },
+      "features": {
+        "advancedDiscovery": "Advanced movie discovery",
+        "saveFavorites": "Save favorite movies",
+        "createLists": "Create personal lists",
+        "tagNotes": "Tag & private notes",
+        "rateReview": "Rate & review movies",
+        "editReview": "Edit/Delete reviews",
+        "voteBadge": "Vote on reviews, earn badges",
+        "analytics": "Personal taste analytics",
+        "compareTaste": "Compare taste with friends",
+        "exportData": "Export personal data (CSV/PDF)",
+        "themesProfile": "Custom themes & profile",
+        "community": "Join community groups & events",
+        "calendarSync": "Calendar sync for reminders",
+        "adFree": "Ad-free experience",
+        "prioritySupport": "Priority support",
+        "earlyAccess": "Early access to beta features",
+        "giftPremium": "Gift premium to friends",
+        "partnerOffers": "Partner offers & discounts",
+        "demographicFiltering": "Demographic Filtering",
+        "collaborativeFiltering": "Collaborative Filtering",
+        "emrs": "E-MRS (Enhanced Recommendation)",
+        "moodBased": "Mood/Event/Trend based",
+        "matchFriends": "\"Match with Friends\" suggestions",
+        "discoverDaily": "\"Discover Daily\" suggestions",
+        "explainableRec": "Explainable Recommendations",
+        "algoTuning": "Recommendation algorithm tuning",
+        "tasteBehavior": "Taste & behavior analytics"
+      },
+      "values": {
+        "unlimited": "Unlimited",
+        "advanced": "Advanced",
+        "no": "❌",
+        "yes": "✔️",
+        "moods": "{{count}} moods",
+        "movies": "{{count}} movies",
+        "lists": "{{count}} lists",
+        "perDay": "{{count}}/day"
+      }
     }
   }
 }

@@ -2,7 +2,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { googleLogin } from '../../../store/slices/authSlice';
-import authService from '../../../services/auth.service';
+import { googleLoginAPI } from '../../../api/auth';
 
 const GoogleLogin = () => {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ const GoogleLogin = () => {
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async response => {
       try {
-        const userData = await authService.googleLogin(response.access_token);
+        const userData = await googleLoginAPI(response.access_token);
         dispatch(googleLogin(userData));
         navigate('/home');
       } catch (error) {

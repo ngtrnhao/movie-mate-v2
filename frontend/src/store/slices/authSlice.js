@@ -23,6 +23,7 @@ const initialState = {
     isEmailVerified: false,
     createdAt: null,
     updatedAt: null,
+    user_type: null,
   },
   isAuthenticated: false,
   token: null,
@@ -81,6 +82,7 @@ export const register = createAsyncThunk('auth/register', async (userData, { rej
         location: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        user_type: 'member',
       },
     };
   } catch (error) {
@@ -189,6 +191,7 @@ const authSlice = createSlice({
         isEmailVerified: false,
         createdAt: null,
         updatedAt: null,
+        user_type: null,
       };
       state.isAuthenticated = false;
       state.token = null;
@@ -222,7 +225,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.token = token;
         state.refreshToken = refreshToken;
-        state.user = user;
+        state.user = { ...initialState.user, ...user };
       }
     },
   },

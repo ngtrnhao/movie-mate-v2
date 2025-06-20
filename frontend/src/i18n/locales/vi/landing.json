@@ -85,40 +85,43 @@
   "plans": {
     "basic": {
       "name": "Cơ Bản",
-      "description": "Phù hợp cho người xem phim giải trí nhẹ nhàng",
+      "price": "4.99",
+      "period": "tháng",
+      "description": "Trải nghiệm khám phá phim nâng cao.",
       "features": [
-        "Khám phá thư viện phim đa dạng và phong phú",
-        "Đề xuất cá nhân hóa giới hạn",
-        "Tạo danh sách xem cơ bản",
-        "Đọc và viết đánh giá phim"
-      ],
-      "cta": "Bắt Đầu"
-    },
-    "premium": {
-      "name": "Cao Cấp",
-      "description": "Lý tưởng cho người đam mê điện ảnh",
-      "features": [
-        "Đề xuất cá nhân hóa không giới hạn",
-        "Bộ lọc khám phá phim nâng cao",
-        "Tạo danh sách xem không giới hạn",
-        "Ưu tiên trải nghiệm tính năng mới",
         "Không quảng cáo",
-        "Huy hiệu & thống kê cộng đồng"
+        "Lưu tối đa 200 phim yêu thích",
+        "Tạo tối đa 5 danh sách cá nhân",
+        "Đề xuất phim có giải thích"
       ],
-      "cta": "Nâng Cấp Ngay",
-      "badge": "Phổ Biến Nhất"
+      "cta": "Chọn gói Cơ Bản"
     },
-    "family": {
-      "name": "Gia Đình",
-      "description": "Tuyệt vời cho cả gia đình",
+    "standard": {
+      "name": "Tiêu Chuẩn",
+      "price": "9.99",
+      "period": "tháng",
+      "description": "Dành cho người yêu phim và thích kết nối cộng đồng.",
+      "badge": "Phổ Biến Nhất",
       "features": [
-        "Bao gồm tất cả tính năng của Cao Cấp",
-        "Tối đa 5 hồ sơ người dùng",
-        "Kiểm soát danh sách xem cho trẻ em",
-        "Chia sẻ đề xuất với gia đình",
-        "Danh sách xem gia đình cùng hợp tác"
+        "Bao gồm tất cả tính năng của Cơ Bản",
+        "Đề xuất nâng cao (E-MRS)",
+        "So sánh gu phim với bạn bè",
+        "Hỗ trợ ưu tiên"
       ],
-      "cta": "Bắt Đầu Gói Gia Đình"
+      "cta": "Chọn gói Tiêu Chuẩn"
+    },
+    "vip": {
+      "name": "VIP",
+      "price": "19.99",
+      "period": "tháng",
+      "description": "Trải nghiệm tối thượng cho người đam mê điện ảnh.",
+      "features": [
+        "Bao gồm tất cả tính năng của Tiêu Chuẩn",
+        "Không giới hạn phim & danh sách yêu thích",
+        "Tùy chỉnh thuật toán đề xuất",
+        "Truy cập sớm tính năng mới"
+      ],
+      "cta": "Đăng ký VIP"
     }
   },
   "testimonials": {
@@ -164,6 +167,79 @@
       "description": "Đăng ký nhận bản tin để cập nhật mới nhất và đề xuất phim.",
       "placeholder": "Nhập email của bạn",
       "button": "Đăng Ký"
+    }
+  },
+  "checkout": {
+    "title": "Thanh Toán",
+    "subtitle": "Thanh toán để trải nghiệm tối đa các tính năng của MovieMate.",
+    "user": "Người Dùng",
+    "invalidPlan": "Gói phim không hợp lệ.",
+    "success": "Thanh toán thành công bởi",
+    "payWithPaypal": "Thanh toán bằng PayPal"
+  },
+  "pricing": {
+    "title": "Chọn gói phù hợp với bạn",
+    "subtitle": "Mở khóa các tính năng mạnh mẽ để nâng tầm trải nghiệm phim của bạn. Dùng thử miễn phí 14 ngày cho mọi gói.",
+    "compareTitle": "So sánh chi tiết các gói",
+    "compareSubtitle": "Xem chi tiết tính năng của từng gói thành viên.",
+    "comparison": {
+      "featureCol": "Tính năng",
+      "columns": {
+        "guest": "Khách",
+        "member": "Thành viên",
+        "basic": "Cơ Bản",
+        "standard": "Tiêu Chuẩn",
+        "vip": "VIP"
+      },
+      "categories": {
+        "general": {
+          "title": "Tính năng cơ bản",
+          "desc": "Những tiện ích thiết yếu cho trải nghiệm phim của bạn."
+        },
+        "recommendation": {
+          "title": "Tính năng đề xuất",
+          "desc": "Công cụ đề xuất cá nhân hóa và nâng cao."
+        }
+      },
+      "features": {
+        "advancedDiscovery": "Khám phá phim nâng cao",
+        "saveFavorites": "Lưu phim yêu thích",
+        "createLists": "Tạo danh sách cá nhân",
+        "tagNotes": "Gắn tag & ghi chú cá nhân",
+        "rateReview": "Đánh giá & review phim",
+        "editReview": "Chỉnh sửa/Xóa review",
+        "voteBadge": "Bình chọn review, huy hiệu",
+        "analytics": "Thống kê sở thích cá nhân",
+        "compareTaste": "So sánh gu phim với bạn bè",
+        "exportData": "Xuất dữ liệu cá nhân (CSV/PDF)",
+        "themesProfile": "Đổi theme & cá nhân hóa profile",
+        "community": "Tham gia group cộng đồng, sự kiện",
+        "calendarSync": "Đồng bộ lịch nhắc nhở phim",
+        "adFree": "Không quảng cáo",
+        "prioritySupport": "Ưu tiên hỗ trợ",
+        "earlyAccess": "Truy cập sớm tính năng mới",
+        "giftPremium": "Tặng gói premium cho bạn bè",
+        "partnerOffers": "Ưu đãi từ đối tác",
+        "demographicFiltering": "Lọc đề xuất theo nhân khẩu học",
+        "collaborativeFiltering": "Đề xuất cộng tác",
+        "emrs": "E-MRS (Đề xuất nâng cao)",
+        "moodBased": "Đề xuất theo mood/sự kiện/trend",
+        "matchFriends": "Đề xuất hợp gu bạn bè",
+        "discoverDaily": "Khám phá mới mỗi ngày",
+        "explainableRec": "Đề xuất có giải thích",
+        "algoTuning": "Tùy chỉnh thuật toán đề xuất",
+        "tasteBehavior": "Thống kê, biểu đồ gu phim, hành vi"
+      },
+      "values": {
+        "unlimited": "Không giới hạn",
+        "advanced": "Nâng cao",
+        "no": "❌",
+        "yes": "✔️",
+        "moods": "{{count}} mood",
+        "movies": "{{count}} phim",
+        "lists": "{{count}} danh sách",
+        "perDay": "{{count}}/ngày"
+      }
     }
   }
 }

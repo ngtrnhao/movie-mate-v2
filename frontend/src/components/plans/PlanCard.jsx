@@ -1,15 +1,15 @@
 import { CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const PlanCard = ({ plan }) => (
+const PlanCard = ({ plan, icon, onSelect }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
-    whileHover={{ scale: 1.02 }}
-    className={`group relative flex h-full min-w-[300px] flex-1 flex-col rounded-xl bg-gray-800/50 p-8 text-white shadow-lg transition-all duration-300 hover:bg-gray-800/70 ${
+    whileHover={{ scale: 1.03 }}
+    className={`group relative flex h-full min-w-[300px] flex-1 flex-col rounded-3xl bg-gray-800/60 p-8 text-white shadow-2xl transition-all duration-300 hover:bg-gray-800/80 ${
       plan.highlighted
-        ? 'z-10 border-2 border-red-500 hover:shadow-red-500/20'
+        ? 'z-10 border-4 border-red-500 hover:shadow-red-500/30'
         : 'border border-gray-700 hover:border-gray-600'
     }`}
   >
@@ -20,20 +20,24 @@ const PlanCard = ({ plan }) => (
       <motion.span
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-red-500 px-4 py-1 text-sm font-bold text-white shadow-lg"
+        className="absolute -top-6 left-1/2 -translate-x-1/2 rounded-full border-2 border-white bg-gradient-to-r from-red-500 via-yellow-400 to-red-500 px-6 py-2 text-base font-bold text-white shadow-xl"
+        style={{ letterSpacing: 1 }}
       >
         {plan.badge}
       </motion.span>
     )}
 
+    {/* Plan Icon */}
+    {icon && <div className="mb-2 flex justify-center text-4xl drop-shadow-lg">{icon}</div>}
+
     {/* Plan Header */}
     <div className="relative mb-6">
       <h2 className="mb-2 text-2xl font-bold tracking-tight">{plan.name}</h2>
-      <div className="flex items-baseline">
+      <div className="flex items-baseline justify-center">
         <span className="text-4xl font-extrabold">${plan.price}</span>
         <span className="ml-2 text-base font-normal text-gray-400">/{plan.period}</span>
       </div>
-      <p className="mt-2 text-sm text-gray-400">{plan.description}</p>
+      <p className="mt-2 text-center text-sm text-gray-400">{plan.description}</p>
     </div>
 
     {/* Features List */}
@@ -58,11 +62,12 @@ const PlanCard = ({ plan }) => (
     <motion.button
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className={`w-full rounded-lg py-3 text-sm font-semibold transition-colors duration-300 ${
+      className={`mt-auto w-full rounded-xl py-3 text-lg font-semibold shadow-lg transition-colors duration-300 ${
         plan.highlighted
           ? 'bg-white text-red-600 hover:bg-gray-100'
           : 'bg-gray-700 text-white hover:bg-red-600'
       }`}
+      onClick={onSelect}
     >
       {plan.cta}
     </motion.button>

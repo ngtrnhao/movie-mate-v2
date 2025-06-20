@@ -38,6 +38,7 @@ import ReviewList from './components/ReviewList';
 import RatingList from './components/RatingList';
 import StatsCard from './components/StatsCard';
 import GenreList from './components/GenreList';
+import { format } from 'date-fns';
 
 const ProfileContainer = styled(Container)(({ theme }) => ({
   paddingTop: theme.spacing(4),
@@ -138,6 +139,26 @@ const Profile = () => {
           <Typography variant="body1" color="textSecondary" paragraph>
             {profile.bio || 'No bio available'}
           </Typography>
+          {/* Subscription info */}
+          {profile.user_type && profile.subscription_end_date && (
+            <Box mt={2} p={2} bgcolor="#222b" borderRadius={2}>
+              <Typography variant="subtitle1" color="primary">
+                Gói hiện tại: <b>{profile.user_type.replace('prenium_', '').toUpperCase()}</b>
+              </Typography>
+              <Typography variant="body2">
+                Hiệu lực từ:{' '}
+                {profile.subscription_start_date
+                  ? format(new Date(profile.subscription_start_date), 'dd/MM/yyyy')
+                  : '--'}
+              </Typography>
+              <Typography variant="body2">
+                Đến:{' '}
+                {profile.subscription_end_date
+                  ? format(new Date(profile.subscription_end_date), 'dd/MM/yyyy')
+                  : '--'}
+              </Typography>
+            </Box>
+          )}
           <Box display="flex" gap={2}>
             <Button variant="contained" color="primary">
               Follow

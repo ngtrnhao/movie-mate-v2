@@ -3,6 +3,8 @@ import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { useTranslation } from '../i18n/hooks/useTranslation';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../store/selectors/authSelectors';
+import { useState } from 'react';
+import { format, addMonths } from 'date-fns';
 
 const getInitials = user => {
   if (user.firstName || user.lastName) {
@@ -13,15 +15,32 @@ const getInitials = user => {
   return 'U';
 };
 
+const DURATION_OPTIONS = [
+  { value: 1, label: '1 tháng', discount: 0 },
+  { value: 3, label: '3 tháng (giảm 10%)', discount: 0.1 },
+  { value: 12, label: '12 tháng (giảm 20%)', discount: 0.2 },
+];
+
 const CheckoutPage = () => {
   const { t } = useTranslation('landing');
   const [searchParams] = useSearchParams();
   const planId = searchParams.get('plan');
-  // Get plan from i18n (like PlanList)
   let plan = t(`plans.${planId.replace('prenium_', '')}`, { returnObjects: true });
-  // Fallback if not found
   if (!plan || typeof plan !== 'object' || !plan.name) plan = null;
   const user = useSelector(selectUser);
+
+  // Chọn thời gian đăng ký
+  const [duration, setDuration] = useState(1);
+  const [paymentInfo, setPaymentInfo] = useState(null); // Lưu thông tin sau khi thanh toán thành công
+
+  // Tính giá tiền theo thời gian và discount
+  const basePrice = Number(plan?.price || 0);
+  const discount = DURATION_OPTIONS.find(opt => opt.value === duration)?.discount || 0;
+  const totalPrice = (basePrice * duration * (1 - discount)).toFixed(2);
+
+  // Tính ngày bắt đầu và kết thúc dự kiến (local, chờ backend xác nhận thực tế)
+  const now = new Date();
+  const expectedEnd = addMonths(now, duration);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] text-white py-10 px-2">
@@ -35,8 +54,24 @@ const CheckoutPage = () => {
             <div className="rounded-xl bg-gray-800/90 p-6 shadow-lg mb-4">
               <div className="flex items-center gap-4 mb-2">
                 <span className="text-2xl font-bold text-yellow-400">{plan.name}</span>
-                <span className="ml-auto text-3xl font-extrabold">${plan.price}</span>
-                <span className="text-base text-gray-400">/{t(`plans.period`, plan.period)}</span>
+                <span className="ml-auto text-3xl font-extrabold">${totalPrice}</span>
+                <span className="text-base text-gray-400">
+                  /{duration} {duration > 1 ? 'tháng' : 'tháng'}
+                </span>
+              </div>
+              <div className="mb-3">
+                <label className="block mb-1 font-semibold">Chọn thời gian đăng ký:</label>
+                <select
+                  className="w-full rounded-lg bg-gray-700 text-white p-2"
+                  value={duration}
+                  onChange={e => setDuration(Number(e.target.value))}
+                >
+                  {DURATION_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <p className="text-gray-300 mb-3">{plan.description}</p>
               <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
@@ -70,6 +105,14 @@ const CheckoutPage = () => {
               <div className="text-xs text-gray-400">{user?.email || ''}</div>
             </div>
           </div>
+          {/* Hiển thị thời gian hiệu lực dự kiến sau thanh toán */}
+          {paymentInfo && (
+            <div className="mt-6 bg-green-800/80 rounded-lg p-4 text-center">
+              <div className="font-semibold mb-1">Đăng ký thành công!</div>
+              <div>Hiệu lực từ: {format(now, 'dd/MM/yyyy')}</div>
+              <div>Đến: {format(expectedEnd, 'dd/MM/yyyy')}</div>
+            </div>
+          )}
         </div>
         {/* PayPal Payment Section */}
         <div className="flex-1 flex flex-col items-center justify-center">
@@ -88,15 +131,18 @@ const CheckoutPage = () => {
                       purchase_units: [
                         {
                           amount: {
-                            value: plan.price.toString(),
+                            value: totalPrice,
                           },
                           description: plan.name,
+                          custom_id: user.id?.toString(),
+                          custom: JSON.stringify({ duration }),
                         },
                       ],
                     });
                   }}
                   onApprove={(data, actions) => {
                     return actions.order.capture().then(details => {
+                      setPaymentInfo(details);
                       alert(
                         t('checkout.success', 'Payment completed by') +
                           ' ' +

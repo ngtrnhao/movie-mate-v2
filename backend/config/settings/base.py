@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'apps.users.apps.UsersConfig',
     'apps.recommendations.apps.RecommendationsConfig',
     'apps.api.apps.ApiConfig',
+    'apps.subscriptions.apps.SubscriptionsConfig',
 ]
 
 MIDDLEWARE = [

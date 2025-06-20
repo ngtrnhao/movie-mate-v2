@@ -954,7 +954,7 @@ const LandingPage = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-16 flex flex-col items-center justify-center gap-8 py-10 md:flex-row"
           >
-            <PlanList />
+            <PlanList onSelectPlan={plan => navigate(`/checkout?plan=${plan.id}`)} />
           </motion.div>
 
           {/* Additional Info */}

@@ -8,6 +8,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+class MovieTrailerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MovieTrailer
+        fields = ['title', 'youtube_key', 'type']
+
 class MovieListSerializer(serializers.ModelSerializer):
     genres = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
@@ -16,6 +21,7 @@ class MovieListSerializer(serializers.ModelSerializer):
     overviews = serializers.SerializerMethodField()
     poster_path = serializers.CharField(source='poster_url', allow_null=True)
     backdrop_path = serializers.CharField(source='backdrop_url', allow_null=True)
+    trailers = serializers.SerializerMethodField()
 
     class Meta:
         model = Movie
@@ -23,7 +29,7 @@ class MovieListSerializer(serializers.ModelSerializer):
             'id', 'title', 'original_title', 'overview_en', 'overview_vi', 'release_date',
             'poster_path', 'backdrop_path', 'runtime', 'status', 'genres',
             'rating', 'vote_average', 'vote_count', 'is_popular',
-            'is_top_rated', 'is_upcoming', 'overviews'
+            'is_top_rated', 'is_upcoming', 'overviews', 'trailers'
         ]
 
     def get_genres(self, obj):
@@ -86,6 +92,9 @@ class MovieListSerializer(serializers.ModelSerializer):
             'vi': obj.overview_vi
         }
 
+    def get_trailers(self, obj):
+        return MovieTrailerSerializer(obj.trailers.all(), many=True).data
+
 class MovieDetailSerializer(MovieListSerializer):
     """Serializer for detailed movie information"""
     class Meta(MovieListSerializer.Meta):
@@ -135,11 +144,6 @@ class MovieMetadataSerializer(serializers.ModelSerializer):
 class MovieGenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = MovieGenre
-        fields = '__all__'
-
-class MovieTrailerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MovieTrailer
         fields = '__all__'
 
 class MovieImageSerializer(serializers.ModelSerializer):

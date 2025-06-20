@@ -312,7 +312,7 @@ class MovieTrailer(models.Model):
         ("CLIP", "Clip"),
     ]
 
-    movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="trailers")
     title = models.CharField(max_length=255)
     youtube_key = models.CharField(max_length=50)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)

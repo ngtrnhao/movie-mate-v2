@@ -30,7 +30,8 @@ class MovieViewSet(viewsets.ModelViewSet):
             'moviemetadata'
         ).prefetch_related(
             Prefetch('ratings'),
-            Prefetch('genres')
+            Prefetch('genres'),
+            Prefetch('trailers')
         )
 
     def retrieve(self, request, *args, **kwargs):
@@ -108,6 +109,8 @@ class MovieViewSet(viewsets.ModelViewSet):
                 if movie.ratings.exists():
                     score += 1
                 if movie.genres.exists():
+                    score += 1
+                if movie.trailers.exists():
                     score += 1
 
                 scored_movies.append((movie, score))
@@ -196,6 +199,8 @@ class MovieViewSet(viewsets.ModelViewSet):
                     score += 1
                 if movie.genres.exists():
                     score += 1
+                if movie.trailers.exists():
+                    score += 1
 
                 scored_movies.append((movie, score))
 
@@ -283,6 +288,8 @@ class MovieViewSet(viewsets.ModelViewSet):
                     score += 1
                 if movie.genres.exists():
                     score += 1
+                if movie.trailers.exists():
+                    score += 1
 
                 scored_movies.append((movie, score))
 
@@ -369,6 +376,8 @@ class MovieViewSet(viewsets.ModelViewSet):
                 if movie.ratings.exists():
                     score += 1
                 if movie.genres.exists():
+                    score += 1
+                if movie.trailers.exists():
                     score += 1
 
                 scored_movies.append((movie, score))

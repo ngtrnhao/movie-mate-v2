@@ -12,6 +12,7 @@ import LanguageSwitcher from '../../components/language/LanguageSwitcher';
 import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
 import TabGroup from '../../components/movies/tab-group';
 import PlanList from '../../components/plans/PlanList';
+import MovieTrailerModal from '../../components/movies/movie-trailer/MovieTrailerModal';
 import { useCategories } from '../../hooks/useCategories';
 import {
   useFeaturedMovies,
@@ -35,7 +36,9 @@ const LandingPage = () => {
   const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = useState(null);
   const user = useSelector(state => state.auth.user);
-
+  const [isTrailerOpen, setIsTrailerOpen] = useState(false);
+  const [modalMovie, setModalMovie] = useState(null);
+  const [modalTrailerUrl, setModalTrailerUrl] = useState(null);
   // Redux selectors - chỉ giữ lại currentTab vì vẫn cần dùng
   const currentTab = useSelector(state => state.movies.currentTab);
 
@@ -186,12 +189,15 @@ const LandingPage = () => {
   }
 
   const currentMovie = featuredMovies[currentSlide];
-
+  const trailerObj = currentMovie?.trailers?.find(t => t.type === 'TRAILER');
+  const trailerUrl = trailerObj
+    ? `https://www.youtube.com/watch?v=${trailerObj.youtube_key}`
+    : null;
   // Function to handle trailer click
-  const handleTrailerClick = trailerUrl => {
-    if (trailerUrl) {
-      window.open(trailerUrl, '_blank');
-    }
+  const handleOpenTrailer = () => {
+    setModalMovie(currentMovie);
+    setModalTrailerUrl(trailerUrl);
+    setIsTrailerOpen(true);
   };
 
   return (
@@ -444,11 +450,11 @@ const LandingPage = () => {
                 </span>
               </div>
               <button
-                onClick={() => handleTrailerClick(currentMovie?.trailerUrl)}
+                onClick={handleOpenTrailer}
                 className={`inline-flex items-center justify-center rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-600 hover:text-white ${
-                  !currentMovie?.trailerUrl ? 'cursor-not-allowed opacity-50' : ''
+                  !trailerUrl ? 'cursor-not-allowed opacity-50' : ''
                 }`}
-                disabled={!currentMovie?.trailerUrl}
+                disabled={!trailerUrl}
               >
                 <span className="mr-2">▶</span>
                 {t('hero.watchTrailer')}
@@ -1155,6 +1161,12 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      <MovieTrailerModal
+        isOpen={isTrailerOpen}
+        onClose={() => setIsTrailerOpen(false)}
+        movie={modalMovie}
+        trailerUrl={modalTrailerUrl}
+      />
       <LandingFooter />
     </div>
   );

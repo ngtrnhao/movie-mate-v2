@@ -52,11 +52,12 @@ class PayPalWebhookView(APIView):
         )
 
         if status_paypal == 'COMPLETED':
-            if plan == 'basic':
+            plan_code = plan.lower()
+            if plan_code == 'basic':
                 user.user_type = 'prenium_basic'
-            elif plan == 'standard':
+            elif plan_code == 'standard':
                 user.user_type = 'prenium_standard'
-            elif plan == 'vip':
+            elif plan_code == 'vip':
                 user.user_type = 'prenium_vip'
             user.save()
 

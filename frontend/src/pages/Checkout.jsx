@@ -87,16 +87,16 @@ const CheckoutPage = () => {
   }, [isProcessing, dispatch, user]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] text-white py-10 px-2">
-      <div className="w-full max-w-2xl bg-gray-900/95 rounded-2xl shadow-2xl p-8 flex flex-col gap-8 md:flex-row md:gap-10 md:items-start">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] px-2 py-10 text-white">
+      <div className="flex w-full max-w-2xl flex-col gap-8 rounded-2xl bg-gray-900/95 p-8 shadow-2xl md:flex-row md:items-start md:gap-10">
         {/* Plan Summary */}
         <div className="flex-1">
-          <h1 className="text-3xl font-bold mb-4 text-center md:text-left">
+          <h1 className="mb-4 text-center text-3xl font-bold md:text-left">
             {t('checkout.title', 'Checkout')}
           </h1>
           {plan ? (
-            <div className="rounded-xl bg-gray-800/90 p-6 shadow-lg mb-4">
-              <div className="flex items-center gap-4 mb-2">
+            <div className="mb-4 rounded-xl bg-gray-800/90 p-6 shadow-lg">
+              <div className="mb-2 flex items-center gap-4">
                 <span className="text-2xl font-bold text-yellow-400">{plan.name}</span>
                 <span className="ml-auto text-3xl font-extrabold">${totalPrice}</span>
                 <span className="text-base text-gray-400">
@@ -104,9 +104,9 @@ const CheckoutPage = () => {
                 </span>
               </div>
               <div className="mb-3">
-                <label className="block mb-1 font-semibold">Chọn thời gian đăng ký:</label>
+                <label className="mb-1 block font-semibold">Chọn thời gian đăng ký:</label>
                 <select
-                  className="w-full rounded-lg bg-gray-700 text-white p-2"
+                  className="w-full rounded-lg bg-gray-700 p-2 text-white"
                   value={duration}
                   onChange={e => setDuration(Number(e.target.value))}
                 >
@@ -117,8 +117,8 @@ const CheckoutPage = () => {
                   ))}
                 </select>
               </div>
-              <p className="text-gray-300 mb-3">{plan.description}</p>
-              <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
+              <p className="mb-3 text-gray-300">{plan.description}</p>
+              <ul className="list-inside list-disc space-y-1 text-sm text-gray-300">
                 {plan.features && plan.features.map((f, i) => <li key={i}>{f}</li>)}
               </ul>
             </div>
@@ -128,12 +128,12 @@ const CheckoutPage = () => {
             </div>
           )}
           {/* User Info */}
-          <div className="mt-6 bg-gray-800/80 rounded-lg p-4 flex items-center gap-3">
+          <div className="mt-6 flex items-center gap-3 rounded-lg bg-gray-800/80 p-4">
             {user?.avatarUrl ? (
               <img
                 src={user.avatarUrl}
                 alt="avatar"
-                className="rounded-full w-12 h-12 object-cover border-2 border-gray-700"
+                className="size-12 rounded-full border-2 border-gray-700 object-cover"
               />
             ) : (
               <div className="rounded-full bg-gray-700 w-12 h-12 flex items-center justify-center text-xl font-bold text-white">
@@ -152,7 +152,7 @@ const CheckoutPage = () => {
           {/* Hiển thị thời gian hiệu lực dự kiến sau thanh toán */}
           {paymentInfo && (
             <div className="mt-6 bg-green-800/80 rounded-lg p-4 text-center">
-              <div className="font-semibold mb-1">Đăng ký thành công!</div>
+              <div className="mb-1 font-semibold">Đăng ký thành công!</div>
               <div>Hiệu lực từ: {format(now, 'dd/MM/yyyy')}</div>
               <div>Đến: {format(expectedEnd, 'dd/MM/yyyy')}</div>
             </div>
@@ -233,7 +233,7 @@ const CheckoutPage = () => {
                   onApprove={(data, actions) => {
                     return actions.order.capture().then(details => {
                       setPaymentInfo(details);
-                      setIsProcessing(true); 
+                      setIsProcessing(true);
                       setPaymentStatus('processing');
                     });
                   }}

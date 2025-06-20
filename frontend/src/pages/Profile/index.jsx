@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchProfile,
   fetchUserStats,
-  fetchWatchedMovies,
+  // fetchWatchedMovies,
   fetchUserReviews,
   fetchUserRatings,
   fetchFavoriteGenres,
@@ -14,7 +14,7 @@ import {
   selectProfileLoading,
   selectProfileError,
   selectUserStats,
-  selectWatchedMovies,
+  // selectWatchedMovies,
   selectUserReviews,
   selectUserRatings,
   selectFavoriteGenres,
@@ -84,7 +84,7 @@ const Profile = () => {
   const loading = useSelector(selectProfileLoading);
   const error = useSelector(selectProfileError);
   const stats = useSelector(selectUserStats);
-  const watchedMovies = useSelector(selectWatchedMovies);
+  // const watchedMovies = useSelector(selectWatchedMovies);
   const reviews = useSelector(selectUserReviews);
   const ratings = useSelector(selectUserRatings);
   const favoriteGenres = useSelector(selectFavoriteGenres);
@@ -93,7 +93,7 @@ const Profile = () => {
     if (userId) {
       dispatch(fetchProfile(userId));
       dispatch(fetchUserStats(userId));
-      dispatch(fetchWatchedMovies(userId));
+      // dispatch(fetchWatchedMovies(userId));
       dispatch(fetchUserReviews(userId));
       dispatch(fetchUserRatings(userId));
       dispatch(fetchFavoriteGenres(userId));
@@ -160,9 +160,9 @@ const Profile = () => {
             </Box>
           )}
           <Box display="flex" gap={2}>
-            <Button variant="contained" color="primary">
+            {/* <Button variant="contained" color="primary">
               Follow
-            </Button>
+            </Button> */}
             <Button variant="outlined">Message</Button>
           </Box>
         </ProfileInfo>
@@ -184,13 +184,13 @@ const Profile = () => {
               textColor="primary"
               variant="fullWidth"
             >
-              <Tab label="Watched Movies" />
+              {/* <Tab label="Watched Movies" /> */}
               <Tab label="Reviews" />
               <Tab label="Ratings" />
             </Tabs>
 
             <TabPanel value={tabValue} index={0}>
-              <MovieList movies={watchedMovies?.items || []} />
+              {/* <MovieList movies={watchedMovies?.items || []} /> */}
             </TabPanel>
             <TabPanel value={tabValue} index={1}>
               <ReviewList reviews={reviews?.items || []} />

@@ -276,7 +276,7 @@ const profileSlice = createSlice({
       })
       .addCase(fetchFavoriteGenres.fulfilled, (state, action) => {
         state.loading.genres = false;
-        state.favoriteGenres = action.payload;
+        state.favoriteGenres = action.payload.results || [];
       })
       .addCase(fetchFavoriteGenres.rejected, (state, action) => {
         state.loading.genres = false;

@@ -1,10 +1,11 @@
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { useTranslation } from '../i18n/hooks/useTranslation';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { selectUser } from '../store/selectors/authSelectors';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, addMonths } from 'date-fns';
+import { fetchProfile } from '../store/slices/profileSlice';
 
 const getInitials = user => {
   if (user.firstName || user.lastName) {
@@ -24,14 +25,20 @@ const DURATION_OPTIONS = [
 const CheckoutPage = () => {
   const { t } = useTranslation('landing');
   const [searchParams] = useSearchParams();
-  const planId = searchParams.get('plan');
-  let plan = t(`plans.${planId.replace('prenium_', '')}`, { returnObjects: true });
+  const planName = searchParams.get('plan');
+  let plan = t(`plans.${planName.replace('prenium_', '')}`, { returnObjects: true });
   if (!plan || typeof plan !== 'object' || !plan.name) plan = null;
   const user = useSelector(selectUser);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // Chọn thời gian đăng ký
   const [duration, setDuration] = useState(1);
-  const [paymentInfo, setPaymentInfo] = useState(null); // Lưu thông tin sau khi thanh toán thành công
+  const [paymentInfo, setPaymentInfo] = useState(null);
+
+  // States for polling logic
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('idle');
 
   // Tính giá tiền theo thời gian và discount
   const basePrice = Number(plan?.price || 0);
@@ -41,6 +48,43 @@ const CheckoutPage = () => {
   // Tính ngày bắt đầu và kết thúc dự kiến (local, chờ backend xác nhận thực tế)
   const now = new Date();
   const expectedEnd = addMonths(now, duration);
+
+  // Polling effect
+  useEffect(() => {
+    if (!isProcessing) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      console.log('Polling for profile updates...');
+      // Assuming fetchProfile returns the updated user data in its payload
+      const action = await dispatch(fetchProfile());
+      const updatedUser = action.payload.user;
+
+      if (
+        updatedUser &&
+        new Date(updatedUser.subscription_end_date) > new Date(user.subscription_end_date || 0)
+      ) {
+        setPaymentStatus('success');
+        setIsProcessing(false);
+        clearInterval(interval);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    // Timeout after 30 seconds
+    const timeout = setTimeout(() => {
+      if (isProcessing) {
+        setPaymentStatus('failed');
+        setIsProcessing(false);
+        clearInterval(interval);
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [isProcessing, dispatch, user]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] text-white py-10 px-2">
@@ -116,7 +160,53 @@ const CheckoutPage = () => {
         </div>
         {/* PayPal Payment Section */}
         <div className="flex-1 flex flex-col items-center justify-center">
-          {plan && (
+          {isProcessing && (
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-4 text-lg">
+                {t('checkout.processing', 'Processing your payment, please wait...')}
+              </p>
+            </div>
+          )}
+
+          {paymentStatus === 'success' && (
+            <div className="text-center p-6 bg-green-800/50 rounded-lg">
+              <h2 className="text-2xl font-bold text-green-300">
+                {t('checkout.successTitle', 'Payment Successful!')}
+              </h2>
+              <p className="mt-2">
+                {t('checkout.successMessage', 'Your account has been upgraded.')}
+              </p>
+              <button
+                onClick={() => navigate('/profile')}
+                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                {t('checkout.goToProfile', 'Go to Profile')}
+              </button>
+            </div>
+          )}
+
+          {paymentStatus === 'failed' && (
+            <div className="text-center p-6 bg-red-800/50 rounded-lg">
+              <h2 className="text-2xl font-bold text-red-300">
+                {t('checkout.failedTitle', 'Processing Delayed')}
+              </h2>
+              <p className="mt-2">
+                {t(
+                  'checkout.failedMessage',
+                  'Your payment is being processed. Please check your profile in a few minutes.'
+                )}
+              </p>
+              <button
+                onClick={() => navigate('/profile')}
+                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                {t('checkout.goToProfile', 'Go to Profile')}
+              </button>
+            </div>
+          )}
+
+          {plan && paymentStatus === 'idle' && (
             <div className="w-full max-w-xs bg-gray-800/90 rounded-xl p-6 shadow-lg flex flex-col items-center">
               <h2 className="text-xl font-semibold mb-4 text-center">
                 {t('checkout.payWithPaypal', 'Pay securely with PayPal')}
@@ -133,7 +223,7 @@ const CheckoutPage = () => {
                           amount: {
                             value: totalPrice,
                           },
-                          description: plan.name,
+                          description: planName.replace('prenium_', ''),
                           custom_id: user.id?.toString(),
                           custom: JSON.stringify({ duration }),
                         },
@@ -143,11 +233,8 @@ const CheckoutPage = () => {
                   onApprove={(data, actions) => {
                     return actions.order.capture().then(details => {
                       setPaymentInfo(details);
-                      alert(
-                        t('checkout.success', 'Payment completed by') +
-                          ' ' +
-                          details.payer.name.given_name
-                      );
+                      setIsProcessing(true); 
+                      setPaymentStatus('processing');
                     });
                   }}
                 />

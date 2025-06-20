@@ -11,18 +11,18 @@ function setOverlayAdShown() {
   localStorage.setItem('overlayAdLastShown', Date.now().toString());
 }
 
-const ScriptLoader = ({ zoneId, cooldownMinutes = 10 }) => {
+const ScriptLoader = ({ zoneId, domain = 'autchoog.net', cooldownMinutes = 10 }) => {
   useEffect(() => {
     if (!canShowOverlayAd(cooldownMinutes)) return;
     const script = document.createElement('script');
-    script.src = `//autchoog.net/400/${zoneId}`;
+    script.src = `https://${domain}/400/${zoneId}`;
     script.async = true;
     document.body.appendChild(script);
     setOverlayAdShown();
     return () => {
-      document.body.removeChild(script);
+      if (script.parentNode) script.parentNode.removeChild(script);
     };
-  }, [zoneId, cooldownMinutes]);
+  }, [zoneId, cooldownMinutes, domain]);
   return null;
 };
 

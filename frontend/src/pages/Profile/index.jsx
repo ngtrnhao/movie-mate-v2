@@ -94,9 +94,9 @@ const Profile = () => {
       dispatch(fetchProfile(userId));
       dispatch(fetchUserStats(userId));
       // dispatch(fetchWatchedMovies(userId));
-      dispatch(fetchUserReviews(userId));
-      dispatch(fetchUserRatings(userId));
-      dispatch(fetchFavoriteGenres(userId));
+      dispatch(fetchUserReviews({ userId }));
+      dispatch(fetchUserRatings({ userId }));
+      dispatch(fetchFavoriteGenres({ userId }));
     }
   }, [dispatch, userId]);
 

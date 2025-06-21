@@ -94,12 +94,19 @@ export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { refreshToken } = getState().auth;
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
       const response = await refreshTokenAPI(refreshToken);
       localStorage.setItem('token', response.access);
       localStorage.setItem('refreshToken', response.refresh);
       return response;
     } catch (error) {
+      // Clear localStorage on refresh failure
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
       return rejectWithValue(error.response?.data || 'Token refresh failed');
     }
   }
@@ -197,8 +204,12 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.error = null;
+      // Clear all authentication data from localStorage
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      // Clear any other auth-related data
+      sessionStorage.clear();
     },
     clearError: state => {
       state.error = null;
@@ -220,13 +231,38 @@ const authSlice = createSlice({
     rehydrateAuth: state => {
       const token = localStorage.getItem('token');
       const refreshToken = localStorage.getItem('refreshToken');
-      const user = JSON.parse(localStorage.getItem('user'));
+      const user = localStorage.getItem('user');
+
       if (token && user) {
-        state.isAuthenticated = true;
-        state.token = token;
-        state.refreshToken = refreshToken;
-        state.user = { ...initialState.user, ...user };
+        try {
+          const userData = JSON.parse(user);
+          state.isAuthenticated = true;
+          state.token = token;
+          state.refreshToken = refreshToken;
+          state.user = { ...initialState.user, ...userData };
+        } catch (error) {
+          // If user data is corrupted, clear everything
+          console.error('Failed to parse user data:', error);
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+        }
       }
+    },
+    /**
+     * clearAuthData
+     * Clear all authentication data from localStorage and state
+     */
+    clearAuthData: state => {
+      state.user = initialState.user;
+      state.isAuthenticated = false;
+      state.token = null;
+      state.refreshToken = null;
+      state.error = null;
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      sessionStorage.clear();
     },
   },
   extraReducers: builder => {
@@ -281,9 +317,15 @@ const authSlice = createSlice({
       .addCase(refreshToken.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        // Clear all auth data on refresh failure
+        state.user = initialState.user;
         state.isAuthenticated = false;
         state.token = null;
         state.refreshToken = null;
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        sessionStorage.clear();
       })
       // Update Profile
       .addCase(updateProfile.pending, state => {
@@ -357,6 +399,7 @@ export const {
   setRememberMe,
   updateUserPreferences,
   rehydrateAuth,
+  clearAuthData,
 } = authSlice.actions;
 
 export default authSlice.reducer;

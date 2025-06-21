@@ -37,7 +37,7 @@ app.conf.beat_schedule = {
     },
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(days=5),
     },
 }
 

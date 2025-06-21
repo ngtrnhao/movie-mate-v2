@@ -36,6 +36,10 @@ axiosInstance.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
         const response = await axios.post(`${API_URL}/api/auth/token/refresh/`, {
           refresh: refreshToken,
         });
@@ -47,10 +51,15 @@ axiosInstance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${access}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        // If refresh token fails, logout user
+        // If refresh token fails, clear all auth data and redirect to login
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        localStorage.removeItem('user');
+
+        // Only redirect if we're not already on the login page
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }

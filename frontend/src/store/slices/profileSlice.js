@@ -61,7 +61,7 @@ export const fetchUserStats = createAsyncThunk('profile/fetchUserStats', async u
 
 export const fetchUserReviews = createAsyncThunk(
   'profile/fetchUserReviews',
-  async (userId, page = 1) => {
+  async ({ userId, page = 1 }) => {
     const response = await getUserReviewsAPI(userId, page);
     return response;
   }
@@ -69,7 +69,7 @@ export const fetchUserReviews = createAsyncThunk(
 
 export const fetchUserRatings = createAsyncThunk(
   'profile/fetchUserRatings',
-  async (userId, page = 1) => {
+  async ({ userId, page = 1 }) => {
     const response = await getUserRatingsAPI(userId, page);
     return response;
   }
@@ -77,7 +77,7 @@ export const fetchUserRatings = createAsyncThunk(
 
 export const fetchFavoriteGenres = createAsyncThunk(
   'profile/fetchFavoriteGenres',
-  async (userId, page = 1) => {
+  async ({ userId, page = 1 }) => {
     const response = await getFavoriteGenresAPI(userId, page);
     return response;
   }

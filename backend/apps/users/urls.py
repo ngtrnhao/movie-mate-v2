@@ -17,7 +17,8 @@ from .views import (
     UserRatingViewSet,
     UserWatchlistViewSet,
     UserFavoriteGenreViewSet,
-    GoogleAuthView
+    GoogleAuthView,
+    CustomTokenRefreshView
 )
 
 router = DefaultRouter()
@@ -33,7 +34,7 @@ urlpatterns = [
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
     path('reset-password/', ResetPasswordView.as_view(), name='reset-password'),
     path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('profile/<int:userId>/', ProfileView.as_view(), name='profile'),
     path('profile/<int:userId>/avatar/', UploadAvatarView.as_view(), name='upload-avatar'),
     path('profile/<int:userId>/stats/', UserStatsView.as_view(), name='user-stats'),

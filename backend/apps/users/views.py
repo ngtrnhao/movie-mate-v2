@@ -3,6 +3,7 @@ from rest_framework import status, generics, serializers, viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
 from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken, UserMovieRating
 from .serializers import (
@@ -89,6 +90,7 @@ class LoginView(generics.CreateAPIView):
             serializer.is_valid(raise_exception=True)
 
             user = User.objects.get(email=serializer.validated_data['email'])
+            logger.info(f"User found: {user.email}")
 
             # Check if user is a Google account
             if user.is_google_account:
@@ -123,7 +125,15 @@ class LoginView(generics.CreateAPIView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
-            refresh = RefreshToken.for_user(user)
+            logger.info(f"Password check passed for user: {user.email}")
+
+            try:
+                refresh = RefreshToken.for_user(user)
+                logger.info(f"JWT token generated successfully for user: {user.email}")
+            except Exception as jwt_error:
+                logger.error(f"JWT token generation failed for user {user.email}: {str(jwt_error)}")
+                raise jwt_error
+
             return Response({
                 'user': {
                     'id': user.id,
@@ -136,6 +146,7 @@ class LoginView(generics.CreateAPIView):
             })
 
         except serializers.ValidationError as e:
+            logger.error(f"Validation error during login: {str(e)}")
             return Response(
                 {
                     "error": "Validation error",
@@ -145,6 +156,7 @@ class LoginView(generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
+            logger.error(f"Login failed for email {serializer.validated_data.get('email', 'unknown')}: {str(e)}")
             return Response(
                 {
                     "error": "Login failed",
@@ -455,3 +467,20 @@ class UserFavoriteGenreViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class CustomTokenRefreshView(TokenRefreshView):
+    """Custom token refresh view with better error handling"""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Token refresh failed: {str(e)}")
+            return Response(
+                {
+                    'error': 'Token refresh failed',
+                    'message': 'Invalid or expired refresh token. Please login again.',
+                    'code': 'token_refresh_failed'
+                },
+                status=status.HTTP_401_UNAUTHORIZED
+            )

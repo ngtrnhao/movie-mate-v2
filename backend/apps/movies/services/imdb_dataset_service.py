@@ -27,14 +27,17 @@ class IMDBDatasetService:
             logger.error(f"Dataset file not found: {file_path}")
         return exists
 
-    def _read_tsv_gz(self, filename: str):
-        """Read and parse a gzipped TSV file as a generator"""
+    def _read_tsv(self, filename: str):
+        """Read and parse a TSV file as a generator"""
         file_path = f"{self.dataset_path}/{filename}"
         try:
-            with gzip.open(file_path, "rt", encoding="utf-8") as f:
+            with open(file_path, "rt", encoding="utf-8") as f:
                 reader = csv.DictReader(f, delimiter="\t")
                 for row in reader:
                     yield row
+        except FileNotFoundError:
+            logger.error(f"Dataset file not found: {file_path}")
+            return
         except Exception as e:
             logger.error(f"Error reading {filename}: {str(e)}")
             return
@@ -75,7 +78,7 @@ class IMDBDatasetService:
     @transaction.atomic
     def import_title_basic(self, batch_size=500):
         """Import title.basics dataset"""
-        logger.info("Starting import of title.basics.tsv.gz")
+        logger.info("Starting import of title.basics.tsv")
         movies_to_create = []
         movie_genres_data = []
         genre_cache = {}
@@ -83,7 +86,7 @@ class IMDBDatasetService:
         success = 0
         fail = 0
 
-        for i, row in enumerate(self._read_tsv_gz("title.basics.tsv.gz")):
+        for i, row in enumerate(self._read_tsv("title.basics.tsv")):
             try:
                 if row["titleType"] != "movie":
                     continue
@@ -156,11 +159,11 @@ class IMDBDatasetService:
 
     @transaction.atomic
     def import_title_ratings(self):
-        """Import and map title.ratings.tsv.gz data"""
-        logger.info("Starting import of title.ratings.tsv.gz")
+        """Import and map title.ratings.tsv data"""
+        logger.info("Starting import of title.ratings.tsv")
         success = 0
         fail = 0
-        for i, row in enumerate(self._read_tsv_gz('title.ratings.tsv.gz')):
+        for i, row in enumerate(self._read_tsv('title.ratings.tsv')):
             try:
                 movie = Movie.objects.filter(imdb_id=row['tconst']).first()
                 if not movie:
@@ -184,11 +187,11 @@ class IMDBDatasetService:
 
     @transaction.atomic
     def import_title_crew(self):
-        """Import and map title.crew.tsv.gz data"""
-        logger.info("Starting import of title.crew.tsv.gz")
+        """Import and map title.crew.tsv data"""
+        logger.info("Starting import of title.crew.tsv")
         success = 0
         fail = 0
-        for i, row in enumerate(self._read_tsv_gz('title.crew.tsv.gz')):
+        for i, row in enumerate(self._read_tsv('title.crew.tsv')):
             try:
                 movie = Movie.objects.filter(imdb_id=row['tconst']).first()
                 if not movie:
@@ -233,11 +236,11 @@ class IMDBDatasetService:
 
     @transaction.atomic
     def import_title_principals(self):
-        """Import and map title.principals.tsv.gz data"""
-        logger.info("Starting import of title.principals.tsv.gz")
+        """Import and map title.principals.tsv data"""
+        logger.info("Starting import of title.principals.tsv")
         success = 0
         fail = 0
-        for i, row in enumerate(self._read_tsv_gz('title.principals.tsv.gz')):
+        for i, row in enumerate(self._read_tsv('title.principals.tsv')):
             try:
                 movie = Movie.objects.filter(imdb_id=row['tconst']).first()
                 if not movie:
@@ -292,11 +295,11 @@ class IMDBDatasetService:
 
     @transaction.atomic
     def import_title_akas(self):
-        """Import and map title.akas.tsv.gz data - only English and Vietnamese titles"""
-        logger.info("Starting import of title.akas.tsv.gz (English and Vietnamese titles only)")
+        """Import and map title.akas.tsv data"""
+        logger.info("Starting import of title.akas.tsv")
         success = 0
         fail = 0
-        for i, row in enumerate(self._read_tsv_gz('title.akas.tsv.gz')):
+        for i, row in enumerate(self._read_tsv('title.akas.tsv')):
             try:
                 # Skip if not English or Vietnamese
                 if row['language'] not in ['en', 'vi']:
@@ -342,12 +345,11 @@ class IMDBDatasetService:
 
     @transaction.atomic
     def import_name_basics(self):
-        """Import and map name.basics.tsv.gz data"""
-        logger.info("Starting import of name.basics.tsv.gz")
+        """Import and map name.basics.tsv data"""
+        logger.info("Starting import of name.basics.tsv")
         success = 0
         fail = 0
-        batch_size = 1000
-        for i, row in enumerate(self._read_tsv_gz('name.basics.tsv.gz')):
+        for i, row in enumerate(self._read_tsv('name.basics.tsv')):
             try:
                 cast_members = MovieCast.objects.filter(imdb_id=row['nconst'])
                 if not cast_members.exists():
@@ -356,7 +358,7 @@ class IMDBDatasetService:
                 cast_members.update(name=row['primaryName'])
                 success += cast_members.count()
 
-                if i % batch_size == 0:
+                if i % 1000 == 0:
                     logger.info(f"Updated names for {success} cast members, {fail} errors so far...")
             except Exception as e:
                 logger.error(f"Error processing person {row.get('nconst')}: {str(e)}")
@@ -395,13 +397,17 @@ class IMDBDatasetService:
         logger.info("Full IMDB datasets import completed")
 
     def import_title_crew_optimized(self, batch_size=1000):
-        """Import title.crew.tsv.gz data with optimization"""
-        logger.info("Starting optimized import of title.crew.tsv.gz")
-        success = 0
-        fail = 0
-        batch_data = []
+        """Import title.crew.tsv with optimization"""
+        logger.info("Starting optimized import of title.crew.tsv")
+        file_name = "title.crew.tsv"
+        if not self._check_file_exists(file_name):
+            return False, 0
 
-        for i, row in enumerate(self._read_tsv_gz('title.crew.tsv.gz')):
+        batch_data = []
+        count = 0
+        errors = 0
+
+        for i, row in enumerate(self._read_tsv(file_name)):
             try:
                 movie = Movie.objects.filter(imdb_id=row['tconst']).first()
                 if not movie:
@@ -434,24 +440,24 @@ class IMDBDatasetService:
                 # Process batch
                 if len(batch_data) >= batch_size:
                     self._process_crew_batch(batch_data)
-                    success += len(batch_data)
+                    count += len(batch_data)
                     batch_data = []
 
                 if i % 10000 == 0:
-                    logger.info(f"Processed {i} crew records, {success} created, {fail} errors")
+                    logger.info(f"Processed {i} crew records, {count} created, {errors} errors")
 
             except Exception as e:
                 logger.error(f"Error processing crew for movie {row.get('tconst')}: {str(e)}")
-                fail += 1
+                errors += 1
                 continue
 
         # Process remaining batch
         if batch_data:
             self._process_crew_batch(batch_data)
-            success += len(batch_data)
+            count += len(batch_data)
 
-        logger.info(f"Optimized crew import finished: {success} records created, {fail} errors.")
-        return True, success
+        logger.info(f"Optimized crew import finished: {count} records created, {errors} errors.")
+        return True, count
 
     def _process_crew_batch(self, batch_data):
         """Process crew data in batch"""
@@ -467,13 +473,17 @@ class IMDBDatasetService:
             logger.error(f"Error processing crew batch: {str(e)}")
 
     def import_title_principals_optimized(self, batch_size=1000):
-        """Import title.principals.tsv.gz data with optimization"""
-        logger.info("Starting optimized import of title.principals.tsv.gz")
-        success = 0
-        fail = 0
-        batch_data = []
+        """Import title.principals.tsv with optimization"""
+        logger.info("Starting optimized import of title.principals.tsv")
+        file_name = "title.principals.tsv"
+        if not self._check_file_exists(file_name):
+            return False, 0
 
-        for i, row in enumerate(self._read_tsv_gz('title.principals.tsv.gz')):
+        batch_data = []
+        count = 0
+        errors = 0
+
+        for i, row in enumerate(self._read_tsv(file_name)):
             try:
                 movie = Movie.objects.filter(imdb_id=row['tconst']).first()
                 if not movie:
@@ -518,24 +528,24 @@ class IMDBDatasetService:
                 # Process batch
                 if len(batch_data) >= batch_size:
                     self._process_principals_batch(batch_data)
-                    success += len(batch_data)
+                    count += len(batch_data)
                     batch_data = []
 
                 if i % 10000 == 0:
-                    logger.info(f"Processed {i} principal records, {success} created, {fail} errors")
+                    logger.info(f"Processed {i} principal records, {count} created, {errors} errors")
 
             except Exception as e:
                 logger.error(f"Error processing principal for movie {row.get('tconst')}: {str(e)}")
-                fail += 1
+                errors += 1
                 continue
 
         # Process remaining batch
         if batch_data:
             self._process_principals_batch(batch_data)
-            success += len(batch_data)
+            count += len(batch_data)
 
-        logger.info(f"Optimized principals import finished: {success} records created, {fail} errors.")
-        return True, success
+        logger.info(f"Optimized principals import finished: {count} records created, {errors} errors.")
+        return True, count
 
     def _process_principals_batch(self, batch_data):
         """Process principals data in batch"""
@@ -552,13 +562,17 @@ class IMDBDatasetService:
             logger.error(f"Error processing principals batch: {str(e)}")
 
     def import_title_akas_optimized(self, batch_size=1000):
-        """Import title.akas.tsv.gz data with optimization"""
-        logger.info("Starting optimized import of title.akas.tsv.gz (English and Vietnamese titles only)")
-        success = 0
-        fail = 0
-        batch_data = []
+        """Import title.akas.tsv with optimization"""
+        logger.info("Starting optimized import of title.akas.tsv (English and Vietnamese titles only)")
+        file_name = "title.akas.tsv"
+        if not self._check_file_exists(file_name):
+            return False, 0
 
-        for i, row in enumerate(self._read_tsv_gz('title.akas.tsv.gz')):
+        batch_data = []
+        count = 0
+        errors = 0
+
+        for i, row in enumerate(self._read_tsv(file_name)):
             try:
                 # Skip if not English or Vietnamese
                 if row['language'] not in ['en', 'vi']:
@@ -594,24 +608,24 @@ class IMDBDatasetService:
                 # Process batch
                 if len(batch_data) >= batch_size:
                     self._process_akas_batch(batch_data)
-                    success += len(batch_data)
+                    count += len(batch_data)
                     batch_data = []
 
                 if i % 10000 == 0:
-                    logger.info(f"Processed {i} alternative title records, {success} created, {fail} errors")
+                    logger.info(f"Processed {i} alternative title records, {count} created, {errors} errors")
 
             except Exception as e:
                 logger.error(f"Error processing alternative title for movie {row.get('titleId')}: {str(e)}")
-                fail += 1
+                errors += 1
                 continue
 
         # Process remaining batch
         if batch_data:
             self._process_akas_batch(batch_data)
-            success += len(batch_data)
+            count += len(batch_data)
 
-        logger.info(f"Optimized alternative titles import finished: {success} records created, {fail} errors.")
-        return True, success
+        logger.info(f"Optimized alternative titles import finished: {count} records created, {errors} errors.")
+        return True, count
 
     def _process_akas_batch(self, batch_data):
         """Process alternative titles data in batch"""
@@ -628,15 +642,21 @@ class IMDBDatasetService:
             logger.error(f"Error processing alternative titles batch: {str(e)}")
 
     def import_name_basics_optimized(self, batch_size=1000):
-        """Import name.basics.tsv.gz data with optimization"""
-        logger.info("Starting optimized import of name.basics.tsv.gz")
-        success = 0
-        fail = 0
-        batch_updates = []
+        """Import name.basics.tsv with optimization"""
+        logger.info("Starting optimized import of name.basics.tsv")
+        file_name = "name.basics.tsv"
+        if not self._check_file_exists(file_name):
+            return False, 0
 
-        for i, row in enumerate(self._read_tsv_gz('name.basics.tsv.gz')):
+        batch_updates = []
+        count = 0
+        errors = 0
+
+        for i, row in enumerate(self._read_tsv(file_name)):
             try:
-                cast_members = MovieCast.objects.filter(imdb_id=row['nconst'])
+                imdb_id = row['nconst']
+                name = row['primaryName']
+                cast_members = MovieCast.objects.filter(imdb_id=imdb_id)
                 if not cast_members.exists():
                     continue
 
@@ -644,30 +664,30 @@ class IMDBDatasetService:
                 for cast_member in cast_members:
                     batch_updates.append({
                         'id': cast_member.id,
-                        'name': row['primaryName']
+                        'name': name
                     })
 
                 # Process batch
                 if len(batch_updates) >= batch_size:
                     self._process_names_batch(batch_updates)
-                    success += len(batch_updates)
+                    count += len(batch_updates)
                     batch_updates = []
 
                 if i % 10000 == 0:
-                    logger.info(f"Processed {i} name records, {success} updated, {fail} errors")
+                    logger.info(f"Processed {i} name records, {count} updated, {errors} errors")
 
             except Exception as e:
                 logger.error(f"Error processing person {row.get('nconst')}: {str(e)}")
-                fail += 1
+                errors += 1
                 continue
 
         # Process remaining batch
         if batch_updates:
             self._process_names_batch(batch_updates)
-            success += len(batch_updates)
+            count += len(batch_updates)
 
-        logger.info(f"Optimized cast names import finished: {success} records updated, {fail} errors.")
-        return True, success
+        logger.info(f"Optimized cast names import finished: {count} records updated, {errors} errors.")
+        return True, count
 
     def _process_names_batch(self, batch_updates):
         """Process names data in batch"""

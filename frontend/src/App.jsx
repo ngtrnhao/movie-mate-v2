@@ -64,18 +64,33 @@ function App() {
     });
   }, [dispatch]);
 
-  // Đặt global error handler trong useEffect để luôn được gán lại
+  // Thiết lập trình xử lý lỗi toàn cục để ngăn chặn lỗi từ script của bên thứ ba làm sập ứng dụng
   useEffect(() => {
-    window.onerror = function (message, source, _lineno, _colno, _error) {
-      if (
-        message === 'Script error.' ||
-        (_error && _error instanceof Event) ||
-        (!message && !_error)
-      ) {
-        console.warn('Script error or unknown error from third-party script:', source);
-        return true;
+    const errorHandler = event => {
+      // "Script error." là một lỗi chung cho các script cross-origin.
+      // Chúng ta không thể xem chi tiết lỗi, nhưng có thể ngăn nó làm sập ứng dụng.
+      if (event.message.includes('Script error')) {
+        console.warn(
+          `Caught a third-party script error. Preventing app crash. Message: ${event.message}`
+        );
+        // Ngăn chặn hành vi mặc định của trình duyệt (như ghi lỗi ra console và dừng thực thi)
+        event.preventDefault();
       }
-      return false;
+    };
+
+    const promiseRejectionHandler = event => {
+      console.warn(`Caught unhandled promise rejection. Reason:`, event.reason);
+      // Bạn có thể thêm logic ở đây để xử lý các lỗi promise cụ thể nếu cần.
+      // event.preventDefault();
+    };
+
+    window.addEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', promiseRejectionHandler);
+
+    // Dọn dẹp các listener khi component bị unmount
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', promiseRejectionHandler);
     };
   }, []);
 

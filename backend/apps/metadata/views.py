@@ -12,6 +12,7 @@ from .serializers import GenreSerializer, GenreDetailSerializer
 from apps.movies.models import Movie
 from apps.movies.serializers import MovieListSerializer
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +43,13 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
         ).filter(
             count__gt=0
         ).prefetch_related(
+            # Tối ưu: Chỉ lấy 1 movie mới nhất cho mỗi genre thay vì tất cả
             Prefetch(
                 'movie_set',
                 queryset=Movie.objects.filter(
                     poster_url__isnull=False,
-                    poster_url__gt=''  # Đảm bảo poster_url không rỗng
-                ).order_by(
-                    '-release_date'  # Sắp xếp theo release date giảm dần
-                ),
+                    poster_url__gt=''
+                ).order_by('-release_date')[:1],  # Chỉ lấy 1 movie mới nhất
                 to_attr='latest_movies'
             )
         ).order_by('name')
@@ -63,6 +63,8 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
         """
         Lấy danh sách tất cả thể loại phim
         """
+        start_time = time.time()
+
         try:
             # Thêm language vào cache key
             language = request.query_params.get('language', 'en')
@@ -74,9 +76,12 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
                 return Response(cached_data)
 
             queryset = self.get_queryset()
-            logger.info(f"Found {queryset.count()} categories for language: {language}")
+            query_time = time.time() - start_time
+            logger.info(f"Found {queryset.count()} categories for language: {language} in {query_time:.2f}s")
 
             serializer = self.get_serializer(queryset, many=True)
+            serialize_time = time.time() - start_time
+            logger.info(f"Serialized categories in {serialize_time:.2f}s")
 
             response_data = {
                 'status': 'success',
@@ -86,10 +91,14 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
 
             # Cache for 5 minutes
             cache.set(cache_key, response_data, timeout=300)
+            total_time = time.time() - start_time
+            logger.info(f"Total categories request time: {total_time:.2f}s")
+
             return Response(response_data)
 
         except Exception as e:
-            logger.error(f"Error in categories list: {str(e)}", exc_info=True)
+            total_time = time.time() - start_time
+            logger.error(f"Error in categories list after {total_time:.2f}s: {str(e)}", exc_info=True)
             return Response({
                 'status': 'error',
                 'message': str(e)

@@ -61,7 +61,9 @@ class Movie(models.Model):
             models.Index(fields=["is_top_rated"]),
             models.Index(fields=["is_upcoming"]),
             models.Index(fields=["slug"]),
-
+            models.Index(fields=["poster_url"], name="idx_movie_poster_v2"),
+            models.Index(fields=["poster_url", "release_date"], name="idx_movie_poster_rel_v2"),
+            models.Index(fields=["poster_url"], name="idx_movie_poster_nn_v2", condition=models.Q(poster_url__isnull=False)),
         ]
 
     def __str__(self):

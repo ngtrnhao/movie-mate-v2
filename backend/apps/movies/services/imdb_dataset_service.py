@@ -393,3 +393,287 @@ class IMDBDatasetService:
         self.import_name_basics()
 
         logger.info("Full IMDB datasets import completed")
+
+    def import_title_crew_optimized(self, batch_size=1000):
+        """Import title.crew.tsv.gz data with optimization"""
+        logger.info("Starting optimized import of title.crew.tsv.gz")
+        success = 0
+        fail = 0
+        batch_data = []
+
+        for i, row in enumerate(self._read_tsv_gz('title.crew.tsv.gz')):
+            try:
+                movie = Movie.objects.filter(imdb_id=row['tconst']).first()
+                if not movie:
+                    continue
+
+                # Handle directors
+                directors = row['directors'].split(',') if row['directors'] != '\\N' else []
+                for director_id in directors:
+                    batch_data.append({
+                        'movie': movie,
+                        'imdb_id': director_id,
+                        'name': f"Director_{director_id}",
+                        'role': 'DIRECTOR',
+                        'order': 0,
+                        'category': 'director'
+                    })
+
+                # Handle writers
+                writers = row['writers'].split(',') if row['writers'] != '\\N' else []
+                for writer_id in writers:
+                    batch_data.append({
+                        'movie': movie,
+                        'imdb_id': writer_id,
+                        'name': f"Writer_{writer_id}",
+                        'role': 'WRITER',
+                        'order': 0,
+                        'category': 'writer'
+                    })
+
+                # Process batch
+                if len(batch_data) >= batch_size:
+                    self._process_crew_batch(batch_data)
+                    success += len(batch_data)
+                    batch_data = []
+
+                if i % 10000 == 0:
+                    logger.info(f"Processed {i} crew records, {success} created, {fail} errors")
+
+            except Exception as e:
+                logger.error(f"Error processing crew for movie {row.get('tconst')}: {str(e)}")
+                fail += 1
+                continue
+
+        # Process remaining batch
+        if batch_data:
+            self._process_crew_batch(batch_data)
+            success += len(batch_data)
+
+        logger.info(f"Optimized crew import finished: {success} records created, {fail} errors.")
+        return True, success
+
+    def _process_crew_batch(self, batch_data):
+        """Process crew data in batch"""
+        try:
+            with transaction.atomic():
+                for crew_data in batch_data:
+                    MovieCast.objects.get_or_create(
+                        movie=crew_data['movie'],
+                        imdb_id=crew_data['imdb_id'],
+                        defaults=crew_data
+                    )
+        except Exception as e:
+            logger.error(f"Error processing crew batch: {str(e)}")
+
+    def import_title_principals_optimized(self, batch_size=1000):
+        """Import title.principals.tsv.gz data with optimization"""
+        logger.info("Starting optimized import of title.principals.tsv.gz")
+        success = 0
+        fail = 0
+        batch_data = []
+
+        for i, row in enumerate(self._read_tsv_gz('title.principals.tsv.gz')):
+            try:
+                movie = Movie.objects.filter(imdb_id=row['tconst']).first()
+                if not movie:
+                    continue
+
+                # Map IMDB category to our role
+                role_mapping = {
+                    'actor': 'ACTOR',
+                    'actress': 'ACTOR',
+                    'director': 'DIRECTOR',
+                    'writer': 'WRITER',
+                    'producer': 'PRODUCER',
+                    'cinematographer': 'CINEMATOGRAPHER',
+                    'editor': 'EDITOR',
+                    'composer': 'COMPOSER'
+                }
+
+                # Parse characters field correctly
+                if row['characters'] != '\\N':
+                    try:
+                        char_list = json.loads(row['characters'])
+                    except Exception:
+                        char_list = []
+                    else:
+                        main_character = char_list[0] if char_list else None
+                        all_characters = char_list
+                else:
+                    main_character = None
+                    all_characters = []
+
+                batch_data.append({
+                    'movie': movie,
+                    'imdb_id': row['nconst'],
+                    'order': self._parse_int(row['ordering']),
+                    'role': role_mapping.get(row['category'].lower(), 'ACTOR'),
+                    'category': row['category'],
+                    'job': row['job'] if row['job'] != '\\N' else None,
+                    'main_character': main_character,
+                    'all_characters': all_characters
+                })
+
+                # Process batch
+                if len(batch_data) >= batch_size:
+                    self._process_principals_batch(batch_data)
+                    success += len(batch_data)
+                    batch_data = []
+
+                if i % 10000 == 0:
+                    logger.info(f"Processed {i} principal records, {success} created, {fail} errors")
+
+            except Exception as e:
+                logger.error(f"Error processing principal for movie {row.get('tconst')}: {str(e)}")
+                fail += 1
+                continue
+
+        # Process remaining batch
+        if batch_data:
+            self._process_principals_batch(batch_data)
+            success += len(batch_data)
+
+        logger.info(f"Optimized principals import finished: {success} records created, {fail} errors.")
+        return True, success
+
+    def _process_principals_batch(self, batch_data):
+        """Process principals data in batch"""
+        try:
+            with transaction.atomic():
+                for principal_data in batch_data:
+                    MovieCast.objects.update_or_create(
+                        movie=principal_data['movie'],
+                        imdb_id=principal_data['imdb_id'],
+                        order=principal_data['order'],
+                        defaults=principal_data
+                    )
+        except Exception as e:
+            logger.error(f"Error processing principals batch: {str(e)}")
+
+    def import_title_akas_optimized(self, batch_size=1000):
+        """Import title.akas.tsv.gz data with optimization"""
+        logger.info("Starting optimized import of title.akas.tsv.gz (English and Vietnamese titles only)")
+        success = 0
+        fail = 0
+        batch_data = []
+
+        for i, row in enumerate(self._read_tsv_gz('title.akas.tsv.gz')):
+            try:
+                # Skip if not English or Vietnamese
+                if row['language'] not in ['en', 'vi']:
+                    continue
+
+                movie = Movie.objects.filter(imdb_id=row['titleId']).first()
+                if not movie:
+                    continue
+
+                # For English titles, update the main title if it's the original title
+                if row['language'] == 'en' and row['isOriginalTitle'] == '1':
+                    movie.title = row['title']
+                    # Update overview if available in attributes
+                    if row['attributes'] != '\\N':
+                        attributes = row['attributes'].split(',')
+                        for attr in attributes:
+                            if attr.startswith('plot:'):
+                                movie.overview_en = attr[5:]  # Remove 'plot:' prefix
+                                break
+                    movie.save()
+
+                batch_data.append({
+                    'movie': movie,
+                    'title': row['title'],
+                    'region': row['region'] if row['region'] != '\\N' else None,
+                    'ordering': self._parse_int(row['ordering']),
+                    'language': row['language'],
+                    'types': row['types'].split(',') if row['types'] != '\\N' else [],
+                    'attributes': row['attributes'].split(',') if row['attributes'] != '\\N' else [],
+                    'is_original_title': row['isOriginalTitle'] == '1'
+                })
+
+                # Process batch
+                if len(batch_data) >= batch_size:
+                    self._process_akas_batch(batch_data)
+                    success += len(batch_data)
+                    batch_data = []
+
+                if i % 10000 == 0:
+                    logger.info(f"Processed {i} alternative title records, {success} created, {fail} errors")
+
+            except Exception as e:
+                logger.error(f"Error processing alternative title for movie {row.get('titleId')}: {str(e)}")
+                fail += 1
+                continue
+
+        # Process remaining batch
+        if batch_data:
+            self._process_akas_batch(batch_data)
+            success += len(batch_data)
+
+        logger.info(f"Optimized alternative titles import finished: {success} records created, {fail} errors.")
+        return True, success
+
+    def _process_akas_batch(self, batch_data):
+        """Process alternative titles data in batch"""
+        try:
+            with transaction.atomic():
+                for aka_data in batch_data:
+                    MovieAlternativeTitle.objects.update_or_create(
+                        movie=aka_data['movie'],
+                        title=aka_data['title'],
+                        region=aka_data['region'],
+                        defaults=aka_data
+                    )
+        except Exception as e:
+            logger.error(f"Error processing alternative titles batch: {str(e)}")
+
+    def import_name_basics_optimized(self, batch_size=1000):
+        """Import name.basics.tsv.gz data with optimization"""
+        logger.info("Starting optimized import of name.basics.tsv.gz")
+        success = 0
+        fail = 0
+        batch_updates = []
+
+        for i, row in enumerate(self._read_tsv_gz('name.basics.tsv.gz')):
+            try:
+                cast_members = MovieCast.objects.filter(imdb_id=row['nconst'])
+                if not cast_members.exists():
+                    continue
+
+                # Collect updates for batch processing
+                for cast_member in cast_members:
+                    batch_updates.append({
+                        'id': cast_member.id,
+                        'name': row['primaryName']
+                    })
+
+                # Process batch
+                if len(batch_updates) >= batch_size:
+                    self._process_names_batch(batch_updates)
+                    success += len(batch_updates)
+                    batch_updates = []
+
+                if i % 10000 == 0:
+                    logger.info(f"Processed {i} name records, {success} updated, {fail} errors")
+
+            except Exception as e:
+                logger.error(f"Error processing person {row.get('nconst')}: {str(e)}")
+                fail += 1
+                continue
+
+        # Process remaining batch
+        if batch_updates:
+            self._process_names_batch(batch_updates)
+            success += len(batch_updates)
+
+        logger.info(f"Optimized cast names import finished: {success} records updated, {fail} errors.")
+        return True, success
+
+    def _process_names_batch(self, batch_updates):
+        """Process names data in batch"""
+        try:
+            with transaction.atomic():
+                for update_data in batch_updates:
+                    MovieCast.objects.filter(id=update_data['id']).update(name=update_data['name'])
+        except Exception as e:
+            logger.error(f"Error processing names batch: {str(e)}")

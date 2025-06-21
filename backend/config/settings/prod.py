@@ -20,10 +20,6 @@ DATABASES = {
         'HOST': env('POSTGRES_HOST'),
         'PORT': env('POSTGRES_PORT', default='5432'),
         'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'MAX_CONNS': 20,
-            'CONN_HEALTH_CHECKS': True,
-        },
     }
 }
 
@@ -56,15 +52,6 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': os.getenv('REDIS_URL'),
-        'OPTIONS': {
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 20,
-                'retry_on_timeout': True,
-            },
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-        },
-        'TIMEOUT': 300,
     }
 }
 

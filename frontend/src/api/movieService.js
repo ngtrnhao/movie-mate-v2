@@ -9,8 +9,8 @@ const cache = {
   lastFetch: {},
 };
 
-// Cache duration in milliseconds (5 minutes)
-const CACHE_DURATION = 5 * 60 * 1000;
+// Cache duration in milliseconds (10 minutes)
+const CACHE_DURATION = 10 * 60 * 1000;
 
 // Helper function to check if cache is valid
 const isCacheValid = key => {
@@ -27,108 +27,50 @@ const handleResponse = response => {
   throw new Error(response.message || 'API request failed');
 };
 
-// Get featured movies
-export const getFeaturedMovies = async () => {
+// Helper function to make API call with caching
+const makeApiCall = async (endpoint, cacheKey) => {
   try {
     // Check cache first
-    if (isCacheValid('featured')) {
-      console.log('Returning cached featured movies');
-      return cache.featured;
+    if (isCacheValid(cacheKey)) {
+      console.log(`Returning cached ${cacheKey} movies`);
+      return cache[cacheKey];
     }
 
-    const response = await axiosInstance.get('/api/movies/featured/');
+    const response = await axiosInstance.get(endpoint);
     const data = handleResponse(response.data);
 
     // Update cache
-    cache.featured = data;
-    cache.lastFetch.featured = Date.now();
+    cache[cacheKey] = data;
+    cache.lastFetch[cacheKey] = Date.now();
 
     return data;
   } catch (error) {
-    console.error('Error fetching featured movies:', error);
+    console.error(`Error fetching ${cacheKey} movies:`, error);
     throw {
-      error: error.response?.data?.message || 'Failed to fetch featured movies',
+      error: error.response?.data?.message || `Failed to fetch ${cacheKey} movies`,
       details: error.response?.data,
     };
   }
+};
+
+// Get featured movies
+export const getFeaturedMovies = async () => {
+  return makeApiCall('/api/movies/featured/', 'featured');
 };
 
 // Get trending movies
 export const getTrendingMovies = async () => {
-  try {
-    // Check cache first
-    if (isCacheValid('trending')) {
-      console.log('Returning cached trending movies');
-      return cache.trending;
-    }
-
-    const response = await axiosInstance.get('/api/movies/trending/');
-    const data = handleResponse(response.data);
-
-    // Update cache
-    cache.trending = data;
-    cache.lastFetch.trending = Date.now();
-
-    return data;
-  } catch (error) {
-    console.error('Error fetching trending movies:', error);
-    throw {
-      error: error.response?.data?.message || 'Failed to fetch trending movies',
-      details: error.response?.data,
-    };
-  }
+  return makeApiCall('/api/movies/trending/', 'trending');
 };
 
 // Get top rated movies
 export const getTopRatedMovies = async () => {
-  try {
-    // Check cache first
-    if (isCacheValid('topRated')) {
-      console.log('Returning cached top rated movies');
-      return cache.topRated;
-    }
-
-    const response = await axiosInstance.get('/api/movies/top_rated/');
-    const data = handleResponse(response.data);
-
-    // Update cache
-    cache.topRated = data;
-    cache.lastFetch.topRated = Date.now();
-
-    return data;
-  } catch (error) {
-    console.error('Error fetching top rated movies:', error);
-    throw {
-      error: error.response?.data?.message || 'Failed to fetch top rated movies',
-      details: error.response?.data,
-    };
-  }
+  return makeApiCall('/api/movies/top_rated/', 'topRated');
 };
 
 // Get upcoming movies
 export const getUpcomingMovies = async () => {
-  try {
-    // Check cache first
-    if (isCacheValid('upcoming')) {
-      console.log('Returning cached upcoming movies');
-      return cache.upcoming;
-    }
-
-    const response = await axiosInstance.get('/api/movies/upcoming/');
-    const data = handleResponse(response.data);
-
-    // Update cache
-    cache.upcoming = data;
-    cache.lastFetch.upcoming = Date.now();
-
-    return data;
-  } catch (error) {
-    console.error('Error fetching upcoming movies:', error);
-    throw {
-      error: error.response?.data?.message || 'Failed to fetch upcoming movies',
-      details: error.response?.data,
-    };
-  }
+  return makeApiCall('/api/movies/upcoming/', 'upcoming');
 };
 
 // Get movie details

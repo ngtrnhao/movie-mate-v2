@@ -2,17 +2,24 @@ import { AccountCircle, Logout, Settings } from '@mui/icons-material';
 import { Avatar, IconButton, Menu, MenuItem, Tooltip } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback, lazy } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import CategoryGrid from '../../components/categories/CategoryGrid';
-import LandingFooter from '../../components/footer/LandingFooter';
+
+// Lazy load các component nặng để tối ưu performance
+const CategoryGrid = lazy(() => import('../../components/categories/CategoryGrid'));
+const LandingFooter = lazy(() => import('../../components/footer/LandingFooter'));
+const MovieGrid = lazy(() => import('../../components/movies/movie-grid/MovieGrid'));
+const TabGroup = lazy(() => import('../../components/movies/tab-group'));
+const PlanList = lazy(() => import('../../components/plans/PlanList'));
+const MovieTrailerModal = lazy(
+  () => import('../../components/movies/movie-trailer/MovieTrailerModal')
+);
+
+// Import các component nhẹ trực tiếp
 import MovieMateLogo from '../../components/header/Logo';
 import LanguageSwitcher from '../../components/language/LanguageSwitcher';
-import MovieGrid from '../../components/movies/movie-grid/MovieGrid';
-import TabGroup from '../../components/movies/tab-group';
-import PlanList from '../../components/plans/PlanList';
-import MovieTrailerModal from '../../components/movies/movie-trailer/MovieTrailerModal';
+import { LazyLoader, GridSkeleton } from '../../components/common/LazyLoader';
 import { useCategories } from '../../hooks/useCategories';
 import {
   useFeaturedMovies,
@@ -39,8 +46,8 @@ const LandingPage = () => {
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
   const [modalMovie, setModalMovie] = useState(null);
   const [modalTrailerUrl, setModalTrailerUrl] = useState(null);
-  // Redux selectors - chỉ giữ lại currentTab vì vẫn cần dùng
   const currentTab = useSelector(state => state.movies.currentTab);
+  const [isSecondaryDataEnabled, setIsSecondaryDataEnabled] = useState(false);
 
   // Custom hooks cho fetch phim
   const {
@@ -48,9 +55,24 @@ const LandingPage = () => {
     isLoading: featuredLoading,
     error: featuredError,
   } = useFeaturedMovies();
-  const { data: trendingMovies = [], isLoading: trendingLoading } = useTrendingMovies();
-  const { data: topRatedMovies = [], isLoading: topRatedLoading } = useTopRatedMovies();
-  const { data: upcomingMovies = [], isLoading: upcomingLoading } = useUpcomingMovies();
+
+  const secondaryOptions = { enabled: isSecondaryDataEnabled };
+
+  const { data: trendingMovies = [], isLoading: trendingLoading } =
+    useTrendingMovies(secondaryOptions);
+  const { data: topRatedMovies = [], isLoading: topRatedLoading } =
+    useTopRatedMovies(secondaryOptions);
+  const { data: upcomingMovies = [], isLoading: upcomingLoading } =
+    useUpcomingMovies(secondaryOptions);
+
+  // Effect to enable secondary data fetching after a delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsSecondaryDataEnabled(true);
+    }, 2000); // Delay of 2 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Memoize features
   const features = useMemo(
@@ -294,13 +316,15 @@ const LandingPage = () => {
               transition={{ duration: 0.8, ease: 'easeInOut' }}
               className="absolute inset-0"
             >
-              {/* Background Image */}
-              <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(${featuredMovies[currentSlide].poster_path || '/placeholder-poster.jpg'})`,
-                }}
+              {/* Background Image: Use an <img> tag for prioritization */}
+              <img
+                key={featuredMovies[currentSlide].id}
+                src={featuredMovies[currentSlide].poster_path || '/placeholder-poster.jpg'}
+                alt={`Poster for ${featuredMovies[currentSlide].title}`}
+                fetchPriority="high"
+                className="absolute inset-0 size-full object-cover"
               />
+
               {/* Gradient Overlay */}
               <motion.div
                 initial={{ opacity: 0 }}
@@ -868,8 +892,18 @@ const LandingPage = () => {
           </h2>
           <p className="pt-5 text-center text-lg text-gray-400">{t('latestReleases.subtitle')}</p>
           <div className="mt-10">
-            <TabGroup tabs={translatedTabs} activeTab={currentTab} onTabChange={handleTabChange} />
-            <MovieGrid movies={movies} loading={loading} error={featuredError} />
+            <LazyLoader
+              fallback={<div className="h-12 bg-gray-800 rounded animate-pulse mb-4"></div>}
+            >
+              <TabGroup
+                tabs={translatedTabs}
+                activeTab={currentTab}
+                onTabChange={handleTabChange}
+              />
+            </LazyLoader>
+            <LazyLoader fallback={<GridSkeleton count={6} />}>
+              <MovieGrid movies={movies} loading={loading} error={featuredError} />
+            </LazyLoader>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -918,7 +952,9 @@ const LandingPage = () => {
           </p>
           {catLoading && <div className="text-center text-white">Loading...</div>}
           {catError && <div className="text-center text-red-500">{catError.message}</div>}
-          {categories && <CategoryGrid categories={categories} />}
+          <LazyLoader fallback={<GridSkeleton count={6} />}>
+            {categories && <CategoryGrid categories={categories} />}
+          </LazyLoader>
           <div className="mt-8 flex justify-center">
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -954,7 +990,9 @@ const LandingPage = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-16 flex flex-col items-center justify-center gap-8 py-10 md:flex-row"
           >
-            <PlanList onSelectPlan={plan => navigate(`/checkout?plan=${plan.id}`)} />
+            <LazyLoader fallback={<div className="h-64 bg-gray-800 rounded animate-pulse"></div>}>
+              <PlanList onSelectPlan={plan => navigate(`/checkout?plan=${plan.id}`)} />
+            </LazyLoader>
           </motion.div>
 
           {/* Additional Info */}
@@ -1162,13 +1200,17 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
-      <MovieTrailerModal
-        isOpen={isTrailerOpen}
-        onClose={() => setIsTrailerOpen(false)}
-        movie={modalMovie}
-        trailerUrl={modalTrailerUrl}
-      />
-      <LandingFooter />
+      <LazyLoader fallback={<div className="h-96 bg-gray-800 rounded animate-pulse"></div>}>
+        <MovieTrailerModal
+          isOpen={isTrailerOpen}
+          onClose={() => setIsTrailerOpen(false)}
+          movie={modalMovie}
+          trailerUrl={modalTrailerUrl}
+        />
+      </LazyLoader>
+      <LazyLoader fallback={<div className="h-64 bg-gray-800 rounded animate-pulse"></div>}>
+        <LandingFooter />
+      </LazyLoader>
     </div>
   );
 };

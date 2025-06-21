@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework.viewsets import GenericViewSet
 from django.core.cache import cache
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from .models import Genre
 from .serializers import GenreSerializer, GenreDetailSerializer
 from apps.movies.models import Movie
@@ -45,8 +45,11 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
             Prefetch(
                 'movie_set',
                 queryset=Movie.objects.filter(
-                    poster_url__isnull=False
-                ).order_by('-release_date'),
+                    poster_url__isnull=False,
+                    poster_url__gt=''  # Đảm bảo poster_url không rỗng
+                ).order_by(
+                    '-release_date'  # Sắp xếp theo release date giảm dần
+                ),
                 to_attr='latest_movies'
             )
         ).order_by('name')
@@ -128,7 +131,8 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
             genre = self.get_object()
             movies = Movie.objects.filter(
                 genres=genre,
-                poster_url__isnull=False
+                poster_url__isnull=False,
+                poster_url__gt=''  # Đảm bảo poster_url không rỗng
             ).select_related(
                 'moviemetadata'
             ).prefetch_related(

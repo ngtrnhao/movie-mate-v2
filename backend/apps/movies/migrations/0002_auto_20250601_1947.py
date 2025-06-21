@@ -13,12 +13,12 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             # Forward SQL
             """
-            CREATE INDEX IF NOT EXISTS idx_movie_title_trgm
-            ON movies_movie USING gin (title gin_trgm_ops);
+            CREATE INDEX IF NOT EXISTS idx_movie_title
+            ON movies_movie (title);
             """,
             # Reverse SQL
             """
-            DROP INDEX IF EXISTS idx_movie_title_trgm;
+            DROP INDEX IF EXISTS idx_movie_title;
             """
         ),
     ]

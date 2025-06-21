@@ -1,14 +1,41 @@
 from rest_framework import serializers
 from .models import Genre
+from .services import GenreService
 from apps.movies.serializers import MovieListSerializer
 import logging
 
 logger = logging.getLogger(__name__)
 
 class GenreListSerializer(serializers.ListSerializer):
+    def find_movie_with_poster(self, movies, used_movie_ids):
+        """
+        Tìm phim có poster URL gần nhất theo thứ tự ưu tiên:
+        1. Phim có poster URL và chưa được sử dụng
+        2. Phim có poster URL (đã được sử dụng)
+        3. Phim đầu tiên (có thể không có poster)
+        """
+        # Đầu tiên tìm phim có poster URL và chưa được sử dụng
+        for movie in movies:
+            if (movie.id not in used_movie_ids and
+                movie.poster_url and
+                movie.poster_url.strip()):
+                return movie, True  # True = chưa được sử dụng
+
+        # Nếu không tìm thấy, tìm phim có poster URL (có thể đã được sử dụng)
+        for movie in movies:
+            if movie.poster_url and movie.poster_url.strip():
+                return movie, movie.id not in used_movie_ids
+
+        # Cuối cùng, trả về phim đầu tiên
+        if movies:
+            return movies[0], movies[0].id not in used_movie_ids
+
+        return None, False
+
     def to_representation(self, data):
         """
         Convert the data to a list of serialized items with unique movie posters.
+        Tìm phim có poster URL gần nhất thay vì chỉ lấy phim có release date gần nhất.
         """
         if not isinstance(data, (list, tuple)) and not hasattr(data, 'all'):
             data = [data]
@@ -33,17 +60,11 @@ class GenreListSerializer(serializers.ListSerializer):
             try:
                 movies = genre_movies.get(genre.id, [])
 
-                # Find first unused movie
-                selected_movie = None
-                for movie in movies:
-                    if movie.id not in used_movie_ids:
-                        selected_movie = movie
-                        used_movie_ids.add(movie.id)
-                        break
+                # Tìm phim có poster URL gần nhất
+                selected_movie, is_unique = self.find_movie_with_poster(movies, used_movie_ids)
 
-                # If no unique movie found, use the first one
-                if not selected_movie and movies:
-                    selected_movie = movies[0]
+                if selected_movie and is_unique:
+                    used_movie_ids.add(selected_movie.id)
 
                 # Attach the selected movie to the genre object
                 genre.selected_movie = selected_movie
@@ -89,9 +110,8 @@ class GenreDetailSerializer(GenreSerializer):
 
     def get_movies(self, obj):
         try:
-            movies = obj.movie_set.filter(
-                poster_url__isnull=False
-            ).order_by('-release_date')
+            # Sử dụng GenreService để lấy phim có poster URL
+            movies = GenreService.get_movies_with_poster_for_genre(obj, limit=50)
             return MovieListSerializer(movies, many=True).data
         except Exception as e:
             logger.error(f"Error getting movies for genre {obj.id}: {str(e)}")

@@ -1,7 +1,10 @@
 import FeatureComparisonTable from '../../components/plans/FeatureComparisonTable';
 import PlanList from '../../components/plans/PlanList';
+import SubscriptionStatus from '../../components/plans/SubscriptionStatus';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { selectUser } from '../../store/slices/authSlice';
 // import { Film } from 'lucide-react';
 
 const planIcons = [
@@ -13,9 +16,12 @@ const planIcons = [
 const PricingPage = () => {
   const { t } = useTranslation('landing');
   const navigate = useNavigate();
+  const user = useSelector(selectUser);
+
   const handleSelectPlan = plan => {
     navigate(`/checkout?plan=${plan.id}`);
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] text-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -34,6 +40,14 @@ const PricingPage = () => {
             )}
           </p>
         </div>
+
+        {/* Current Subscription Status - Only show for logged in users */}
+        {user && (
+          <div className="mt-8 max-w-2xl mx-auto">
+            <SubscriptionStatus />
+          </div>
+        )}
+
         {/* Plan Cards Section */}
         <div className="mt-12 flex flex-col items-center justify-center gap-10 lg:flex-row lg:items-stretch">
           <PlanList icons={planIcons} onSelectPlan={handleSelectPlan} />

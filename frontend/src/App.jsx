@@ -25,6 +25,7 @@ import { rehydrateAuth } from './store/slices/authSlice';
 import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
+import PerformanceMonitor from './components/common/PerformanceMonitor';
 
 // Global error handler để chặn lỗi Script error từ quảng cáo ngoài
 if (typeof window !== 'undefined') {
@@ -130,6 +131,9 @@ function App() {
                 }
               />
             </Routes>
+
+            {/* Performance Monitor - chỉ hiển thị trong development */}
+            <PerformanceMonitor />
           </QueryProvider>
         </BrowserRouter>
       </I18nProvider>

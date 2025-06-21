@@ -153,3 +153,13 @@ export const getPaymentTransactionAPI = async userId => {
     throw error.response?.data || { error: 'Failed to fetch payment transaction' };
   }
 };
+
+//Create payment
+export const createPaymentAPI = async paymentData => {
+  try {
+    const response = await axiosInstance.post('/api/subscriptions/create-payment/', paymentData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to create payment' };
+  }
+};

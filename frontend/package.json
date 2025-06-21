@@ -30,6 +30,7 @@
     "postcss": "^8.5.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.5.2",
     "react-i18next": "^14.1.3",
     "react-intersection-observer": "^9.16.0",
     "react-redux": "^9.2.0",
@@ -48,6 +49,13 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
+    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js",
+    "lighthouse": "npx lighthouse http://localhost:3000 --output=json --output-path=./lighthouse-report.json --chrome-flags='--headless'",
+    "lighthouse:html": "npx lighthouse http://localhost:3000 --output=html --output-path=./lighthouse-report.html --chrome-flags='--headless'",
+    "perf:dev": "npm start & sleep 10 && npm run lighthouse",
+    "perf:build": "npm run build && npx serve -s build -l 3000 & sleep 10 && npm run lighthouse:html",
+    "perf:compare": "node scripts/performance-comparison.js",
+    "perf:quick": "node scripts/quick-performance-test.js",
     "lint": "eslint src --ext .js,.jsx",
     "lint:fix": "eslint src --ext .js,.jsx --fix",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
@@ -78,6 +86,10 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-tailwindcss": "^3.18.0",
     "eslint-plugin-unused-imports": "^4.1.4",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "webpack-bundle-analyzer": "^4.9.1"
   }
 }

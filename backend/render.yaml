@@ -3,6 +3,7 @@ services:
     name: movie-mate-backend
     runtime: python
     rootDir: backend
+    plan: starter
     buildCommand: |
       echo "Starting build process..."
       pip install -r requirements/prod.txt
@@ -11,8 +12,20 @@ services:
       echo "Collected static files"
       python manage.py migrate --noinput
       echo "Ran migrations"
+      echo "Downloading IMDB datasets..."
+      mkdir -p data/imdb_datasets
+      cd data/imdb_datasets
+      wget https://datasets.imdbws.com/title.basics.tsv.gz
+      wget https://datasets.imdbws.com/title.ratings.tsv.gz
+      wget https://datasets.imdbws.com/title.crew.tsv.gz
+      wget https://datasets.imdbws.com/title.principals.tsv.gz
+      wget https://datasets.imdbws.com/title.akas.tsv.gz
+      wget https://datasets.imdbws.com/name.basics.tsv.gz
+      gunzip *.gz
+      cd ../..
       echo "Starting IMDB data import..."
       python scripts/import_imdb_data.py
+      python scripts/import_imdb_steps_3_to_6.py
       echo "Build process completed"
     startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --worker-class sync --max-requests 1000 --max-requests-jitter 100
     envVars:
@@ -69,18 +82,29 @@ services:
         value: "true"
       - key: MIGRATION_SECRET_KEY
         generateValue: true
+    volumes:
+      - name: imdb-datasets
+        mountPath: /opt/render/project/src/backend/data/imdb_datasets
+        sizeGB: 10
 
   - type: redis
     name: movie-mate-redis
+    plan: starter
     ipAllowList: []
 
   - type: elasticsearch
     name: movie-mate-elasticsearch
+    plan: starter
     ipAllowList: []
 
 databases:
   - name: movie-mate-db
     databaseName: movie_mate
     user: movie_mate_user
-    plan: free
+    plan: starter
+
+volumes:
+  - name: imdb-datasets
+    plan: starter
+    mountPath: /opt/render/project/src/backend/data/imdb_datasets
 

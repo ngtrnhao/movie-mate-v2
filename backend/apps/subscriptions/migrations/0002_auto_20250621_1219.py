@@ -8,4 +8,29 @@ class Migration(migrations.Migration):
         ("subscriptions", "0001_initial"),
     ]
 
-    operations = []
+    operations = [
+        # Drop the old foreign key constraint
+        migrations.RunSQL(
+            sql="""
+            ALTER TABLE subscriptions_paymenttransaction
+            DROP CONSTRAINT IF EXISTS subscriptions_paymen_user_id_931e323d_fk_auth_user;
+            """,
+            reverse_sql="""
+            ALTER TABLE subscriptions_paymenttransaction
+            ADD CONSTRAINT subscriptions_paymen_user_id_931e323d_fk_auth_user
+            FOREIGN KEY (user_id) REFERENCES auth_user(id) ON DELETE CASCADE;
+            """
+        ),
+        # Add the new foreign key constraint pointing to users_users
+        migrations.RunSQL(
+            sql="""
+            ALTER TABLE subscriptions_paymenttransaction
+            ADD CONSTRAINT subscriptions_paymenttransaction_user_id_fk
+            FOREIGN KEY (user_id) REFERENCES users_users(id) ON DELETE CASCADE;
+            """,
+            reverse_sql="""
+            ALTER TABLE subscriptions_paymenttransaction
+            DROP CONSTRAINT IF EXISTS subscriptions_paymenttransaction_user_id_fk;
+            """
+        ),
+    ]

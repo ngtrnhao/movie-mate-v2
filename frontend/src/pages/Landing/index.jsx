@@ -7,7 +7,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 // Lazy load các component nặng để tối ưu performance
-const CategoryGrid = lazy(() => import('../../components/categories/CategoryGrid'));
+const CategoriesSection = lazy(() => import('../../components/categories/CategoriesSection'));
 const LandingFooter = lazy(() => import('../../components/footer/LandingFooter'));
 const MovieGrid = lazy(() => import('../../components/movies/movie-grid/MovieGrid'));
 const TabGroup = lazy(() => import('../../components/movies/tab-group'));
@@ -20,7 +20,6 @@ const MovieTrailerModal = lazy(
 import MovieMateLogo from '../../components/header/Logo';
 import LanguageSwitcher from '../../components/language/LanguageSwitcher';
 import { LazyLoader, GridSkeleton } from '../../components/common/LazyLoader';
-import { useCategories } from '../../hooks/useCategories';
 import {
   useFeaturedMovies,
   useTrendingMovies,
@@ -44,11 +43,18 @@ const LandingPage = () => {
   const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = useState(null);
   const user = useSelector(state => state.auth.user);
-  const [isTrailerOpen, setIsTrailerOpen] = useState(false);
-  const [modalMovie, setModalMovie] = useState(null);
-  const [modalTrailerUrl, setModalTrailerUrl] = useState(null);
   const currentTab = useSelector(state => state.movies.currentTab);
   const [isSecondaryDataEnabled, setIsSecondaryDataEnabled] = useState(false);
+
+  // Use the trailer modal hook
+  const {
+    isTrailerOpen,
+    modalMovie,
+    modalTrailerUrl,
+    handleTrailerClick,
+    closeTrailerModal,
+    getTrailerUrl,
+  } = useTrailerModal();
 
   // Custom hooks cho fetch phim
   const {
@@ -103,8 +109,6 @@ const LandingPage = () => {
 
   const SLIDE_INTERVAL = 3000; // 5 seconds between slides
   const PAUSE_DURATION = 5000; // 15 seconds pause after user interaction
-
-  const { data: categories, isLoading: catLoading, error: catError } = useCategories();
 
   // Lấy ngôn ngữ hiện tại
   // const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
@@ -191,14 +195,6 @@ const LandingPage = () => {
   // Memoize tab change handler
   const handleTabChange = useCallback(tab => dispatch(setCurrentTab(tab)), [dispatch]);
 
-  const {
-    isTrailerOpen: useTrailerModalIsOpen,
-    modalMovie: useTrailerModalMovie,
-    modalTrailerUrl: useTrailerModalTrailerUrl,
-    handleTrailerClick,
-    closeTrailerModal,
-  } = useTrailerModal();
-
   // Xử lý error/loading cho featuredMovies
   if (featuredError) {
     return (
@@ -220,16 +216,7 @@ const LandingPage = () => {
   }
 
   const currentMovie = featuredMovies[currentSlide];
-  const trailerObj = currentMovie?.trailers?.find(t => t.type === 'TRAILER');
-  const trailerUrl = trailerObj
-    ? `https://www.youtube.com/watch?v=${trailerObj.youtube_key}`
-    : null;
-  // Function to handle trailer click
-  const handleOpenTrailer = () => {
-    setModalMovie(currentMovie);
-    setModalTrailerUrl(trailerUrl);
-    setIsTrailerOpen(true);
-  };
+  const trailerUrl = getTrailerUrl(currentMovie);
 
   return (
     <div className="relative min-h-screen bg-gray-900">
@@ -326,6 +313,7 @@ const LandingPage = () => {
               className="absolute inset-0"
             >
               {/* Background Image: Use an <img> tag for prioritization */}
+              {/* eslint-disable-next-line react/no-unknown-property */}
               <img
                 key={featuredMovies[currentSlide].id}
                 src={featuredMovies[currentSlide].poster_path || '/placeholder-poster.jpg'}
@@ -489,7 +477,7 @@ const LandingPage = () => {
                 </span>
               </div>
               <button
-                onClick={handleOpenTrailer}
+                onClick={() => handleTrailerClick(currentMovie)}
                 className={`inline-flex items-center justify-center rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-600 hover:text-white ${
                   !trailerUrl ? 'cursor-not-allowed opacity-50' : ''
                 }`}
@@ -962,30 +950,9 @@ const LandingPage = () => {
         </div>
       </section>
       {/* Explore Categories */}
-      <section className="relative bg-gray-900 bg-gradient-to-b from-transparent via-gray-900 to-gray-900 py-20">
-        <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl font-bold text-white sm:text-4xl">
-            {t('exploreCategories.title')}
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-gray-400">
-            {t('exploreCategories.subtitle')}
-          </p>
-          {catLoading && <div className="text-center text-white">Loading...</div>}
-          {catError && <div className="text-center text-red-500">{catError.message}</div>}
-          <LazyLoader fallback={<GridSkeleton count={6} />}>
-            {categories && <CategoryGrid categories={categories} />}
-          </LazyLoader>
-          <div className="mt-8 flex justify-center">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
-            >
-              {t('exploreCategories.viewAllCategories')}
-            </motion.button>
-          </div>
-        </div>
-      </section>
+      <LazyLoader fallback={<div className="h-96 bg-gray-800 rounded animate-pulse"></div>}>
+        <CategoriesSection />
+      </LazyLoader>
       {/* Choose Your Plan */}
       <section className="relative bg-gradient-to-b from-black via-gray-900 to-gray-900 py-20">
         <div className="container mx-auto px-4">
@@ -1222,10 +1189,10 @@ const LandingPage = () => {
       </section>
       <LazyLoader fallback={<div className="h-96 bg-gray-800 rounded animate-pulse"></div>}>
         <MovieTrailerModal
-          isOpen={useTrailerModalIsOpen}
+          isOpen={isTrailerOpen}
           onClose={closeTrailerModal}
-          movie={useTrailerModalMovie}
-          trailerUrl={useTrailerModalTrailerUrl}
+          movie={modalMovie}
+          trailerUrl={modalTrailerUrl}
         />
       </LazyLoader>
       <LazyLoader fallback={<div className="h-64 bg-gray-800 rounded animate-pulse"></div>}>

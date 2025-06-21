@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import useAdDisplay from '../../hooks/useAdDisplay';
 
 const DOMAIN = 'gizokraijaw.net';
 const PATH = '401';
@@ -18,8 +19,12 @@ function setFooterAdShown() {
 
 const AdBannerFooter = () => {
   const scriptRef = useRef(null);
+  const shouldShowAds = useAdDisplay();
 
   useEffect(() => {
+    // Chỉ hiển thị quảng cáo nếu điều kiện phù hợp
+    if (!shouldShowAds) return;
+
     if (!canShowFooterAd()) return;
     // Inject script Vignette Banner
     const s = document.createElement('script');
@@ -37,7 +42,12 @@ const AdBannerFooter = () => {
         scriptRef.current.parentNode.removeChild(scriptRef.current);
       }
     };
-  }, []);
+  }, [shouldShowAds]);
+
+  // Không render gì nếu không nên hiển thị quảng cáo
+  if (!shouldShowAds) {
+    return null;
+  }
 
   return <div className="ad-banner-footer-container" />;
 };

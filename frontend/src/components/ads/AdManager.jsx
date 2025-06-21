@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import useAdDisplay from '../../hooks/useAdDisplay';
 
 function canShowVemAd(cooldownMinutes = 10) {
   const lastShown = localStorage.getItem('vemAdLastShown');
@@ -12,7 +13,12 @@ function setVemAdShown() {
 }
 
 const AdManager = ({ cooldownMinutes = 10 }) => {
+  const shouldShowAds = useAdDisplay();
+
   useEffect(() => {
+    // Chỉ hiển thị quảng cáo nếu điều kiện phù hợp
+    if (!shouldShowAds) return;
+
     // TEMP: Bỏ kiểm tra cooldown để test ở local
     if (!canShowVemAd(cooldownMinutes)) return;
     const script = document.createElement('script');
@@ -25,7 +31,8 @@ const AdManager = ({ cooldownMinutes = 10 }) => {
     return () => {
       if (script.parentNode) script.parentNode.removeChild(script);
     };
-  }, [cooldownMinutes]);
+  }, [cooldownMinutes, shouldShowAds]);
+
   return null;
 };
 

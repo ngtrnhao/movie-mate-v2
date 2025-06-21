@@ -1,6 +1,14 @@
 import { useEffect, useRef } from 'react';
+import useAdDisplay from '../hooks/useAdDisplay';
 
 const PropellerAdsBanner = ({ zoneId, style, className = '' }) => {
+  const shouldShowAds = useAdDisplay();
+
+  // Không render gì nếu không nên hiển thị quảng cáo
+  if (!shouldShowAds) {
+    return null;
+  }
+
   // Không inject script nữa, chỉ render container
   if (process.env.NODE_ENV !== 'production') {
     return (

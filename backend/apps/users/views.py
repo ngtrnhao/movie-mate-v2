@@ -11,6 +11,7 @@ from .serializers import (
     LoginSerializer,
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
+    UserSerializer,
     UserProfileSerializer,
     UserStatsSerializer,
     UserRatingSerializer,
@@ -134,13 +135,11 @@ class LoginView(generics.CreateAPIView):
                 logger.error(f"JWT token generation failed for user {user.email}: {str(jwt_error)}")
                 raise jwt_error
 
+            # Use UserSerializer to return consistent user data
+            user_data = UserSerializer(user).data
+
             return Response({
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'isEmailVerified': user.is_email_verified,
-                },
+                'user': user_data,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             })

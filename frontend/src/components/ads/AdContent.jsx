@@ -1,12 +1,17 @@
 import { useEffect, useRef } from 'react';
+import useAdDisplay from '../../hooks/useAdDisplay';
 
 const DOMAIN = 'vemtoutcheeg.com';
 const ZONE = 9465780;
 
 const AdContent = ({ position = 'TOP', className = '' }) => {
   const scriptRef = useRef(null);
+  const shouldShowAds = useAdDisplay();
 
   useEffect(() => {
+    // Chỉ hiển thị quảng cáo nếu điều kiện phù hợp
+    if (!shouldShowAds) return;
+
     const service = require('../../services/propellerAdsService').default;
     if (!service.canShowAd()) return;
     service.recordAdShown();
@@ -26,7 +31,12 @@ const AdContent = ({ position = 'TOP', className = '' }) => {
         scriptRef.current.parentNode.removeChild(scriptRef.current);
       }
     };
-  }, [position]);
+  }, [position, shouldShowAds]);
+
+  // Không render gì nếu không nên hiển thị quảng cáo
+  if (!shouldShowAds) {
+    return null;
+  }
 
   return (
     <div

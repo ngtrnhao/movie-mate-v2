@@ -1,7 +1,13 @@
 import { useEffect } from 'react';
+import useAdDisplay from '../hooks/useAdDisplay';
 
 const AdBanner = ({ slot, style }) => {
+  const shouldShowAds = useAdDisplay();
+
   useEffect(() => {
+    // Chỉ hiển thị quảng cáo nếu điều kiện phù hợp
+    if (!shouldShowAds) return;
+
     if (process.env.NODE_ENV === 'production') {
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -9,7 +15,12 @@ const AdBanner = ({ slot, style }) => {
         // ignore error
       }
     }
-  }, []);
+  }, [shouldShowAds]);
+
+  // Không render gì nếu không nên hiển thị quảng cáo
+  if (!shouldShowAds) {
+    return null;
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     // Placeholder khi develop

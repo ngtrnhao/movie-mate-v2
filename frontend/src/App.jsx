@@ -26,6 +26,7 @@ import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
 import PerformanceMonitor from './components/common/PerformanceMonitor';
+import AdDisplayTest from './components/ads/AdDisplayTest';
 
 // Global error handler để chặn lỗi Script error từ quảng cáo ngoài
 if (typeof window !== 'undefined') {
@@ -134,6 +135,9 @@ function App() {
 
             {/* Performance Monitor - chỉ hiển thị trong development */}
             <PerformanceMonitor />
+
+            {/* Ad Display Test - chỉ hiển thị trong development */}
+            <AdDisplayTest />
           </QueryProvider>
         </BrowserRouter>
       </I18nProvider>

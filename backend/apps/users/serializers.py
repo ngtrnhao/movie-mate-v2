@@ -102,6 +102,17 @@ class ResetPasswordSerializer(serializers.Serializer):
         except PasswordResetToken.DoesNotExist:
             raise serializers.ValidationError("Invalid password reset link.")
 
+class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the User model, used for general user data responses.
+    """
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
+            'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
+        ]
+
 class UserProfileSerializer(serializers.ModelSerializer):
     subscription_start_date = serializers.SerializerMethodField()
     subscription_end_date = serializers.SerializerMethodField()

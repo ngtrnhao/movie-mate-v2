@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import useAdDisplay from '../../hooks/useAdDisplay';
 
 function canShowOverlayAd(cooldownMinutes = 10) {
   const lastShown = localStorage.getItem('overlayAdLastShown');
@@ -12,7 +13,11 @@ function setOverlayAdShown() {
 }
 
 const ScriptLoader = ({ zoneId, domain = 'autchoog.net', cooldownMinutes = 10 }) => {
+  const shouldShowAds = useAdDisplay();
+
   useEffect(() => {
+    if (!shouldShowAds) return;
+
     if (!canShowOverlayAd(cooldownMinutes)) return;
     const script = document.createElement('script');
     script.src = `https://${domain}/400/${zoneId}`;
@@ -22,7 +27,8 @@ const ScriptLoader = ({ zoneId, domain = 'autchoog.net', cooldownMinutes = 10 })
     return () => {
       if (script.parentNode) script.parentNode.removeChild(script);
     };
-  }, [zoneId, cooldownMinutes, domain]);
+  }, [zoneId, cooldownMinutes, domain, shouldShowAds]);
+
   return null;
 };
 

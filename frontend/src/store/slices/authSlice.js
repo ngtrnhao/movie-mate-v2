@@ -26,6 +26,7 @@ const initialState = {
     user_type: null,
   },
   isAuthenticated: false,
+  isRehydrated: false,
   token: null,
   refreshToken: null,
   loading: false,
@@ -248,6 +249,7 @@ const authSlice = createSlice({
           localStorage.removeItem('user');
         }
       }
+      state.isRehydrated = true;
     },
     /**
      * clearAuthData
@@ -405,8 +407,9 @@ export const {
 // Selectors
 export const selectUser = state => state.auth.user;
 export const selectIsAuthenticated = state => state.auth.isAuthenticated;
+export const selectIsRehydrated = state => state.auth.isRehydrated;
 export const selectToken = state => state.auth.token;
-export const selectLoading = state => state.auth.loading;
+export const selectAuthLoading = state => state.auth.loading;
 export const selectError = state => state.auth.error;
 
 export default authSlice.reducer;

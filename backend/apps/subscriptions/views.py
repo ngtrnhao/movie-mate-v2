@@ -114,8 +114,10 @@ class PayPalWebhookView(APIView):
             if user_type_updated:
                 try:
                     logger.info("Attempting to save user...")
+                    # Update subscription end date
+                    user.subscription_end_date = end_date
                     user.save()
-                    logger.info(f"User {user.email} saved successfully with new type: {user.user_type}!")
+                    logger.info(f"User {user.email} saved successfully with new type: {user.user_type} and subscription_end_date: {end_date}!")
                 except Exception as e:
                     logger.error(f"Failed to save user: {e}")
                     return Response({'error': 'Failed to update user type'}, status=500)

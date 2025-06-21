@@ -17,6 +17,7 @@ class User(AbstractUser):
     is_google_account = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    subscription_end_date = models.DateTimeField(blank=True, null=True)
     USER_TYPE_CHOICES = [
         ('member','Member'),
         ('prenium_basic','Prenium Basic'),

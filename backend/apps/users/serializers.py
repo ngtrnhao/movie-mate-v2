@@ -107,9 +107,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
-            'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type'
+            'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
+            'subscription_end_date'
         ]
-        read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at', 'user_type']
+        read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at', 'user_type', 'subscription_end_date']
 
 class UserStatsSerializer(serializers.Serializer):
     watched_movies_count = serializers.IntegerField()

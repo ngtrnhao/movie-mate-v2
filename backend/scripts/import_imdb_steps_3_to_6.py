@@ -50,10 +50,10 @@ class OptimizedIMDBImporter:
     def _check_dataset_files(self):
         """Check if required dataset files exist"""
         required_files = [
-            'title.crew.tsv.gz',
-            'title.principals.tsv.gz',
-            'title.akas.tsv.gz',
-            'name.basics.tsv.gz'
+            'title.crew.tsv',
+            'title.principals.tsv',
+            'title.akas.tsv',
+            'name.basics.tsv'
         ]
 
         missing_files = []

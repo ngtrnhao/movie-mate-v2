@@ -51,7 +51,7 @@ const Header = () => {
   const handleLogout = () => {
     handleProfileMenuClose();
     dispatch(logout());
-    navigate('/login');
+    window.location.href = '/login';
   };
 
   return (

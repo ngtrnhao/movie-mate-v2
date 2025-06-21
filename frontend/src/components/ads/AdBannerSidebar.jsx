@@ -1,39 +1,46 @@
 import { useEffect, useRef } from 'react';
 import useAdDisplay from '../../hooks/useAdDisplay';
+import adCooldownService from '../../services/adCooldownService';
 
+const AD_TYPE = 'banner_sidebar';
 const DOMAIN = 'vemtoutcheeg.com';
 const ZONE = 9465780;
+const INITIAL_DELAY_MS = 4500; // Trì hoãn 4.5 giây
 
 const AdBannerSidebar = () => {
-  const scriptRef = useRef(null);
   const shouldShowAds = useAdDisplay();
+  const adShownRef = useRef(false);
 
   useEffect(() => {
-    // Chỉ hiển thị quảng cáo nếu điều kiện phù hợp
-    if (!shouldShowAds) return;
-
-    const service = require('../../services/propellerAdsService').default;
-    if (!service.canShowAd()) return;
-    service.recordAdShown();
-
-    // Inject script quảng cáo dạng IIFE
-    const s = document.createElement('script');
-    s.src = `https://${DOMAIN}/400/${ZONE}`;
-    s.async = true;
-    scriptRef.current = s;
-    try {
-      (document.body || document.documentElement).appendChild(s);
-    } catch (e) {
-      console.warn('Failed to inject ad script:', e);
+    if (!shouldShowAds) {
+      return;
     }
-    return () => {
-      if (scriptRef.current && scriptRef.current.parentNode) {
-        scriptRef.current.parentNode.removeChild(scriptRef.current);
+
+    const timer = setTimeout(() => {
+      if (adShownRef.current || !shouldShowAds) {
+        return;
       }
-    };
+
+      if (!adCooldownService.canShowAd(AD_TYPE)) {
+        return;
+      }
+
+      const s = document.createElement('script');
+      s.src = `https://${DOMAIN}/400/${ZONE}`;
+      s.async = true;
+
+      try {
+        (document.body || document.documentElement).appendChild(s);
+        adCooldownService.recordAdShown(AD_TYPE);
+        adShownRef.current = true;
+      } catch (e) {
+        console.warn('Failed to inject ad script:', e);
+      }
+    }, INITIAL_DELAY_MS);
+
+    return () => clearTimeout(timer);
   }, [shouldShowAds]);
 
-  // Không render gì nếu không nên hiển thị quảng cáo
   if (!shouldShowAds) {
     return null;
   }

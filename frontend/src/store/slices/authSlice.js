@@ -7,6 +7,7 @@ import {
   forgotPasswordAPI,
   resetPasswordAPI,
 } from '../../api/auth';
+import adCooldownService from '../../services/adCooldownService';
 
 const initialState = {
   user: {
@@ -185,6 +186,9 @@ const authSlice = createSlice({
       state.error = action.payload;
     },
     logout: state => {
+      // Xóa dữ liệu quảng cáo
+      adCooldownService.clearAll();
+
       state.user = {
         id: null,
         username: null,

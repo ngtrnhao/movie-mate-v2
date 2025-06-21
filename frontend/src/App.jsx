@@ -46,6 +46,22 @@ function App() {
   // Khi app khởi động, gọi rehydrateAuth để khôi phục trạng thái đăng nhập từ localStorage vào Redux
   useEffect(() => {
     dispatch(rehydrateAuth());
+
+    // Dọn dẹp một lần các key localStorage cũ của hệ thống quảng cáo
+    const oldAdKeys = [
+      'footerAdLastShown',
+      'vemAdLastShown',
+      'overlayAdLastShown',
+      'globalAdShownTimestamps',
+    ];
+
+    oldAdKeys.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        // Bỏ qua lỗi nếu có
+      }
+    });
   }, [dispatch]);
 
   // Đặt global error handler trong useEffect để luôn được gán lại

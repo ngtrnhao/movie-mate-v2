@@ -4,45 +4,42 @@ import adCooldownService from '../../services/adCooldownService';
 
 const AD_TYPE = 'popup';
 const COOLDOWN_MINUTES = 10;
+const INITIAL_DELAY_MS = 5000; // Trì hoãn 5 giây
 
 const AdManager = () => {
   const shouldShowAds = useAdDisplay();
   const adShownRef = useRef(false);
 
   useEffect(() => {
-    // Điều kiện 1: Logic chỉ chạy một lần duy nhất
-    if (adShownRef.current) {
-      return;
-    }
-
-    // Điều kiện 2: Phải là đối tượng được hiển thị quảng cáo
     if (!shouldShowAds) {
       return;
     }
 
-    // Điều kiện 3: Cooldown phải hết hạn
-    if (!adCooldownService.canShowAd(AD_TYPE, COOLDOWN_MINUTES)) {
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = 'https://fpyf8.com/88/tag.min.js';
-    script.async = true;
-    script.setAttribute('data-zone', '152884');
-    script.setAttribute('data-cfasync', 'false');
-
-    document.body.appendChild(script);
-
-    // Ghi lại là quảng cáo đã hiển thị
-    adCooldownService.recordAdShown(AD_TYPE);
-    adShownRef.current = true; // Đánh dấu đã chạy, để không chạy lại
-
-    return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+    // Thiết lập một bộ đếm thời gian để trì hoãn việc tải quảng cáo
+    const timer = setTimeout(() => {
+      // Kiểm tra lại các điều kiện sau khi hết thời gian trì hoãn
+      if (adShownRef.current || !shouldShowAds) {
+        return;
       }
-    };
-    // Dependency array rỗng để đảm bảo effect chỉ chạy MỘT LẦN khi component mount
+
+      if (!adCooldownService.canShowAd(AD_TYPE, COOLDOWN_MINUTES)) {
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://fpyf8.com/88/tag.min.js';
+      script.async = true;
+      script.setAttribute('data-zone', '152884');
+      script.setAttribute('data-cfasync', 'false');
+
+      document.body.appendChild(script);
+
+      adCooldownService.recordAdShown(AD_TYPE);
+      adShownRef.current = true;
+    }, INITIAL_DELAY_MS);
+
+    // Dọn dẹp bộ đếm thời gian nếu component bị unmount
+    return () => clearTimeout(timer);
   }, [shouldShowAds]);
 
   return null;

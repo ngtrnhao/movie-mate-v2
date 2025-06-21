@@ -69,6 +69,19 @@ class AdCooldownService {
 
     this.setTimestamps(timestamps);
   }
+
+  /**
+   * Xóa tất cả dữ liệu về thời gian chờ quảng cáo khỏi localStorage.
+   * Thường được gọi khi người dùng đăng xuất.
+   */
+  clearAll() {
+    try {
+      localStorage.removeItem(COOLDOWN_STORAGE_KEY);
+      console.log('Ad cooldown data cleared.');
+    } catch (error) {
+      console.error('Error clearing ad cooldown data:', error);
+    }
+  }
 }
 
 const adCooldownService = new AdCooldownService();

@@ -6,9 +6,54 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 import logging
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+class PaymentTransactionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        """Get latest active payment transaction for user"""
+        try:
+            # Check if user exists
+            user = User.objects.get(id=user_id)
+
+            # Get latest active payment transaction
+            latest_transaction = PaymentTransaction.objects.filter(
+                user=user,
+                status='COMPLETED',
+                end_date__gte=timezone.now()
+            ).order_by('-end_date').first()
+
+            if latest_transaction:
+                return Response({
+                    'has_active_subscription': True,
+                    'subscription_start_date': latest_transaction.start_date,
+                    'subscription_end_date': latest_transaction.end_date,
+                    'plan': latest_transaction.plan,
+                    'amount': str(latest_transaction.amount),
+                    'user_type': user.user_type
+                })
+            else:
+                return Response({
+                    'has_active_subscription': False,
+                    'user_type': user.user_type
+                })
+
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error getting payment transaction: {e}")
+            return Response(
+                {'error': 'Internal server error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class PayPalWebhookView(APIView):
     authentication_classes = []
@@ -114,10 +159,8 @@ class PayPalWebhookView(APIView):
             if user_type_updated:
                 try:
                     logger.info("Attempting to save user...")
-                    # Update subscription end date
-                    user.subscription_end_date = end_date
                     user.save()
-                    logger.info(f"User {user.email} saved successfully with new type: {user.user_type} and subscription_end_date: {end_date}!")
+                    logger.info(f"User {user.email} saved successfully with new type: {user.user_type}!")
                 except Exception as e:
                     logger.error(f"Failed to save user: {e}")
                     return Response({'error': 'Failed to update user type'}, status=500)

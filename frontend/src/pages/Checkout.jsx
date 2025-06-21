@@ -6,6 +6,7 @@ import { selectUser } from '../store/selectors/authSelectors';
 import { useState, useEffect } from 'react';
 import { format, addMonths } from 'date-fns';
 import { fetchProfile } from '../store/slices/profileSlice';
+import { getPaymentTransactionAPI } from '../api/profileService';
 
 const getInitials = user => {
   if (user.firstName || user.lastName) {
@@ -55,35 +56,94 @@ const CheckoutPage = () => {
       return;
     }
 
+    let retryCount = 0;
+    const maxRetries = 3;
+
     const interval = setInterval(async () => {
       // Ensure we have a valid user ID before polling
       if (!user?.id) {
         console.warn('Polling skipped: user ID not available.');
         return;
       }
-      console.log(`Polling for profile updates for user ${user.id}...`);
-      // Assuming fetchProfile returns the updated user data in its payload
-      const action = await dispatch(fetchProfile(user.id));
-      const updatedUser = action.payload.user;
+      console.log(`Polling for profile updates for user ${user.id}... (attempt ${retryCount + 1})`);
 
-      if (
-        updatedUser &&
-        new Date(updatedUser.subscription_end_date) > new Date(user.subscription_end_date || 0)
-      ) {
-        setPaymentStatus('success');
-        setIsProcessing(false);
-        clearInterval(interval);
+      try {
+        // Fetch updated user profile
+        const action = await dispatch(fetchProfile(user.id));
+        const updatedUser = action.payload.user;
+
+        // Fetch payment transaction data
+        const paymentData = await getPaymentTransactionAPI(user.id);
+
+        // Check if user type has been upgraded to premium
+        const isUserTypeUpgraded =
+          updatedUser?.user_type &&
+          updatedUser.user_type !== 'member' &&
+          updatedUser.user_type !== user.user_type;
+
+        // Check if payment transaction shows active subscription
+        const hasActiveSubscription = paymentData?.has_active_subscription;
+
+        // Check if subscription dates are available (from PaymentTransaction)
+        const hasSubscriptionDates =
+          updatedUser?.subscription_start_date && updatedUser?.subscription_end_date;
+
+        // Check if subscription end date is in the future
+        const isSubscriptionActive =
+          hasSubscriptionDates && new Date(updatedUser.subscription_end_date) > new Date();
+
+        console.log('Polling check results:', {
+          isUserTypeUpgraded,
+          hasActiveSubscription,
+          hasSubscriptionDates,
+          isSubscriptionActive,
+          oldUserType: user.user_type,
+          newUserType: updatedUser?.user_type,
+          subscriptionEndDate: updatedUser?.subscription_end_date,
+          paymentTransactionData: paymentData,
+          retryCount: retryCount + 1,
+        });
+
+        // Success condition: User type upgraded AND has active subscription from payment transaction
+        if (isUserTypeUpgraded && hasActiveSubscription) {
+          console.log('Payment successful! User upgraded and payment transaction confirmed.');
+          setPaymentStatus('success');
+          setIsProcessing(false);
+          clearInterval(interval);
+        }
+        // Alternative success condition: If user type is already premium and payment transaction is active
+        else if (updatedUser?.user_type !== 'member' && hasActiveSubscription) {
+          console.log(
+            'Payment successful! User already premium with confirmed payment transaction.'
+          );
+          setPaymentStatus('success');
+          setIsProcessing(false);
+          clearInterval(interval);
+        }
+
+        // Reset retry count on successful API calls
+        retryCount = 0;
+      } catch (error) {
+        console.error('Error during polling:', error);
+        retryCount++;
+
+        // If too many retries, show error but don't stop polling
+        if (retryCount >= maxRetries) {
+          console.warn(`Max retries (${maxRetries}) reached, but continuing to poll...`);
+          retryCount = 0; // Reset for next cycle
+        }
       }
     }, 3000); // Poll every 3 seconds
 
-    // Timeout after 30 seconds
+    // Timeout after 2 minutes (120 seconds)
     const timeout = setTimeout(() => {
       if (isProcessing) {
+        console.log('Polling timeout reached after 2 minutes. Payment processing may be delayed.');
         setPaymentStatus('failed');
         setIsProcessing(false);
         clearInterval(interval);
       }
-    }, 30000);
+    }, 120000); // 2 minutes = 120,000 milliseconds
 
     return () => {
       clearInterval(interval);
@@ -171,6 +231,9 @@ const CheckoutPage = () => {
               <p className="mt-4 text-lg">
                 {t('checkout.processing', 'Processing your payment, please wait...')}
               </p>
+              <p className="mt-2 text-sm text-gray-400">
+                This may take up to 2 minutes. Please don't close this page.
+              </p>
             </div>
           )}
 
@@ -202,8 +265,11 @@ const CheckoutPage = () => {
                   'Your payment is being processed. Please check your profile in a few minutes.'
                 )}
               </p>
+              <p className="mt-2 text-sm text-gray-300">
+                If you don't see the update in 5 minutes, please contact support.
+              </p>
               <button
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate(`/profile/${user.id}`)}
                 className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
               >
                 {t('checkout.goToProfile', 'Go to Profile')}

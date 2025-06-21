@@ -143,3 +143,13 @@ export const getFavoriteGenresAPI = async (userId, page = 1) => {
 //     throw error.response?.data || { error: 'Failed to delete account' };
 //   }
 // };
+
+//Get payment transaction
+export const getPaymentTransactionAPI = async userId => {
+  try {
+    const response = await axiosInstance.get(`/api/subscriptions/payment-transaction/${userId}/`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to fetch payment transaction' };
+  }
+};

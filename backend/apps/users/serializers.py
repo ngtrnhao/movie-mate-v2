@@ -103,14 +103,43 @@ class ResetPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid password reset link.")
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    subscription_start_date = serializers.SerializerMethodField()
+    subscription_end_date = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
             'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
-            'subscription_end_date'
+            'subscription_start_date', 'subscription_end_date'
         ]
-        read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at', 'user_type', 'subscription_end_date']
+        read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at', 'user_type', 'subscription_start_date', 'subscription_end_date']
+
+    def get_subscription_start_date(self, obj):
+        """Get the latest subscription start date from PaymentTransaction"""
+        from apps.subscriptions.models import PaymentTransaction
+        from django.utils import timezone
+
+        latest_transaction = PaymentTransaction.objects.filter(
+            user=obj,
+            status='COMPLETED',
+            end_date__gte=timezone.now()
+        ).order_by('-end_date').first()
+
+        return latest_transaction.start_date if latest_transaction else None
+
+    def get_subscription_end_date(self, obj):
+        """Get the latest subscription end date from PaymentTransaction"""
+        from apps.subscriptions.models import PaymentTransaction
+        from django.utils import timezone
+
+        latest_transaction = PaymentTransaction.objects.filter(
+            user=obj,
+            status='COMPLETED',
+            end_date__gte=timezone.now()
+        ).order_by('-end_date').first()
+
+        return latest_transaction.end_date if latest_transaction else None
 
 class UserStatsSerializer(serializers.Serializer):
     watched_movies_count = serializers.IntegerField()

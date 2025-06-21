@@ -1,50 +1,45 @@
 import { useEffect, useRef } from 'react';
 import useAdDisplay from '../../hooks/useAdDisplay';
+import adCooldownService from '../../services/adCooldownService';
 
+const AD_TYPE = 'banner_footer';
 const DOMAIN = 'gizokraijaw.net';
 const PATH = '401';
 const ZONE = 9467684;
-const COOLDOWN_MINUTES = 10;
-
-function canShowFooterAd(cooldownMinutes = COOLDOWN_MINUTES) {
-  const lastShown = localStorage.getItem('footerAdLastShown');
-  if (!lastShown) return true;
-  const diff = (Date.now() - parseInt(lastShown, 10)) / 1000 / 60;
-  return diff >= cooldownMinutes;
-}
-
-function setFooterAdShown() {
-  localStorage.setItem('footerAdLastShown', Date.now().toString());
-}
+const COOLDOWN_MINUTES = 5;
 
 const AdBannerFooter = () => {
-  const scriptRef = useRef(null);
   const shouldShowAds = useAdDisplay();
+  const adShownRef = useRef(false);
 
   useEffect(() => {
-    // Chỉ hiển thị quảng cáo nếu điều kiện phù hợp
-    if (!shouldShowAds) return;
+    if (adShownRef.current || !shouldShowAds) {
+      return;
+    }
 
-    if (!canShowFooterAd()) return;
-    // Inject script Vignette Banner
+    if (!adCooldownService.canShowAd(AD_TYPE, COOLDOWN_MINUTES)) {
+      return;
+    }
+
     const s = document.createElement('script');
     s.src = `https://${DOMAIN}/${PATH}/${ZONE}`;
     s.async = true;
-    scriptRef.current = s;
+
     try {
       (document.body || document.documentElement).appendChild(s);
+      adCooldownService.recordAdShown(AD_TYPE);
+      adShownRef.current = true;
     } catch (e) {
       console.warn('Failed to inject vignette banner script:', e);
     }
-    setFooterAdShown();
+
     return () => {
-      if (scriptRef.current && scriptRef.current.parentNode) {
-        scriptRef.current.parentNode.removeChild(scriptRef.current);
+      if (s.parentNode) {
+        s.parentNode.removeChild(s);
       }
     };
   }, [shouldShowAds]);
 
-  // Không render gì nếu không nên hiển thị quảng cáo
   if (!shouldShowAds) {
     return null;
   }

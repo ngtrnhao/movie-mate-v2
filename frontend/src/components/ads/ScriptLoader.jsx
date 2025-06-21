@@ -1,33 +1,43 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import useAdDisplay from '../../hooks/useAdDisplay';
+import adCooldownService from '../../services/adCooldownService';
 
-function canShowOverlayAd(cooldownMinutes = 10) {
-  const lastShown = localStorage.getItem('overlayAdLastShown');
-  if (!lastShown) return true;
-  const diff = (Date.now() - parseInt(lastShown, 10)) / 1000 / 60;
-  return diff >= cooldownMinutes;
-}
-
-function setOverlayAdShown() {
-  localStorage.setItem('overlayAdLastShown', Date.now().toString());
-}
+const AD_TYPE = 'script_loader_overlay';
 
 const ScriptLoader = ({ zoneId, domain = 'autchoog.net', cooldownMinutes = 10 }) => {
   const shouldShowAds = useAdDisplay();
+  const adShownRef = useRef(false);
 
   useEffect(() => {
-    if (!shouldShowAds) return;
+    if (adShownRef.current || !shouldShowAds) {
+      return;
+    }
 
-    if (!canShowOverlayAd(cooldownMinutes)) return;
+    // Tạo một adType duy nhất cho mỗi zone để quản lý cooldown riêng
+    const dynamicAdType = `${AD_TYPE}_${zoneId}`;
+
+    if (!adCooldownService.canShowAd(dynamicAdType, cooldownMinutes)) {
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = `https://${domain}/400/${zoneId}`;
     script.async = true;
-    document.body.appendChild(script);
-    setOverlayAdShown();
+
+    try {
+      document.body.appendChild(script);
+      adCooldownService.recordAdShown(dynamicAdType);
+      adShownRef.current = true;
+    } catch (e) {
+      console.warn('Failed to inject script from ScriptLoader:', e);
+    }
+
     return () => {
-      if (script.parentNode) script.parentNode.removeChild(script);
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
     };
-  }, [zoneId, cooldownMinutes, domain, shouldShowAds]);
+  }, [shouldShowAds, zoneId, domain, cooldownMinutes]);
 
   return null;
 };

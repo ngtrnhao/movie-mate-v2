@@ -1,39 +1,23 @@
-// PropellerAds Service - Chỉ kiểm soát tần suất inject script nhúng
+/**
+ * PropellerAds Service
+ * Service này hiện tại không còn quản lý cooldown,
+ * vai trò đó đã được chuyển cho adCooldownService.
+ * Giữ lại cấu trúc để có thể mở rộng trong tương lai.
+ */
 class PropellerAdsService {
-  // Kiểm soát tần suất toàn cục cho quảng cáo
-  canShowAd(globalLimit = 1, windowMinutes = 1) {
-    try {
-      const key = 'globalAdShownTimestamps';
-      const now = Date.now();
-      let timestamps = [];
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        timestamps = JSON.parse(raw).filter(ts => now - ts < windowMinutes * 60 * 1000);
-      }
-      return timestamps.length < globalLimit;
-    } catch (e) {
-      // Nếu lỗi, cho phép hiển thị để tránh chặn nhầm
-      return true;
-    }
+  constructor() {
+    this.isInitialized = false;
   }
 
-  recordAdShown(windowMinutes = 1) {
-    try {
-      const key = 'globalAdShownTimestamps';
-      const now = Date.now();
-      let timestamps = [];
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        timestamps = JSON.parse(raw).filter(ts => now - ts < windowMinutes * 60 * 1000);
-      }
-      timestamps.push(now);
-      localStorage.setItem(key, JSON.stringify(timestamps));
-    } catch (e) {
-      // Bỏ qua lỗi
+  async init() {
+    if (this.isInitialized) {
+      return;
     }
+    // Logic khởi tạo (nếu có) trong tương lai
+    this.isInitialized = true;
+    console.log('PropellerAds Service Initialized (no-op)');
   }
 }
 
 const propellerAdsService = new PropellerAdsService();
-
 export default propellerAdsService;

@@ -69,13 +69,7 @@
     "title": "Tên Phim"
   },
   "rating": {
-    "votes": "Đánh Giá",
-    "notRated": "Không Đánh Giá",
-    "veryBad": "Rất Tệ",
-    "bad": "Tệ",
-    "average": "Trung Bình",
-    "good": "Tốt",
-    "excellent": "Xuất Sắc"
+    "notRated": "Chưa có đánh giá"
   },
   "errors": {
     "loading": {
@@ -95,5 +89,10 @@
     "rating": "Đánh Giá Cao Nhất",
     "release_date": "Mới Nhất",
     "title": "Tên A-Z"
+  },
+  "badge": {
+    "popular": "Phổ Biến",
+    "topRated": "Đánh Giá Cao",
+    "upcoming": "Sắp Chiếu"
   }
 }

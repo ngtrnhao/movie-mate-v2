@@ -7,15 +7,20 @@ import Info from './Info';
 import Poster from './Poster';
 import Rating from './Rating';
 import RecommendedInfo from './RecommendedInfo';
+import { useTranslation } from '../../../i18n/hooks/useTranslation';
 
-const MovieCard = memo(({ movie }) => {
+const MovieCard = memo(({ movie, onTrailerClick }) => {
+  const { i18n } = useTranslation();
+
   const movieData = useMemo(
     () => ({
       id: movie.id,
       title: movie.title,
+      title_vi: movie.title_vi,
       original_title: movie.original_title,
       poster_path: movie.poster_path,
       overview_en: movie.overview_en,
+      overview_vi: movie.overview_vi,
       release_date: movie.release_date,
       genres: movie.genres,
       rating: movie.rating,
@@ -27,14 +32,19 @@ const MovieCard = memo(({ movie }) => {
       adult: movie.adult,
       match: movie.match,
       recommendReason: movie.recommendReason,
+      trailers: movie.trailers,
     }),
     [movie]
   );
 
-  // Memoize handlers
-  // const handleClick = useCallback(() => {
-  //   // Handle click if needed
-  // }, []);
+  const displayTitle =
+    i18n.language === 'vi' && movieData.title_vi ? movieData.title_vi : movieData.title;
+  const displayOverview =
+    i18n.language === 'vi' && movieData.overview_vi ? movieData.overview_vi : movieData.overview_en;
+  const displayGenres = useMemo(
+    () => movieData.genres?.filter(g => g.language === i18n.language) || [],
+    [movieData.genres, i18n.language]
+  );
 
   return (
     <motion.div
@@ -50,7 +60,7 @@ const MovieCard = memo(({ movie }) => {
 
       {/* Movie Poster with Link */}
       <Link to={`/movies/${movieData.id}`} className="block">
-        <Poster posterPath={movieData.poster_path} title={movieData.title} />
+        <Poster posterPath={movieData.poster_path} title={displayTitle} />
       </Link>
 
       {/* Movie Info Section */}
@@ -58,11 +68,11 @@ const MovieCard = memo(({ movie }) => {
         <Link to={`/movies/${movieData.id}`} className="block">
           <div>
             <Info
-              title={movieData.title}
+              title={displayTitle}
               originalTitle={movieData.original_title}
               releaseDate={movieData.release_date}
-              overview={movieData.overview_en}
-              genres={movieData.genres}
+              overview={displayOverview}
+              genres={displayGenres}
               isPopular={movieData.is_popular}
               isTopRated={movieData.is_top_rated}
               isUpcoming={movieData.is_upcoming}
@@ -77,7 +87,7 @@ const MovieCard = memo(({ movie }) => {
         </Link>
         <div className="mt-3 flex items-center gap-2">
           <div className="flex flex-1 gap-2">
-            <Actions moviesId={movieData.id} onlyMainButton />
+            <Actions movie={movieData} onlyMainButton onTrailerClick={onTrailerClick} />
             {movieData.match && (
               <button
                 className="rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white shadow transition hover:bg-white/20"
@@ -87,7 +97,7 @@ const MovieCard = memo(({ movie }) => {
               </button>
             )}
           </div>
-          <Actions moviesId={movieData.id} onlyBookmark />
+          <Actions movie={movieData} onlyBookmark />
         </div>
       </div>
     </motion.div>

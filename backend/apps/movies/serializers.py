@@ -26,14 +26,14 @@ class MovieListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Movie
         fields = [
-            'id', 'title', 'original_title', 'overview_en', 'overview_vi', 'release_date',
+            'id', 'title', 'title_vi', 'original_title', 'overview_en', 'overview_vi', 'release_date',
             'poster_path', 'backdrop_path', 'runtime', 'status', 'genres',
             'rating', 'vote_average', 'vote_count', 'is_popular',
             'is_top_rated', 'is_upcoming', 'overviews', 'trailers'
         ]
 
     def get_genres(self, obj):
-        return [{'id': genre.id, 'name': genre.name} for genre in obj.genres.all()]
+        return [{'id': genre.id, 'name': genre.name, 'language': genre.language} for genre in obj.genres.all()]
 
     def get_rating(self, obj):
         try:

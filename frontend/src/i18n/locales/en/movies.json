@@ -69,13 +69,7 @@
     "title": "Title"
   },
   "rating": {
-    "votes": "votes",
-    "notRated": "Not Rated",
-    "veryBad": "Very Bad",
-    "bad": "Bad",
-    "average": "Average",
-    "good": "Good",
-    "excellent": "Excellent"
+    "notRated": "Not Rated"
   },
   "errors": {
     "loading": {
@@ -95,5 +89,10 @@
     "rating": "Highest Rated",
     "release_date": "Newest",
     "title": "Title A-Z"
+  },
+  "badge": {
+    "popular": "Popular",
+    "topRated": "Top Rated",
+    "upcoming": "Upcoming"
   }
 }

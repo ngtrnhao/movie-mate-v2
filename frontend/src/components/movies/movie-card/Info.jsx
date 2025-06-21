@@ -1,9 +1,9 @@
-// import { useTranslation } from '../../../i18n/hooks/useTranslation';
+import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { memo, useMemo } from 'react';
 
 const Info = memo(
   ({ title, originalTitle, releaseDate, overview, genres, isPopular, isTopRated, isUpcoming }) => {
-    // const { t } = useTranslation('movies');
+    const { t } = useTranslation('movies');
     // Memoize computed values
     const year = useMemo(
       () => (releaseDate ? new Date(releaseDate).getFullYear() : 'N/A'),
@@ -27,17 +27,17 @@ const Info = memo(
         <div className="flex flex-wrap gap-1">
           {isPopular && (
             <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-400">
-              Popular
+              {t('badge.popular')}
             </span>
           )}
           {isTopRated && (
             <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs text-yellow-400">
-              Top Rated
+              {t('badge.topRated')}
             </span>
           )}
           {isUpcoming && (
             <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-xs text-green-400">
-              Upcoming
+              {t('badge.upcoming')}
             </span>
           )}
         </div>

@@ -30,6 +30,7 @@ import {
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { logout } from '../../store/slices/authSlice';
 import { setCurrentTab } from '../../store/slices/movieSlice';
+import { useTrailerModal } from '../../hooks/useTrailerModal';
 
 const TABS = [
   { key: 'trending', label: 'latestReleases.tabs.trending' },
@@ -190,6 +191,14 @@ const LandingPage = () => {
   // Memoize tab change handler
   const handleTabChange = useCallback(tab => dispatch(setCurrentTab(tab)), [dispatch]);
 
+  const {
+    isTrailerOpen: useTrailerModalIsOpen,
+    modalMovie: useTrailerModalMovie,
+    modalTrailerUrl: useTrailerModalTrailerUrl,
+    handleTrailerClick,
+    closeTrailerModal,
+  } = useTrailerModal();
+
   // Xử lý error/loading cho featuredMovies
   if (featuredError) {
     return (
@@ -344,35 +353,41 @@ const LandingPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className="mb-6 text-6xl font-bold tracking-tight text-white"
+              className="mb-4 text-3xl font-bold tracking-tight text-white sm:mb-6 sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl"
             >
               {app_language === 'en' ? (
                 <>
-                  Discover Your Next
-                  <br />
-                  Favorite{' '}
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, y: 1 }}
-                    transition={{ duration: 0.5, delay: 0.4 }}
-                    className="text-red-600"
-                  >
-                    Movie
-                  </motion.span>
+                  <span className="block leading-tight sm:leading-tight md:leading-tight lg:leading-tight xl:leading-tight">
+                    Discover Your Next
+                  </span>
+                  <span className="block leading-tight sm:leading-tight md:leading-tight lg:leading-tight xl:leading-tight">
+                    Favorite{' '}
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, y: 1 }}
+                      transition={{ duration: 0.5, delay: 0.4 }}
+                      className="text-red-600"
+                    >
+                      Movie
+                    </motion.span>
+                  </span>
                 </>
               ) : (
                 <>
-                  Khám Phá
-                  <br />
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, y: 1 }}
-                    transition={{ duration: 0.5, delay: 0.4 }}
-                    className="text-red-600"
-                  >
-                    Phim
-                  </motion.span>
-                  Yêu Thích
+                  <span className="block leading-tight sm:leading-tight md:leading-tight lg:leading-tight xl:leading-tight">
+                    Khám Phá
+                  </span>
+                  <span className="block leading-tight sm:leading-tight md:leading-tight lg:leading-tight xl:leading-tight">
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, y: 1 }}
+                      transition={{ duration: 0.5, delay: 0.4 }}
+                      className="text-red-600"
+                    >
+                      Phim
+                    </motion.span>
+                    Yêu Thích
+                  </span>
                 </>
               )}
             </motion.h1>
@@ -902,7 +917,12 @@ const LandingPage = () => {
               />
             </LazyLoader>
             <LazyLoader fallback={<GridSkeleton count={6} />}>
-              <MovieGrid movies={movies} loading={loading} error={featuredError} />
+              <MovieGrid
+                movies={movies}
+                loading={loading}
+                error={featuredError}
+                onTrailerClick={handleTrailerClick}
+              />
             </LazyLoader>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1202,10 +1222,10 @@ const LandingPage = () => {
       </section>
       <LazyLoader fallback={<div className="h-96 bg-gray-800 rounded animate-pulse"></div>}>
         <MovieTrailerModal
-          isOpen={isTrailerOpen}
-          onClose={() => setIsTrailerOpen(false)}
-          movie={modalMovie}
-          trailerUrl={modalTrailerUrl}
+          isOpen={useTrailerModalIsOpen}
+          onClose={closeTrailerModal}
+          movie={useTrailerModalMovie}
+          trailerUrl={useTrailerModalTrailerUrl}
         />
       </LazyLoader>
       <LazyLoader fallback={<div className="h-64 bg-gray-800 rounded animate-pulse"></div>}>

@@ -23,42 +23,75 @@ class PayPalWebhookView(APIView):
         amount = resource.get('purchase_units', [{}])[0].get('amount', {}).get('value')
         custom_id = resource.get('purchase_units', [{}])[0].get('custom_id')
         plan = resource.get('purchase_units', [{}])[0].get('description')
+
         logger.info(f"Plan received from PayPal: '{plan}'")
         logger.info(f"Status received from PayPal: '{status_paypal}'")
+        logger.info(f"Custom ID received from PayPal: '{custom_id}'")
+
+        # Validate required fields
+        if not custom_id:
+            logger.error("Custom ID is missing from PayPal webhook")
+            return Response({'error': 'Custom ID is required'}, status=400)
+
+        if not order_id:
+            logger.error("Order ID is missing from PayPal webhook")
+            return Response({'error': 'Order ID is required'}, status=400)
+
+        if not plan:
+            logger.error("Plan is missing from PayPal webhook")
+            return Response({'error': 'Plan is required'}, status=400)
+
         custom_field = resource.get('purchase_units', [{}])[0].get('custom')
         duration = 1
         if custom_field:
             try:
                 duration = int(json.loads(custom_field).get('duration', 1))
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to parse custom field duration: {e}")
                 duration = 1
 
+        # Find user by custom_id (user ID)
         try:
             user = User.objects.get(id=custom_id)
+            logger.info(f"Processing for user: {user.email} (ID: {user.id})")
         except User.DoesNotExist:
             logger.error(f"User with custom_id {custom_id} not found!")
             return Response({'error': 'User not found'}, status=400)
+        except ValueError:
+            logger.error(f"Invalid custom_id format: {custom_id}")
+            return Response({'error': 'Invalid custom ID format'}, status=400)
 
-        logger.info(f"Processing for user: {user.email}")
-
+        # Calculate subscription dates
         now = timezone.now()
-        last_tx = PaymentTransaction.objects.filter(user=user, status='COMPLETED', end_date__gte=now).order_by('-end_date').first()
+        last_tx = PaymentTransaction.objects.filter(
+            user=user,
+            status='COMPLETED',
+            end_date__gte=now
+        ).order_by('-end_date').first()
+
         start_date = last_tx.end_date if last_tx else now
         end_date = start_date + timedelta(days=30 * duration)
 
-        PaymentTransaction.objects.update_or_create(
-            paypal_order_id=order_id,
-            defaults={
-                'user': user,
-                'plan': plan,
-                'amount': amount,
-                'status': status_paypal,
-                'raw_data': event,
-                'start_date': start_date,
-                'end_date': end_date,
-            }
-        )
+        # Create or update payment transaction
+        try:
+            payment_transaction, created = PaymentTransaction.objects.update_or_create(
+                paypal_order_id=order_id,
+                defaults={
+                    'user': user,
+                    'plan': plan,
+                    'amount': amount,
+                    'status': status_paypal,
+                    'raw_data': event,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                }
+            )
+            logger.info(f"Payment transaction {'created' if created else 'updated'}: {payment_transaction.id}")
+        except Exception as e:
+            logger.error(f"Failed to create/update payment transaction: {e}")
+            return Response({'error': 'Failed to process payment'}, status=500)
 
+        # Update user type if payment is successful
         if status_paypal.upper() in ['COMPLETED', 'APPROVED']:
             logger.info(f"Status is '{status_paypal}'. Entering user_type update logic...")
             plan_code = plan.lower()
@@ -79,9 +112,13 @@ class PayPalWebhookView(APIView):
                 logger.info("Matched 'vip'. Set user_type to 'prenium_vip'.")
 
             if user_type_updated:
-                logger.info("Attempting to save user...")
-                user.save()
-                logger.info(f"User {user.email} saved successfully!")
+                try:
+                    logger.info("Attempting to save user...")
+                    user.save()
+                    logger.info(f"User {user.email} saved successfully with new type: {user.user_type}!")
+                except Exception as e:
+                    logger.error(f"Failed to save user: {e}")
+                    return Response({'error': 'Failed to update user type'}, status=500)
             else:
                 logger.warning(f"No plan matched for '{plan_code}'. User_type not updated.")
         else:

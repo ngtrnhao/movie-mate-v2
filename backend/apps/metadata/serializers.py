@@ -1,10 +1,29 @@
 from rest_framework import serializers
-from .models import Genre
+from .models import Genre, GenreSummary
 from .services import GenreService
 from apps.movies.serializers import MovieListSerializer
 import logging
 
 logger = logging.getLogger(__name__)
+
+class GenreSummarySerializer(serializers.ModelSerializer):
+    """
+    Serializer cho GenreSummary - Hiệu năng cực cao
+    """
+    id = serializers.IntegerField(source='genre.id')
+    name = serializers.CharField(source='genre.name')
+    slug = serializers.CharField(source='genre.slug')
+    description = serializers.CharField(source='genre.description')
+    language = serializers.CharField(source='genre.language')
+    count = serializers.IntegerField(source='movie_count')
+    latest_movie = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GenreSummary
+        fields = ['id', 'name', 'slug', 'description', 'language', 'count', 'latest_movie']
+
+    def get_latest_movie(self, obj):
+        return obj.latest_movie_data
 
 class GenreListSerializer(serializers.ListSerializer):
     def find_movie_with_poster(self, movies, used_movie_ids):
@@ -116,3 +135,13 @@ class GenreDetailSerializer(GenreSerializer):
         except Exception as e:
             logger.error(f"Error getting movies for genre {obj.id}: {str(e)}")
             return []
+
+class GenrePerformanceSerializer(serializers.Serializer):
+    """
+    Serializer cho performance stats
+    """
+    total_summaries = serializers.IntegerField()
+    summaries_with_movies = serializers.IntegerField()
+    language_stats = serializers.DictField()
+    latest_update = serializers.DateTimeField()
+    cache_status = serializers.DictField()

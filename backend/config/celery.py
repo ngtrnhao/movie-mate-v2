@@ -39,6 +39,10 @@ app.conf.beat_schedule = {
         "task": "apps.movies.tasks.update_movie_cache",
         "schedule": timedelta(days=5),
     },
+    "refresh_genre_summary": {
+        "task": "apps.metadata.tasks.refresh_genre_summary_task",
+        "schedule": timedelta(hours=6),  # Every 6 hours
+    },
 }
 
 # Optional: Configure result backend for Celery to use Redis as result backend

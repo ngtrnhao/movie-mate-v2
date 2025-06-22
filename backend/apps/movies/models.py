@@ -64,6 +64,15 @@ class Movie(models.Model):
             models.Index(fields=["poster_url"], name="idx_movie_poster_v2"),
             models.Index(fields=["poster_url", "release_date"], name="idx_movie_poster_rel_v2"),
             models.Index(fields=["poster_url"], name="idx_movie_poster_nn_v2", condition=models.Q(poster_url__isnull=False)),
+            # Composite indexes cho hiệu năng cực cao
+            models.Index(fields=["poster_url", "release_date", "status"], name="idx_movie_poster_rel_status"),
+            models.Index(fields=["release_date", "poster_url"], name="idx_movie_rel_poster"),
+            # Partial index cho movies có poster
+            models.Index(
+                fields=["release_date"],
+                name="idx_movie_rel_with_poster",
+                condition=models.Q(poster_url__isnull=False) & models.Q(poster_url__gt='')
+            ),
         ]
 
     def __str__(self):
@@ -305,6 +314,13 @@ class MovieGenre(models.Model):
     class Meta:
         db_table = "movies_movie_genres"
         unique_together = ("movie", "genre")
+        indexes = [
+            # Indexes cho hiệu năng cực cao
+            models.Index(fields=["genre"], name="idx_moviegenre_genre"),
+            models.Index(fields=["movie"], name="idx_moviegenre_movie"),
+            models.Index(fields=["genre", "movie"], name="idx_moviegenre_genre_movie"),
+            models.Index(fields=["movie", "genre"], name="idx_moviegenre_movie_genre"),
+        ]
 
 
 class MovieTrailer(models.Model):

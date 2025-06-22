@@ -78,8 +78,6 @@ class OptimizedIMDBImporter:
                 cursor.execute("SET synchronous_commit = OFF;")
                 # Set effective cache size
                 cursor.execute("SET effective_cache_size = '2GB';")
-                # Set shared buffers
-                cursor.execute("SET shared_buffers = '256MB';")
                 # Set random page cost
                 cursor.execute("SET random_page_cost = 1.1;")
                 # Set seq page cost

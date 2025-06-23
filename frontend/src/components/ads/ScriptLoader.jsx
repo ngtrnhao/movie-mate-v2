@@ -1,27 +1,22 @@
 import { useEffect, useRef } from 'react';
 import useAdDisplay from '../../hooks/useAdDisplay';
-import adCooldownService from '../../services/adCooldownService';
+import adFrequencyService from '../../services/adFrequencyService';
 
-const AD_TYPE = 'script_loader_overlay';
+const AD_TYPE_PREFIX = 'script_loader_overlay';
 const INITIAL_DELAY_MS = 4000; // Trì hoãn 4 giây
 
-const ScriptLoader = ({ zoneId, domain = 'autchoog.net', cooldownMinutes = 10 }) => {
-  const shouldShowAds = useAdDisplay();
+const ScriptLoader = ({ zoneId, domain = 'autchoog.net' }) => {
+  const dynamicAdType = `${AD_TYPE_PREFIX}_${zoneId}`;
+  const adDisplayInfo = useAdDisplay(dynamicAdType);
   const adShownRef = useRef(false);
 
   useEffect(() => {
-    if (!shouldShowAds) {
+    if (!adDisplayInfo.shouldShow) {
       return;
     }
 
     const timer = setTimeout(() => {
-      if (adShownRef.current || !shouldShowAds) {
-        return;
-      }
-
-      const dynamicAdType = `${AD_TYPE}_${zoneId}`;
-
-      if (!adCooldownService.canShowAd(dynamicAdType, cooldownMinutes)) {
+      if (adShownRef.current || !adDisplayInfo.shouldShow) {
         return;
       }
 
@@ -31,15 +26,16 @@ const ScriptLoader = ({ zoneId, domain = 'autchoog.net', cooldownMinutes = 10 })
 
       try {
         document.body.appendChild(script);
-        adCooldownService.recordAdShown(dynamicAdType);
+        adFrequencyService.recordAdShown(dynamicAdType);
         adShownRef.current = true;
+        console.log(`Ad ${dynamicAdType} injected successfully`);
       } catch (e) {
         console.warn('Failed to inject script from ScriptLoader:', e);
       }
     }, INITIAL_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [shouldShowAds, zoneId, domain, cooldownMinutes]);
+  }, [adDisplayInfo.shouldShow, zoneId, domain, dynamicAdType]);
 
   return null;
 };

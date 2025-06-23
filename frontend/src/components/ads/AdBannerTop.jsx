@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import useAdDisplay from '../../hooks/useAdDisplay';
-import adCooldownService from '../../services/adCooldownService';
+import adFrequencyService from '../../services/adFrequencyService';
 
 const AD_TYPE = 'banner_top';
 const DOMAIN = 'vemtoutcheeg.com';
@@ -8,20 +8,16 @@ const ZONE = 9465780;
 const INITIAL_DELAY_MS = 3000; // Trì hoãn 3 giây
 
 const AdBannerTop = () => {
-  const shouldShowAds = useAdDisplay();
+  const adDisplayInfo = useAdDisplay(AD_TYPE);
   const adShownRef = useRef(false);
 
   useEffect(() => {
-    if (!shouldShowAds) {
+    if (!adDisplayInfo.shouldShow) {
       return;
     }
 
     const timer = setTimeout(() => {
-      if (adShownRef.current || !shouldShowAds) {
-        return;
-      }
-
-      if (!adCooldownService.canShowAd(AD_TYPE)) {
+      if (adShownRef.current || !adDisplayInfo.shouldShow) {
         return;
       }
 
@@ -31,17 +27,40 @@ const AdBannerTop = () => {
 
       try {
         (document.body || document.documentElement).appendChild(s);
-        adCooldownService.recordAdShown(AD_TYPE);
+        adFrequencyService.recordAdShown(AD_TYPE);
         adShownRef.current = true;
+        console.log(`Ad ${AD_TYPE} injected successfully`);
       } catch (e) {
         console.warn('Failed to inject ad script:', e);
       }
     }, INITIAL_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [shouldShowAds]);
+  }, [adDisplayInfo.shouldShow]);
 
-  if (!shouldShowAds) {
+  // Hiển thị thông báo nếu đang chờ thời gian ban đầu
+  if (adDisplayInfo.reason === 'initial_delay') {
+    return (
+      <div className="ad-banner-top-container bg-gray-100 dark:bg-gray-800 p-4 text-center">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Quảng cáo sẽ hiển thị sau {adDisplayInfo.timeRemaining} phút
+        </div>
+      </div>
+    );
+  }
+
+  // Hiển thị thông báo nếu đang trong cooldown
+  if (adDisplayInfo.reason === 'cooldown_or_limit') {
+    return (
+      <div className="ad-banner-top-container bg-gray-100 dark:bg-gray-800 p-4 text-center">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Quảng cáo tiếp theo sau {adDisplayInfo.timeRemaining} phút
+        </div>
+      </div>
+    );
+  }
+
+  if (!adDisplayInfo.shouldShow) {
     return null;
   }
 

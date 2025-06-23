@@ -106,7 +106,9 @@ class GenreSummary(models.Model):
                     WHERE mg2.genre_id = g.id
                     AND m.poster_url IS NOT NULL
                     AND m.poster_url != ''
-                    ORDER BY m.release_date DESC
+                    ORDER BY
+                        m.release_date IS NULL ASC,
+                        m.release_date DESC
                     LIMIT 1
                 ) as latest_movie_data,
                 NOW()
@@ -148,7 +150,9 @@ class GenreSummary(models.Model):
                     WHERE mg2.genre_id = g.id
                     AND m.poster_url IS NOT NULL
                     AND m.poster_url != ''
-                    ORDER BY m.release_date DESC
+                    ORDER BY
+                        m.release_date IS NULL ASC,
+                        m.release_date DESC
                     LIMIT 1
                 ) as latest_movie_data,
                 NOW()

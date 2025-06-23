@@ -1,28 +1,23 @@
 import { useEffect, useRef } from 'react';
 import useAdDisplay from '../../hooks/useAdDisplay';
-import adCooldownService from '../../services/adCooldownService';
+import adFrequencyService from '../../services/adFrequencyService';
 
 const AD_TYPE = 'popup';
-const COOLDOWN_MINUTES = 10;
 const INITIAL_DELAY_MS = 5000; // Trì hoãn 5 giây
 
 const AdManager = () => {
-  const shouldShowAds = useAdDisplay();
+  const adDisplayInfo = useAdDisplay(AD_TYPE);
   const adShownRef = useRef(false);
 
   useEffect(() => {
-    if (!shouldShowAds) {
+    if (!adDisplayInfo.shouldShow) {
       return;
     }
 
     // Thiết lập một bộ đếm thời gian để trì hoãn việc tải quảng cáo
     const timer = setTimeout(() => {
       // Kiểm tra lại các điều kiện sau khi hết thời gian trì hoãn
-      if (adShownRef.current || !shouldShowAds) {
-        return;
-      }
-
-      if (!adCooldownService.canShowAd(AD_TYPE, COOLDOWN_MINUTES)) {
+      if (adShownRef.current || !adDisplayInfo.shouldShow) {
         return;
       }
 
@@ -32,15 +27,19 @@ const AdManager = () => {
       script.setAttribute('data-zone', '152884');
       script.setAttribute('data-cfasync', 'false');
 
-      document.body.appendChild(script);
-
-      adCooldownService.recordAdShown(AD_TYPE);
-      adShownRef.current = true;
+      try {
+        document.body.appendChild(script);
+        adFrequencyService.recordAdShown(AD_TYPE);
+        adShownRef.current = true;
+        console.log(`Ad ${AD_TYPE} injected successfully`);
+      } catch (e) {
+        console.warn('Failed to inject ad script:', e);
+      }
     }, INITIAL_DELAY_MS);
 
     // Dọn dẹp bộ đếm thời gian nếu component bị unmount
     return () => clearTimeout(timer);
-  }, [shouldShowAds]);
+  }, [adDisplayInfo.shouldShow]);
 
   return null;
 };

@@ -1,45 +1,54 @@
-import { Paper, Typography, Box, Chip } from '@mui/material';
-import { styled } from '@mui/material/styles';
-
-const GenreCard = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
-  height: '100%',
-}));
-
-const GenreChip = styled(Chip)(({ theme }) => ({
-  margin: theme.spacing(0.5),
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
-  '&:hover': {
-    backgroundColor: theme.palette.primary.dark,
-  },
-}));
+import { Category, MovieFilter, LocalMovies } from '@mui/icons-material';
 
 const GenreList = ({ genres }) => {
   if (!genres || genres.length === 0) {
     return (
-      <GenreCard elevation={3}>
-        <Typography variant="h6" gutterBottom>
-          Favorite Genres
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          No favorite genres yet
-        </Typography>
-      </GenreCard>
+      <div className="rounded-2xl border border-gray-700 bg-gray-800/95 p-6 shadow-xl backdrop-blur-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-full bg-red-600">
+            <Category className="text-white" fontSize="small" />
+          </div>
+          <h3 className="text-xl font-bold text-white">Favorite Genres</h3>
+        </div>
+
+        <div className="py-8 text-center">
+          <LocalMovies className="mb-4 text-6xl text-gray-500" />
+          <p className="text-gray-400">No favorite genres yet</p>
+          <p className="mt-2 text-sm text-gray-500">
+            Rate some movies to discover your preferences
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <GenreCard elevation={3}>
-      <Typography variant="h6" gutterBottom>
-        Favorite Genres
-      </Typography>
-      <Box display="flex" flexWrap="wrap" gap={1}>
-        {genres.map(genre => (
-          <GenreChip key={genre.id} label={genre.name} size="small" />
+    <div className="rounded-2xl border border-gray-700 bg-gray-800/95 p-6 shadow-xl backdrop-blur-sm">
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-full bg-red-600">
+          <MovieFilter className="text-white" fontSize="small" />
+        </div>
+        <h3 className="text-xl font-bold text-white">Favorite Genres</h3>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {genres.map((genre, _index) => (
+          <span
+            key={genre.id}
+            className="rounded-full border border-red-600/30 bg-red-600/10 px-4 py-2 text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-600/20 hover:text-red-300"
+          >
+            {genre.name}
+            {genre.count && <span className="ml-1 text-red-500">({genre.count})</span>}
+          </span>
         ))}
-      </Box>
-    </GenreCard>
+      </div>
+
+      {genres.length > 6 && (
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-500">{genres.length} genres total</p>
+        </div>
+      )}
+    </div>
   );
 };
 

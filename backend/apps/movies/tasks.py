@@ -272,25 +272,47 @@ def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
         movie_details = IMDBService.get_movie_details(imdb_id)
         movie_overview = IMDBService.get_movie_overview(imdb_id)
 
-        if not movie_details or not movie_overview:
-            logger.error(f"Failed to get movie data for {imdb_id}")
+        if not movie_details:
+            logger.error(f"Failed to get movie details for {imdb_id}")
             return None
 
-        # Map the data to our structure
+        # Safely extract data from movie_details
+        def safe_get(data, *keys, default=None):
+            """Safely get nested dictionary values"""
+            if not isinstance(data, dict):
+                return default
+            current = data
+            for key in keys:
+                if isinstance(current, dict) and key in current:
+                    current = current[key]
+                else:
+                    return default
+            return current
+
+        # Map the data to our structure with safe extraction
         mapped_data = {
             "imdb_id": imdb_id,
-            "title": movie_details.get("title", {}).get("title"),
-            "original_title": movie_details.get("title", {}).get("originalTitle"),
-            "release_date": movie_details.get("title", {}).get("releaseDate"),
-            "poster_url": movie_details.get("title", {}).get("image", {}).get("url"),
-            "runtime": movie_details.get("title", {}).get("runningTimeInMinutes"),
-            "languages": [lang.get("id") for lang in movie_details.get("title", {}).get("languages", [])],
-            "countries": [country.get("id") for country in movie_details.get("title", {}).get("countries", [])],
+            "title": safe_get(movie_details, "title", "title") or safe_get(movie_details, "base", "title"),
+            "original_title": safe_get(movie_details, "title", "originalTitle") or safe_get(movie_details, "base", "title"),
+            "release_date": safe_get(movie_details, "title", "releaseDate") or safe_get(movie_details, "base", "year"),
+            "poster_url": safe_get(movie_details, "title", "image", "url") or safe_get(movie_details, "base", "image", "url"),
+            "runtime": safe_get(movie_details, "title", "runningTimeInMinutes"),
+            "languages": [],
+            "countries": [],
             "links": {
                 "imdb": f"https://www.imdb.com/title/{imdb_id}/",
-                "poster": movie_details.get("title", {}).get("image", {}).get("url"),
+                "poster": safe_get(movie_details, "title", "image", "url") or safe_get(movie_details, "base", "image", "url"),
             },
         }
+
+        # Safely extract languages and countries
+        languages = safe_get(movie_details, "title", "languages", default=[])
+        if isinstance(languages, list):
+            mapped_data["languages"] = [lang.get("id") for lang in languages if isinstance(lang, dict) and "id" in lang]
+
+        countries = safe_get(movie_details, "title", "countries", default=[])
+        if isinstance(countries, list):
+            mapped_data["countries"] = [country.get("id") for country in countries if isinstance(country, dict) and "id" in country]
 
         # Get existing movie if any
         existing_movie = Movie.objects.filter(imdb_id=imdb_id).first()
@@ -298,12 +320,18 @@ def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
         # Determine status and is_upcoming based on release_date
         if mapped_data["release_date"]:
             try:
-                release_date = datetime.strptime(mapped_data["release_date"], "%Y-%m-%d").date()
+                # Handle both date string and year integer
+                if isinstance(mapped_data["release_date"], int):
+                    # If it's just a year, use January 1st
+                    release_date = datetime(mapped_data["release_date"], 1, 1).date()
+                else:
+                    release_date = datetime.strptime(str(mapped_data["release_date"]), "%Y-%m-%d").date()
+
                 mapped_data["status"] = "released" if release_date <= timezone.now().date() else "upcoming"
                 # Keep is_upcoming value from existing movie if it exists
                 mapped_data["is_upcoming"] = existing_movie.is_upcoming if existing_movie else (release_date > timezone.now().date())
-            except ValueError:
-                logger.warning(f"Invalid release date format for {imdb_id}: {mapped_data['release_date']}")
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Invalid release date format for {imdb_id}: {mapped_data['release_date']} - {str(e)}")
                 mapped_data["status"] = "unknown"
                 mapped_data["is_upcoming"] = existing_movie.is_upcoming if existing_movie else False
         else:
@@ -321,15 +349,20 @@ def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
             defaults=mapped_data,
         )
 
-        # Update metadata
-        if movie_overview.get("plot"):
-            MovieMetadata.objects.update_or_create(
-                movie=movie,
-                defaults={
-                    "plot": movie_overview["plot"],
-                    "plot_language": movie_overview.get("language", "en"),
-                },
-            )
+        # Update metadata if overview is available
+        if movie_overview and isinstance(movie_overview, dict):
+            # Get English overview first, then Vietnamese
+            plot = movie_overview.get("en") or movie_overview.get("vi") or movie_overview.get("plot")
+            plot_language = "en" if movie_overview.get("en") else ("vi" if movie_overview.get("vi") else "en")
+
+            if plot:
+                MovieMetadata.objects.update_or_create(
+                    movie=movie,
+                    defaults={
+                        "plot": plot,
+                        "plot_language": plot_language,
+                    },
+                )
 
         # Update cache for this movie with longer expiration
         cache_key = f"movie:{imdb_id}"

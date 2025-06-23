@@ -5,7 +5,7 @@ import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Avatar, Menu, MenuItem, IconButton, Tooltip } from '@mui/material';
+import { Menu, MenuItem, IconButton, Tooltip } from '@mui/material';
 import { AccountCircle, Settings, Logout } from '@mui/icons-material';
 import { logout } from '../../store/slices/authSlice';
 import { selectIsAuthenticated, selectUser } from '../../store/selectors/authSelectors';
@@ -86,16 +86,44 @@ const Header = () => {
                       aria-label="account of current user"
                       aria-haspopup="true"
                       color="inherit"
+                      sx={{ p: 0 }}
                     >
-                      {user.avatar_url ? (
-                        <Avatar
-                          src={user.avatar_url}
-                          alt={user.username}
-                          sx={{ width: 32, height: 32 }}
-                        />
-                      ) : (
-                        <AccountCircle sx={{ width: 32, height: 32 }} />
-                      )}
+                      <div className="relative">
+                        {/* Avatar Container */}
+                        <div className="relative size-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 p-0.5 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                          {/* Always render img if avatar_url exists, but handle error gracefully */}
+                          {(user.avatar_url || user.avatarUrl) && (
+                            <img
+                              src={user.avatar_url || user.avatarUrl}
+                              alt={user.username}
+                              className="size-full rounded-full border-2 border-gray-800 object-cover"
+                              crossOrigin="anonymous"
+                              referrerPolicy="no-referrer"
+                              onError={e => {
+                                e.target.style.display = 'none';
+                                e.target.nextElementSibling.style.display = 'flex';
+                              }}
+                              onLoad={e => {
+                                e.target.nextElementSibling.style.display = 'none';
+                              }}
+                            />
+                          )}
+
+                          {/* Fallback Avatar - shown when no avatar_url or when img fails to load */}
+                          <div
+                            className={`absolute inset-0 size-full items-center justify-center rounded-full border-2 border-gray-800 bg-gradient-to-br from-gray-700 to-gray-800 ${
+                              user.avatar_url || user.avatarUrl ? 'hidden' : 'flex'
+                            }`}
+                          >
+                            <span className="text-sm font-bold text-white">
+                              {user.username?.[0]?.toUpperCase() || '?'}
+                            </span>
+                          </div>
+
+                          {/* Online Status Indicator */}
+                          <div className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-gray-900 bg-green-500 shadow-sm"></div>
+                        </div>
+                      </div>
                     </IconButton>
                   </Tooltip>
                   <Menu
@@ -106,20 +134,33 @@ const Header = () => {
                       elevation: 0,
                       sx: {
                         overflow: 'visible',
-                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                        filter: 'drop-shadow(0px 8px 32px rgba(0,0,0,0.4))',
                         mt: 1.5,
                         backgroundColor: '#1f2937',
-                        '& .MuiAvatar-root': {
-                          width: 32,
-                          height: 32,
-                          ml: -0.5,
-                          mr: 1,
-                          backgroundColor: 'gray',
-                        },
+                        border: '1px solid #374151',
+                        borderRadius: '12px',
                         '& .MuiMenuItem-root': {
-                          color: 'white',
+                          color: '#f3f4f6',
+                          padding: '12px 16px',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          borderRadius: '8px',
+                          margin: '4px 8px',
+                          transition: 'all 0.2s ease',
                           '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            backgroundColor: '#374151',
+                            transform: 'translateX(2px)',
+                          },
+                          '&:first-of-type': {
+                            marginTop: '8px',
+                          },
+                          '&:last-of-type': {
+                            marginBottom: '8px',
+                            color: '#ef4444',
+                            '&:hover': {
+                              backgroundColor: '#fca5a5',
+                              color: '#dc2626',
+                            },
                           },
                         },
                       },
@@ -128,15 +169,15 @@ const Header = () => {
                     anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                   >
                     <MenuItem onClick={handleProfileClick}>
-                      <AccountCircle fontSize="small" sx={{ mr: 1 }} />
+                      <AccountCircle fontSize="small" sx={{ mr: 1.5, color: '#10b981' }} />
                       {t('auth.profile')}
                     </MenuItem>
                     <MenuItem onClick={handleSettingsClick}>
-                      <Settings fontSize="small" sx={{ mr: 1 }} />
+                      <Settings fontSize="small" sx={{ mr: 1.5, color: '#6b7280' }} />
                       {t('auth.settings')}
                     </MenuItem>
                     <MenuItem onClick={handleLogout}>
-                      <Logout fontSize="small" sx={{ mr: 1 }} />
+                      <Logout fontSize="small" sx={{ mr: 1.5 }} />
                       {t('auth.logout')}
                     </MenuItem>
                   </Menu>

@@ -27,6 +27,15 @@ import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
 import PerformanceMonitor from './components/common/PerformanceMonitor';
 import AdDisplayTest from './components/ads/AdDisplayTest';
+import AdFrequencyStatus from './components/common/AdFrequencyStatus';
+import AdWaitMessage from './components/common/AdWaitMessage';
+
+// Import test utilities for development
+if (process.env.NODE_ENV === 'development') {
+  import('./utils/testAdFrequency').then(({ runAllAdFrequencyTests }) => {
+    window.runAllAdFrequencyTests = runAllAdFrequencyTests;
+  });
+}
 
 // Global error handler để chặn lỗi Script error từ quảng cáo ngoài
 if (typeof window !== 'undefined') {
@@ -169,6 +178,12 @@ function App() {
 
             {/* Ad Display Test - chỉ hiển thị trong development */}
             <AdDisplayTest />
+
+            {/* Ad Frequency Status - hiển thị cho eligible users */}
+            <AdFrequencyStatus />
+
+            {/* Ad Wait Message - hiển thị countdown cho eligible users */}
+            <AdWaitMessage />
           </QueryProvider>
         </BrowserRouter>
       </I18nProvider>

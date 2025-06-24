@@ -9,7 +9,7 @@ import { format, addMonths } from 'date-fns';
 import { fetchProfile } from '../store/slices/profileSlice';
 import { getPaymentTransactionAPI } from '../api/profileService';
 import { toast } from 'react-hot-toast';
-import { createPaymentAPI } from '../api/profileService';
+import { updateUser } from '../store/slices/authSlice';
 
 const getInitials = user => {
   if (user.firstName || user.lastName) {
@@ -190,6 +190,19 @@ const CheckoutPage = () => {
     };
   }, [isProcessing, dispatch, user, queryClient]);
 
+  // Đảm bảo cập nhật profile và subscription sau khi thanh toán thành công
+  useEffect(() => {
+    if (paymentStatus === 'success' && user?.id) {
+      queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['subscription', user.id] });
+      dispatch(fetchProfile(user.id)).then(action => {
+        if (action.payload) {
+          dispatch(updateUser(action.payload));
+        }
+      });
+    }
+  }, [paymentStatus, user?.id, queryClient, dispatch]);
+
   const handlePayment = async () => {
     if (!user) {
       toast.error('Please login to continue');
@@ -239,8 +252,8 @@ const CheckoutPage = () => {
 
           {/* Loading state */}
           {isLoadingSubscription && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+            <div className="py-8 text-center">
+              <div className="mx-auto size-8 animate-spin rounded-full border-y-2 border-blue-500"></div>
               <p className="mt-2">Loading subscription information...</p>
             </div>
           )}
@@ -248,8 +261,8 @@ const CheckoutPage = () => {
           {/* Current subscription info */}
           {!isLoadingSubscription && currentSubscription?.has_active_subscription && (
             <div className="mb-4 rounded-xl bg-blue-800/90 p-4 shadow-lg">
-              <h3 className="font-semibold text-blue-200 mb-2">Current Subscription</h3>
-              <div className="text-sm space-y-1">
+              <h3 className="mb-2 font-semibold text-blue-200">Current Subscription</h3>
+              <div className="space-y-1 text-sm">
                 <p>
                   <span className="text-gray-300">Plan:</span> {currentSubscription.plan}
                 </p>
@@ -266,27 +279,27 @@ const CheckoutPage = () => {
 
           {/* Action type indicator */}
           {!isLoadingSubscription && currentSubscription?.has_active_subscription && (
-            <div className="mb-4 p-3 rounded-lg text-center">
+            <div className="mb-4 rounded-lg p-3 text-center">
               {isUpgrade() && (
-                <div className="bg-green-800/50 p-2 rounded">
-                  <span className="text-green-300 font-semibold">⬆️ Upgrade Plan</span>
-                  <p className="text-sm text-gray-300 mt-1">
+                <div className="rounded bg-green-800/50 p-2">
+                  <span className="font-semibold text-green-300">⬆️ Upgrade Plan</span>
+                  <p className="mt-1 text-sm text-gray-300">
                     You're upgrading to a higher tier plan
                   </p>
                 </div>
               )}
               {isDowngrade() && (
-                <div className="bg-yellow-800/50 p-2 rounded">
-                  <span className="text-yellow-300 font-semibold">⬇️ Downgrade Plan</span>
-                  <p className="text-sm text-gray-300 mt-1">
+                <div className="rounded bg-yellow-800/50 p-2">
+                  <span className="font-semibold text-yellow-300">⬇️ Downgrade Plan</span>
+                  <p className="mt-1 text-sm text-gray-300">
                     You're switching to a lower tier plan
                   </p>
                 </div>
               )}
               {isSamePlan() && (
-                <div className="bg-blue-800/50 p-2 rounded">
-                  <span className="text-blue-300 font-semibold">🔄 Renew Plan</span>
-                  <p className="text-sm text-gray-300 mt-1">You're renewing the same plan</p>
+                <div className="rounded bg-blue-800/50 p-2">
+                  <span className="font-semibold text-blue-300">🔄 Renew Plan</span>
+                  <p className="mt-1 text-sm text-gray-300">You're renewing the same plan</p>
                 </div>
               )}
             </div>
@@ -334,7 +347,7 @@ const CheckoutPage = () => {
                 className="size-12 rounded-full border-2 border-gray-700 object-cover"
               />
             ) : (
-              <div className="rounded-full bg-gray-700 w-12 h-12 flex items-center justify-center text-xl font-bold text-white">
+              <div className="flex size-12 items-center justify-center rounded-full bg-gray-700 text-xl font-bold text-white">
                 {getInitials(user)}
               </div>
             )}
@@ -349,7 +362,7 @@ const CheckoutPage = () => {
           </div>
           {/* Hiển thị thời gian hiệu lực dự kiến sau thanh toán */}
           {paymentInfo && (
-            <div className="mt-6 bg-green-800/80 rounded-lg p-4 text-center">
+            <div className="mt-6 rounded-lg bg-green-800/80 p-4 text-center">
               <div className="mb-1 font-semibold">Đăng ký thành công!</div>
               <div>Hiệu lực từ: {format(now, 'dd/MM/yyyy')}</div>
               <div>Đến: {format(expectedEnd, 'dd/MM/yyyy')}</div>
@@ -357,10 +370,10 @@ const CheckoutPage = () => {
           )}
         </div>
         {/* PayPal Payment Section */}
-        <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="flex flex-1 flex-col items-center justify-center">
           {isProcessing && (
             <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+              <div className="mx-auto size-16 animate-spin rounded-full border-y-2 border-blue-500"></div>
               <p className="mt-4 text-lg">
                 {t('checkout.processing', 'Processing your payment, please wait...')}
               </p>
@@ -371,7 +384,7 @@ const CheckoutPage = () => {
           )}
 
           {paymentStatus === 'success' && (
-            <div className="text-center p-6 bg-green-800/50 rounded-lg">
+            <div className="rounded-lg bg-green-800/50 p-6 text-center">
               <h2 className="text-2xl font-bold text-green-300">
                 {t('checkout.successTitle', 'Payment Successful!')}
               </h2>
@@ -379,16 +392,22 @@ const CheckoutPage = () => {
                 {t('checkout.successMessage', 'Your account has been upgraded.')}
               </p>
               <button
-                onClick={() => navigate('/profile')}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                className="text-sm text-blue-400 hover:text-blue-300"
+                onClick={() => {
+                  if (user?.id) {
+                    navigate(`/profile/${user.id}`);
+                  } else {
+                    navigate('/login');
+                  }
+                }}
               >
-                {t('checkout.goToProfile', 'Go to Profile')}
+                Go to Profile
               </button>
             </div>
           )}
 
           {paymentStatus === 'failed' && (
-            <div className="text-center p-6 bg-red-800/50 rounded-lg">
+            <div className="rounded-lg bg-red-800/50 p-6 text-center">
               <h2 className="text-2xl font-bold text-red-300">
                 {t('checkout.failedTitle', 'Processing Delayed')}
               </h2>
@@ -402,8 +421,14 @@ const CheckoutPage = () => {
                 If you don't see the update in 5 minutes, please contact support.
               </p>
               <button
-                onClick={() => navigate(`/profile/${user.id}`)}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                className="text-sm text-blue-400 hover:text-blue-300"
+                onClick={() => {
+                  if (user?.id) {
+                    navigate(`/profile/${user.id}`);
+                  } else {
+                    navigate('/login');
+                  }
+                }}
               >
                 {t('checkout.goToProfile', 'Go to Profile')}
               </button>
@@ -411,17 +436,17 @@ const CheckoutPage = () => {
           )}
 
           {plan && paymentStatus === 'idle' && (
-            <div className="w-full max-w-xs bg-gray-800/90 rounded-xl p-6 shadow-lg flex flex-col items-center">
-              <h2 className="text-xl font-semibold mb-4 text-center">
+            <div className="flex w-full max-w-xs flex-col items-center rounded-xl bg-gray-800/90 p-6 shadow-lg">
+              <h2 className="mb-4 text-center text-xl font-semibold">
                 {t('checkout.payWithPaypal', 'Pay securely with PayPal')}
               </h2>
 
-              {/* Disable button if loading subscription */}
+              {/* Disable button if loading subscription or trùng plan */}
               {isLoadingSubscription ? (
                 <div className="w-full">
                   <button
                     disabled
-                    className="w-full bg-gray-600 text-gray-400 py-3 px-6 rounded-lg font-semibold cursor-not-allowed"
+                    className="w-full cursor-not-allowed rounded-lg bg-gray-600 px-6 py-3 font-semibold text-gray-400"
                   >
                     Loading subscription info...
                   </button>
@@ -430,12 +455,14 @@ const CheckoutPage = () => {
                 <div className="w-full space-y-3">
                   <button
                     onClick={handlePayment}
-                    disabled={isProcessing}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                    disabled={
+                      isProcessing || (currentSubscription?.has_active_subscription && isSamePlan())
+                    }
+                    className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
                   >
                     {isProcessing ? (
                       <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
+                        <div className="mr-2 size-5 animate-spin rounded-full border-y-2 border-white"></div>
                         Processing...
                       </div>
                     ) : (
@@ -445,16 +472,32 @@ const CheckoutPage = () => {
 
                   {/* Show warning for same plan renewal */}
                   {currentSubscription?.has_active_subscription && isSamePlan() && (
-                    <div className="text-xs text-yellow-300 bg-yellow-900/30 p-2 rounded">
-                      ⚠️ You're renewing the same plan. This will extend your subscription.
+                    <div className="rounded bg-red-900/30 p-2 text-xs font-semibold text-red-400">
+                      ❌ Bạn đã đăng ký gói <b>{currentSubscription.plan}</b> đến ngày{' '}
+                      <b>
+                        {new Date(currentSubscription.subscription_end_date).toLocaleDateString()}
+                      </b>
+                      .<br />
+                      Vui lòng chờ đến gần ngày hết hạn để gia hạn hoặc chọn gói khác.
                     </div>
                   )}
 
                   {/* Show warning for downgrade */}
                   {currentSubscription?.has_active_subscription && isDowngrade() && (
-                    <div className="text-xs text-orange-300 bg-orange-900/30 p-2 rounded">
+                    <div className="rounded bg-orange-900/30 p-2 text-xs text-orange-300">
                       ⚠️ You're downgrading your plan. Changes will take effect at next billing
                       cycle.
+                    </div>
+                  )}
+
+                  {/* Show warning for upgrading */}
+                  {currentSubscription?.has_active_subscription && isUpgrade() && (
+                    <div className="rounded bg-green-900/30 p-2 text-xs font-semibold text-green-300">
+                      ⬆️ Bạn đang nâng cấp lên gói <b>{plan.name}</b>
+                      <br />
+                      Thời hạn còn lại của gói hiện tại sẽ bị thay thế bởi gói mới.
+                      <br />
+                      Sau khi thanh toán, bạn sẽ sử dụng gói mới ngay lập tức.
                     </div>
                   )}
                 </div>
@@ -464,8 +507,8 @@ const CheckoutPage = () => {
 
           {/* PayPal Buttons - Show when ready */}
           {plan && paymentStatus === 'ready' && (
-            <div className="w-full max-w-xs bg-gray-800/90 rounded-xl p-6 shadow-lg flex flex-col items-center">
-              <h2 className="text-xl font-semibold mb-4 text-center">
+            <div className="flex w-full max-w-xs flex-col items-center rounded-xl bg-gray-800/90 p-6 shadow-lg">
+              <h2 className="mb-4 text-center text-xl font-semibold">
                 {t('checkout.payWithPaypal', 'Pay securely with PayPal')}
               </h2>
 

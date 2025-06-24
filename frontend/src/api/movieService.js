@@ -86,3 +86,37 @@ export const getMovieDetails = async movieId => {
     };
   }
 };
+
+// API service for movies
+
+export const searchMovies = async (filters = {}, page = 1, pageSize = 20) => {
+  try {
+    const params = new URLSearchParams();
+
+    // Add filters to params
+    if (filters.genres?.length) {
+      filters.genres.forEach(genre => params.append('genres', genre));
+    }
+    if (filters.yearFrom) params.append('year_from', filters.yearFrom);
+    if (filters.yearTo) params.append('year_to', filters.yearTo);
+    if (filters.ratingMin) params.append('rating_min', filters.ratingMin);
+    if (filters.ratingMax) params.append('rating_max', filters.ratingMax);
+    if (filters.runtimeMin) params.append('runtime_min', filters.runtimeMin);
+    if (filters.runtimeMax) params.append('runtime_max', filters.runtimeMax);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.adult !== undefined) params.append('adult', filters.adult);
+    if (filters.language) params.append('language', filters.language);
+    if (filters.query) params.append('q', filters.query);
+    if (filters.sortBy) params.append('sort_by', filters.sortBy);
+    if (filters.order) params.append('order', filters.order);
+
+    params.append('page', page);
+    params.append('page_size', pageSize);
+
+    const response = await axiosInstance.get(`/api/movies/search/?${params}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error searching movies:', error);
+    throw error;
+  }
+};

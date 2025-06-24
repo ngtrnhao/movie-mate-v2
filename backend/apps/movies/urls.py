@@ -12,4 +12,5 @@ urlpatterns = [
     path('movies/trending/', views.MovieViewSet.as_view({'get': 'trending'}), name='trending-movies'),
     path('movies/top_rated/', views.MovieViewSet.as_view({'get': 'top_rated'}), name='top-rated-movies'),
     path('movies/upcoming/', views.MovieViewSet.as_view({'get': 'upcoming'}), name='upcoming-movies'),
+    path('movies/search/', views.MovieViewSet.as_view({'get': 'search'}), name='search-movies'),
 ]

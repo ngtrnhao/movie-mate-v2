@@ -11,6 +11,7 @@ from .models import Movie
 from .serializers import MovieListSerializer, MovieDetailSerializer
 from .services.imdb_service import IMDBService
 import logging
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -411,6 +412,152 @@ class MovieViewSet(viewsets.ModelViewSet):
             return Response(response_data)
         except Exception as e:
             logger.error(f"Error in upcoming movies: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """Advanced movie search with comprehensive filters"""
+        try:
+            # Get filter parameters
+            genres = request.GET.getlist('genres')  # List of genre IDs
+            year_from = request.GET.get('year_from')
+            year_to = request.GET.get('year_to')
+            rating_min = request.GET.get('rating_min')
+            rating_max = request.GET.get('rating_max')
+            runtime_min = request.GET.get('runtime_min')
+            runtime_max = request.GET.get('runtime_max')
+            status = request.GET.get('status')
+            adult = request.GET.get('adult', 'false')
+            language = request.GET.get('language', 'en')
+            search_query = request.GET.get('q', '')
+            sort_by = request.GET.get('sort_by', 'popularity')
+            order = request.GET.get('order', 'desc')
+            page = int(request.GET.get('page', 1))
+            page_size = min(int(request.GET.get('page_size', 20)), 100)
+
+            # Build cache key
+            cache_params = {
+                'genres': ','.join(genres),
+                'year_from': year_from,
+                'year_to': year_to,
+                'rating_min': rating_min,
+                'rating_max': rating_max,
+                'runtime_min': runtime_min,
+                'runtime_max': runtime_max,
+                'status': status,
+                'adult': adult,
+                'language': language,
+                'q': search_query,
+                'sort_by': sort_by,
+                'order': order,
+                'page': page,
+                'page_size': page_size
+            }
+            cache_key = f"movies_search_{hash(str(cache_params))}"
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                return Response(cached_data)
+
+            # Base queryset with optimizations
+            queryset = self.get_queryset().filter(
+                poster_url__isnull=False,
+                poster_url__gt=''
+            )
+
+            # Genre filter
+            if genres:
+                queryset = queryset.filter(genres__in=genres).distinct()
+
+            # Year filter
+            if year_from:
+                queryset = queryset.filter(release_date__year__gte=int(year_from))
+            if year_to:
+                queryset = queryset.filter(release_date__year__lte=int(year_to))
+
+            # Rating filter (using IMDB as primary)
+            if rating_min or rating_max:
+                rating_filter = {}
+                if rating_min:
+                    rating_filter['ratings__imdb_rating__gte'] = float(rating_min)
+                if rating_max:
+                    rating_filter['ratings__imdb_rating__lte'] = float(rating_max)
+                queryset = queryset.filter(**rating_filter)
+
+            # Runtime filter
+            if runtime_min:
+                queryset = queryset.filter(runtime__gte=int(runtime_min))
+            if runtime_max:
+                queryset = queryset.filter(runtime__lte=int(runtime_max))
+
+            # Status filter
+            if status:
+                queryset = queryset.filter(status=status)
+
+            # Adult content filter
+            if adult.lower() == 'false':
+                queryset = queryset.filter(adult=False)
+
+            # Search query
+            if search_query:
+                if language == 'vi':
+                    queryset = queryset.filter(
+                        models.Q(title_vi__icontains=search_query) |
+                        models.Q(title_en__icontains=search_query) |
+                        models.Q(title__icontains=search_query)
+                    )
+                else:
+                    queryset = queryset.filter(
+                        models.Q(title_en__icontains=search_query) |
+                        models.Q(title__icontains=search_query) |
+                        models.Q(title_vi__icontains=search_query)
+                    )
+
+            # Sorting
+            sort_fields = {
+                'popularity': '-is_popular',
+                'rating': '-ratings__imdb_rating',
+                'release_date': '-release_date',
+                'title': 'title_en' if language == 'en' else 'title_vi',
+                'runtime': '-runtime',
+                'vote_count': '-ratings__imdb_votes'
+            }
+
+            sort_field = sort_fields.get(sort_by, '-is_popular')
+            if order == 'asc':
+                sort_field = sort_field.lstrip('-')
+
+            queryset = queryset.order_by(sort_field, '-release_date')
+
+            # Pagination
+            from django.core.paginator import Paginator
+            paginator = Paginator(queryset, page_size)
+            page_obj = paginator.get_page(page)
+
+            # Serialize results
+            serializer = self.get_serializer(page_obj, many=True)
+
+            response_data = {
+                'status': 'success',
+                'count': paginator.count,
+                'pages': paginator.num_pages,
+                'current_page': page,
+                'page_size': page_size,
+                'has_next': page_obj.has_next(),
+                'has_previous': page_obj.has_previous(),
+                'data': serializer.data
+            }
+
+            # Cache for 5 minutes
+            cache.set(cache_key, response_data, timeout=300)
+
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error in movie search: {str(e)}", exc_info=True)
             return Response({
                 'status': 'error',
                 'message': str(e)

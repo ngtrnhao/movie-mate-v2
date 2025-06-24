@@ -101,13 +101,13 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 pb-12 pt-6">
+    <div className="min-h-screen bg-gray-900 pb-12 pt-32">
       <div className="mx-auto max-w-6xl px-4">
         {/* Cover Section */}
         <div className="relative mb-6 h-64 overflow-hidden rounded-3xl bg-gradient-to-br from-gray-800 to-gray-900"></div>
 
         {/* Profile Header */}
-        <div className="relative -mt-20 z-10 rounded-3xl border border-gray-700 bg-gray-800/95 p-8 shadow-2xl backdrop-blur-sm">
+        <div className="relative z-10 -mt-20 rounded-3xl border border-gray-700 bg-gray-800/95 p-8 shadow-2xl backdrop-blur-sm">
           <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-3">
             <div className="flex flex-col items-center">
               <div className="relative mb-4">
@@ -117,7 +117,7 @@ const Profile = () => {
                   {(profile.avatar_url || profile.avatarUrl) && (
                     <img
                       src={profile.avatar_url || profile.avatarUrl}
-                alt={profile.username}
+                      alt={profile.username}
                       className="size-full rounded-full border-4 border-gray-800 object-cover shadow-xl"
                       crossOrigin="anonymous"
                       referrerPolicy="no-referrer"
@@ -136,7 +136,7 @@ const Profile = () => {
                     className={`absolute inset-0 size-full items-center justify-center rounded-full border-4 border-gray-800 bg-gradient-to-br from-gray-700 to-gray-800 shadow-xl ${
                       profile.avatar_url || profile.avatarUrl ? 'hidden' : 'flex'
                     }`}
-              >
+                  >
                     <span className="text-5xl font-bold text-white">
                       {profile.username?.[0]?.toUpperCase() || '?'}
                     </span>
@@ -223,11 +223,11 @@ const Profile = () => {
             </div>
 
             <div className="flex flex-col gap-3">
-              <button className="rounded-3xl bg-red-600 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:bg-red-700 hover:-translate-y-1">
+              <button className="rounded-3xl bg-red-600 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-red-700">
                 <Email className="mr-2" fontSize="small" />
                 Message
               </button>
-              <button className="rounded-3xl border border-gray-600 px-6 py-3 font-semibold text-white transition-all duration-300 hover:bg-gray-700 hover:-translate-y-1">
+              <button className="rounded-3xl border border-gray-600 px-6 py-3 font-semibold text-white transition-all duration-300 hover:-translate-y-1 hover:bg-gray-700">
                 <Share className="mr-2" fontSize="small" />
                 Share Profile
               </button>
@@ -242,8 +242,8 @@ const Profile = () => {
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* Sidebar */}
           <div className="space-y-6">
-              <StatsCard stats={stats} />
-              <GenreList genres={favoriteGenres} />
+            <StatsCard stats={stats} />
+            <GenreList genres={favoriteGenres} />
           </div>
 
           {/* Main Content */}

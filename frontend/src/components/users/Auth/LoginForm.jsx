@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { login, setRememberMe } from '../../../store/slices/authSlice';
 import {
@@ -51,7 +51,7 @@ const LoginForm = () => {
   const { t } = useTranslation('auth');
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
+  const location = useLocation();
   // Get state from Redux
   const loading = useSelector(selectAuthLoading);
   const error = useSelector(selectAuthError);
@@ -92,13 +92,16 @@ const LoginForm = () => {
   // Handle form submission
   const handleSubmit = async e => {
     e.preventDefault();
+    console.log('DEBUG: Submit login form');
 
     // Validate form
     const errors = validate();
     if (Object.keys(errors).length > 0) {
+      console.log('DEBUG: Validation errors', errors);
       setFormError(errors);
       return;
     }
+    console.log('DEBUG: Validation passed');
 
     try {
       // Dispatch login action
@@ -109,10 +112,26 @@ const LoginForm = () => {
           rememberMe,
         })
       );
+      console.log('DEBUG: resultAction', resultAction);
 
       if (login.fulfilled.match(resultAction)) {
         // Login successful
-        navigate('/home');
+        console.log('DEBUG: location.state', location.state);
+
+        // Only redirect to saved location if it exists and is valid (from checkout)
+        if (
+          location.state?.from?.pathname &&
+          location.state.from.pathname.includes('/checkout') &&
+          !/\/(undefined|null)/.test(location.state.from.pathname)
+        ) {
+          const redirectTo = location.state.from.pathname + (location.state.from.search || '');
+          console.log('DEBUG: redirectTo from checkout', redirectTo);
+          navigate(redirectTo);
+        } else {
+          // Default redirect to home for all other cases
+          console.log('DEBUG: redirectTo default /home');
+          navigate('/home');
+        }
       }
     } catch (err) {
       // Error is handled by the reducer

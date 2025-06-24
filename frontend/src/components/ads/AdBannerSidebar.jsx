@@ -41,7 +41,7 @@ const AdBannerSidebar = () => {
   // Hiển thị thông báo nếu đang chờ thời gian ban đầu
   if (adDisplayInfo.reason === 'initial_delay') {
     return (
-      <div className="ad-banner-sidebar-container bg-gray-100 dark:bg-gray-800 p-4 text-center">
+      <div className="ad-banner-sidebar-container bg-gray-100 p-4 text-center dark:bg-gray-800">
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Quảng cáo sẽ hiển thị sau {adDisplayInfo.timeRemaining} phút
         </div>
@@ -52,7 +52,7 @@ const AdBannerSidebar = () => {
   // Hiển thị thông báo nếu đang trong cooldown
   if (adDisplayInfo.reason === 'cooldown_or_limit') {
     return (
-      <div className="ad-banner-sidebar-container bg-gray-100 dark:bg-gray-800 p-4 text-center">
+      <div className="ad-banner-sidebar-container bg-gray-100 p-4 text-center dark:bg-gray-800">
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Quảng cáo tiếp theo sau {adDisplayInfo.timeRemaining} phút
         </div>

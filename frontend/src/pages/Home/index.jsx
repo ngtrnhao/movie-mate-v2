@@ -6,13 +6,6 @@ import RecentlyReviewed from '../../components/reviewed';
 import TopRatedGrid from '../../components/movies/movie-grid/TopRatedGrid';
 import FindSimilarMovies from '../../components/recommendation-tools/SimilarityFinder';
 import TopGenreRecommendations from '../../components/movies/movie-grid/TopGenreRecommendations';
-import {
-  AdWrapper,
-  // AdBannerTop,
-  AdContent,
-  ScriptLoader,
-  PremiumAdFreeMessage,
-} from '../../components/ads';
 
 const HomePage = () => {
   return (

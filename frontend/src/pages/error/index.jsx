@@ -5,7 +5,7 @@ const ErrorPage = ({ code = 404, message = 'Page Not Found' }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-background flex min-h-screen flex-col items-center justify-center px-4 transition-colors duration-200">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 transition-colors duration-200">
       {/* Animated Illustration */}
       <div className="relative mb-8 flex items-center justify-center">
         <div className="absolute size-40 animate-ping rounded-full bg-red-600 opacity-30" />
@@ -29,7 +29,7 @@ const ErrorPage = ({ code = 404, message = 'Page Not Found' }) => {
       {/* Error Code & Message */}
       <div className="text-center">
         <h1 className="animate-bounce-slow mb-4 text-7xl font-extrabold text-red-600">{code}</h1>
-        <h2 className="animate-fade-in text-foreground mb-2 text-2xl font-bold">{message}</h2>
+        <h2 className="animate-fade-in mb-2 text-2xl font-bold text-foreground">{message}</h2>
         <p className="animate-fade-in mb-8 text-gray-400">
           Sorry, the page you are looking for does not exist or an error occurred.
         </p>

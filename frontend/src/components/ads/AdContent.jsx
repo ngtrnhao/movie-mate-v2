@@ -43,7 +43,7 @@ const AdContent = ({ position = 'TOP', className = '' }) => {
   if (adDisplayInfo.reason === 'initial_delay') {
     return (
       <div
-        className={`ad-content-container ad-content-${position.toLowerCase()} ${className} bg-gray-100 dark:bg-gray-800 p-4 text-center`}
+        className={`ad-content-container ad-content-${position.toLowerCase()} ${className} bg-gray-100 p-4 text-center dark:bg-gray-800`}
         style={{ minHeight: 250 }}
       >
         <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -57,7 +57,7 @@ const AdContent = ({ position = 'TOP', className = '' }) => {
   if (adDisplayInfo.reason === 'cooldown_or_limit') {
     return (
       <div
-        className={`ad-content-container ad-content-${position.toLowerCase()} ${className} bg-gray-100 dark:bg-gray-800 p-4 text-center`}
+        className={`ad-content-container ad-content-${position.toLowerCase()} ${className} bg-gray-100 p-4 text-center dark:bg-gray-800`}
         style={{ minHeight: 250 }}
       >
         <div className="text-sm text-gray-600 dark:text-gray-400">

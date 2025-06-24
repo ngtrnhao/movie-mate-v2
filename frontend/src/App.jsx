@@ -150,7 +150,14 @@ function App() {
                         <Route path="/recommendation" element={<Recommendation />} />
                         <Route path="/verify-email" element={<VerifyEmail />} />
                         <Route path="/pricing" element={<PricingPage />} />
-                        <Route path="/checkout" element={<CheckoutPage />} />
+                        <Route
+                          path="/checkout"
+                          element={
+                            <PrivateRoute>
+                              <CheckoutPage />
+                            </PrivateRoute>
+                          }
+                        />
                         <Route
                           path="/profile/:userId"
                           element={

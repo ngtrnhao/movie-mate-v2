@@ -178,7 +178,11 @@ const LandingPage = () => {
 
   const handleProfileClick = useCallback(() => {
     handleProfileMenuClose();
-    navigate(`/profile/${user.id}`);
+    if (user?.id) {
+      navigate(`/profile/${user.id}`);
+    } else {
+      navigate('/login');
+    }
   }, [handleProfileMenuClose, navigate, user?.id]);
 
   const handleSettingsClick = useCallback(() => {
@@ -189,7 +193,7 @@ const LandingPage = () => {
   const handleLogout = useCallback(() => {
     handleProfileMenuClose();
     dispatch(logout());
-    navigate('/login');
+    navigate('/home');
   }, [handleProfileMenuClose, dispatch, navigate]);
 
   // Memoize tab change handler
@@ -999,7 +1003,7 @@ const LandingPage = () => {
         </div>
       </section>
       {/* Explore Categories */}
-      <LazyLoader fallback={<div className="h-96 bg-gray-800 rounded animate-pulse"></div>}>
+      <LazyLoader fallback={<div className="h-96 animate-pulse rounded bg-gray-800"></div>}>
         <CategoriesSection />
       </LazyLoader>
       {/* Choose Your Plan */}
@@ -1026,7 +1030,7 @@ const LandingPage = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-16 flex flex-col items-center justify-center gap-8 py-10 md:flex-row"
           >
-            <LazyLoader fallback={<div className="h-64 bg-gray-800 rounded animate-pulse"></div>}>
+            <LazyLoader fallback={<div className="h-64 animate-pulse rounded bg-gray-800"></div>}>
               <PlanList onSelectPlan={plan => navigate(`/checkout?plan=${plan.id}`)} />
             </LazyLoader>
           </motion.div>
@@ -1236,7 +1240,7 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
-      <LazyLoader fallback={<div className="h-96 bg-gray-800 rounded animate-pulse"></div>}>
+      <LazyLoader fallback={<div className="h-96 animate-pulse rounded bg-gray-800"></div>}>
         <MovieTrailerModal
           isOpen={isTrailerOpen}
           onClose={closeTrailerModal}
@@ -1244,7 +1248,7 @@ const LandingPage = () => {
           trailerUrl={modalTrailerUrl}
         />
       </LazyLoader>
-      <LazyLoader fallback={<div className="h-64 bg-gray-800 rounded animate-pulse"></div>}>
+      <LazyLoader fallback={<div className="h-64 animate-pulse rounded bg-gray-800"></div>}>
         <LandingFooter />
       </LazyLoader>
     </div>

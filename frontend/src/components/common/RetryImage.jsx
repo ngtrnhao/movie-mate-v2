@@ -67,7 +67,7 @@ const RetryImage = memo(
         {hasError && retryCount < maxRetries && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-800/50">
             <div className="text-center text-white">
-              <div className="size-8 animate-spin rounded-full border-2 border-red-500 border-t-transparent mx-auto mb-2"></div>
+              <div className="mx-auto mb-2 size-8 animate-spin rounded-full border-2 border-red-500 border-t-transparent"></div>
               <p className="text-xs">
                 Retrying... ({retryCount + 1}/{maxRetries})
               </p>

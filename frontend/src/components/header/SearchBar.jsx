@@ -13,7 +13,7 @@ const SearchBar = () => {
     <form onSubmit={handleSearch} className="w-full">
       <div className="relative">
         <svg
-          className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -30,7 +30,7 @@ const SearchBar = () => {
           type="search"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="bg-muted/50 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring h-10 w-full rounded-md border-0 pl-10 pr-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          className="h-10 w-full rounded-md border-0 bg-muted/50 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           placeholder={t('search.placeholder')}
         />
       </div>

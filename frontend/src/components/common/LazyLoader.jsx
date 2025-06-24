@@ -21,22 +21,22 @@ const LoadingSpinner = ({ size = 'md', className = '' }) => {
 // Skeleton loader cho content
 const ContentSkeleton = ({ className = '' }) => (
   <div className={`animate-pulse ${className}`}>
-    <div className="h-4 bg-gray-700 rounded mb-2"></div>
-    <div className="h-4 bg-gray-700 rounded mb-2 w-3/4"></div>
-    <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+    <div className="mb-2 h-4 rounded bg-gray-700"></div>
+    <div className="mb-2 h-4 w-3/4 rounded bg-gray-700"></div>
+    <div className="h-4 w-1/2 rounded bg-gray-700"></div>
   </div>
 );
 
 // Grid skeleton cho movie grid
 const GridSkeleton = ({ count = 6, className = '' }) => (
   <div
-    className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 ${className}`}
+    className={`grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 ${className}`}
   >
     {Array.from({ length: count }).map((_, index) => (
       <div key={index} className="animate-pulse">
-        <div className="aspect-[2/3] bg-gray-700 rounded-lg mb-2"></div>
-        <div className="h-3 bg-gray-700 rounded mb-1"></div>
-        <div className="h-3 bg-gray-700 rounded w-2/3"></div>
+        <div className="mb-2 aspect-[2/3] rounded-lg bg-gray-700"></div>
+        <div className="mb-1 h-3 rounded bg-gray-700"></div>
+        <div className="h-3 w-2/3 rounded bg-gray-700"></div>
       </div>
     ))}
   </div>

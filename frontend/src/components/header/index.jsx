@@ -9,7 +9,6 @@ import { Menu, MenuItem, IconButton, Tooltip } from '@mui/material';
 import { AccountCircle, Settings, Logout } from '@mui/icons-material';
 import { logout } from '../../store/slices/authSlice';
 import { selectIsAuthenticated, selectUser } from '../../store/selectors/authSelectors';
-import UserBadge from '../common/UserBadge';
 import { getUserType, USER_TYPES } from '../../utils/userPermissions';
 
 const Header = () => {
@@ -43,7 +42,11 @@ const Header = () => {
 
   const handleProfileClick = () => {
     handleProfileMenuClose();
-    navigate(`/profile/${user.id}`);
+    if (user?.id) {
+      navigate(`/profile/${user.id}`);
+    } else {
+      navigate('/login');
+    }
   };
 
   const handleSettingsClick = () => {
@@ -54,7 +57,7 @@ const Header = () => {
   const handleLogout = () => {
     handleProfileMenuClose();
     dispatch(logout());
-    window.location.href = '/login';
+    window.location.href = '/home';
   };
 
   return (
@@ -86,7 +89,7 @@ const Header = () => {
                       <div className="text-center">
                         <div className="font-semibold">{user.username}</div>
                         {userType !== USER_TYPES.GUEST && (
-                          <div className="text-xs opacity-75 mt-1">
+                          <div className="mt-1 text-xs opacity-75">
                             {userType === USER_TYPES.MEMBER && 'Member'}
                             {userType === USER_TYPES.PREMIUM_BASIC && 'Premium Basic'}
                             {userType === USER_TYPES.PREMIUM_STANDARD && 'Premium Standard'}
@@ -109,16 +112,16 @@ const Header = () => {
                     >
                       <div className="relative">
                         {/* Avatar Container with Enhanced Badge */}
-                        <div className="group relative size-8 md:size-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 p-0.5 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                        <div className="group relative size-8 rounded-full bg-gradient-to-br from-red-500 to-red-700 p-0.5 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl md:size-10">
                           {/* User Badge - compact with text */}
                           {userType !== USER_TYPES.GUEST && (
-                            <div className="absolute -top-2 -right-3 z-20">
+                            <div className="absolute -right-3 -top-2 z-20">
                               <div className="relative">
                                 {/* Premium glow for premium users only */}
                                 {(userType === USER_TYPES.PREMIUM_BASIC ||
                                   userType === USER_TYPES.PREMIUM_STANDARD ||
                                   userType === USER_TYPES.PREMIUM_VIP) && (
-                                  <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 opacity-60 blur-sm animate-pulse"></div>
+                                  <div className="absolute -inset-0.5 animate-pulse rounded-full bg-gradient-to-r from-amber-400 to-orange-500 opacity-60 blur-sm"></div>
                                 )}
 
                                 {/* Compact badge with text */}
@@ -149,7 +152,7 @@ const Header = () => {
                                   {/* Premium sparkle */}
                                   {(userType === USER_TYPES.PREMIUM_STANDARD ||
                                     userType === USER_TYPES.PREMIUM_VIP) && (
-                                    <div className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-white animate-ping opacity-75"></div>
+                                    <div className="absolute -right-0.5 -top-0.5 size-1.5 animate-ping rounded-full bg-white opacity-75"></div>
                                   )}
                                 </div>
                               </div>

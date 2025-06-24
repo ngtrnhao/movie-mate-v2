@@ -1,4 +1,4 @@
-import { Movie, Star, Visibility, Favorite, RateReview, ThumbUp } from '@mui/icons-material';
+import { Star, Favorite, RateReview, ThumbUp } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../../store/selectors/authSelectors';
 import { getUserType, getUserLimit, USER_TYPES } from '../../../utils/userPermissions';

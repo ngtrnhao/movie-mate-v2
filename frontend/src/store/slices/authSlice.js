@@ -270,6 +270,10 @@ const authSlice = createSlice({
       localStorage.removeItem('user');
       sessionStorage.clear();
     },
+    updateUser: (state, action) => {
+      state.user = { ...state.user, ...action.payload };
+      localStorage.setItem('user', JSON.stringify(state.user));
+    },
   },
   extraReducers: builder => {
     builder
@@ -406,6 +410,7 @@ export const {
   updateUserPreferences,
   rehydrateAuth,
   clearAuthData,
+  updateUser,
 } = authSlice.actions;
 
 // Selectors

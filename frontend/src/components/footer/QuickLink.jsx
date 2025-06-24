@@ -10,7 +10,7 @@ const QuickLink = () => {
 
   return (
     <div>
-      <h3 className="text-foreground mb-4 text-lg font-semibold transition-colors duration-200">
+      <h3 className="mb-4 text-lg font-semibold text-foreground transition-colors duration-200">
         Quick Links
       </h3>
       <ul className="space-y-2">

@@ -56,9 +56,12 @@ axiosInstance.interceptors.response.use(
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
 
-        // Only redirect if we're not already on the login page
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
+        // Only redirect if we're not already on the login or home page
+        if (
+          !window.location.pathname.includes('/login') &&
+          !window.location.pathname.includes('/home')
+        ) {
+          window.location.href = '/home';
         }
         return Promise.reject(refreshError);
       }

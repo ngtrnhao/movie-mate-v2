@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import useAdDisplay from '../hooks/useAdDisplay';
 
 const PropellerAdsBanner = ({ zoneId, style, className = '' }) => {

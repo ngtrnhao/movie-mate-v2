@@ -12,7 +12,7 @@ export function RecommendationToolsHeader() {
         tool offers a different approad to to finding your next favorite film.
       </p>
       <div className="mx-auto max-w-[1400px] px-4">
-        <div className="bg-card dark:border-primary/20 dark:bg-card/50 dark:shadow-glow mt-6 flex items-center justify-center gap-2 rounded-lg border p-4 text-sm shadow-sm">
+        <div className="dark:shadow-glow mt-6 flex items-center justify-center gap-2 rounded-lg border bg-card p-4 text-sm shadow-sm dark:border-primary/20 dark:bg-card/50">
           <Lightbulb className="size-7 text-yellow-500 dark:text-yellow-400" />
           <p>
             <span className="font-medium">Pro Tip:</span> The more movies you rate, the more

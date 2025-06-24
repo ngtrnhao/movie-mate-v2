@@ -15,7 +15,7 @@ const GenreList = ({ genres }) => {
           <LocalMovies className="mb-4 text-6xl text-gray-500" />
           <p className="text-gray-400">No favorite genres yet</p>
           <p className="mt-2 text-sm text-gray-500">
-              Rate some movies to discover your preferences
+            Rate some movies to discover your preferences
           </p>
         </div>
       </div>
@@ -34,7 +34,7 @@ const GenreList = ({ genres }) => {
       <div className="flex flex-wrap gap-2">
         {genres.map((genre, _index) => (
           <span
-                key={genre.id}
+            key={genre.id}
             className="rounded-full border border-red-600/30 bg-red-600/10 px-4 py-2 text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-600/20 hover:text-red-300"
           >
             {genre.name}
@@ -43,11 +43,11 @@ const GenreList = ({ genres }) => {
         ))}
       </div>
 
-        {genres.length > 6 && (
+      {genres.length > 6 && (
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-500">{genres.length} genres total</p>
         </div>
-        )}
+      )}
     </div>
   );
 };

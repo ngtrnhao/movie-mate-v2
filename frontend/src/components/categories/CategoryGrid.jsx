@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { useCallback, useMemo, memo } from 'react';
-import LoadingSpinner from '../common/LoadingSpinner';
 import RetryImage from '../common/RetryImage';
 import './CategoryGrid.css';
 
@@ -136,7 +135,7 @@ const CategorySkeleton = () => (
         className="relative h-56 animate-pulse overflow-hidden rounded-xl bg-gray-800"
       >
         <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-gray-700"></div>
-        <div className="absolute bottom-4 left-4 right-4">
+        <div className="absolute inset-x-4 bottom-4">
           <div className="mb-2 h-6 w-3/4 rounded bg-gray-600"></div>
           <div className="h-4 w-1/2 rounded bg-gray-600"></div>
         </div>

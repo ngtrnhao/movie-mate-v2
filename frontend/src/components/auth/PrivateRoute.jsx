@@ -18,8 +18,16 @@ const PrivateRoute = ({ children }) => {
 
   // Only redirect to login after rehydration is complete and user is not authenticated
   if (!isAuthenticated) {
-    // Redirect to login page but save the attempted url
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Only save location state if coming from checkout page
+    const shouldSaveLocation = location.pathname.includes('/checkout');
+
+    if (shouldSaveLocation) {
+      // Redirect to login page and save the attempted url for checkout
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    } else {
+      // For other protected routes, just redirect to login without saving location
+      return <Navigate to="/login" replace />;
+    }
   }
 
   return children;

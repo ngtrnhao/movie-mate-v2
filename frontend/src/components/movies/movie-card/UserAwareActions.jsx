@@ -6,8 +6,7 @@ import {
   getUserType,
   getUserLimit,
   canUserPerform,
-  shouldShowUpgrade,
-  USER_TYPES
+  USER_TYPES,
 } from '../../../utils/userPermissions';
 import LimitCounter from '../../common/LimitCounter';
 import UpgradePrompt from '../../common/UpgradePrompt';
@@ -22,7 +21,7 @@ const UserAwareActions = ({
   isFavorited = false,
   currentRating = 0,
   userFavoritesCount = 0,
-  userReviewsToday = 0
+  userReviewsToday = 0,
 }) => {
   const user = useSelector(selectUser);
   const userType = getUserType(user);
@@ -34,10 +33,13 @@ const UserAwareActions = ({
   const reviewsLimit = getUserLimit(user, 'reviews_per_day');
 
   // Check permissions
-  const canFavorite = userType !== USER_TYPES.GUEST && (favoritesLimit === -1 || userFavoritesCount < favoritesLimit);
+  const canFavorite =
+    userType !== USER_TYPES.GUEST && (favoritesLimit === -1 || userFavoritesCount < favoritesLimit);
   const canAddToList = userType !== USER_TYPES.GUEST && listsLimit > 0;
-  const canRate = userType !== USER_TYPES.GUEST && (reviewsLimit === -1 || userReviewsToday < reviewsLimit);
-  const canReview = userType !== USER_TYPES.GUEST && (reviewsLimit === -1 || userReviewsToday < reviewsLimit);
+  const canRate =
+    userType !== USER_TYPES.GUEST && (reviewsLimit === -1 || userReviewsToday < reviewsLimit);
+  const canReview =
+    userType !== USER_TYPES.GUEST && (reviewsLimit === -1 || userReviewsToday < reviewsLimit);
   const canEditReview = canUserPerform(user, 'can_edit_reviews');
   const canAddTags = canUserPerform(user, 'can_add_tags');
 
@@ -78,8 +80,8 @@ const UserAwareActions = ({
             isFavorited
               ? 'bg-red-600 text-white hover:bg-red-700'
               : userType === USER_TYPES.GUEST || !canFavorite
-              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-              : 'bg-gray-700 text-white hover:bg-gray-600'
+                ? 'cursor-not-allowed bg-gray-700 text-gray-400'
+                : 'bg-gray-700 text-white hover:bg-gray-600'
           }`}
         >
           <Heart className={`size-4 ${isFavorited ? 'fill-current' : ''}`} />
@@ -94,7 +96,7 @@ const UserAwareActions = ({
           disabled={userType !== USER_TYPES.GUEST && !canAddToList}
           className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
             userType === USER_TYPES.GUEST || !canAddToList
-              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              ? 'cursor-not-allowed bg-gray-700 text-gray-400'
               : 'bg-gray-700 text-white hover:bg-gray-600'
           }`}
         >
@@ -110,8 +112,8 @@ const UserAwareActions = ({
             currentRating > 0
               ? 'bg-yellow-600 text-white hover:bg-yellow-700'
               : userType === USER_TYPES.GUEST || !canRate
-              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-              : 'bg-gray-700 text-white hover:bg-gray-600'
+                ? 'cursor-not-allowed bg-gray-700 text-gray-400'
+                : 'bg-gray-700 text-white hover:bg-gray-600'
           }`}
         >
           <Star className={`size-4 ${currentRating > 0 ? 'fill-current' : ''}`} />
@@ -119,9 +121,8 @@ const UserAwareActions = ({
             {userType === USER_TYPES.GUEST
               ? 'Sign In'
               : currentRating > 0
-              ? `${currentRating}/5`
-              : 'Rate'
-            }
+                ? `${currentRating}/5`
+                : 'Rate'}
           </span>
         </button>
 
@@ -131,7 +132,7 @@ const UserAwareActions = ({
           disabled={userType !== USER_TYPES.GUEST && !canReview}
           className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
             userType === USER_TYPES.GUEST || !canReview
-              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              ? 'cursor-not-allowed bg-gray-700 text-gray-400'
               : 'bg-gray-700 text-white hover:bg-gray-600'
           }`}
         >
@@ -191,15 +192,15 @@ const UserAwareActions = ({
               className="absolute -right-2 -top-2 rounded-full bg-gray-800 p-1 text-white"
             >
               <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
-            <UpgradePrompt
-              user={user}
-              feature={showUpgradeModal}
-              type="inline"
-              size="md"
-            />
+            <UpgradePrompt user={user} feature={showUpgradeModal} type="inline" size="md" />
           </div>
         </div>
       )}

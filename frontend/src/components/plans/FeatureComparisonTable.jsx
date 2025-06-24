@@ -109,9 +109,9 @@ const valueData = {
 const PlanCell = ({ value, t }) => {
   if (typeof value === 'boolean') {
     return value ? (
-      <Check className="mx-auto h-6 w-6 text-green-400" />
+      <Check className="mx-auto size-6 text-green-400" />
     ) : (
-      <X className="mx-auto h-6 w-6 text-red-500" />
+      <X className="mx-auto size-6 text-red-500" />
     );
   }
   if (typeof value === 'string') {
@@ -152,13 +152,13 @@ const FeatureComparisonTable = () => {
       <table className="min-w-full table-auto divide-y divide-gray-800">
         <thead className="sticky top-0 bg-gray-900/95">
           <tr>
-            <th className="w-1/3 px-4 py-4 text-left text-base font-bold uppercase tracking-wider text-white">
+            <th className="w-1/3 p-4 text-left text-base font-bold uppercase tracking-wider text-white">
               {t('pricing.comparison.featureCol', 'Feature')}
             </th>
             {columns.map(col => (
               <th
                 key={col}
-                className="w-1/6 px-4 py-4 text-center text-base font-bold uppercase tracking-wider text-white"
+                className="w-1/6 p-4 text-center text-base font-bold uppercase tracking-wider text-white"
               >
                 {t(`pricing.comparison.columns.${col}`)}
               </th>
@@ -173,15 +173,15 @@ const FeatureComparisonTable = () => {
                 <tr key={category.key}>
                   <td
                     colSpan={columns.length + 1}
-                    className="bg-gray-800/90 px-6 py-4 rounded-t-2xl"
+                    className="rounded-t-2xl bg-gray-800/90 px-6 py-4"
                   >
                     <div className="flex items-center gap-2">
                       <Icon className="text-red-400" size={22} />
-                      <span className="uppercase font-medium text-white flex items-center h-full">
+                      <span className="flex h-full items-center font-medium uppercase text-white">
                         {t(`pricing.comparison.categories.${category.key}.title`)}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="mt-1 text-xs text-gray-400">
                       {t(`pricing.comparison.categories.${category.key}.desc`)}
                     </div>
                   </td>
@@ -199,7 +199,7 @@ const FeatureComparisonTable = () => {
                         : 'bg-gray-800/90 hover:bg-gray-700/80'
                     }
                   >
-                    <td className="px-6 py-3 font-medium text-gray-200 text-left text-base">
+                    <td className="px-6 py-3 text-left text-base font-medium text-gray-200">
                       {t(`pricing.comparison.features.${feature}`)}
                     </td>
                     {columns.map(col => (

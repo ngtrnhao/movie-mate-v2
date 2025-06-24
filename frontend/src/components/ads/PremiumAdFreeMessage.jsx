@@ -17,11 +17,11 @@ const PremiumAdFreeMessage = memo(() => {
   }
 
   return (
-    <div className="bg-gradient-to-r from-green-600/10 to-blue-600/10 border border-green-500/20 rounded-lg p-4 mb-4">
+    <div className="mb-4 rounded-lg border border-green-500/20 bg-gradient-to-r from-green-600/10 to-blue-600/10 p-4">
       <div className="flex items-center gap-3">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <svg
-            className="w-6 h-6 text-green-500"
+            className="size-6 text-green-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -36,7 +36,7 @@ const PremiumAdFreeMessage = memo(() => {
         </div>
         <div className="flex-1">
           <h4 className="text-sm font-semibold text-green-400">Ad-Free Experience</h4>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="mt-1 text-xs text-gray-400">
             Enjoy an ad-free experience with your {userType?.replace('premium_', 'Premium ')}{' '}
             subscription!
           </p>

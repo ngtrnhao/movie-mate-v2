@@ -18,8 +18,8 @@ const AdDisplayTest = () => {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 rounded-lg border border-gray-600 bg-black/90 p-4 text-white max-w-sm">
-      <h3 className="text-sm font-bold mb-2">🔧 Ad Display Test</h3>
+    <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-lg border border-gray-600 bg-black/90 p-4 text-white">
+      <h3 className="mb-2 text-sm font-bold">🔧 Ad Display Test</h3>
 
       <div className="space-y-1 text-xs">
         <div>
@@ -48,12 +48,12 @@ const AdDisplayTest = () => {
         </div>
       </div>
 
-      <div className="mt-3 pt-3 border-t border-gray-600">
-        <h4 className="text-xs font-semibold mb-2">Test Components:</h4>
+      <div className="mt-3 border-t border-gray-600 pt-3">
+        <h4 className="mb-2 text-xs font-semibold">Test Components:</h4>
 
         {/* Test AdWrapper */}
         <div className="mb-2">
-          <div className="text-xs text-gray-400 mb-1">AdWrapper:</div>
+          <div className="mb-1 text-xs text-gray-400">AdWrapper:</div>
           <AdWrapper>
             <div className="rounded border border-red-500/50 bg-red-600/20 p-2 text-xs">
               🎯 This ad should show for non-premium users
@@ -63,7 +63,7 @@ const AdDisplayTest = () => {
 
         {/* Test PremiumAdFreeMessage */}
         <div>
-          <div className="text-xs text-gray-400 mb-1">PremiumAdFreeMessage:</div>
+          <div className="mb-1 text-xs text-gray-400">PremiumAdFreeMessage:</div>
           <PremiumAdFreeMessage />
         </div>
       </div>

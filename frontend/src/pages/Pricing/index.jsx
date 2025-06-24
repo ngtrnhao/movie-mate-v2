@@ -43,7 +43,7 @@ const PricingPage = () => {
 
         {/* Current Subscription Status - Only show for logged in users */}
         {user && (
-          <div className="mt-8 max-w-2xl mx-auto">
+          <div className="mx-auto mt-8 max-w-2xl">
             <SubscriptionStatus />
           </div>
         )}

@@ -98,14 +98,27 @@ DATABASES = {
     }
 }
 
+# Redis settings (must be defined before CACHES)
+REDIS_HOST = env('REDIS_HOST', default='localhost')
+REDIS_PORT = env('REDIS_PORT', default='6379')
+REDIS_USERNAME = env('REDIS_USERNAME', default='')
+REDIS_PASSWORD = env('REDIS_PASSWORD', default='')
+
+# Construct Redis URL with conditional authentication
+if REDIS_USERNAME and REDIS_PASSWORD:
+    # Redis Cloud with authentication
+    REDIS_URL = f"redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
+else:
+    # Local Redis without authentication
+    REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+
 # Cache configuration
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f"redis://{env('REDIS_HOST', default='localhost')}:{env('REDIS_PORT', default='6379')}/0",
+        'LOCATION': REDIS_URL,  # Use the same Redis URL as Celery
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': env('REDIS_PASSWORD', default=''),
             'SOCKET_CONNECT_TIMEOUT': 5,
             'SOCKET_TIMEOUT': 5,
             'RETRY_ON_TIMEOUT': True,
@@ -209,9 +222,6 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 # Frontend URL for email verification
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 
-# Redis settings
-REDIS_URL = f"redis://{env('REDIS_HOST', default='localhost')}:{env('REDIS_PORT', default='6379')}/0"
-
 # Celery Configuration
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
@@ -221,6 +231,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
 # IMDB API Configuration
 IMDB_API_KEY = env('IMDB_API_KEY', default='your-rapidapi-key-here')

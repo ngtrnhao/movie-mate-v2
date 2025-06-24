@@ -84,7 +84,7 @@ class IMDBService:
                 # Log response details for debugging
                 logger.debug(f"Response status: {response.status_code}")
                 logger.debug(f"Response headers: {response.headers}")
-                logger.error(
+                logger.debug(
                     f"IMDB API raw response: status={response.status_code}, text={response.text[:500]}"
                 )
 

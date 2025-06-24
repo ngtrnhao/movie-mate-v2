@@ -7,9 +7,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings')
 
 app = Celery('movie_mate')
 
-# Configure broker URL to use Redis
-app.conf.broker_url = 'redis://redis:6379/0'
-
+# Configure Celery to use Django settings
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Load task modules from all registered Django apps
@@ -25,15 +23,15 @@ app.conf.beat_schedule_filename = 'celerybeat-schedule'
 app.conf.beat_schedule = {
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(minutes=1),  # Every 5 days
     },
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(minutes=1),  # Every 5 days
     },
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(minutes=1),  # Every 5 days
     },
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",
@@ -45,12 +43,8 @@ app.conf.beat_schedule = {
     },
 }
 
-# Optional: Configure result backend for Celery to use Redis as result backend
-app.conf.result_backend = 'redis://redis:6379/1'
-
-# Optional : Configure task time limits
-app.conf.task_time_limit = 3600
-app.conf.task_soft_time_limit = 3000
+# Task time limits are now configured in Django settings
+# CELERY_TASK_TIME_LIMIT and CELERY_TASK_SOFT_TIME_LIMIT
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

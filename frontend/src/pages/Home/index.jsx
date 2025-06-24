@@ -8,7 +8,7 @@ import FindSimilarMovies from '../../components/recommendation-tools/SimilarityF
 import TopGenreRecommendations from '../../components/movies/movie-grid/TopGenreRecommendations';
 import {
   AdWrapper,
-  AdBannerTop,
+  // AdBannerTop,
   AdContent,
   ScriptLoader,
   PremiumAdFreeMessage,
@@ -18,39 +18,39 @@ const HomePage = () => {
   return (
     <div className="bg-gray-900">
       {/* Quảng cáo banner đầu trang - chỉ hiển thị cho non-premium users */}
-      <AdWrapper>
+      {/* <AdWrapper>
         <AdBannerTop />
-      </AdWrapper>
+      </AdWrapper> */}
 
       {/* Thông báo ad-free cho premium users */}
-      <PremiumAdFreeMessage />
+      {/* <PremiumAdFreeMessage /> */}
 
       <HeroBannerRecommendation />
       <MovieCarousel />
 
       {/* Quảng cáo nội dung giữa các section - chỉ hiển thị cho non-premium users */}
-      <AdWrapper>
+      {/* <AdWrapper>
         <AdContent position="TOP" />
-      </AdWrapper>
+      </AdWrapper> */}
 
       <RecommendForYou />
       <TopRatedGrid />
       <TopGenreRecommendations />
 
       {/* Quảng cáo nội dung giữa - chỉ hiển thị cho non-premium users */}
-      <AdWrapper>
+      {/* <AdWrapper>
         <AdContent position="MIDDLE" />
         <ScriptLoader zoneId={9465780} />
-      </AdWrapper>
+      </AdWrapper> */}
 
       <RecentlyReviewed />
       <FindSimilarMovies />
       <FeaturedCategories />
 
       {/* Quảng cáo nội dung cuối - chỉ hiển thị cho non-premium users */}
-      <AdWrapper>
+      {/* <AdWrapper>
         <AdContent position="BOTTOM" />
-      </AdWrapper>
+      </AdWrapper> */}
     </div>
   );
 };

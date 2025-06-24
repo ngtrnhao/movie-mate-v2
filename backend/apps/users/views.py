@@ -406,17 +406,13 @@ class GoogleAuthView(APIView):
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
 
+            # Use UserSerializer to return consistent user data
+            user_data = UserSerializer(user).data
+
             return Response({
-                'access': str(refresh.access_token),
+                'user': user_data,
                 'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'avatar_url': user.avatar_url
-                }
+                'access': str(refresh.access_token),
             })
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

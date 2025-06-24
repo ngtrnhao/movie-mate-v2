@@ -30,7 +30,7 @@ const CheckoutPage = () => {
   const { t } = useTranslation('landing');
   const [searchParams] = useSearchParams();
   const planName = searchParams.get('plan');
-  let plan = t(`plans.${planName.replace('prenium_', '')}`, { returnObjects: true });
+  let plan = t(`plans.${planName.replace('premium_', '')}`, { returnObjects: true });
   if (!plan || typeof plan !== 'object' || !plan.name) plan = null;
   const user = useSelector(selectUser);
   const dispatch = useDispatch();
@@ -65,20 +65,20 @@ const CheckoutPage = () => {
   const isUpgrade = () => {
     if (!currentSubscription?.has_active_subscription || !planName) return false;
     const currentLevel = getPlanLevel(currentSubscription.plan);
-    const newLevel = getPlanLevel(planName.replace('prenium_', ''));
+    const newLevel = getPlanLevel(planName.replace('premium_', ''));
     return newLevel > currentLevel;
   };
 
   const isDowngrade = () => {
     if (!currentSubscription?.has_active_subscription || !planName) return false;
     const currentLevel = getPlanLevel(currentSubscription.plan);
-    const newLevel = getPlanLevel(planName.replace('prenium_', ''));
+    const newLevel = getPlanLevel(planName.replace('premium_', ''));
     return newLevel < currentLevel;
   };
 
   const isSamePlan = () => {
     if (!currentSubscription?.has_active_subscription || !planName) return false;
-    return currentSubscription.plan === planName.replace('prenium_', '');
+    return currentSubscription.plan === planName.replace('premium_', '');
   };
 
   // Calculate subscription dates
@@ -477,7 +477,7 @@ const CheckoutPage = () => {
                   createOrder={(data, actions) => {
                     console.log('Creating PayPal order with duration:', duration);
                     console.log('Total price:', totalPrice);
-                    console.log('Plan:', planName.replace('prenium_', ''));
+                    console.log('Plan:', planName.replace('premium_', ''));
 
                     return actions.order.create({
                       purchase_units: [
@@ -485,7 +485,7 @@ const CheckoutPage = () => {
                           amount: {
                             value: totalPrice,
                           },
-                          description: planName.replace('prenium_', ''),
+                          description: planName.replace('premium_', ''),
                           custom_id: user.id?.toString(),
                           custom: JSON.stringify({ duration }),
                         },

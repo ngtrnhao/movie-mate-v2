@@ -10,14 +10,7 @@
 export const isPremiumUser = userType => {
   if (!userType) return false;
 
-  const premiumTypes = [
-    'prenium_vip',
-    'prenium_pro',
-    'prenium_basic',
-    'premium_vip',
-    'premium_pro',
-    'premium_basic',
-  ];
+  const premiumTypes = ['premium_vip', 'premium_pro', 'premium_basic'];
 
   return premiumTypes.includes(userType);
 };
@@ -50,9 +43,6 @@ export const getUserTypeDisplayName = userType => {
 
   const displayNames = {
     member: 'Member',
-    prenium_vip: 'Premium VIP',
-    prenium_pro: 'Premium Pro',
-    prenium_basic: 'Premium Basic',
     premium_vip: 'Premium VIP',
     premium_pro: 'Premium Pro',
     premium_basic: 'Premium Basic',
@@ -73,11 +63,8 @@ export const getUserLevel = userType => {
   const levels = {
     free: 0,
     member: 1,
-    prenium_basic: 2,
     premium_basic: 2,
-    prenium_pro: 3,
     premium_pro: 3,
-    prenium_vip: 4,
     premium_vip: 4,
   };
 

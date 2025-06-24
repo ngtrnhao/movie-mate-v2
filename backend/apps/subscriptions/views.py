@@ -129,7 +129,7 @@ class PaymentTransactionView(APIView):
             if ultimate_expiry_tx:
                 # The user has some active subscription.
                 # The authoritative plan is from the user model, as it's updated immediately upon successful payment.
-                authoritative_plan_name = user.user_type.replace('prenium_', '') if 'prenium_' in user.user_type else user.user_type
+                authoritative_plan_name = user.user_type.replace('premium_', '') if 'premium_' in user.user_type else user.user_type
 
                 # Try to find a transaction corresponding to the authoritative plan to get the correct amount.
                 authoritative_plan_tx = PaymentTransaction.objects.filter(
@@ -323,17 +323,17 @@ class PayPalWebhookView(APIView):
 
             user_type_updated = False
             if plan_code == 'basic':
-                user.user_type = 'prenium_basic'
+                user.user_type = 'premium_basic'
                 user_type_updated = True
-                logger.info("Matched 'basic'. Set user_type to 'prenium_basic'.")
+                logger.info("Matched 'basic'. Set user_type to 'premium_basic'.")
             elif plan_code == 'standard':
-                user.user_type = 'prenium_standard'
+                user.user_type = 'premium_standard'
                 user_type_updated = True
-                logger.info("Matched 'standard'. Set user_type to 'prenium_standard'.")
+                logger.info("Matched 'standard'. Set user_type to 'premium_standard'.")
             elif plan_code == 'vip':
-                user.user_type = 'prenium_vip'
+                user.user_type = 'premium_vip'
                 user_type_updated = True
-                logger.info("Matched 'vip'. Set user_type to 'prenium_vip'.")
+                logger.info("Matched 'vip'. Set user_type to 'premium_vip'.")
 
             if user_type_updated:
                 try:

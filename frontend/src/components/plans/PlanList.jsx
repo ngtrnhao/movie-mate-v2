@@ -7,17 +7,17 @@ const PlanList = ({ icons, onSelectPlan }) => {
     {
       ...t('plans.basic', { returnObjects: true }),
       highlighted: false,
-      id: 'prenium_basic',
+      id: 'premium_basic',
     },
     {
       ...t('plans.standard', { returnObjects: true }),
       highlighted: true,
-      id: 'prenium_standard',
+      id: 'premium_standard',
     },
     {
       ...t('plans.vip', { returnObjects: true }),
       highlighted: false,
-      id: 'prenium_vip',
+      id: 'premium_vip',
     },
   ];
 

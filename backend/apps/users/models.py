@@ -19,9 +19,9 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
     USER_TYPE_CHOICES = [
         ('member','Member'),
-        ('prenium_basic','Prenium Basic'),
-        ('prenium_standard','Prenium Standard'),
-        ('prenium_vip','Prenium VIP'),
+        ('premium_basic','Premium Basic'),
+        ('premium_standard','Premium Standard'),
+        ('premium_vip','Premium VIP'),
     ]
     user_type = models.CharField(
         max_length=20,

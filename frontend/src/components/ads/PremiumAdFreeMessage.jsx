@@ -37,7 +37,7 @@ const PremiumAdFreeMessage = memo(() => {
         <div className="flex-1">
           <h4 className="text-sm font-semibold text-green-400">Ad-Free Experience</h4>
           <p className="text-xs text-gray-400 mt-1">
-            Enjoy an ad-free experience with your {userType?.replace('prenium_', 'Premium ')}{' '}
+            Enjoy an ad-free experience with your {userType?.replace('premium_', 'Premium ')}{' '}
             subscription!
           </p>
         </div>

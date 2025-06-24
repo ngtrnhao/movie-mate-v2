@@ -28,7 +28,7 @@ const PlanCard = ({ plan, icon, onSelect }) => {
   };
 
   const getPlanName = () => {
-    return plan.id.replace('prenium_', '');
+    return plan.id.replace('premium_', '');
   };
 
   const isCurrentPlan = () => {

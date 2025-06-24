@@ -25,17 +25,17 @@ import { rehydrateAuth } from './store/slices/authSlice';
 import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
-import PerformanceMonitor from './components/common/PerformanceMonitor';
-import AdDisplayTest from './components/ads/AdDisplayTest';
-import AdFrequencyStatus from './components/common/AdFrequencyStatus';
-import AdWaitMessage from './components/common/AdWaitMessage';
+// import PerformanceMonitor from './components/common/PerformanceMonitor';
+// import AdDisplayTest from './components/ads/AdDisplayTest';
+// import AdFrequencyStatus from './components/common/AdFrequencyStatus';
+// import AdWaitMessage from './components/common/AdWaitMessage';
 
 // Import test utilities for development
-if (process.env.NODE_ENV === 'development') {
-  import('./utils/testAdFrequency').then(({ runAllAdFrequencyTests }) => {
-    window.runAllAdFrequencyTests = runAllAdFrequencyTests;
-  });
-}
+// if (process.env.NODE_ENV === 'development') {
+//   import('./utils/testAdFrequency').then(({ runAllAdFrequencyTests }) => {
+//     window.runAllAdFrequencyTests = runAllAdFrequencyTests;
+//   });
+// }
 
 // Global error handler để chặn lỗi Script error từ quảng cáo ngoài
 if (typeof window !== 'undefined') {
@@ -76,21 +76,16 @@ function App() {
   // Thiết lập trình xử lý lỗi toàn cục để ngăn chặn lỗi từ script của bên thứ ba làm sập ứng dụng
   useEffect(() => {
     const errorHandler = event => {
-      // "Script error." là một lỗi chung cho các script cross-origin.
-      // Chúng ta không thể xem chi tiết lỗi, nhưng có thể ngăn nó làm sập ứng dụng.
       if (event.message.includes('Script error')) {
         console.warn(
           `Caught a third-party script error. Preventing app crash. Message: ${event.message}`
         );
-        // Ngăn chặn hành vi mặc định của trình duyệt (như ghi lỗi ra console và dừng thực thi)
         event.preventDefault();
       }
     };
 
     const promiseRejectionHandler = event => {
       console.warn(`Caught unhandled promise rejection. Reason:`, event.reason);
-      // Bạn có thể thêm logic ở đây để xử lý các lỗi promise cụ thể nếu cần.
-      // event.preventDefault();
     };
 
     window.addEventListener('error', errorHandler);
@@ -174,16 +169,16 @@ function App() {
             </Routes>
 
             {/* Performance Monitor - chỉ hiển thị trong development */}
-            <PerformanceMonitor />
+            {/* <PerformanceMonitor /> */}
 
             {/* Ad Display Test - chỉ hiển thị trong development */}
-            <AdDisplayTest />
+            {/* <AdDisplayTest /> */}
 
             {/* Ad Frequency Status - hiển thị cho eligible users */}
-            <AdFrequencyStatus />
+            {/* <AdFrequencyStatus /> */}
 
             {/* Ad Wait Message - hiển thị countdown cho eligible users */}
-            <AdWaitMessage />
+            {/* <AdWaitMessage /> */}
           </QueryProvider>
         </BrowserRouter>
       </I18nProvider>

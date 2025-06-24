@@ -945,7 +945,7 @@ const LandingPage = () => {
           <p className="pt-5 text-center text-lg text-gray-400">{t('latestReleases.subtitle')}</p>
           <div className="mt-10">
             <LazyLoader
-              fallback={<div className="h-12 bg-gray-800 rounded animate-pulse mb-4"></div>}
+              fallback={<div className="mb-4 h-12 animate-pulse rounded bg-gray-800"></div>}
             >
               <TabGroup
                 tabs={translatedTabs}

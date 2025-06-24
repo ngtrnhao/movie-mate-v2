@@ -23,6 +23,7 @@ import ReviewList from './components/ReviewList';
 import RatingList from './components/RatingList';
 import StatsCard from './components/StatsCard';
 import GenreList from './components/GenreList';
+import UserBadge from '../../components/common/UserBadge';
 import { format } from 'date-fns';
 
 const TabPanel = ({ children, value, index, ...other }) => (
@@ -116,7 +117,7 @@ const Profile = () => {
                   {(profile.avatar_url || profile.avatarUrl) && (
                     <img
                       src={profile.avatar_url || profile.avatarUrl}
-                      alt={profile.username}
+                alt={profile.username}
                       className="size-full rounded-full border-4 border-gray-800 object-cover shadow-xl"
                       crossOrigin="anonymous"
                       referrerPolicy="no-referrer"
@@ -135,7 +136,7 @@ const Profile = () => {
                     className={`absolute inset-0 size-full items-center justify-center rounded-full border-4 border-gray-800 bg-gradient-to-br from-gray-700 to-gray-800 shadow-xl ${
                       profile.avatar_url || profile.avatarUrl ? 'hidden' : 'flex'
                     }`}
-                  >
+              >
                     <span className="text-5xl font-bold text-white">
                       {profile.username?.[0]?.toUpperCase() || '?'}
                     </span>
@@ -180,14 +181,7 @@ const Profile = () => {
               </div>
 
               {/* User Badge */}
-              {profile.user_type && (
-                <div className="relative">
-                  <span className="rounded-full bg-gradient-to-r from-red-500 to-red-700 px-4 py-2 text-sm font-bold uppercase tracking-wider text-white shadow-lg">
-                    {profile.user_type.replace('prenium_', '')}
-                  </span>
-                  <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-red-500 to-red-700 opacity-30 blur"></div>
-                </div>
-              )}
+              <UserBadge user={profile} size="md" />
             </div>
 
             <div className="md:col-span-1">
@@ -219,7 +213,7 @@ const Profile = () => {
               {profile.user_type && profile.subscription_end_date && (
                 <div className="rounded-2xl border border-red-600 bg-gray-800/95 p-4">
                   <p className="font-bold text-red-600">
-                    Current Plan: {profile.user_type.replace('prenium_', '').toUpperCase()}
+                    Current Plan: {profile.user_type.replace('premium_', '').toUpperCase()}
                   </p>
                   <p className="text-sm text-gray-400">
                     Active until {format(new Date(profile.subscription_end_date), 'dd MMM yyyy')}
@@ -248,8 +242,8 @@ const Profile = () => {
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* Sidebar */}
           <div className="space-y-6">
-            <StatsCard stats={stats} />
-            <GenreList genres={favoriteGenres} />
+              <StatsCard stats={stats} />
+              <GenreList genres={favoriteGenres} />
           </div>
 
           {/* Main Content */}

@@ -9,6 +9,8 @@ import { Menu, MenuItem, IconButton, Tooltip } from '@mui/material';
 import { AccountCircle, Settings, Logout } from '@mui/icons-material';
 import { logout } from '../../store/slices/authSlice';
 import { selectIsAuthenticated, selectUser } from '../../store/selectors/authSelectors';
+import UserBadge from '../common/UserBadge';
+import { getUserType, USER_TYPES } from '../../utils/userPermissions';
 
 const Header = () => {
   const { t } = useTranslation('common');
@@ -19,6 +21,7 @@ const Header = () => {
 
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectUser);
+  const userType = getUserType(user);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -73,12 +76,28 @@ const Header = () => {
           </div>
 
           {/* Right section */}
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4 md:space-x-6">
             <Navigation />
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               {isAuthenticated && user?.id ? (
                 <>
-                  <Tooltip title={user.username}>
+                  <Tooltip
+                    title={
+                      <div className="text-center">
+                        <div className="font-semibold">{user.username}</div>
+                        {userType !== USER_TYPES.GUEST && (
+                          <div className="text-xs opacity-75 mt-1">
+                            {userType === USER_TYPES.MEMBER && 'Member'}
+                            {userType === USER_TYPES.PREMIUM_BASIC && 'Premium Basic'}
+                            {userType === USER_TYPES.PREMIUM_STANDARD && 'Premium Standard'}
+                            {userType === USER_TYPES.PREMIUM_VIP && 'Premium VIP'}
+                          </div>
+                        )}
+                      </div>
+                    }
+                    arrow
+                    placement="bottom"
+                  >
                     <IconButton
                       onClick={handleProfileMenuOpen}
                       size="large"
@@ -89,8 +108,53 @@ const Header = () => {
                       sx={{ p: 0 }}
                     >
                       <div className="relative">
-                        {/* Avatar Container */}
-                        <div className="relative size-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 p-0.5 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                        {/* Avatar Container with Enhanced Badge */}
+                        <div className="group relative size-8 md:size-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 p-0.5 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
+                          {/* User Badge - compact with text */}
+                          {userType !== USER_TYPES.GUEST && (
+                            <div className="absolute -top-2 -right-3 z-20">
+                              <div className="relative">
+                                {/* Premium glow for premium users only */}
+                                {(userType === USER_TYPES.PREMIUM_BASIC ||
+                                  userType === USER_TYPES.PREMIUM_STANDARD ||
+                                  userType === USER_TYPES.PREMIUM_VIP) && (
+                                  <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 opacity-60 blur-sm animate-pulse"></div>
+                                )}
+
+                                {/* Compact badge with text */}
+                                <div
+                                  className={`relative rounded-full border border-white/50 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition-all duration-300 hover:scale-110 ${
+                                    userType === USER_TYPES.MEMBER
+                                      ? 'bg-blue-500'
+                                      : userType === USER_TYPES.PREMIUM_BASIC
+                                        ? 'bg-gradient-to-r from-amber-400 to-amber-500'
+                                        : userType === USER_TYPES.PREMIUM_STANDARD
+                                          ? 'bg-gradient-to-r from-yellow-400 to-yellow-500'
+                                          : userType === USER_TYPES.PREMIUM_VIP
+                                            ? 'bg-gradient-to-r from-purple-500 to-purple-600'
+                                            : 'bg-gray-500'
+                                  }`}
+                                >
+                                  {/* Inner shine effect */}
+                                  <div className="absolute inset-0 rounded-full bg-white/20 opacity-50"></div>
+
+                                  {/* Badge text */}
+                                  <span className="relative z-10">
+                                    {userType === USER_TYPES.MEMBER && 'M'}
+                                    {userType === USER_TYPES.PREMIUM_BASIC && 'P'}
+                                    {userType === USER_TYPES.PREMIUM_STANDARD && 'S'}
+                                    {userType === USER_TYPES.PREMIUM_VIP && 'VIP'}
+                                  </span>
+
+                                  {/* Premium sparkle */}
+                                  {(userType === USER_TYPES.PREMIUM_STANDARD ||
+                                    userType === USER_TYPES.PREMIUM_VIP) && (
+                                    <div className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-white animate-ping opacity-75"></div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           {/* Always render img if avatar_url exists, but handle error gracefully */}
                           {(user.avatar_url || user.avatarUrl) && (
                             <img

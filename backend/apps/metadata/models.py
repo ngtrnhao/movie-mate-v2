@@ -4,6 +4,9 @@ try:
     from django.db.models import JSONField
 except ImportError:
     from django.contrib.postgres.fields import JSONField
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.core.cache import cache
 
 
 class Genre(models.Model):
@@ -167,6 +170,24 @@ class GenreSummary(models.Model):
                 last_updated = NOW()
             """
             cursor.execute(sql)
+
+@receiver([post_save, post_delete], sender=GenreSummary)
+def clear_genre_summary_cache(sender, instance, **kwargs):
+    """
+    Clear cache khi GenreSummary được cập nhật hoặc xóa
+    """
+    try:
+        # Xóa cache cho language cụ thể (nếu có)
+        if hasattr(instance, 'language') and instance.language:
+            cache_key = f'movie_categories_summary_{instance.language}'
+            cache.delete(cache_key)
+        # Xóa toàn bộ cache patterns liên quan
+        cache.delete_pattern('movie_categories_summary_*')
+        cache.delete_pattern('category_movies_optimized_*')
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error clearing genre summary cache: {str(e)}")
 
 class Person(models.Model) :
     name = models.CharField(max_length=255)

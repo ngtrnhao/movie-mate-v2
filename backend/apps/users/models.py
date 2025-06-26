@@ -13,6 +13,15 @@ class User(AbstractUser):
     age = models.IntegerField(blank=True, null=True)
     gender = models.CharField(max_length=10, choices=[('M', 'Male'), ('F', 'Female'), ('O', 'Other')], blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
+
+    # MovieLens demographics fields
+    age_group = models.CharField(max_length=20, blank=True, null=True,
+                                help_text="Age group from MovieLens: Under 18, 18-24, 25-34, etc.")
+    occupation = models.CharField(max_length=50, blank=True, null=True,
+                                 help_text="Occupation from MovieLens dataset")
+    zip_code = models.CharField(max_length=10, blank=True, null=True,
+                               help_text="Zip code from MovieLens dataset")
+
     is_email_verified = models.BooleanField(default=False)
     is_google_account = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -66,6 +75,9 @@ class User(AbstractUser):
         indexes = [
             models.Index(fields=['username']),
             models.Index(fields=['email']),
+            models.Index(fields=['age_group']),
+            models.Index(fields=['occupation']),
+            models.Index(fields=['zip_code']),
         ]
 
     def get_full_name(self):
@@ -81,26 +93,8 @@ class UserFavoriteGenre(models.Model):
         db_table = 'users_users_favorite_genres'
         unique_together = ('user', 'genre')
 
-class UserMovieRating(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    movie = models.ForeignKey('movies.Movie', on_delete=models.CASCADE)
-    rating = models.DecimalField(max_digits=3, decimal_places=1)
-    review_title = models.CharField(max_length=255, blank=True, null=True)
-    review_text = models.TextField(blank=True, null=True)
-    is_public = models.BooleanField(default=True)
-    helpful_votes = models.IntegerField(default=0)
-    total_votes = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'users_rating'
-        unique_together = ('user', 'movie')
-        indexes = [
-            models.Index(fields=['user']),
-            models.Index(fields=['movie']),
-            models.Index(fields=['created_at']),
-        ]
+# UserMovieRating model has been deprecated and unified into MovieReview
+# All user ratings are now handled through movies.MovieReview with review_type='USER'
 
 class Comment(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)

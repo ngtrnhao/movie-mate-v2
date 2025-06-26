@@ -1,22 +1,24 @@
 import axiosInstance from './axios';
 
-// Cache object to store API responses
+// Enhanced cache object to store API responses
 const cache = {
   trending: null,
   topRated: null,
   upcoming: null,
   featured: null,
+  search: new Map(), // Use Map for search results caching
   lastFetch: {},
 };
 
-// Cache duration in milliseconds (10 minutes)
-const CACHE_DURATION = 10 * 60 * 1000;
+// Cache duration in milliseconds
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+const SEARCH_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for search results
 
 // Helper function to check if cache is valid
-const isCacheValid = key => {
+const isCacheValid = (key, duration = CACHE_DURATION) => {
   const lastFetch = cache.lastFetch[key];
   if (!lastFetch) return false;
-  return Date.now() - lastFetch < CACHE_DURATION;
+  return Date.now() - lastFetch < duration;
 };
 
 // Helper function to handle API responses
@@ -87,36 +89,343 @@ export const getMovieDetails = async movieId => {
   }
 };
 
-// API service for movies
+// Get movie cast
+export const getMovieCast = async movieId => {
+  try {
+    const response = await axiosInstance.get(`/api/movies/${movieId}/cast/`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching movie cast:', error);
+    // Return empty array if cast endpoint fails
+    return { data: [] };
+  }
+};
 
-export const searchMovies = async (filters = {}, page = 1, pageSize = 20) => {
+// Get similar movies (using search with same genres)
+export const getSimilarMovies = async (movieId, genres = [], limit = 6) => {
   try {
     const params = new URLSearchParams();
 
-    // Add filters to params
-    if (filters.genres?.length) {
-      filters.genres.forEach(genre => params.append('genres', genre));
+    // Add genres for similarity
+    if (genres?.length) {
+      genres.forEach(genre => params.append('genres', genre.id || genre));
     }
-    if (filters.yearFrom) params.append('year_from', filters.yearFrom);
-    if (filters.yearTo) params.append('year_to', filters.yearTo);
-    if (filters.ratingMin) params.append('rating_min', filters.ratingMin);
-    if (filters.ratingMax) params.append('rating_max', filters.ratingMax);
-    if (filters.runtimeMin) params.append('runtime_min', filters.runtimeMin);
-    if (filters.runtimeMax) params.append('runtime_max', filters.runtimeMax);
-    if (filters.status) params.append('status', filters.status);
-    if (filters.adult !== undefined) params.append('adult', filters.adult);
-    if (filters.language) params.append('language', filters.language);
-    if (filters.query) params.append('q', filters.query);
-    if (filters.sortBy) params.append('sort_by', filters.sortBy);
-    if (filters.order) params.append('order', filters.order);
+
+    params.append('page_size', limit + 2); // Get a few extra to filter out current movie
+    params.append('sort_by', 'rating');
+    params.append('order', 'desc');
+
+    const response = await axiosInstance.get(`/api/movies/search/?${params}`);
+
+    // Filter out the current movie from results
+    let results = response.data?.results || [];
+    if (results.length > 0) {
+      results = results.filter(movie => movie.id !== parseInt(movieId));
+      results = results.slice(0, limit);
+    }
+
+    return { results };
+  } catch (error) {
+    console.error('Error fetching similar movies:', error);
+    return { results: [] };
+  }
+};
+
+// Get movie reviews (updated for unified review system)
+export const getMovieReviews = async (movieId, page = 1, pageSize = 10, type = null) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('page_size', pageSize);
+    if (type) params.append('type', type); // 'USER' or 'EXTERNAL'
+
+    const response = await axiosInstance.get(`/api/movies/${movieId}/reviews/?${params}`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching movie reviews:', error);
+    return {
+      data: [],
+      count: 0,
+      current_page: page,
+      total_pages: 1,
+    };
+  }
+};
+
+// Submit movie review with rating (updated for unified review system)
+export const submitMovieReview = async (
+  movieId,
+  { title, content, rating, isPublic = true, isSpoiler = false }
+) => {
+  try {
+    const reviewData = {
+      movie: movieId,
+      title,
+      content,
+      rating: rating, // 0.0 - 5.0 scale
+      is_public: isPublic,
+      is_spoiler: isSpoiler,
+    };
+
+    const response = await axiosInstance.post(`/api/movies/${movieId}/reviews/`, reviewData);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error submitting movie review:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to submit review',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Legacy support for rating submission (maps to review submission)
+export const submitMovieRating = async (movieId, rating, review = '') => {
+  return submitMovieReview(movieId, {
+    content: review || `Rated ${rating} stars`,
+    rating,
+    isPublic: true,
+    isSpoiler: false,
+  });
+};
+
+// Add to watchlist (simplified - may not exist yet)
+export const addToWatchlist = async movieId => {
+  try {
+    console.log(`Would add movie ${movieId} to watchlist`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding to watchlist:', error);
+    throw {
+      error: 'Watchlist functionality not implemented yet',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Remove from watchlist (simplified - may not exist yet)
+export const removeFromWatchlist = async movieId => {
+  try {
+    console.log(`Would remove movie ${movieId} from watchlist`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error removing from watchlist:', error);
+    throw {
+      error: 'Watchlist functionality not implemented yet',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Enhanced search movies with caching and request cancellation
+let searchController = null; // Store AbortController for request cancellation
+
+export const searchMovies = async (filters = {}, page = 1, pageSize = 20) => {
+  try {
+    // Cancel previous request if exists
+    if (searchController) {
+      searchController.abort();
+    }
+
+    // Create new AbortController for this request
+    searchController = new AbortController();
+
+    // Create cache key from filters
+    const cacheKey = JSON.stringify({
+      ...filters,
+      page,
+      pageSize,
+    });
+
+    // Check cache first for search results
+    if (cache.search.has(cacheKey) && isCacheValid(`search_${cacheKey}`, SEARCH_CACHE_DURATION)) {
+      console.log('Returning cached search results');
+      return cache.search.get(cacheKey);
+    }
+
+    const params = new URLSearchParams();
+
+    // Add filters to params - optimized parameter building
+    const filterMappings = {
+      genres: value => value?.length && value.forEach(genre => params.append('genres', genre)),
+      yearFrom: value => value && params.append('year_from', value),
+      yearTo: value => value && params.append('year_to', value),
+      ratingMin: value => value && params.append('rating_min', value),
+      ratingMax: value => value && params.append('rating_max', value),
+      runtimeMin: value => value && params.append('runtime_min', value),
+      runtimeMax: value => value && params.append('runtime_max', value),
+      status: value => value && params.append('status', value),
+      adult: value => value !== undefined && params.append('adult', value),
+      language: value => value && params.append('language', value),
+      query: value => value && params.append('q', value),
+      sortBy: value => value && params.append('sort_by', value),
+      order: value => value && params.append('order', value),
+    };
+
+    // Apply filters efficiently
+    Object.entries(filterMappings).forEach(([key, handler]) => {
+      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+        handler(filters[key]);
+      }
+    });
 
     params.append('page', page);
     params.append('page_size', pageSize);
 
-    const response = await axiosInstance.get(`/api/movies/search/?${params}`);
+    const response = await axiosInstance.get(`/api/movies/search/?${params}`, {
+      signal: searchController.signal,
+      timeout: 30000, // 30 second timeout for search
+    });
+
+    // Cache the search results
+    cache.search.set(cacheKey, response.data);
+    cache.lastFetch[`search_${cacheKey}`] = Date.now();
+
+    // Limit cache size to prevent memory issues
+    if (cache.search.size > 100) {
+      const firstKey = cache.search.keys().next().value;
+      cache.search.delete(firstKey);
+      delete cache.lastFetch[`search_${firstKey}`];
+    }
+
     return response.data;
   } catch (error) {
+    // Don't throw error if request was cancelled
+    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+      console.log('Search request was cancelled');
+      return null;
+    }
+
     console.error('Error searching movies:', error);
     throw error;
+  }
+};
+
+// Clear search cache - useful when filters change significantly
+export const clearSearchCache = () => {
+  cache.search.clear();
+  // Clear search-related lastFetch entries
+  Object.keys(cache.lastFetch).forEach(key => {
+    if (key.startsWith('search_')) {
+      delete cache.lastFetch[key];
+    }
+  });
+};
+
+// Clear all cache
+export const clearAllCache = () => {
+  cache.trending = null;
+  cache.topRated = null;
+  cache.upcoming = null;
+  cache.featured = null;
+  cache.search.clear();
+  cache.lastFetch = {};
+};
+
+// Get cache stats - useful for debugging
+export const getCacheStats = () => {
+  return {
+    searchCacheSize: cache.search.size,
+    cachedEndpoints: Object.keys(cache.lastFetch).filter(key => !key.startsWith('search_')),
+    totalCacheEntries: Object.keys(cache.lastFetch).length,
+  };
+};
+
+// ==================== MOVIE BUZZ SECTION APIs ====================
+
+// Get comprehensive Movie Buzz data
+export const getMovieBuzzData = async () => {
+  try {
+    const response = await axiosInstance.get('/api/movies/movie_buzz_data/');
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching movie buzz data:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch movie buzz data',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Get hot movies based on recent activity
+export const getHotMovies = async (limit = 10, days = 7) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('limit', limit);
+    params.append('days', days);
+
+    const response = await axiosInstance.get(`/api/movies/hot_movies/?${params}`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching hot movies:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch hot movies',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Get trending genres
+export const getTrendingGenres = async (language = 'vi', days = 7, limit = 9) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('language', language);
+    params.append('days', days);
+    params.append('limit', limit);
+
+    const response = await axiosInstance.get(`/api/genres/trending/?${params}`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching trending genres:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch trending genres',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Get featured reviews (most helpful)
+export const getFeaturedReviews = async (limit = 5) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('featured', 'true');
+    params.append('limit', limit);
+
+    const response = await axiosInstance.get(`/api/movies/reviews/?${params}`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching featured reviews:', error);
+    return { data: [] };
+  }
+};
+
+// Get live comments (recent user activity)
+export const getLiveComments = async (hours = 24, limit = 20) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('hours', hours);
+    params.append('limit', limit);
+    params.append('type', 'USER');
+
+    const response = await axiosInstance.get(`/api/movies/reviews/?${params}`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching live comments:', error);
+    return { data: [] };
+  }
+};
+
+// Get community stats
+export const getCommunityStats = async () => {
+  try {
+    const response = await axiosInstance.get('/api/users/community_stats/');
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching community stats:', error);
+    return {
+      total_comments: 0,
+      active_users: 0,
+      new_reviews: 0,
+      top_contributors: [],
+    };
   }
 };

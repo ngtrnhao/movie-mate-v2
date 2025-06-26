@@ -19,6 +19,8 @@ class Movie(models.Model):
         ("UPCOMING", "Upcoming"),
     ]
     imdb_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    movielens_id = models.IntegerField(null=True, blank=True, unique=True,
+                                      help_text="MovieLens dataset ID for mapping")
     title = models.CharField(max_length=255, help_text="Default title (usually in English)")
     title_en = models.CharField(max_length=255, blank=True, null=True)
     title_vi = models.CharField(max_length=255, blank=True, null=True)
@@ -48,6 +50,19 @@ class Movie(models.Model):
     end_year = models.IntegerField(null=True, blank=True)
     is_adult = models.BooleanField(default=False)
 
+    # Denormalized rating fields for performance
+    cached_imdb_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True,
+                                            help_text="Cached IMDB rating for fast filtering/sorting")
+    cached_imdb_votes = models.IntegerField(null=True, blank=True,
+                                           help_text="Cached IMDB votes for fast filtering/sorting")
+    cached_tmdb_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True,
+                                            help_text="Cached TMDB rating for fast filtering/sorting")
+    cached_tmdb_votes = models.IntegerField(null=True, blank=True,
+                                           help_text="Cached TMDB votes for fast filtering/sorting")
+    # Combined rating score for overall sorting
+    combined_rating_score = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True,
+                                               help_text="Weighted average of all ratings")
+
     class Meta:
         db_table = "movies_movie"
         indexes = [
@@ -56,6 +71,7 @@ class Movie(models.Model):
             models.Index(fields=["release_date"]),
             models.Index(fields=["status"]),
             models.Index(fields=["imdb_id"]),
+            models.Index(fields=["movielens_id"]),
             models.Index(fields=["tmdb_id"]),
             models.Index(fields=["is_popular"]),
             models.Index(fields=["is_top_rated"]),
@@ -73,6 +89,35 @@ class Movie(models.Model):
                 name="idx_movie_rel_with_poster",
                 condition=models.Q(poster_url__isnull=False) & models.Q(poster_url__gt='')
             ),
+            # New indexes for denormalized rating fields
+            models.Index(fields=["cached_imdb_rating"], name="idx_movie_cached_imdb_rating"),
+            models.Index(fields=["cached_imdb_votes"], name="idx_movie_cached_imdb_votes"),
+            models.Index(fields=["cached_tmdb_rating"], name="idx_movie_cached_tmdb_rating"),
+            models.Index(fields=["combined_rating_score"], name="idx_movie_combined_rating"),
+
+            # Performance indexes for filter combinations
+            models.Index(fields=["runtime"], name="idx_movie_runtime"),
+            models.Index(fields=["adult"], name="idx_movie_adult"),
+            models.Index(fields=["status", "adult"], name="idx_movie_status_adult"),
+            models.Index(fields=["release_date", "status"], name="idx_movie_release_status"),
+            models.Index(fields=["runtime", "status"], name="idx_movie_runtime_status"),
+
+            # Composite indexes for common filter combinations
+            models.Index(fields=["poster_url", "cached_imdb_rating"], name="idx_movie_poster_rating",
+                        condition=models.Q(poster_url__isnull=False)),
+            models.Index(fields=["poster_url", "release_date", "cached_imdb_rating"], name="idx_movie_poster_rel_rating",
+                        condition=models.Q(poster_url__isnull=False)),
+            models.Index(fields=["status", "cached_imdb_rating", "release_date"], name="idx_movie_status_rating_rel"),
+
+            # Partial index cho movies có poster và rating
+            models.Index(
+                fields=["release_date", "cached_imdb_rating"],
+                name="idx_movie_rel_rating_poster",
+                condition=models.Q(poster_url__isnull=False) & models.Q(poster_url__gt='') & models.Q(cached_imdb_rating__isnull=False)
+            ),
+
+            # Index cho year extraction từ release_date
+            models.Index(fields=["release_date"], name="idx_movie_release_year"),
         ]
 
     def __str__(self):
@@ -182,6 +227,37 @@ class Movie(models.Model):
         if "vi" in overviews:
             self.overview_vi = overviews["vi"]
         self.save()
+
+    def update_cached_ratings(self):
+        """Update cached rating fields from related MovieRating"""
+        try:
+            rating = self.ratings.first()
+            if rating:
+                self.cached_imdb_rating = rating.imdb_rating
+                self.cached_imdb_votes = rating.imdb_votes
+                self.cached_tmdb_rating = rating.tmdb_rating
+                self.cached_tmdb_votes = rating.tmdb_votes
+
+                # Calculate combined rating score (weighted average)
+                ratings = []
+                if rating.imdb_rating:
+                    ratings.append(float(rating.imdb_rating) * 0.5)  # IMDB weight 50%
+                if rating.tmdb_rating:
+                    ratings.append(float(rating.tmdb_rating) * 0.3)  # TMDB weight 30%
+                if rating.rotten_tomatoes_rating:
+                    ratings.append(float(rating.rotten_tomatoes_rating) * 0.2)  # RT weight 20%
+
+                if ratings:
+                    self.combined_rating_score = sum(ratings) / len(ratings)
+                else:
+                    self.combined_rating_score = None
+
+                self.save(update_fields=['cached_imdb_rating', 'cached_imdb_votes',
+                                       'cached_tmdb_rating', 'cached_tmdb_votes', 'combined_rating_score'])
+                return True
+        except Exception as e:
+            logger.error(f"Error updating cached ratings for movie {self.id}: {str(e)}")
+        return False
 
     @classmethod
     def get_cached_movie(cls, movie_id, cache_timeout=3600):
@@ -408,9 +484,16 @@ class MovieRating(models.Model):
     class Meta:
         db_table = "movies_rating"
         indexes = [
+            models.Index(fields=["movie"]),
             models.Index(fields=["imdb_rating"]),
+            models.Index(fields=["imdb_votes"]),
             models.Index(fields=["metacritic_rating"]),
             models.Index(fields=["rotten_tomatoes_rating"]),
+            models.Index(fields=["tmdb_rating"]),
+            models.Index(fields=["tmdb_votes"]),
+            # Composite indexes for performance
+            models.Index(fields=["movie", "imdb_rating"]),
+            models.Index(fields=["movie", "tmdb_rating"]),
         ]
 
 
@@ -474,6 +557,27 @@ class MovieCast(models.Model):
     job = models.CharField(max_length=255, null=True, blank=True)
     category = models.CharField(max_length=255, null=True, blank=True)
     imdb_id = models.CharField(max_length=20, null=True, blank=True)
+    profile_path = models.CharField(max_length=255, null=True, blank=True,
+                                   help_text="Actor/Director profile image URL from TMDB")
+
+    # Additional cast information from IMDB datasets
+    birth_year = models.IntegerField(null=True, blank=True, help_text="Birth year from IMDB")
+    death_year = models.IntegerField(null=True, blank=True, help_text="Death year from IMDB")
+    primary_profession = models.JSONField(default=list, blank=True,
+                                         help_text="Top-3 professions from IMDB")
+    known_for_titles = models.JSONField(default=list, blank=True,
+                                       help_text="Known movie titles from IMDB")
+
+    # Additional cast information from TMDB API
+    tmdb_id = models.IntegerField(null=True, blank=True, help_text="TMDB person ID")
+    biography = models.TextField(null=True, blank=True, help_text="Biography from TMDB")
+    place_of_birth = models.CharField(max_length=255, null=True, blank=True,
+                                     help_text="Birth place from TMDB")
+    gender = models.IntegerField(null=True, blank=True,
+                                help_text="Gender from TMDB (1=Female, 2=Male)")
+    popularity = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True,
+                                   help_text="Popularity score from TMDB")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -493,18 +597,50 @@ class MovieCast(models.Model):
 
 
 class MovieReview(models.Model):
+    """
+    Unified model for both user reviews and external reviews (IMDB, TMDB, etc.)
+    """
+    REVIEW_TYPES = [
+        ('USER', 'User Review'),          # Review từ app users
+        ('EXTERNAL', 'External Review'),  # Review từ IMDB/external sources
+    ]
+
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="reviews")
-    username = models.CharField(max_length=255)
-    title = models.CharField(max_length=255)
+
+    # User info - flexible for both internal and external
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, null=True, blank=True,
+                            help_text="Internal app user (for USER type reviews)")
+    external_username = models.CharField(max_length=255, null=True, blank=True,
+                                       help_text="Username from external source (for EXTERNAL type)")
+
+    # Review content
+    title = models.CharField(max_length=255, blank=True, null=True)
     content = models.TextField()
-    rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True,
+                               help_text="Rating scale 0.0-5.0 (5-star system)")
+
+    # Metadata
+    review_type = models.CharField(max_length=20, choices=REVIEW_TYPES, default='USER')
+    language = models.CharField(max_length=10, default='en',
+                               help_text="Review language code (en, vi, etc.)")
+    is_public = models.BooleanField(default=True,
+                                  help_text="Privacy setting for user reviews")
+    is_spoiler = models.BooleanField(default=False)
+
+    # Voting system
     helpful_votes = models.IntegerField(default=0)
     total_votes = models.IntegerField(default=0)
-    is_spoiler = models.BooleanField(default=False)
-    review_id = models.CharField(max_length=50, unique=True)
-    source = models.CharField(max_length=50, default="IMDB")
-    source_url = models.URLField(max_length=500, null=True, blank=True)
-    published_at = models.DateTimeField(null=True, blank=True)
+
+    # External source info (only for EXTERNAL type)
+    external_review_id = models.CharField(max_length=50, null=True, blank=True,
+                                        help_text="Review ID from external source")
+    source = models.CharField(max_length=50, null=True, blank=True,
+                            help_text="External source name (IMDB, TMDB, etc.)")
+    source_url = models.URLField(max_length=500, null=True, blank=True,
+                               help_text="URL to original review")
+    external_published_at = models.DateTimeField(null=True, blank=True,
+                                                help_text="Original publish date from external source")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -512,10 +648,94 @@ class MovieReview(models.Model):
         db_table = "movies_review"
         indexes = [
             models.Index(fields=["movie", "rating"]),
-            models.Index(fields=["username"]),
-            models.Index(fields=["published_at"]),
-            models.Index(fields=["review_id"]),
+            models.Index(fields=["review_type", "created_at"]),
+            models.Index(fields=["language"]),
+            models.Index(fields=["user", "movie"], name="idx_user_movie_review"),
+            models.Index(fields=["external_review_id"]),
+            models.Index(fields=["helpful_votes"], name="idx_helpful_votes"),
+            models.Index(fields=["movie", "review_type", "is_public"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["source"]),
         ]
+        constraints = [
+            # Ensure user XOR external_username (one must be set, not both)
+            models.CheckConstraint(
+                check=(
+                    models.Q(user__isnull=False, external_username__isnull=True) |
+                    models.Q(user__isnull=True, external_username__isnull=False)
+                ),
+                name='review_user_xor_external'
+            ),
+            # Unique user review per movie (users can only have one review per movie)
+            models.UniqueConstraint(
+                fields=['user', 'movie'],
+                condition=models.Q(user__isnull=False, review_type='USER'),
+                name='unique_user_movie_review'
+            ),
+            # External reviews must have external_review_id if from external source
+            models.CheckConstraint(
+                check=(
+                    models.Q(review_type='USER') |
+                    models.Q(review_type='EXTERNAL', external_review_id__isnull=False)
+                ),
+                name='external_review_must_have_id'
+            )
+        ]
+
+    def __str__(self):
+        username = self.user.username if self.user else self.external_username
+        return f"Review by {username} for {self.movie.title}"
+
+    @property
+    def reviewer_name(self):
+        """Get reviewer name regardless of review type"""
+        if self.review_type == 'USER' and self.user:
+            return self.user.get_full_name() or self.user.username
+        return self.external_username
+
+    @property
+    def reviewer_avatar(self):
+        """Get reviewer avatar (only for user reviews)"""
+        if self.review_type == 'USER' and self.user:
+            return self.user.avatar_url
+        return None
+
+    @property
+    def is_verified_reviewer(self):
+        """Check if this is from a verified internal user"""
+        return self.review_type == 'USER' and self.user is not None
+
+    def can_be_edited_by(self, user):
+        """Check if user can edit this review"""
+        return (self.review_type == 'USER' and
+                self.user == user and
+                user.is_authenticated)
+
+    def get_helpfulness_ratio(self):
+        """Calculate helpfulness ratio"""
+        if self.total_votes == 0:
+            return 0
+        return (self.helpful_votes / self.total_votes) * 100
+
+    @classmethod
+    def get_featured_reviews(cls, limit=5):
+        """Get featured reviews (most helpful across all types)"""
+        return cls.objects.filter(
+            is_public=True,
+            helpful_votes__gte=5
+        ).order_by('-helpful_votes', '-created_at')[:limit]
+
+    @classmethod
+    def get_recent_user_activity(cls, hours=24, limit=20):
+        """Get recent user review activity for live feed"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        return cls.objects.filter(
+            review_type='USER',
+            created_at__gte=timezone.now() - timedelta(hours=hours),
+            is_public=True
+        ).select_related('user', 'movie').order_by('-created_at')[:limit]
 
 
 # Doanh thu của bộ phim

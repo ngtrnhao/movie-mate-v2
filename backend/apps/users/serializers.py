@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import User, UserMovieRating, Watchlist, UserFavoriteGenre, PasswordResetToken
+from .models import User, Watchlist, UserFavoriteGenre, PasswordResetToken
 from apps.movies.serializers import MovieSerializer
 from django.conf import settings
 import requests
@@ -159,12 +159,8 @@ class UserStatsSerializer(serializers.Serializer):
     followers_count = serializers.IntegerField()
     following_count = serializers.IntegerField()
 
-class UserRatingSerializer(serializers.ModelSerializer):
-    movie = MovieSerializer()
-
-    class Meta:
-        model = UserMovieRating
-        fields = ['id', 'movie', 'rating', 'review_title', 'review_text', 'created_at']
+# UserRatingSerializer has been deprecated
+# Use movies.serializers.UnifiedMovieReviewSerializer with review_type='USER' instead
 
 class UserWatchlistSerializer(serializers.ModelSerializer):
     movie = MovieSerializer()

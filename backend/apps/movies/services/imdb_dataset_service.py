@@ -656,6 +656,19 @@ class IMDBDatasetService:
             try:
                 imdb_id = row['nconst']
                 name = row['primaryName']
+                birth_year = self._parse_int(row['birthYear'])
+                death_year = self._parse_int(row['deathYear'])
+
+                # Parse primary profession
+                professions = []
+                if row['primaryProfession'] != '\\N':
+                    professions = row['primaryProfession'].split(',')
+
+                # Parse known for titles
+                known_titles = []
+                if row['knownForTitles'] != '\\N':
+                    known_titles = row['knownForTitles'].split(',')
+
                 cast_members = MovieCast.objects.filter(imdb_id=imdb_id)
                 if not cast_members.exists():
                     continue
@@ -664,7 +677,11 @@ class IMDBDatasetService:
                 for cast_member in cast_members:
                     batch_updates.append({
                         'id': cast_member.id,
-                        'name': name
+                        'name': name,
+                        'birth_year': birth_year,
+                        'death_year': death_year,
+                        'primary_profession': professions,
+                        'known_for_titles': known_titles
                     })
 
                 # Process batch
@@ -690,10 +707,16 @@ class IMDBDatasetService:
         return True, count
 
     def _process_names_batch(self, batch_updates):
-        """Process names data in batch"""
+        """Process names data in batch with additional fields"""
         try:
             with transaction.atomic():
                 for update_data in batch_updates:
-                    MovieCast.objects.filter(id=update_data['id']).update(name=update_data['name'])
+                    MovieCast.objects.filter(id=update_data['id']).update(
+                        name=update_data['name'],
+                        birth_year=update_data.get('birth_year'),
+                        death_year=update_data.get('death_year'),
+                        primary_profession=update_data.get('primary_profession', []),
+                        known_for_titles=update_data.get('known_for_titles', [])
+                    )
         except Exception as e:
             logger.error(f"Error processing names batch: {str(e)}")

@@ -250,9 +250,9 @@ def sync_upcoming_movies(self):
 
 
 @shared_task(
-    bind=True, max_retries=3, rate_limit="20/m"
+    bind=True, max_retries=3, rate_limit="5/s"  # 5 requests per second
 )
-def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
+def process_movie_data(self, imdb_id: str) -> Optional[dict]:
     """
     Process movie data from IMDB service and save to database.
     Also updates cache for the movie and related lists.
@@ -356,13 +356,14 @@ def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
             plot_language = "en" if movie_overview.get("en") else ("vi" if movie_overview.get("vi") else "en")
 
             if plot:
-                MovieMetadata.objects.update_or_create(
-                    movie=movie,
-                    defaults={
-                        "plot": plot,
-                        "plot_language": plot_language,
-                    },
-                )
+                # Update movie overview directly instead of using MovieMetadata
+                if plot_language == "en":
+                    movie.overview_en = plot
+                elif plot_language == "vi":
+                    movie.overview_vi = plot
+                movie.save(update_fields=["overview_en", "overview_vi"])
+
+                logger.info(f"Updated movie overview for {imdb_id} in {plot_language}")
 
         # Update cache for this movie with longer expiration
         cache_key = f"movie:{imdb_id}"
@@ -398,7 +399,15 @@ def process_movie_data(self, imdb_id: str) -> Optional[Movie]:
             cache.set(f"upcoming_movies:{limit}", upcoming_movies, timeout=3600 * 24)  # Cache for 24 hours
 
         logger.info(f"Successfully processed movie {imdb_id}")
-        return movie
+
+        # Return JSON-serializable data instead of Movie object
+        return {
+            "imdb_id": imdb_id,
+            "title": movie.title,
+            "status": "success",
+            "created": created,
+            "movie_id": movie.id
+        }
 
     except Exception as e:
         logger.error(f"Error processing movie {imdb_id}: {str(e)}")

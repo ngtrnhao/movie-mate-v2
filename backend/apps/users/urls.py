@@ -14,7 +14,6 @@ from .views import (
     UserRatingsView,
     UserFavoriteGenresView,
     UserViewSet,
-    UserRatingViewSet,
     UserWatchlistViewSet,
     UserFavoriteGenreViewSet,
     GoogleAuthView,
@@ -23,7 +22,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
-router.register(r'ratings', UserRatingViewSet, basename='user-rating')
+# router.register(r'ratings', UserRatingViewSet, basename='user-rating')  # Deprecated - use movies app
 router.register(r'watchlist', UserWatchlistViewSet, basename='user-watchlist')
 router.register(r'favorite-genres', UserFavoriteGenreViewSet, basename='user-favorite-genre')
 

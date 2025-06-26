@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { Star, ChevronDown, MessageSquare, ThumbsUp, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const INITIAL_REVIEWS_COUNT = 4;
 const LOAD_MORE_COUNT = 4;
@@ -29,27 +29,26 @@ const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="w-full max-w-2xl rounded-lg bg-gray-800 p-6"
+          onClick={e => e.stopPropagation()}
+          className="w-full max-w-md rounded-lg bg-gray-800 p-6"
         >
-          <div className="mb-6 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white">{t('details.writeYourReview')}</h3>
-            <button
-              onClick={onClose}
-              className="rounded-full p-2 text-gray-400 hover:bg-gray-700 hover:text-white"
-            >
-              <X className="size-5" />
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-xl font-bold text-white">Write a Review</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-white">
+              <X className="size-6" />
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Rating Stars */}
             <div>
-              <label className="mb-2 block text-sm text-gray-400">{t('details.yourRating')}</label>
+              <label className="mb-2 block text-sm text-gray-400">Your Rating</label>
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map(star => (
                   <button
@@ -71,20 +70,20 @@ const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
                 ))}
               </div>
               <p className="mt-2 text-sm text-gray-400">
-                {rating === 0 ? t('details.selectRating') : t('details.ratingSelected', { rating })}
+                {rating === 0 ? 'Select a rating' : `Rating: ${rating}/5`}
               </p>
             </div>
 
             {/* Review Text */}
             <div>
               <label htmlFor="review" className="mb-2 block text-sm text-gray-400">
-                {t('details.yourReview')}
+                Your Review
               </label>
               <textarea
                 id="review"
                 value={review}
                 onChange={e => setReview(e.target.value)}
-                placeholder={t('details.reviewPlaceholder')}
+                placeholder="Share your thoughts about this movie..."
                 className="h-32 w-full rounded-md bg-gray-700 p-3 text-white placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                 required
               />
@@ -97,7 +96,7 @@ const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
                 disabled={!rating || !review.trim()}
                 className="rounded-md bg-red-600 px-6 py-2 text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {t('details.submitReview')}
+                Submit Review
               </button>
             </div>
           </form>
@@ -107,16 +106,18 @@ const ReviewModal = ({ isOpen, onClose, onSubmit }) => {
   );
 };
 
-const ReviewSection = ({ reviews }) => {
+const ReviewSection = ({ movieId }) => {
   const { t } = useTranslation('movies');
   const [visibleCount, setVisibleCount] = useState(INITIAL_REVIEWS_COUNT);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'helpful' | 'highest' | 'lowest'
   const [selectedRating, setSelectedRating] = useState(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
 
-  // Mock data nếu không có reviews
-  const displayReviews = reviews || [
+  // Mock data for demonstration
+  const mockReviews = [
     {
       id: 1,
       author: 'John Doe',
@@ -135,7 +136,7 @@ const ReviewSection = ({ reviews }) => {
       helpful_count: 89,
       reply_count: 8,
     },
-    // Thêm nhiều reviews hơn để test
+    // Add more reviews for testing
     ...Array(15)
       .fill(null)
       .map((_, index) => ({
@@ -149,10 +150,31 @@ const ReviewSection = ({ reviews }) => {
       })),
   ];
 
-  if (!displayReviews || displayReviews.length === 0) return null;
+  useEffect(() => {
+    // For now, use mock data
+    // TODO: Implement real API call
+    // fetchMovieReviews(movieId);
+    setReviews(mockReviews);
+  }, [movieId]);
 
-  // Tính toán thống kê rating
-  const ratingStats = displayReviews.reduce(
+  const fetchMovieReviews = async id => {
+    try {
+      setLoading(true);
+      // TODO: Implement actual API call
+      // const reviewData = await getMovieReviews(id);
+      // setReviews(reviewData?.results || []);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      setReviews([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!reviews || reviews.length === 0) return null;
+
+  // Calculate rating statistics
+  const ratingStats = reviews.reduce(
     (acc, review) => {
       acc.total += review.rating;
       acc.count += 1;
@@ -164,15 +186,15 @@ const ReviewSection = ({ reviews }) => {
 
   const averageRating = (ratingStats.total / ratingStats.count).toFixed(1);
 
-  // Lọc và sắp xếp reviews
-  let filteredReviews = [...displayReviews];
+  // Filter and sort reviews
+  let filteredReviews = [...reviews];
 
-  // Lọc theo rating
+  // Filter by rating
   if (selectedRating) {
     filteredReviews = filteredReviews.filter(review => review.rating === selectedRating);
   }
 
-  // Sắp xếp reviews
+  // Sort reviews
   switch (sortBy) {
     case 'newest':
       filteredReviews.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -200,19 +222,19 @@ const ReviewSection = ({ reviews }) => {
   };
 
   const handleSubmitReview = reviewData => {
-    // TODO: Gửi review lên server
+    // TODO: Send review to server
     console.log('New review:', reviewData);
-    // Thêm review mới vào danh sách
+    // Add new review to the list
     const newReview = {
-      id: displayReviews.length + 1,
-      author: 'Current User', // TODO: Lấy từ user context
+      id: reviews.length + 1,
+      author: 'Current User', // TODO: Get from user context
       content: reviewData.review,
       created_at: new Date().toISOString(),
       rating: reviewData.rating,
       helpful_count: 0,
       reply_count: 0,
     };
-    displayReviews.unshift(newReview);
+    setReviews([newReview, ...reviews]);
   };
 
   return (
@@ -223,7 +245,7 @@ const ReviewSection = ({ reviews }) => {
           <div className="grid gap-8 md:grid-cols-2">
             {/* Rating Summary */}
             <div>
-              <h3 className="mb-4 text-xl font-bold text-white">{t('details.ratingOverview')}</h3>
+              <h3 className="mb-4 text-xl font-bold text-white">Rating Overview</h3>
               <div className="flex items-center gap-4">
                 <div className="text-center">
                   <div className="text-4xl font-bold text-white">{averageRating}</div>
@@ -239,9 +261,7 @@ const ReviewSection = ({ reviews }) => {
                       />
                     ))}
                   </div>
-                  <div className="mt-1 text-sm text-gray-400">
-                    {ratingStats.count} {t('details.totalRatings')}
-                  </div>
+                  <div className="mt-1 text-sm text-gray-400">{ratingStats.count} ratings</div>
                 </div>
                 <div className="flex-1">
                   {[5, 4, 3, 2, 1].map(rating => {
@@ -268,25 +288,23 @@ const ReviewSection = ({ reviews }) => {
 
             {/* Rating Filter */}
             <div>
-              <h3 className="mb-4 text-xl font-bold text-white">{t('details.filterReviews')}</h3>
+              <h3 className="mb-4 text-xl font-bold text-white">Filter Reviews</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">{t('details.sortBy')}</label>
+                  <label className="mb-2 block text-sm text-gray-400">Sort By</label>
                   <select
                     value={sortBy}
                     onChange={e => setSortBy(e.target.value)}
                     className="w-full rounded-md bg-gray-700 px-4 py-2 text-white"
                   >
-                    <option value="newest">{t('details.newest')}</option>
-                    <option value="helpful">{t('details.mostHelpful')}</option>
-                    <option value="highest">{t('details.highestRating')}</option>
-                    <option value="lowest">{t('details.lowestRating')}</option>
+                    <option value="newest">Newest</option>
+                    <option value="helpful">Most Helpful</option>
+                    <option value="highest">Highest Rating</option>
+                    <option value="lowest">Lowest Rating</option>
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">
-                    {t('details.filterByRating')}
-                  </label>
+                  <label className="mb-2 block text-sm text-gray-400">Filter by Rating</label>
                   <div className="flex flex-wrap gap-2">
                     {[5, 4, 3, 2, 1].map(rating => (
                       <button
@@ -316,10 +334,9 @@ const ReviewSection = ({ reviews }) => {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="group rounded-lg bg-gray-800/50 p-6 transition-all duration-300 hover:bg-gray-800/70"
+              className="rounded-lg bg-gray-800/50 p-6"
             >
-              {/* Review Header */}
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 items-center justify-center rounded-full bg-red-600/20 text-lg font-semibold text-red-400">
                     {review.author.charAt(0)}
@@ -343,18 +360,17 @@ const ReviewSection = ({ reviews }) => {
                 </div>
               </div>
 
-              {/* Review Content */}
-              <p className="text-gray-300">{review.content}</p>
+              <p className="mb-4 text-gray-300">{review.content}</p>
 
               {/* Review Actions */}
               <div className="mt-4 flex items-center gap-4 text-sm text-gray-400">
                 <button className="flex items-center gap-1 hover:text-white">
                   <ThumbsUp className="size-4" />
-                  {review.helpful_count} {t('details.helpful')}
+                  {review.helpful_count} Helpful
                 </button>
                 <button className="flex items-center gap-1 hover:text-white">
                   <MessageSquare className="size-4" />
-                  {review.reply_count} {t('details.replies')}
+                  {review.reply_count} Replies
                 </button>
               </div>
             </motion.div>
@@ -371,7 +387,7 @@ const ReviewSection = ({ reviews }) => {
               onClick={handleLoadMore}
               className="group flex items-center gap-2 rounded-md border border-white/20 px-6 py-3 text-sm text-white transition-colors hover:bg-white/10"
             >
-              {t('details.loadMore')}
+              Load More
               <ChevronDown className="size-4 transition-transform group-hover:translate-y-1" />
             </motion.button>
           )}
@@ -387,7 +403,7 @@ const ReviewSection = ({ reviews }) => {
               }}
               className="group flex items-center gap-2 rounded-md bg-gray-700 px-6 py-3 text-sm text-white transition-colors hover:bg-gray-600"
             >
-              {t('details.collapseReviews')}
+              Collapse Reviews
               <ChevronDown className="size-4 rotate-180 transition-transform group-hover:-translate-y-1" />
             </motion.button>
           ) : (
@@ -398,7 +414,7 @@ const ReviewSection = ({ reviews }) => {
               onClick={handleViewAll}
               className="flex items-center gap-2 rounded-md bg-red-600 px-6 py-3 text-sm text-white transition-colors hover:bg-red-700"
             >
-              {t('details.viewAllReviews')}
+              View All Reviews
             </motion.button>
           )}
 
@@ -410,7 +426,7 @@ const ReviewSection = ({ reviews }) => {
             className="flex items-center gap-2 rounded-md border border-white/20 px-6 py-3 text-sm text-white transition-colors hover:bg-white/10"
           >
             <MessageSquare className="size-4" />
-            {t('details.writeReview')}
+            Write Review
           </motion.button>
         </div>
       </div>

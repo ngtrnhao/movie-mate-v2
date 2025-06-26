@@ -1,1 +1,1 @@
-export { default } from './RecentlyReviewed';
+export { default } from './MovieBuzzSection';

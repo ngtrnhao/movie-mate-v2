@@ -32,20 +32,6 @@ class Migration(migrations.Migration):
             unique_together={('genre', 'language')},
         ),
 
-        # Tạo indexes cho GenreSummary
-        migrations.RunSQL(
-            """
-            CREATE INDEX idx_genresummary_language ON metadata_genre_summary (language);
-            CREATE INDEX idx_genresummary_lang_count ON metadata_genre_summary (language, movie_count);
-            CREATE INDEX idx_genresummary_updated ON metadata_genre_summary (last_updated);
-            """,
-            reverse_sql="""
-            DROP INDEX IF EXISTS idx_genresummary_language;
-            DROP INDEX IF EXISTS idx_genresummary_lang_count;
-            DROP INDEX IF EXISTS idx_genresummary_updated;
-            """
-        ),
-
         # Tạo function để cập nhật summary
         migrations.RunSQL(
             """

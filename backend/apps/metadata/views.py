@@ -355,6 +355,102 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])
+    def trending(self, request):
+        """Get trending genres based on recent activity"""
+        try:
+            from django.utils import timezone
+            from datetime import timedelta
+            from django.db.models import Count, Q
+            from apps.movies.models import MovieReview
+
+            language = request.query_params.get('language', 'en')
+            days = int(request.query_params.get('days', 7))
+            limit = int(request.query_params.get('limit', 9))
+
+            # Get genres with recent activity (reviews, comments)
+            trending_genres = Genre.objects.filter(
+                language=language
+            ).annotate(
+                # Count recent reviews
+                recent_reviews=Count(
+                    'movie_set__reviews',
+                    filter=Q(
+                        movie_set__reviews__created_at__gte=timezone.now() - timedelta(days=days),
+                        movie_set__reviews__review_type='USER'
+                    )
+                ),
+                # Count total movies in genre
+                total_movies=Count('movie_set'),
+                # Get total review count for percentage calculation
+                total_reviews=Count('movie_set__reviews', filter=Q(
+                    movie_set__reviews__review_type='USER'
+                ))
+            ).filter(
+                recent_reviews__gte=1,  # Must have at least 1 recent review
+                total_movies__gte=5     # Must have at least 5 movies
+            ).order_by('-recent_reviews')[:limit]
+
+            # Calculate trending data
+            trending_data = []
+            max_recent = max([g.recent_reviews for g in trending_genres]) if trending_genres else 1
+
+            for genre in trending_genres:
+                # Calculate popularity percentage (normalized)
+                popularity = int((genre.recent_reviews / max_recent) * 100) if max_recent > 0 else 0
+
+                # Calculate trend (you could make this more sophisticated)
+                change_percent = f"+{min(genre.recent_reviews * 2, 20)}%"  # Simplified calculation
+
+                # Generate genre icon
+                icon_map = {
+                    'action': '💥', 'romance': '💖', 'comedy': '😂',
+                    'horror': '👻', 'sci-fi': '🚀', 'drama': '🎭',
+                    'thriller': '⚡', 'fantasy': '🧙‍♂️', 'animation': '🎨',
+                    'adventure': '🗺️', 'crime': '🔫', 'documentary': '📽️'
+                }
+                icon = icon_map.get(genre.slug.lower(), '🎬')
+
+                trending_data.append({
+                    'genre': genre.name,
+                    'slug': genre.slug,
+                    'percentage': popularity,
+                    'color': self._get_genre_color(genre.slug),
+                    'icon': icon,
+                    'movies': genre.total_movies,
+                    'change': change_percent,
+                    'trend': 'up' if genre.recent_reviews >= 3 else 'stable',
+                    'recent_activity': genre.recent_reviews
+                })
+
+            return Response({
+                'status': 'success',
+                'count': len(trending_data),
+                'data': trending_data,
+                'metadata': {
+                    'period_days': days,
+                    'language': language,
+                    'last_updated': timezone.now().isoformat()
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error in genre trending endpoint: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _get_genre_color(self, slug):
+        """Get consistent color for genre"""
+        color_map = {
+            'action': '#EF4444', 'romance': '#EC4899', 'comedy': '#F59E0B',
+            'horror': '#8B5CF6', 'sci-fi': '#06B6D4', 'drama': '#10B981',
+            'thriller': '#F97316', 'fantasy': '#A855F7', 'animation': '#F59E0B',
+            'adventure': '#059669', 'crime': '#DC2626', 'documentary': '#6B7280'
+        }
+        return color_map.get(slug.lower(), '#6B7280')
+
+    @action(detail=False, methods=['get'])
     def performance_stats(self, request):
         """
         Lấy thống kê hiệu năng của categories API

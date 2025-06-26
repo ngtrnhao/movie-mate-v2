@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
-from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken, UserMovieRating
+from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -14,7 +14,7 @@ from .serializers import (
     UserSerializer,
     UserProfileSerializer,
     UserStatsSerializer,
-    UserRatingSerializer,
+
     UserWatchlistSerializer,
     UserFavoriteGenreSerializer,
     GoogleAuthSerializer
@@ -355,10 +355,11 @@ class UserStatsView(generics.RetrieveAPIView):
             user = User.objects.get(id=user_id)
 
             # Calculate stats
+            from apps.movies.models import MovieReview
             stats = {
                 'watched_movies_count': Watchlist.objects.filter(user=user, status='WATCHED').count(),
-                'reviews_count': UserMovieRating.objects.filter(user=user).count(),
-                'ratings_count': UserMovieRating.objects.filter(user=user).count(),
+                'reviews_count': MovieReview.objects.filter(user=user, review_type='USER').count(),
+                'ratings_count': MovieReview.objects.filter(user=user, review_type='USER').count(),
                 'followers_count': 0,  # Implement if you have followers functionality
                 'following_count': 0,  # Implement if you have following functionality
             }
@@ -373,19 +374,33 @@ class UserStatsView(generics.RetrieveAPIView):
 
 class UserReviewsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = UserRatingSerializer
 
     def get_queryset(self):
+        from apps.movies.models import MovieReview
         user_id = self.kwargs.get('userId')
-        return UserMovieRating.objects.filter(user_id=user_id).select_related('movie')
+        return MovieReview.objects.filter(
+            user_id=user_id,
+            review_type='USER'
+        ).select_related('user', 'movie')
+
+    def get_serializer_class(self):
+        from apps.movies.serializers import UnifiedMovieReviewSerializer
+        return UnifiedMovieReviewSerializer
 
 class UserRatingsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = UserRatingSerializer
 
     def get_queryset(self):
+        from apps.movies.models import MovieReview
         user_id = self.kwargs.get('userId')
-        return UserMovieRating.objects.filter(user_id=user_id).select_related('movie')
+        return MovieReview.objects.filter(
+            user_id=user_id,
+            review_type='USER'
+        ).select_related('user', 'movie')
+
+    def get_serializer_class(self):
+        from apps.movies.serializers import UnifiedMovieReviewSerializer
+        return UnifiedMovieReviewSerializer
 
 class UserFavoriteGenresView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -433,15 +448,10 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_object(self):
         return self.request.user
 
-class UserRatingViewSet(viewsets.ModelViewSet):
-    serializer_class = UserRatingSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return UserMovieRating.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+# UserRatingViewSet has been deprecated
+# Use movies app API endpoints for user reviews:
+# - GET/POST /api/movies/{id}/reviews/ for movie-specific reviews
+# - GET /api/auth/profile/{userId}/reviews/ for user's reviews list
 
 class UserWatchlistViewSet(viewsets.ModelViewSet):
     serializer_class = UserWatchlistSerializer

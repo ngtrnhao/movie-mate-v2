@@ -94,7 +94,11 @@ DATABASES = {
         'PASSWORD': env('POSTGRES_PASSWORD'),
         'HOST': env('POSTGRES_HOST'),
         'PORT': env('POSTGRES_PORT', default='5432'),
-        'CONN_MAX_AGE': 600,
+        'CONN_MAX_AGE': 300,  # Reduced from 600 to 5 minutes
+        'OPTIONS': {
+            'connect_timeout': 10,
+            'application_name': 'movie_mate_v2',
+        },
     }
 }
 

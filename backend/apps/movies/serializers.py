@@ -1,3 +1,4 @@
+from django.db.models import Q, Count
 from rest_framework import serializers
 from .models import (
     Movie, MovieRating, MovieAward, MovieCast,
@@ -32,7 +33,7 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Movie
         fields = [
-            'id', 'title', 'title_vi', 'original_title', 'overview_en', 'overview_vi', 'release_date',
+            'id', 'slug', 'title', 'title_vi', 'original_title', 'overview_en', 'overview_vi', 'release_date',
             'poster_path', 'backdrop_path', 'runtime', 'status', 'genres',
             'rating', 'vote_average', 'vote_count', 'is_popular',
             'is_top_rated', 'is_upcoming', 'overviews', 'trailers'
@@ -185,10 +186,15 @@ class MovieListSerializer(OptimizedMovieListSerializer):
 class MovieDetailSerializer(MovieListSerializer):
     """Serializer for detailed movie information"""
     cast = serializers.SerializerMethodField()
+    production_info = serializers.SerializerMethodField()
+    directors = serializers.SerializerMethodField()
+    original_language = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
 
     class Meta(MovieListSerializer.Meta):
         fields = MovieListSerializer.Meta.fields + [
-            'imdb_id', 'adult', 'end_year', 'is_adult', 'cast'
+            'imdb_id', 'adult', 'end_year', 'is_adult', 'cast',
+            'production_info', 'directors', 'original_language', 'images'
         ]
 
     def get_cast(self, obj):
@@ -196,6 +202,160 @@ class MovieDetailSerializer(MovieListSerializer):
         if hasattr(obj, 'prefetched_cast'):
             return MovieCastSerializer(obj.prefetched_cast, many=True).data
         return MovieCastSerializer(obj.cast.all()[:20], many=True).data  # Limit to 20 cast members
+
+    def get_production_info(self, obj):
+        """Get production companies and countries from metadata"""
+        try:
+            if hasattr(obj, 'moviemetadata'):
+                metadata = obj.moviemetadata
+                return {
+                    'production_companies': metadata.production_companies or [],
+                    'production_countries': metadata.production_countries or [],
+                    'spoken_languages': metadata.spoken_languages or [],
+                    'budget': metadata.budget,
+                    'revenue': metadata.revenue,
+                    'tagline': metadata.tagline,
+                    'homepage': metadata.homepage
+                }
+        except Exception as e:
+            logger.error(f"Error getting production info for movie {obj.id}: {str(e)}")
+
+        return {
+            'production_companies': [],
+            'production_countries': [],
+            'spoken_languages': [],
+            'budget': None,
+            'revenue': None,
+            'tagline': None,
+            'homepage': None
+        }
+
+    def get_directors(self, obj):
+        """Get directors from cast"""
+        try:
+            if hasattr(obj, 'prefetched_cast'):
+                directors = [
+                    {
+                        'name': cast.name,
+                        'imdb_id': cast.imdb_id,
+                        'tmdb_id': cast.tmdb_id,
+                        'profile_path': cast.profile_path
+                    }
+                    for cast in obj.prefetched_cast
+                    if cast.role == 'DIRECTOR'
+                ]
+                return directors[:3]  # Limit to 3 directors
+
+            # Fallback to database query
+            directors = obj.cast.filter(role='DIRECTOR')[:3]
+            return [
+                {
+                    'name': director.name,
+                    'imdb_id': director.imdb_id,
+                    'tmdb_id': director.tmdb_id,
+                    'profile_path': director.profile_path
+                }
+                for director in directors
+            ]
+        except Exception as e:
+            logger.error(f"Error getting directors for movie {obj.id}: {str(e)}")
+
+        return []
+
+    def get_original_language(self, obj):
+        """Get original language from metadata or movie"""
+        try:
+            # Try to get from movie field first (if it exists)
+            if hasattr(obj, 'original_language') and obj.original_language:
+                return obj.original_language
+
+            # Try to get from MovieMetadata spoken_languages
+            if hasattr(obj, 'moviemetadata') and obj.moviemetadata:
+                metadata = obj.moviemetadata
+                if metadata.spoken_languages and len(metadata.spoken_languages) > 0:
+                    # Return first spoken language ISO code
+                    first_lang = metadata.spoken_languages[0]
+                    if isinstance(first_lang, dict):
+                        iso_code = first_lang.get('iso_639_1')
+                        if iso_code:
+                            return iso_code
+                    elif isinstance(first_lang, str) and len(first_lang) >= 2:
+                        return first_lang[:2].lower()
+
+            # Check if homepage contains clues about language
+            if hasattr(obj, 'moviemetadata') and obj.moviemetadata and obj.moviemetadata.homepage:
+                homepage = obj.moviemetadata.homepage.lower()
+                if 'netflix.com' in homepage and '/fr/' in homepage:
+                    return 'fr'
+                elif 'netflix.com' in homepage:
+                    return 'en'
+
+            # Fallback based on production countries
+            if hasattr(obj, 'moviemetadata') and obj.moviemetadata:
+                metadata = obj.moviemetadata
+                if metadata.production_countries and len(metadata.production_countries) > 0:
+                    first_country = metadata.production_countries[0]
+                    if isinstance(first_country, dict):
+                        country_code = first_country.get('iso_3166_1', '').upper()
+                        # Map common countries to languages
+                        country_to_lang = {
+                            'FR': 'fr', 'BE': 'fr', 'CA': 'fr',  # French countries
+                            'US': 'en', 'GB': 'en', 'AU': 'en', 'NZ': 'en',  # English countries
+                            'ES': 'es', 'MX': 'es', 'AR': 'es',  # Spanish countries
+                            'DE': 'de', 'AT': 'de', 'CH': 'de',  # German countries
+                            'IT': 'it', 'JP': 'ja', 'KR': 'ko', 'CN': 'zh'
+                        }
+                        if country_code in country_to_lang:
+                            return country_to_lang[country_code]
+
+            # Final fallback
+            return 'en'
+
+        except Exception as e:
+            logger.error(f"Error getting original language for movie {obj.id}: {str(e)}")
+
+        return 'en'  # Safe fallback
+
+    def get_images(self, obj):
+        """Get all movie images grouped by type"""
+        try:
+            # Use prefetched images to avoid N+1
+            if hasattr(obj, 'prefetched_images'):
+                images = obj.prefetched_images
+            else:
+                images = obj.movieimage_set.all()
+
+            # Group images by type
+            grouped_images = {
+                'posters': [],
+                'backdrops': [],
+                'screenshots': []
+            }
+
+            for image in images:
+                image_data = {
+                    'id': image.id,
+                    'image_url': image.image_url,
+                    'width': image.width,
+                    'height': image.height,
+                    'aspect_ratio': float(image.aspect_ratio) if image.aspect_ratio else None
+                }
+
+                if image.type == 'POSTER':
+                    grouped_images['posters'].append(image_data)
+                elif image.type == 'BACKDROP':
+                    grouped_images['backdrops'].append(image_data)
+                elif image.type == 'SCREENSHOT':
+                    grouped_images['screenshots'].append(image_data)
+
+            return grouped_images
+        except Exception as e:
+            logger.error(f"Error getting images for movie {obj.id}: {str(e)}")
+            return {
+                'posters': [],
+                'backdrops': [],
+                'screenshots': []
+            }
 
 class MovieSerializer(serializers.ModelSerializer):
     class Meta:

@@ -225,7 +225,7 @@ class Command(BaseCommand):
         if not user:
             return 'skipped'
 
-        # Find matching movie (simplified - would need better matching logic)
+        # Find matching movie
         movie = self.find_matching_movie(review_data)
 
         if not movie:
@@ -299,12 +299,30 @@ class Command(BaseCommand):
         return None
 
     def find_matching_movie(self, review_data):
-        """Find movie matching the review (simplified logic)"""
-        # This is a simplified version - you'd want better matching logic
-        # Could match by product ID, title extraction, etc.
+        """Find movie matching the review (improved logic)"""
+        source = review_data.get('source', 'unknown')
 
-        # For demo, return a random movie that exists
-        # In real implementation, you'd want proper movie matching
+        if source == 'amazon':
+            # Amazon dataset - need ASIN to IMDB mapping
+            product_id = review_data.get('product_id')
+            if product_id:
+                # Try to find movie by Amazon ASIN
+                movie = self.find_movie_by_amazon_asin(product_id)
+                if movie:
+                    return movie
+
+                # Fallback: try to extract movie title from review text
+                movie = self.find_movie_by_text_analysis(review_data.get('text', ''))
+                if movie:
+                    return movie
+
+        elif source == 'imdb':
+            # IMDB dataset - try to extract movie title from text
+            movie = self.find_movie_by_text_analysis(review_data.get('text', ''))
+            if movie:
+                return movie
+
+        # Fallback: return random movie for demo
         movies = Movie.objects.all()
         if movies.exists():
             import random
@@ -320,6 +338,89 @@ class Command(BaseCommand):
                 }
             )
             return movie
+
+    def find_movie_by_amazon_asin(self, asin):
+        """Find movie by Amazon ASIN (would need external mapping)"""
+        # TODO: Implement Amazon ASIN to IMDB ID mapping
+        # This would require:
+        # 1. Amazon ASIN to IMDB ID mapping table
+        # 2. Or use external API to convert ASIN to movie info
+
+        # For now, return None - need proper mapping
+        return None
+
+    def find_movie_by_text_analysis(self, review_text):
+        """Extract movie title from review text and find matching movie"""
+        if not review_text:
+            return None
+
+        # Simple title extraction (basic approach)
+        import re
+
+        # Common patterns in movie reviews
+        patterns = [
+            r'"([^"]+)"',  # Quoted titles
+            r"'([^']+)'",  # Single quoted titles
+            r'([A-Z][A-Z\s&]+(?:THE MOVIE|FILM|DVD|BLU-RAY))',  # ALL CAPS titles
+            r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)',  # Title Case titles
+        ]
+
+        for pattern in patterns:
+            matches = re.findall(pattern, review_text[:500])  # Check first 500 chars
+            for match in matches:
+                # Clean up the match
+                title = match.strip()
+                if len(title) > 3 and len(title) < 100:  # Reasonable title length
+                    # Try to find movie by title
+                    movie = self.search_movie_by_title(title)
+                    if movie:
+                        return movie
+
+        return None
+
+    def search_movie_by_title(self, title):
+        """Search for movie by title with fuzzy matching"""
+        from django.db.models import Q
+
+        # Clean title
+        title = title.strip()
+        if not title:
+            return None
+
+        # Try exact match first
+        movie = Movie.objects.filter(
+            Q(title__iexact=title) |
+            Q(title_en__iexact=title) |
+            Q(title_vi__iexact=title)
+        ).first()
+
+        if movie:
+            return movie
+
+        # Try contains match
+        movie = Movie.objects.filter(
+            Q(title__icontains=title) |
+            Q(title_en__icontains=title) |
+            Q(title_vi__icontains=title)
+        ).first()
+
+        if movie:
+            return movie
+
+        # Try partial match (words)
+        words = title.split()
+        if len(words) >= 2:
+            # Search for movies containing multiple words from title
+            query = Q()
+            for word in words[:3]:  # Use first 3 words
+                if len(word) > 2:  # Skip short words
+                    query |= Q(title__icontains=word)
+
+            movie = Movie.objects.filter(query).first()
+            if movie:
+                return movie
+
+        return None
 
     def download_imdb_dataset(self):
         """Download IMDB dataset if not exists"""

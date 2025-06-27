@@ -7,7 +7,7 @@ const Navigation = () => {
       <NavLink
         to="/"
         className={({ isActive }) =>
-          isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'
+          isActive ? 'text-yellow-200' : 'text-white hover:text-yellow-500 transition-colors'
         }
       >
         {t('nav.home')}
@@ -15,7 +15,7 @@ const Navigation = () => {
       <NavLink
         to="/movies"
         className={({ isActive }) =>
-          isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'
+          isActive ? 'text-yellow-200' : 'text-white hover:text-yellow-500 transition-colors'
         }
       >
         {t('nav.movies')}
@@ -23,7 +23,7 @@ const Navigation = () => {
       <NavLink
         to="/pricing"
         className={({ isActive }) =>
-          isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'
+          isActive ? 'text-yellow-200' : 'text-white hover:text-yellow-500 transition-colors'
         }
       >
         {t('nav.pricing', 'Pricing')}
@@ -31,7 +31,7 @@ const Navigation = () => {
       <NavLink
         to="/watchlist"
         className={({ isActive }) =>
-          isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'
+          isActive ? 'text-yellow-200' : 'text-white hover:text-yellow-500 transition-colors'
         }
       >
         {t('nav.watchlist')}

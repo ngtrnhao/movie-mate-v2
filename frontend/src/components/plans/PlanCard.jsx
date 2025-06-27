@@ -71,8 +71,8 @@ const PlanCard = ({ plan, icon, onSelect }) => {
       return plan.highlighted
         ? 'bg-white text-red-600 hover:bg-gray-100'
         : 'bg-gray-700 text-white hover:bg-red-600';
-    if (isCurrentPlan()) return 'bg-green-600 text-white cursor-not-allowed';
-    if (isUpgrade()) return 'bg-green-600 text-white hover:bg-green-700';
+    if (isCurrentPlan()) return 'bg-red-600 text-white cursor-not-allowed';
+    if (isUpgrade()) return 'bg-red-600 text-white hover:bg-red-700';
     if (isDowngrade()) {
       if (!currentSubscription.can_downgrade) return 'bg-gray-600 text-gray-400 cursor-not-allowed';
       return 'bg-yellow-600 text-white hover:bg-yellow-700';
@@ -107,7 +107,7 @@ const PlanCard = ({ plan, icon, onSelect }) => {
         <motion.span
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute -top-6 left-1/2 -translate-x-1/2 rounded-full border-2 border-white bg-gradient-to-r from-red-500 via-yellow-400 to-red-500 px-6 py-2 text-base font-bold text-white shadow-xl"
+          className="absolute -top-6 left-1/2 -translate-x-1/2 rounded-full border-2 border-white bg-gradient-to-r from-pink-600 via-red-400 to-red-500 px-6 py-2 text-base font-bold text-white shadow-xl"
           style={{ letterSpacing: 1 }}
         >
           {plan.badge}

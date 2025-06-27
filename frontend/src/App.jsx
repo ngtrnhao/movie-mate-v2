@@ -13,7 +13,7 @@ import LoginForm from './components/users/Auth/LoginForm';
 import RegisterForm from './components/users/Auth/RegisterForm';
 import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
 import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
-import MovieDetails from './components/movies/movie-details';
+import MovieDetailsPage from './pages/Movies/MovieDetailsPage';
 import Recommendation from './pages/recommendation';
 import VerifyEmail from './pages/VerifyEmail';
 import Profile from './pages/Profile';
@@ -25,7 +25,7 @@ import { rehydrateAuth } from './store/slices/authSlice';
 import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
-// import PerformanceMonitor from './components/common/PerformanceMonitor';
+import PerformanceMonitor from './components/common/PerformanceMonitor';
 // import AdDisplayTest from './components/ads/AdDisplayTest';
 // import AdFrequencyStatus from './components/common/AdFrequencyStatus';
 // import AdWaitMessage from './components/common/AdWaitMessage';
@@ -146,7 +146,7 @@ function App() {
                       <Routes>
                         <Route path="/home" element={<HomePage />} />
                         <Route path="/movies" element={<MoviesPage />} />
-                        <Route path="/movies/:movieId" element={<MovieDetails />} />
+                        <Route path="/movies/:movieId" element={<MovieDetailsPage />} />
                         <Route path="/recommendation" element={<Recommendation />} />
                         <Route path="/verify-email" element={<VerifyEmail />} />
                         <Route path="/pricing" element={<PricingPage />} />
@@ -175,8 +175,7 @@ function App() {
               />
             </Routes>
 
-            {/* Performance Monitor - chỉ hiển thị trong development */}
-            {/* <PerformanceMonitor /> */}
+            <PerformanceMonitor />
 
             {/* Ad Display Test - chỉ hiển thị trong development */}
             {/* <AdDisplayTest /> */}

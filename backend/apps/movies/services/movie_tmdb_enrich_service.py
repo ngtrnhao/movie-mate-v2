@@ -13,7 +13,7 @@ class MovieTMDBEnrichService:
                 movie.tmdb_id = tmdb_id
                 tmdb_data = tmdb_service.get_movie_by_id(tmdb_id)
         if tmdb_data:
-            movie.backdrop_url = f"https://image.tmdb.org/t/p/w780{tmdb_data.get('backdrop_path')}" if tmdb_data.get('backdrop_path') else None
+            movie.backdrop_url = f"https://image.tmdb.org/t/p/original{tmdb_data.get('backdrop_path')}" if tmdb_data.get('backdrop_path') else None
             movie.save()
 
     @classmethod
@@ -51,7 +51,7 @@ class MovieTMDBEnrichService:
         for backdrop in images_data.get("backdrops", []):
             MovieImage.objects.get_or_create(
                 movie=movie,
-                image_url=f"https://image.tmdb.org/t/p/w780{backdrop['file_path']}",
+                image_url=f"https://image.tmdb.org/t/p/original{backdrop['file_path']}",
                 type="BACKDROP",
                 width=backdrop.get("width"),
                 height=backdrop.get("height"),

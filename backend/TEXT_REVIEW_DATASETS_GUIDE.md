@@ -3,6 +3,7 @@
 ## 🎯 **Tổng quan Dataset Text Review cho Movie-Mate**
 
 Dataset text review sẽ giúp bạn có:
+
 - **Text reviews đầy đủ** từ người dùng thật
 - **User information** (username, profile, demographics)
 - **Rating scores** kèm theo sentiment
@@ -15,21 +16,25 @@ Dataset text review sẽ giúp bạn có:
 ### **1. IMDB Large Movie Review Dataset (Stanford)**
 
 **📁 Source**: `stanfordnlp/imdb` on Hugging Face
+
 - **Size**: 50,000 reviews (25k train + 25k test)
 - **Content**: Full text reviews với sentiment classification
 - **Format**: JSON/Parquet via Hugging Face
 
 **✅ Ưu điểm:**
+
 - Text quality cao, được curated
 - Dễ tích hợp via Hugging Face
 - Có sentiment labels (positive/negative)
 - Phù hợp với Django models hiện tại
 
 **❌ Hạn chế:**
+
 - Không có user demographics
 - Chỉ có sentiment, không có exact ratings
 
 **🚀 Cách sử dụng:**
+
 ```bash
 # Import IMDB reviews với synthetic users
 python manage.py import_text_reviews \
@@ -43,10 +48,12 @@ python manage.py import_text_reviews \
 ### **2. Amazon Movie Reviews Dataset (SNAP Stanford)**
 
 **📁 Source**: https://snap.stanford.edu/data/web-Movies.html
+
 - **Size**: ~8 million reviews (1997-2012)
 - **Content**: Full reviews với user info và ratings
 
 **✅ Ưu điểm:**
+
 - Có user information (userId, profileName)
 - Exact ratings (1-5 stars)
 - Helpfulness votes
@@ -54,11 +61,13 @@ python manage.py import_text_reviews \
 - Real user behavior patterns
 
 **❌ Hạn chế:**
+
 - File size lớn (~1.5GB compressed)
 - Cần download manual
 - Cần movie mapping logic
 
 **🚀 Cách sử dụng:**
+
 ```bash
 # Download dataset trước
 wget http://snap.stanford.edu/data/movies.txt.gz
@@ -121,6 +130,7 @@ class MovieReview(models.Model):
 ### **User Creation Strategy**
 
 **Option 1: Synthetic Users**
+
 ```python
 # Tạo users với pattern: imdb_user_12345
 username = f"{source}_user_{user_id}"
@@ -128,6 +138,7 @@ email = f"{username}@{source}.synthetic.com"
 ```
 
 **Option 2: Map to MovieLens Users**
+
 ```python
 # Map external users to existing MovieLens users
 # Based on similar demographics/preferences
@@ -138,18 +149,21 @@ email = f"{username}@{source}.synthetic.com"
 ## 📈 **Expected Results**
 
 ### **IMDB Import (50k reviews)**
+
 - **Text Quality**: ⭐⭐⭐⭐⭐ (Excellent)
 - **User Diversity**: ⭐⭐⭐ (Synthetic users)
 - **Import Time**: ~10-15 minutes
 - **Storage**: ~25MB database
 
 ### **Amazon Import (100k reviews)**
+
 - **Text Quality**: ⭐⭐⭐⭐ (Very Good)
 - **User Diversity**: ⭐⭐⭐⭐⭐ (Real users)
 - **Import Time**: ~30-45 minutes
 - **Storage**: ~50MB database
 
 ### **Hybrid Approach (150k reviews)**
+
 - **Text Quality**: ⭐⭐⭐⭐⭐
 - **User Diversity**: ⭐⭐⭐⭐⭐
 - **Total Import Time**: ~1 hour
@@ -206,6 +220,7 @@ def preprocess_review_text(text):
 ## 🚀 **Quick Start Commands**
 
 ### **Development/Testing (Small dataset)**
+
 ```bash
 # Test với 1000 reviews
 python manage.py import_text_reviews \
@@ -217,6 +232,7 @@ python manage.py import_text_reviews \
 ```
 
 ### **Production (Full dataset)**
+
 ```bash
 # Full import cho production
 python manage.py import_text_reviews \
@@ -227,6 +243,7 @@ python manage.py import_text_reviews \
 ```
 
 ### **Monitor Import Progress**
+
 ```bash
 # Check import status
 python manage.py shell -c "

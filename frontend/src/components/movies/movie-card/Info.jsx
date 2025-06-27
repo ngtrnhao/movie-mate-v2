@@ -2,7 +2,17 @@ import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { memo, useMemo } from 'react';
 
 const Info = memo(
-  ({ title, originalTitle, releaseDate, overview, genres, isPopular, isTopRated, isUpcoming }) => {
+  ({
+    title,
+    originalTitle,
+    releaseDate,
+    runtime,
+    overview,
+    genres,
+    isPopular,
+    isTopRated,
+    isUpcoming,
+  }) => {
     const { t } = useTranslation('movies');
     // Memoize computed values
     const year = useMemo(
@@ -10,9 +20,19 @@ const Info = memo(
       [releaseDate]
     );
 
+    const formatRuntime = useMemo(() => {
+      if (!runtime) return null;
+      const hours = Math.floor(runtime / 60);
+      const minutes = runtime % 60;
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      }
+      return `${minutes}m`;
+    }, [runtime]);
+
     return (
       <div className="flex flex-col gap-2">
-        {/* Title and Year */}
+        {/* Title and Year/Runtime */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-col">
             <h3 className="line-clamp-2 text-lg font-semibold text-white">{title}</h3>
@@ -20,7 +40,10 @@ const Info = memo(
               <span className="text-sm text-gray-400">{originalTitle}</span>
             )}
           </div>
-          <span className="shrink-0 text-sm text-gray-400">{year}</span>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className="text-sm text-gray-400">{year}</span>
+            {formatRuntime && <span className="text-xs text-gray-500">{formatRuntime}</span>}
+          </div>
         </div>
 
         {/* Status Badges */}

@@ -49,3 +49,9 @@
   width: 60px !important;
   height: 60px !important;
 }
+.bg-dot-grid {
+  background-image: url('https://www.rophim.me/images/dotted.png');
+  background-repeat: repeat;
+  opacity: 0.15;
+  pointer-events: none;
+}

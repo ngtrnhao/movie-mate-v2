@@ -118,6 +118,27 @@ class Movie(models.Model):
 
             # Index cho year extraction từ release_date
             models.Index(fields=["release_date"], name="idx_movie_release_year"),
+            # Add backdrop_url indexes for performance
+            models.Index(fields=["backdrop_url"], name="idx_movie_backdrop"),
+            models.Index(
+                fields=["backdrop_url"],
+                name="idx_movie_backdrop_nn",
+                condition=models.Q(backdrop_url__isnull=False)
+            ),
+            models.Index(
+                fields=["poster_url", "backdrop_url"],
+                name="idx_movie_poster_backdrop",
+            ),
+            models.Index(
+                fields=["release_date"],
+                name="idx_movie_rel_poster_backdrop",
+                condition=models.Q(
+                    poster_url__isnull=False,
+                    poster_url__gt='',
+                    backdrop_url__isnull=False,
+                    backdrop_url__gt=''
+                )
+            ),
         ]
 
     def __str__(self):

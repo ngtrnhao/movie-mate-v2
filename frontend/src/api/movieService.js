@@ -89,6 +89,27 @@ export const getMovieDetails = async movieId => {
   }
 };
 
+// Get complete movie details (optimized single API call)
+export const getMovieDetailsComplete = async movieId => {
+  try {
+    const response = await axiosInstance.get(`/api/movies/${movieId}/details_complete/`);
+    const data = handleResponse(response.data);
+
+    return {
+      movie: data.movie,
+      cast: data.movie.cast || [],
+      similarMovies: data.similar_movies || [],
+      stats: data.stats || {},
+    };
+  } catch (error) {
+    console.error('Error fetching complete movie details:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch complete movie details',
+      details: error.response?.data,
+    };
+  }
+};
+
 // Get movie cast
 export const getMovieCast = async movieId => {
   try {
@@ -98,6 +119,59 @@ export const getMovieCast = async movieId => {
     console.error('Error fetching movie cast:', error);
     // Return empty array if cast endpoint fails
     return { data: [] };
+  }
+};
+
+// Parallel loading of movie data (fallback for current implementation)
+export const getMovieDetailsParallel = async movieId => {
+  try {
+    // Load all data in parallel for better performance
+    const [movieResponse, castResponse] = await Promise.allSettled([
+      axiosInstance.get(`/api/movies/${movieId}/`),
+      axiosInstance.get(`/api/movies/${movieId}/cast/`),
+    ]);
+
+    // Handle movie response
+    const movie =
+      movieResponse.status === 'fulfilled' ? handleResponse(movieResponse.value.data) : null;
+
+    // Handle cast response
+    const cast = castResponse.status === 'fulfilled' ? handleResponse(castResponse.value.data) : [];
+
+    // Get similar movies based on movie genres
+    let similarMovies = [];
+    if (movie?.genres?.length) {
+      try {
+        const genreIds = movie.genres.slice(0, 3).map(g => g.id || g);
+        const params = new URLSearchParams();
+        genreIds.forEach(id => params.append('genres', id));
+        params.append('page_size', '6');
+        params.append('sort_by', 'rating');
+
+        const similarResponse = await axiosInstance.get(`/api/movies/search/?${params}`);
+        const similarData = handleResponse(similarResponse.data);
+
+        // Filter out current movie
+        similarMovies = (similarData.results || [])
+          .filter(m => m.id !== parseInt(movieId))
+          .slice(0, 6);
+      } catch (error) {
+        console.error('Error fetching similar movies:', error);
+      }
+    }
+
+    return {
+      movie,
+      cast: cast.data || cast || [],
+      similarMovies,
+      error: movieResponse.status === 'rejected' ? movieResponse.reason : null,
+    };
+  } catch (error) {
+    console.error('Error in parallel movie details fetch:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch movie details',
+      details: error.response?.data,
+    };
   }
 };
 
@@ -219,7 +293,7 @@ export const removeFromWatchlist = async movieId => {
 // Enhanced search movies with caching and request cancellation
 let searchController = null; // Store AbortController for request cancellation
 
-export const searchMovies = async (filters = {}, page = 1, pageSize = 20) => {
+export const searchMovies = async (filters = {}, page = 1, pageSize = 50) => {
   try {
     // Cancel previous request if exists
     if (searchController) {

@@ -1,20 +1,60 @@
-import { memo, useState, useCallback, useMemo } from 'react';
+import { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 
-const Poster = memo(({ posterPath, title }) => {
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+// Global image cache để tránh load lại
+const imageCache = new Map();
+const preloadQueue = new Set();
 
-  // Tối ưu useInView với rootMargin để tránh trigger quá sớm
+const Poster = memo(({ posterPath, title, priority = false }) => {
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState('');
+
+  // Tối ưu useInView với rootMargin lớn hơn để preload sớm
   const { ref, inView } = useInView({
     triggerOnce: true,
-    threshold: 0.1,
-    rootMargin: '50px 0px', // Trigger khi element cách viewport 50px
+    threshold: 0.01, // Giảm threshold để trigger sớm hơn
+    rootMargin: '200px 0px', // Tăng margin để preload sớm hơn
     skip: false,
   });
 
+  // Preload image khi inView hoặc priority
+  useEffect(() => {
+    if ((inView || priority) && posterPath && !currentSrc) {
+      // Kiểm tra cache trước
+      if (imageCache.has(posterPath)) {
+        setCurrentSrc(posterPath);
+        setIsImageLoaded(true);
+        return;
+      }
+
+      // Preload image
+      if (!preloadQueue.has(posterPath)) {
+        preloadQueue.add(posterPath);
+
+        const img = new Image();
+        img.onload = () => {
+          imageCache.set(posterPath, posterPath);
+          preloadQueue.delete(posterPath);
+          setCurrentSrc(posterPath);
+          setIsImageLoaded(true);
+        };
+        img.onerror = () => {
+          preloadQueue.delete(posterPath);
+          setImageError(true);
+        };
+        img.src = posterPath;
+      }
+    }
+  }, [inView, priority, posterPath, currentSrc]);
+
   const handleImageLoad = useCallback(() => {
     setIsImageLoaded(true);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setImageError(true);
   }, []);
 
   // Memoize image className để tránh re-render
@@ -34,28 +74,43 @@ const Poster = memo(({ posterPath, title }) => {
     []
   );
 
+  // Memoize error placeholder
+  const errorPlaceholder = useMemo(
+    () => (
+      <div className="flex size-full items-center justify-center bg-gray-600">
+        <span className="text-2xl text-gray-400">📽️</span>
+      </div>
+    ),
+    []
+  );
+
   return (
     <motion.div
       ref={ref}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.3 }} // Giảm duration để load nhanh hơn
       className="relative aspect-[2/3] w-full overflow-hidden"
     >
-      {/* Poster Image - Chỉ render khi inView */}
-      {inView && (
+      {/* Poster Image - Render ngay lập tức nếu priority */}
+      {(priority || inView) && currentSrc && (
         <img
-          src={posterPath}
+          src={currentSrc}
           alt={title}
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
           onLoad={handleImageLoad}
+          onError={handleImageError}
           className={imageClassName}
+          fetchPriority={priority ? 'high' : 'auto'}
         />
       )}
 
       {/* Placeholder - Chỉ hiển thị khi chưa load xong */}
-      {!isImageLoaded && placeholder}
+      {!isImageLoaded && !imageError && placeholder}
+
+      {/* Error placeholder */}
+      {imageError && errorPlaceholder}
 
       {/* Hover Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">

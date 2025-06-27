@@ -16,6 +16,8 @@ import { searchMovies } from '../../api/movieService';
 import { useCategories } from '../../hooks/useCategories';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import MovieCard from '../../components/movies/movie-card';
+import MovieTrailerModal from '../../components/movies/movie-trailer/MovieTrailerModal';
+import { useTrailerModal } from '../../hooks/useTrailerModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const MoviesPage = () => {
@@ -41,6 +43,30 @@ const MoviesPage = () => {
   // Fetch genres using hook
   const { data: genresData, isLoading: genresLoading } = useCategories();
 
+  // Trailer modal hook
+  const { isTrailerOpen, modalMovie, modalTrailerUrl, closeTrailerModal, handleTrailerClick } =
+    useTrailerModal();
+
+  // Enhanced trailer click handler with better error handling
+  const handleMovieTrailerClick = useCallback(
+    movie => {
+      try {
+        // Check if movie has trailers before attempting to open modal
+        if (!movie?.trailers?.length) {
+          console.warn('Movie has no trailers:', movie.title);
+          // You could add a toast notification here: "No trailer available for this movie"
+          return;
+        }
+
+        handleTrailerClick(movie);
+      } catch (error) {
+        console.error('Error opening trailer modal:', error);
+        // You could add a toast notification here if needed
+      }
+    },
+    [handleTrailerClick]
+  );
+
   useEffect(() => {
     if (genresData && !genresLoading) {
       setGenres(genresData);
@@ -51,21 +77,62 @@ const MoviesPage = () => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error, refetch } =
     useInfiniteQuery({
       queryKey: ['movies', filters],
-      queryFn: ({ pageParam = 1 }) => searchMovies(filters, pageParam, 20),
+      queryFn: ({ pageParam = 1 }) => searchMovies(filters, pageParam, 50),
       getNextPageParam: lastPage => {
-        if (lastPage.has_next) {
+        // Handle cases where lastPage might be null or missing has_next
+        if (!lastPage) {
+          console.warn('getNextPageParam: lastPage is null or undefined');
+          return undefined;
+        }
+
+        // Check if has_next exists and is true
+        if (lastPage.has_next === true) {
           return lastPage.current_page + 1;
         }
+
+        // Fallback: check if we have data and if there might be more pages
+        if (lastPage.data && lastPage.data.length > 0) {
+          const currentPage = lastPage.current_page || 1;
+          const pageSize = lastPage.page_size || 50;
+          const totalCount = lastPage.count || 0;
+
+          // If we have more items than what we've seen so far, there might be more pages
+          if (totalCount > currentPage * pageSize) {
+            return currentPage + 1;
+          }
+        }
+
         return undefined;
       },
       enabled: true,
       staleTime: 5 * 60 * 1000, // 5 minutes
       cacheTime: 10 * 60 * 1000, // 10 minutes
+      retry: (failureCount, error) => {
+        // Retry up to 3 times for network errors, but not for 4xx errors
+        if (failureCount < 3 && error?.response?.status >= 500) {
+          return true;
+        }
+        return false;
+      },
     });
 
   // Memoized movie list
   const movies = useMemo(() => {
-    return data?.pages?.flatMap(page => page.data) || [];
+    if (!data?.pages) return [];
+
+    // Safely extract movies from all pages
+    return data.pages.reduce((allMovies, page) => {
+      if (page && page.data && Array.isArray(page.data)) {
+        return [...allMovies, ...page.data];
+      }
+      return allMovies;
+    }, []);
+  }, [data]);
+
+  // Safe count extraction
+  const totalCount = useMemo(() => {
+    if (!data?.pages?.[0]) return 0;
+    return data.pages[0].count || 0;
   }, [data]);
 
   // Filter options
@@ -130,8 +197,12 @@ const MoviesPage = () => {
   }, []);
 
   const loadMore = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    try {
+      if (hasNextPage && !isFetchingNextPage && fetchNextPage) {
+        fetchNextPage();
+      }
+    } catch (error) {
+      console.error('Error loading more movies:', error);
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
@@ -143,9 +214,7 @@ const MoviesPage = () => {
           <div>
             <h1 className="text-3xl font-bold text-white">{t('title', 'Discover Movies')}</h1>
             <p className="text-gray-400">
-              {data?.pages?.[0]?.count
-                ? `${data.pages[0].count.toLocaleString()} movies found`
-                : 'Loading...'}
+              {totalCount ? `${totalCount.toLocaleString()} movies found` : 'Loading...'}
             </p>
           </div>
 
@@ -397,7 +466,12 @@ const MoviesPage = () => {
           <>
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {movies.map((movie, index) => (
-                <MovieCard key={`${movie.id}-${index}`} movie={movie} />
+                <MovieCard
+                  key={`${movie.id}-${index}`}
+                  movie={movie}
+                  index={index}
+                  onTrailerClick={() => handleMovieTrailerClick(movie)}
+                />
               ))}
             </div>
 
@@ -428,6 +502,14 @@ const MoviesPage = () => {
             )}
           </>
         )}
+
+        {/* Movie Trailer Modal */}
+        <MovieTrailerModal
+          isOpen={isTrailerOpen}
+          onClose={closeTrailerModal}
+          movie={modalMovie}
+          trailerUrl={modalTrailerUrl}
+        />
       </div>
     </div>
   );

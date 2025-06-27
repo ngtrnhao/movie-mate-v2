@@ -150,3 +150,5 @@ requirement.txt
 prompt.txt
 promptfe.txt
 backend/data/imdb_datasets/*.tsv.gz
+*.zip
+*data/

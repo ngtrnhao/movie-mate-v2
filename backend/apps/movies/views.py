@@ -9,9 +9,8 @@ from django.core.cache import cache
 from django.db.models import Count, Prefetch, Q, F
 from django.core.paginator import Paginator
 from django.db import models
-from .models import Movie
+from .models import Movie, MovieCast, MovieImage
 from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer
-from .services.imdb_service import IMDBService
 import logging
 import hashlib
 
@@ -35,7 +34,15 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         ).prefetch_related(
             Prefetch('ratings', to_attr='prefetched_ratings'),
             Prefetch('genres', to_attr='prefetched_genres'),
-            Prefetch('trailers', to_attr='prefetched_trailers')
+            Prefetch('trailers', to_attr='prefetched_trailers'),
+            # Add cast prefetch for detail views
+            Prefetch(
+                'cast',
+                queryset=MovieCast.objects.order_by('order', 'role'),
+                to_attr='prefetched_cast'
+            ),
+            # Add images prefetch for media gallery
+            Prefetch('movieimage_set', to_attr='prefetched_images')
         )
 
     def get_queryset(self):
@@ -45,10 +52,6 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         data = serializer.data
-
-        if instance.imdb_id:
-            overviews = IMDBService.get_movie_overview(instance.imdb_id)
-            data['overviews'] = overviews
 
         return Response({
             'status': 'success',
@@ -457,7 +460,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
                 # Pagination
                 from django.core.paginator import Paginator
-                page_size = int(request.query_params.get('page_size', 20))
+                page_size = int(request.query_params.get('page_size', 50))
                 page = int(request.query_params.get('page', 1))
 
                 paginator = Paginator(reviews, page_size)
@@ -597,6 +600,138 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=['get'])
+    def details_complete(self, request, pk=None):
+        """
+        Consolidated API endpoint for complete movie details page
+        Returns all data needed in a single request for optimal performance
+        """
+        try:
+            # Cache key for complete details
+            cache_key = f'movie_details_complete_{pk}'
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                logger.info(f"Returning cached complete details for movie {pk}")
+                return Response(cached_data)
+
+            # Get movie with all related data in single query - simplified for performance
+            movie = Movie.objects.select_related(
+                'moviemetadata'
+            ).prefetch_related(
+                Prefetch('cast', queryset=MovieCast.objects.select_related().order_by('order', 'role')[:10],
+                        to_attr='prefetched_cast'),
+                Prefetch('genres', to_attr='prefetched_genres'),
+                Prefetch('trailers', to_attr='prefetched_trailers'),
+                # Add images prefetch for media gallery
+                Prefetch('movieimage_set', to_attr='prefetched_images')
+            ).get(id=pk)
+
+            # Serialize movie with enhanced serializer
+            movie_serializer = MovieDetailSerializer(movie)
+            movie_data = movie_serializer.data
+
+            # Get similar movies with simplified query (cached)
+            similar_movies = []
+            try:
+                if movie_data.get('genres') and len(movie_data['genres']) > 0:
+                    # Use first genre only for performance
+                    primary_genre_id = movie_data['genres'][0]['id']
+                    similar_cache_key = f'similar_movies_v2_{pk}_{primary_genre_id}'
+                    similar_movies = cache.get(similar_cache_key)
+
+                    if not similar_movies:
+                        from django.utils import timezone
+                        from datetime import timedelta
+
+                        # Get movie's release year for context
+                        movie_year = None
+                        if movie.release_date:
+                            movie_year = movie.release_date.year
+
+                        # Build query for similar movies with better relevance
+                        similar_query = Movie.objects.filter(
+                            genres=primary_genre_id,
+                            poster_url__isnull=False,
+                        ).exclude(id=pk)
+
+                        # Prefer movies with ratings and from similar time period
+                        if movie_year and movie_year >= 2000:
+                            # For modern movies, prefer recent movies (last 20 years)
+                            recent_cutoff = timezone.now().date() - timedelta(days=20*365)
+                            similar_query = similar_query.filter(
+                                release_date__gte=recent_cutoff
+                            )
+                        elif movie_year and movie_year >= 1980:
+                            # For 80s-90s movies, prefer movies from 1980-2010
+                            similar_query = similar_query.filter(
+                                release_date__year__gte=1980,
+                                release_date__year__lte=2010
+                            )
+
+                        # Order by relevance: rating first, then popularity
+                        similar_queryset = similar_query.order_by(
+                            '-cached_imdb_rating',  # Movies with IMDB ratings first
+                            '-is_popular',          # Popular movies next
+                            '-release_date'         # More recent movies preferred
+                        ).select_related('moviemetadata')[:6]
+
+                        # Use basic serializer for similar movies with better data
+                        similar_data = []
+                        for similar_movie in similar_queryset:
+                            similar_data.append({
+                                'id': similar_movie.id,
+                                'title': similar_movie.title_en or similar_movie.title,
+                                'title_vi': similar_movie.title_vi,
+                                'poster_url': similar_movie.poster_url,
+                                'backdrop_url': similar_movie.backdrop_url,
+                                'rating': float(similar_movie.cached_imdb_rating) if similar_movie.cached_imdb_rating else None,
+                                'release_date': similar_movie.release_date.isoformat() if similar_movie.release_date else None,
+                                'overview': similar_movie.overview_en or similar_movie.overview_vi,
+                                'runtime': similar_movie.runtime
+                            })
+
+                        similar_movies = similar_data
+                        # Cache similar movies for 2 hours
+                        cache.set(similar_cache_key, similar_movies, timeout=7200)
+
+            except Exception as e:
+                logger.error(f"Error getting similar movies for {pk}: {str(e)}")
+                similar_movies = []
+
+            # Build consolidated response
+            response_data = {
+                'status': 'success',
+                'data': {
+                    'movie': movie_data,
+                    'similar_movies': similar_movies,
+                    'stats': {
+                        'cast_count': len(movie_data.get('cast', [])),
+                        'director_count': len(movie_data.get('directors', [])),
+                        'genre_count': len(movie_data.get('genres', [])),
+                        'trailer_count': len(movie_data.get('trailers', []))
+                    }
+                }
+            }
+
+            # Cache complete response for 30 minutes
+            cache.set(cache_key, response_data, timeout=1800)
+            logger.info(f"Cached complete details for movie {pk}")
+
+            return Response(response_data)
+
+        except Movie.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Movie not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error in details_complete endpoint: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': f'Internal server error: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=False, methods=['get'])
     def search(self, request):
         """Optimized movie search with comprehensive filters for large datasets"""
@@ -616,7 +751,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             sort_by = request.GET.get('sort_by', 'popularity')
             order = request.GET.get('order', 'desc')
             page = int(request.GET.get('page', 1))
-            page_size = min(int(request.GET.get('page_size', 20)), 100)
+            page_size = min(int(request.GET.get('page_size', 50)), 100)
 
             # Create cache key from filters
             cache_params = {
@@ -800,11 +935,20 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
                 serializer = self.get_serializer(movies, many=True)
 
+                # Calculate pagination info for fallback
+                total_count = queryset.count()
+                total_pages = (total_count + page_size - 1) // page_size
+                has_next = page < total_pages
+                has_previous = page > 1
+
                 response_data = {
                     'status': 'success',
-                    'count': len(movies),
+                    'count': total_count,
+                    'pages': total_pages,
                     'current_page': page,
                     'page_size': page_size,
+                    'has_next': has_next,
+                    'has_previous': has_previous,
                     'data': serializer.data
                 }
 

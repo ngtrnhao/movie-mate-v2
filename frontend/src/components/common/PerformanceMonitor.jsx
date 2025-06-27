@@ -1,9 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useImagePreloader } from './ImagePreloader';
 
 const PerformanceMonitor = ({ enabled = process.env.NODE_ENV === 'development' }) => {
   const [metrics, setMetrics] = useState({});
   const [isVisible, setIsVisible] = useState(false);
   const observerRef = useRef(null);
+  const { getCacheStats } = useImagePreloader();
+
+  // Memoize getCacheStats để tránh infinite loop
+  const memoizedGetCacheStats = useCallback(() => {
+    return getCacheStats();
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -29,6 +36,27 @@ const PerformanceMonitor = ({ enabled = process.env.NODE_ENV === 'development' }
       }));
     };
 
+    // Measure LCP specifically
+    const measureLCP = () => {
+      const observer = new PerformanceObserver(list => {
+        const entries = list.getEntries();
+        const lastEntry = entries[entries.length - 1];
+
+        setMetrics(prev => ({
+          ...prev,
+          lcp: {
+            value: lastEntry.startTime,
+            element: lastEntry.element?.tagName || 'Unknown',
+            url: lastEntry.url || 'Unknown',
+            size: lastEntry.size || 0,
+          },
+        }));
+      });
+
+      observer.observe({ entryTypes: ['largest-contentful-paint'] });
+      return () => observer.disconnect();
+    };
+
     // Measure resource loading
     const measureResources = () => {
       const resources = performance.getEntriesByType('resource');
@@ -46,6 +74,7 @@ const PerformanceMonitor = ({ enabled = process.env.NODE_ENV === 'development' }
           css: cssResources.length,
           images: imageResources.length,
           totalSize: resources.reduce((sum, r) => sum + (r.transferSize || 0), 0),
+          imageSize: imageResources.reduce((sum, r) => sum + (r.transferSize || 0), 0),
         },
       }));
     };
@@ -112,14 +141,30 @@ const PerformanceMonitor = ({ enabled = process.env.NODE_ENV === 'development' }
 
     measureReactPerformance();
     measureLayoutShifts();
+    const lcpCleanup = measureLCP();
+
+    // Update image cache stats periodically
+    const imageStatsInterval = setInterval(() => {
+      try {
+        const cacheStats = memoizedGetCacheStats();
+        setMetrics(prev => ({
+          ...prev,
+          imageCache: cacheStats,
+        }));
+      } catch (error) {
+        console.warn('Failed to get cache stats:', error);
+      }
+    }, 2000);
 
     // Cleanup
     return () => {
       if (observerRef.current) {
         observerRef.current.disconnect();
       }
+      lcpCleanup();
+      clearInterval(imageStatsInterval);
     };
-  }, [enabled]);
+  }, [enabled, memoizedGetCacheStats]);
 
   // Toggle visibility
   const toggleVisibility = () => setIsVisible(!isVisible);
@@ -159,15 +204,54 @@ const PerformanceMonitor = ({ enabled = process.env.NODE_ENV === 'development' }
                   </div>
                   <div className="flex justify-between">
                     <span>FCP:</span>
-                    <span>{metrics.initialLoad.firstContentfulPaint?.toFixed(0)}ms</span>
+                    <span
+                      className={
+                        metrics.initialLoad.firstContentfulPaint > 1800
+                          ? 'text-red-400'
+                          : 'text-green-400'
+                      }
+                    >
+                      {metrics.initialLoad.firstContentfulPaint?.toFixed(0)}ms
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>LCP:</span>
-                    <span>{metrics.initialLoad.largestContentfulPaint?.toFixed(0)}ms</span>
+                    <span
+                      className={
+                        metrics.initialLoad.largestContentfulPaint > 2500
+                          ? 'text-red-400'
+                          : 'text-green-400'
+                      }
+                    >
+                      {metrics.initialLoad.largestContentfulPaint?.toFixed(0)}ms
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Total:</span>
                     <span>{metrics.initialLoad.totalTime?.toFixed(0)}ms</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* LCP Details */}
+            {metrics.lcp && (
+              <div className="rounded bg-gray-800 p-3">
+                <h4 className="mb-2 font-medium text-yellow-400">LCP Element</h4>
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span>Time:</span>
+                    <span className={metrics.lcp.value > 2500 ? 'text-red-400' : 'text-green-400'}>
+                      {metrics.lcp.value?.toFixed(0)}ms
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Element:</span>
+                    <span>{metrics.lcp.element}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Size:</span>
+                    <span>{(metrics.lcp.size / 1024).toFixed(1)}KB</span>
                   </div>
                 </div>
               </div>
@@ -191,8 +275,33 @@ const PerformanceMonitor = ({ enabled = process.env.NODE_ENV === 'development' }
                     <span>{metrics.resources.images}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span>Image Size:</span>
+                    <span>{(metrics.resources.imageSize / 1024).toFixed(1)}KB</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span>Total Size:</span>
                     <span>{(metrics.resources.totalSize / 1024).toFixed(1)}KB</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Image Cache */}
+            {metrics.imageCache && (
+              <div className="rounded bg-gray-800 p-3">
+                <h4 className="mb-2 font-medium text-green-400">Image Cache</h4>
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span>Cached:</span>
+                    <span>{metrics.imageCache.cached}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Queued:</span>
+                    <span>{metrics.imageCache.queued}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Loading:</span>
+                    <span>{metrics.imageCache.loading}</span>
                   </div>
                 </div>
               </div>
@@ -205,7 +314,13 @@ const PerformanceMonitor = ({ enabled = process.env.NODE_ENV === 'development' }
                 <div className="space-y-1">
                   <div className="flex justify-between">
                     <span>CLS:</span>
-                    <span>{metrics.layoutShifts.cumulative.toFixed(3)}</span>
+                    <span
+                      className={
+                        metrics.layoutShifts.cumulative > 0.1 ? 'text-red-400' : 'text-green-400'
+                      }
+                    >
+                      {metrics.layoutShifts.cumulative.toFixed(3)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Count:</span>
@@ -256,6 +371,13 @@ const calculatePerformanceScore = metrics => {
     score -= 20;
   } else if (metrics.initialLoad?.firstContentfulPaint > 1000) {
     score -= 10;
+  }
+
+  // Deduct points for slow LCP
+  if (metrics.initialLoad?.largestContentfulPaint > 4000) {
+    score -= 25;
+  } else if (metrics.initialLoad?.largestContentfulPaint > 2500) {
+    score -= 15;
   }
 
   // Deduct points for high CLS

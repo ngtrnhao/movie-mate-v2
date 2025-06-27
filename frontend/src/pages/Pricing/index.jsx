@@ -53,14 +53,14 @@ const PricingPage = () => {
           <PlanList icons={planIcons} onSelectPlan={handleSelectPlan} />
         </div>
         {/* Section 2: Detailed Comparison Table */}
-        <div className="mt-20 text-center sm:mt-24">
+        <div className="mt-20 text-center sm:mt-24 text-white">
           <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
             {t('pricing.compareTitle', 'Compare All Features')}
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-white">
             {t('pricing.compareSubtitle', 'A detailed look at what each plan offers.')}
           </p>
-          <p className="mt-2 text-base italic text-gray-400">
+          <p className="mt-2 text-base italic text-white">
             {t('pricing.comparison.slogan', 'See what you get with each plan!')}
           </p>
         </div>

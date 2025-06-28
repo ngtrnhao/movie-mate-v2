@@ -5,7 +5,9 @@ const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {
   const { t } = useTranslation('movies');
 
   const handleTrailerClick = e => {
-    e.preventDefault();
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
     if (onTrailerClick && movie) {
       onTrailerClick(movie);
     }

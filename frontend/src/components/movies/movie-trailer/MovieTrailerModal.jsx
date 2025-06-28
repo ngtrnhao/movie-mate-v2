@@ -1,10 +1,12 @@
 import { X, Play, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 
 const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [embedUrl, setEmbedUrl] = useState(null);
   const iframeRef = useRef(null);
 
   useEffect(() => {
@@ -16,16 +18,12 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
 
       // Convert YouTube watch URL to embed URL if needed
       if (trailerUrl && !trailerUrl.includes('embed')) {
-        const embedUrl = trailerUrl.replace('watch?v=', 'embed/');
-        console.log('MovieTrailerModal - Converting to embed URL:', embedUrl);
-        if (iframeRef.current) {
-          iframeRef.current.src = embedUrl;
-        }
+        const convertedUrl = trailerUrl.replace('watch?v=', 'embed/');
+        console.log('MovieTrailerModal - Converting to embed URL:', convertedUrl);
+        setEmbedUrl(convertedUrl);
       } else if (trailerUrl) {
         console.log('MovieTrailerModal - Using existing embed URL:', trailerUrl);
-        if (iframeRef.current) {
-          iframeRef.current.src = trailerUrl;
-        }
+        setEmbedUrl(trailerUrl);
       } else {
         console.error('MovieTrailerModal - No trailer URL provided');
         setError('No trailer URL available');
@@ -36,8 +34,17 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
       if (iframeRef.current) {
         iframeRef.current.src = '';
       }
+      setEmbedUrl(null);
     }
   }, [isOpen, trailerUrl]);
+
+  // Set iframe src when embedUrl changes
+  useEffect(() => {
+    if (embedUrl && iframeRef.current) {
+      console.log('MovieTrailerModal - Setting iframe src to:', embedUrl);
+      iframeRef.current.src = embedUrl;
+    }
+  }, [embedUrl]);
 
   const handleClose = () => {
     console.log('MovieTrailerModal - Closing modal');
@@ -54,6 +61,46 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
     setError('Failed to load trailer');
     setIsLoading(false);
   };
+
+  // Suppress console errors from ad blockers and tracking
+  useEffect(() => {
+    if (isOpen) {
+      const originalError = console.error;
+      const originalWarn = console.warn;
+
+      // Temporarily suppress tracking-related errors
+      console.error = (...args) => {
+        const message = args[0]?.toString() || '';
+        if (
+          message.includes('ERR_BLOCKED_BY_CLIENT') ||
+          message.includes('play.google.com/log') ||
+          message.includes('youtube.com/youtubei/v1/log_event')
+        ) {
+          // Suppress these specific errors
+          return;
+        }
+        originalError.apply(console, args);
+      };
+
+      console.warn = (...args) => {
+        const message = args[0]?.toString() || '';
+        if (
+          message.includes('ERR_BLOCKED_BY_CLIENT') ||
+          message.includes('play.google.com/log') ||
+          message.includes('youtube.com/youtubei/v1/log_event')
+        ) {
+          // Suppress these specific warnings
+          return;
+        }
+        originalWarn.apply(console, args);
+      };
+
+      return () => {
+        console.error = originalError;
+        console.warn = originalWarn;
+      };
+    }
+  }, [isOpen]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -78,14 +125,14 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
 
   if (!isOpen) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
           onClick={handleClose}
         >
           <motion.div
@@ -131,7 +178,8 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
               ) : (
                 <iframe
                   ref={iframeRef}
-                  src={trailerUrl}
+                  src={embedUrl}
+                  style={{ border: 'none', minHeight: 300, minWidth: 400 }}
                   className="size-full rounded-b-lg"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
@@ -162,7 +210,8 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useEffect } from 'react';
+import { memo, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { useInView } from 'react-intersection-observer';

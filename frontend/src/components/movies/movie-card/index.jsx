@@ -1,5 +1,4 @@
-import React, { memo, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { memo, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Actions from './Actions';
 import Badge from './Badge';
@@ -88,8 +87,12 @@ const MovieCard = memo(
 
     const handleTrailerClick = useCallback(
       e => {
-        e.preventDefault();
-        e.stopPropagation();
+        if (e && e.preventDefault) {
+          e.preventDefault();
+        }
+        if (e && e.stopPropagation) {
+          e.stopPropagation();
+        }
         if (onTrailerClick) {
           onTrailerClick(movieData);
         }
@@ -101,7 +104,7 @@ const MovieCard = memo(
     if (minimal) {
       return (
         <div
-          className="movie-card group relative rounded-lg bg-gray-800 shadow-lg transition-transform will-change-transform hover:scale-105 focus-ring"
+          className="movie-card focus-ring group relative rounded-lg bg-gray-800 shadow-lg transition-transform will-change-transform hover:scale-105"
           style={style}
         >
           <Link to={`/movies/${movieData.id}`} onClick={handleClick}>
@@ -121,7 +124,7 @@ const MovieCard = memo(
 
     // Full rendering với all features
     return (
-      <div className="movie-card group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md focus-ring">
+      <div className="movie-card focus-ring group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md">
         {/* Adult Content Badge */}
         {movieData.adult && <Badge />}
 
@@ -138,7 +141,7 @@ const MovieCard = memo(
 
         {/* Movie Info Section */}
         <div className="flex min-h-[180px] flex-1 flex-col justify-between p-4">
-          <Link to={`/movies/${movieData.id}`} className="block focus-ring rounded">
+          <Link to={`/movies/${movieData.id}`} className="focus-ring block rounded">
             <div>
               <Info
                 title={displayValues.title}
@@ -167,7 +170,7 @@ const MovieCard = memo(
               <Actions movie={movieData} onlyMainButton onTrailerClick={handleTrailerClick} />
               {movieData.match && (
                 <button
-                  className="rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white shadow transition hover:bg-white/20 focus-ring"
+                  className="focus-ring rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white shadow transition hover:bg-white/20"
                   type="button"
                 >
                   Why Recommend?

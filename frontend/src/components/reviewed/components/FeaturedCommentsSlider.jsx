@@ -79,16 +79,16 @@ const FeaturedCommentsSlider = ({ comments }) => {
                         <motion.div
                           animate={{ scale: [1, 1.2, 1] }}
                           transition={{ duration: 2, repeat: Infinity }}
-                          className="absolute -top-1 -right-1 rounded-full bg-blue-500 p-1"
+                          className="absolute -right-1 -top-1 rounded-full bg-blue-500 p-1"
                         >
-                          <Verified className="h-2 w-2 text-white" />
+                          <Verified className="size-2 text-white" />
                         </motion.div>
                       )}
                     </motion.div>
                   </div>
 
                   {/* Movie Poster */}
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <motion.div whileHover={{ scale: 1.05 }} className="relative">
                       <img
                         src={comment.moviePoster}
@@ -100,9 +100,9 @@ const FeaturedCommentsSlider = ({ comments }) => {
                   </div>
 
                   {/* User + Movie Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold text-white text-sm truncate">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2">
+                      <h4 className="truncate text-sm font-semibold text-white">
                         {comment.user.name}
                       </h4>
                       <div className="rounded-full bg-yellow-500/20 px-2 py-0.5">
@@ -112,14 +112,14 @@ const FeaturedCommentsSlider = ({ comments }) => {
                       </div>
                     </div>
 
-                    <h3 className="text-sm font-bold text-blue-400 mb-1">{comment.movie}</h3>
+                    <h3 className="mb-1 text-sm font-bold text-blue-400">{comment.movie}</h3>
 
                     {/* Rating */}
                     <div className="flex items-center gap-1">
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          className={`h-3 w-3 ${
+                          className={`size-3 ${
                             i < comment.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-500'
                           }`}
                         />
@@ -136,7 +136,7 @@ const FeaturedCommentsSlider = ({ comments }) => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 + index * 0.1 }}
-                  className="text-gray-200 leading-relaxed mb-3 text-sm line-clamp-3"
+                  className="mb-3 line-clamp-3 text-sm leading-relaxed text-gray-200"
                 >
                   "{comment.text}"
                 </motion.p>
@@ -148,12 +148,12 @@ const FeaturedCommentsSlider = ({ comments }) => {
                       whileHover={{ scale: 1.1 }}
                       className="flex items-center gap-1 text-pink-400"
                     >
-                      <Heart className="h-3 w-3 fill-current" />
+                      <Heart className="size-3 fill-current" />
                       <span className="font-medium">{comment.likes.toLocaleString()}</span>
                     </motion.div>
 
                     <div className="flex items-center gap-1 text-blue-400">
-                      <MessageCircle className="h-3 w-3" />
+                      <MessageCircle className="size-3" />
                       <span className="font-medium">{comment.replies}</span>
                     </div>
                   </div>
@@ -172,7 +172,7 @@ const FeaturedCommentsSlider = ({ comments }) => {
           onClick={handlePrevSlide}
           className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white backdrop-blur-sm transition-all hover:bg-black/70"
         >
-          <ChevronLeft className="h-5 w-5" />
+          <ChevronLeft className="size-5" />
         </motion.button>
 
         <motion.button
@@ -181,7 +181,7 @@ const FeaturedCommentsSlider = ({ comments }) => {
           onClick={handleNextSlide}
           className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white backdrop-blur-sm transition-all hover:bg-black/70"
         >
-          <ChevronRight className="h-5 w-5" />
+          <ChevronRight className="size-5" />
         </motion.button>
 
         {/* Sparkle Effects */}
@@ -191,7 +191,7 @@ const FeaturedCommentsSlider = ({ comments }) => {
             scale: [1, 1.2, 1],
           }}
           transition={{ duration: 3, repeat: Infinity }}
-          className="absolute top-4 right-4 text-2xl"
+          className="absolute right-4 top-4 text-2xl"
         >
           ✨
         </motion.div>
@@ -230,13 +230,13 @@ const FeaturedCommentsSlider = ({ comments }) => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="absolute top-2 left-2"
+          className="absolute left-2 top-2"
         >
           <div className="flex items-center gap-1 rounded-full bg-green-500/20 px-2 py-1">
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 1, repeat: Infinity }}
-              className="h-2 w-2 rounded-full bg-green-400"
+              className="size-2 rounded-full bg-green-400"
             />
             <span className="text-xs text-green-400">AUTO</span>
           </div>

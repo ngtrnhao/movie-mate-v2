@@ -321,9 +321,10 @@ class VietnamMovieReviewService:
                 avg_rating = reviews.aggregate(avg=models.Avg('rating'))['avg']
                 total_reviews = reviews.count()
 
-                movie.cached_rating = avg_rating
-                movie.total_reviews = total_reviews
-                movie.save(update_fields=['cached_rating', 'total_reviews'])
+                movie.cached_imdb_rating = avg_rating
+                # Note: total_reviews field doesn't exist in model, using comment for tracking
+                movie.comment = f"Total reviews: {total_reviews}"
+                movie.save(update_fields=['cached_imdb_rating', 'comment'])
 
         except Exception as e:
             logger.error(f"Error updating movie ratings: {e}")

@@ -31,6 +31,7 @@ import { logout } from '../../store/slices/authSlice';
 import { setCurrentTab } from '../../store/slices/movieSlice';
 import { useTrailerModal } from '../../hooks/useTrailerModal';
 import { getPrimaryRating } from '../../utils/ratingUtils';
+import { getLocalizedTitle } from '../../utils/titleUtils';
 
 const TABS = [
   { key: 'trending', label: 'latestReleases.tabs.trending' },
@@ -371,7 +372,7 @@ const LandingPage = () => {
               <img
                 key={featuredMovies[currentSlide].id}
                 src={featuredMovies[currentSlide].poster_path || '/placeholder-poster.jpg'}
-                alt={`Poster for ${featuredMovies[currentSlide].title}`}
+                alt={`Poster for ${getLocalizedTitle(featuredMovies[currentSlide], app_language)}`}
                 fetchPriority="high"
                 className="absolute inset-0 size-full object-cover"
               />
@@ -498,13 +499,7 @@ const LandingPage = () => {
                 {t('hero.nowFeaturing')}
               </p>
               <h2 className="mb-2 text-2xl font-bold text-white">
-                {currentMovie?.title}
-                {currentMovie?.original_title &&
-                  currentMovie.original_title !== currentMovie.title && (
-                    <span className="ml-2 text-lg font-normal text-gray-400">
-                      ({currentMovie.original_title})
-                    </span>
-                  )}
+                {getLocalizedTitle(currentMovie, app_language)}
               </h2>
               <div className="mb-4 flex items-center justify-center gap-2">
                 <div className="flex">

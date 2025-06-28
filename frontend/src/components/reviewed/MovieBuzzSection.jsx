@@ -6,7 +6,6 @@ import { Search, Filter, Settings, Flame, TrendingUp, Trophy } from 'lucide-reac
 import HotMovieCard from './components/HotMovieCard';
 import FeaturedCommentsSlider from './components/FeaturedCommentsSlider';
 import LiveCommentsFeed from './components/LiveCommentsFeed';
-import MovieBuzzSidebar from './components/MovieBuzzSidebar';
 
 // Import data
 import movieBuzzData from './movieBuzzData';
@@ -34,7 +33,7 @@ const MovieBuzzSection = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mx-auto w-full max-w-[95vw] min-h-[600px] rounded-3xl border border-gray-700 bg-gray-800/50 p-6 shadow-2xl backdrop-blur-sm"
+          className="mx-auto min-h-[600px] w-full max-w-[95vw] rounded-3xl border border-gray-700 bg-gray-800/50 p-6 shadow-2xl backdrop-blur-sm"
         >
           {/* Compact Header Row */}
           <motion.div
@@ -63,7 +62,7 @@ const MovieBuzzSection = () => {
               </div>
 
               {/* Filter Tabs - Inline with header */}
-              <div className="flex gap-2 ml-8">
+              <div className="ml-8 flex gap-2">
                 {filters.map(filter => (
                   <motion.button
                     key={filter.id}
@@ -90,11 +89,11 @@ const MovieBuzzSection = () => {
                 animate={{ opacity: 1, x: 0 }}
                 className="relative"
               >
-                <Search className="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 size-3 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Tìm kiếm..."
-                  className="w-40 rounded-lg border border-gray-600 bg-gray-800 py-1.5 pl-8 pr-3 text-xs text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                  className="w-40 rounded-lg border border-gray-600 bg-gray-800 py-1.5 pl-8 pr-3 text-xs text-white placeholder:text-gray-400 focus:border-pink-500 focus:outline-none"
                 />
               </motion.div>
 
@@ -103,7 +102,7 @@ const MovieBuzzSection = () => {
                 whileTap={{ scale: 0.95 }}
                 className="rounded-lg border border-gray-600 bg-gray-800 p-1.5 text-gray-300 hover:text-white"
               >
-                <Filter className="h-3 w-3" />
+                <Filter className="size-3" />
               </motion.button>
 
               <motion.button
@@ -111,7 +110,7 @@ const MovieBuzzSection = () => {
                 whileTap={{ scale: 0.95 }}
                 className="rounded-lg border border-gray-600 bg-gray-800 p-1.5 text-gray-300 hover:text-white"
               >
-                <Settings className="h-3 w-3" />
+                <Settings className="size-3" />
               </motion.button>
             </div>
           </motion.div>
@@ -133,20 +132,20 @@ const MovieBuzzSection = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="w-[420px] flex-shrink-0"
+              className="w-[420px] shrink-0"
             >
-              <div className="h-[600px] rounded-xl border border-gray-600 bg-gray-700/30 p-4 flex flex-col">
-                <div className="mb-4 flex items-center gap-2 flex-shrink-0">
-                  <Flame className="h-4 w-4 text-red-500" />
+              <div className="flex h-[600px] flex-col rounded-xl border border-gray-600 bg-gray-700/30 p-4">
+                <div className="mb-4 flex shrink-0 items-center gap-2">
+                  <Flame className="size-4 text-red-500" />
                   <h3 className="text-sm font-semibold text-white">Phim Hot</h3>
                   <div className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
                     {movieBuzzData.hotMovies.length}
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0">
+                <div className="min-h-0 flex-1">
                   <div
-                    className="h-full overflow-y-auto hide-scrollbar"
+                    className="hide-scrollbar h-full overflow-y-auto"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                   >
                     <div className="space-y-3 p-1">
@@ -164,7 +163,7 @@ const MovieBuzzSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="flex-1 flex flex-col h-[600px] "
+              className="flex h-[600px] flex-1 flex-col "
             >
               <div className="flex-1">
                 <LiveCommentsFeed comments={movieBuzzData.liveComments} isLive={!isLivePaused} />
@@ -176,12 +175,12 @@ const MovieBuzzSection = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="w-[380px] flex-shrink-0 flex flex-col gap-4"
+              className="flex w-[380px] shrink-0 flex-col gap-4"
             >
               {/* Enhanced Stats Section */}
               <div className="rounded-xl border border-gray-600 bg-gray-700/30 p-5 ">
                 <div className="mb-4 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-blue-400" />
+                  <TrendingUp className="size-5 text-blue-400" />
                   <h3 className="text-lg font-semibold text-white">Thống Kê Hôm Nay</h3>
                   <motion.div
                     animate={{ scale: [1, 1.2, 1] }}
@@ -197,7 +196,7 @@ const MovieBuzzSection = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50"
+                    className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-lg">💬</span>
@@ -215,7 +214,7 @@ const MovieBuzzSection = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5 }}
-                    className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50"
+                    className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-lg">👥</span>
@@ -233,7 +232,7 @@ const MovieBuzzSection = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50"
+                    className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-lg">⭐</span>
@@ -252,7 +251,7 @@ const MovieBuzzSection = () => {
               {/* Top Contributors */}
               <div className="rounded-xl border border-gray-600 bg-gray-700/30 p-5">
                 <div className="mb-4 flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-yellow-400" />
+                  <Trophy className="size-5 text-yellow-400" />
                   <h3 className="text-lg font-semibold text-white">Top Contributors</h3>
                   <motion.div
                     animate={{ rotate: [0, 10, -10, 0] }}
@@ -270,7 +269,7 @@ const MovieBuzzSection = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 + index * 0.1 }}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-all"
+                      className="flex items-center gap-3 rounded-lg bg-gray-800/30 p-2 transition-all hover:bg-gray-800/50"
                     >
                       <span className="text-2xl">{user.badge}</span>
                       <div className="flex-1">
@@ -299,7 +298,7 @@ const MovieBuzzSection = () => {
             <div className="col-span-8 rounded-xl border border-gray-600 bg-gradient-to-r from-gray-700/40 to-gray-600/30 p-6">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <TrendingUp className="h-5 w-5 text-green-400" />
+                  <TrendingUp className="size-5 text-green-400" />
                   <h3 className="text-lg font-semibold text-white">Thể Loại Đang Hot</h3>
                   <motion.div
                     animate={{ scale: [1, 1.1, 1] }}
@@ -312,14 +311,14 @@ const MovieBuzzSection = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
+                  className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300"
                 >
                   Xem tất cả →
                 </motion.button>
               </div>
 
               {/* Grid layout 3x3 for better space usage */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="mb-4 grid grid-cols-3 gap-3">
                 {movieBuzzData.genreTrending.map((genre, index) => (
                   <motion.div
                     key={genre.genre}
@@ -327,7 +326,7 @@ const MovieBuzzSection = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 * index }}
                     whileHover={{ scale: 1.05, y: -2 }}
-                    className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-800/60 to-gray-900/60 p-4 cursor-pointer transition-all hover:shadow-lg"
+                    className="group relative cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-gray-800/60 to-gray-900/60 p-4 transition-all hover:shadow-lg"
                     style={{
                       boxShadow: `0 0 20px ${genre.color}20`,
                     }}
@@ -345,13 +344,13 @@ const MovieBuzzSection = () => {
                       <div className="mb-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{genre.icon}</span>
-                          <h4 className="text-sm font-bold text-white group-hover:text-white transition-colors">
+                          <h4 className="text-sm font-bold text-white transition-colors group-hover:text-white">
                             {genre.genre}
                           </h4>
                         </div>
                         <motion.div
                           whileHover={{ scale: 1.2 }}
-                          className="text-xs font-bold px-2 py-1 rounded-full"
+                          className="rounded-full px-2 py-1 text-xs font-bold"
                           style={{
                             backgroundColor: `${genre.color}20`,
                             color: genre.color,
@@ -363,12 +362,12 @@ const MovieBuzzSection = () => {
 
                       {/* Enhanced progress bar */}
                       <div className="mb-2">
-                        <div className="relative h-2 rounded-full bg-gray-700 overflow-hidden">
+                        <div className="relative h-2 overflow-hidden rounded-full bg-gray-700">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${genre.percentage}%` }}
                             transition={{ duration: 1.5, delay: 0.2 * index, ease: 'easeOut' }}
-                            className="h-full rounded-full relative"
+                            className="relative h-full rounded-full"
                             style={{ backgroundColor: genre.color }}
                           >
                             {/* Shimmer effect */}
@@ -403,13 +402,13 @@ const MovieBuzzSection = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1 }}
-                className="rounded-lg bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 p-3"
+                className="rounded-lg border border-blue-500/30 bg-gradient-to-r from-blue-900/30 to-purple-900/30 p-3"
               >
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-blue-400">💡</span>
                   <span className="text-gray-300">
                     <strong className="text-blue-400">Action</strong> đang dẫn đầu với
-                    <strong className="text-yellow-400 ml-1">89% popularity</strong> - tăng{' '}
+                    <strong className="ml-1 text-yellow-400">89% popularity</strong> - tăng{' '}
                     <strong className="text-green-400">+12%</strong> so với tuần trước
                   </span>
                 </div>
@@ -435,17 +434,17 @@ const MovieBuzzSection = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
                 whileHover={{ scale: 1.03, backgroundColor: 'rgba(34, 197, 94, 0.1)' }}
-                className="group rounded-xl border border-gray-600 bg-gradient-to-br from-green-900/20 to-gray-700/50 p-4 cursor-pointer transition-all hover:border-green-500/50"
+                className="group cursor-pointer rounded-xl border border-gray-600 bg-gradient-to-br from-green-900/20 to-gray-700/50 p-4 transition-all hover:border-green-500/50"
               >
                 <div className="flex items-center gap-3">
                   <motion.div whileHover={{ scale: 1.2 }} className="text-2xl">
                     👑
                   </motion.div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-white group-hover:text-green-400 transition-colors">
+                    <h4 className="font-semibold text-white transition-colors group-hover:text-green-400">
                       Reviewer của tuần
                     </h4>
-                    <p className="text-xs text-gray-400 mt-1">CinePhile_VN - 47 reviews</p>
+                    <p className="mt-1 text-xs text-gray-400">CinePhile_VN - 47 reviews</p>
                     <div className="mt-2 flex items-center gap-2">
                       <div className="text-sm font-bold text-green-400">+156 điểm</div>
                       <span className="text-xs text-gray-500">tuần này</span>
@@ -460,7 +459,7 @@ const MovieBuzzSection = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
                 whileHover={{ scale: 1.03, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
-                className="group rounded-xl border border-gray-600 bg-gradient-to-br from-red-900/20 to-gray-700/50 p-4 cursor-pointer transition-all hover:border-red-500/50"
+                className="group cursor-pointer rounded-xl border border-gray-600 bg-gradient-to-br from-red-900/20 to-gray-700/50 p-4 transition-all hover:border-red-500/50"
               >
                 <div className="flex items-center gap-3">
                   <motion.div
@@ -472,10 +471,10 @@ const MovieBuzzSection = () => {
                     ❤️
                   </motion.div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-white group-hover:text-red-400 transition-colors">
+                    <h4 className="font-semibold text-white transition-colors group-hover:text-red-400">
                       Bình luận được yêu thích
                     </h4>
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                    <p className="mt-1 line-clamp-2 text-xs text-gray-400">
                       "Avatar 2 thật sự là masterpiece..."
                     </p>
                     <div className="mt-2 flex items-center gap-2">
@@ -492,7 +491,7 @@ const MovieBuzzSection = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.8 }}
                 whileHover={{ scale: 1.03, backgroundColor: 'rgba(168, 85, 247, 0.1)' }}
-                className="group rounded-xl border border-gray-600 bg-gradient-to-br from-purple-900/20 to-gray-700/50 p-4 cursor-pointer transition-all hover:border-purple-500/50"
+                className="group cursor-pointer rounded-xl border border-gray-600 bg-gradient-to-br from-purple-900/20 to-gray-700/50 p-4 transition-all hover:border-purple-500/50"
               >
                 <div className="flex items-center gap-3">
                   <motion.div
@@ -503,10 +502,10 @@ const MovieBuzzSection = () => {
                     ⭐
                   </motion.div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-white group-hover:text-purple-400 transition-colors">
+                    <h4 className="font-semibold text-white transition-colors group-hover:text-purple-400">
                       Rising Star
                     </h4>
-                    <p className="text-xs text-gray-400 mt-1">MovieLover88 - New member</p>
+                    <p className="mt-1 text-xs text-gray-400">MovieLover88 - New member</p>
                     <div className="mt-2 flex items-center gap-2">
                       <div className="text-sm font-bold text-purple-400">+89 likes</div>
                       <span className="text-xs text-gray-500">3 ngày</span>
@@ -521,7 +520,7 @@ const MovieBuzzSection = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.9 }}
                 whileHover={{ scale: 1.03, backgroundColor: 'rgba(249, 115, 22, 0.1)' }}
-                className="group rounded-xl border border-gray-600 bg-gradient-to-br from-orange-900/20 to-gray-700/50 p-4 cursor-pointer transition-all hover:border-orange-500/50"
+                className="group cursor-pointer rounded-xl border border-gray-600 bg-gradient-to-br from-orange-900/20 to-gray-700/50 p-4 transition-all hover:border-orange-500/50"
               >
                 <div className="flex items-center gap-3">
                   <motion.div
@@ -533,10 +532,10 @@ const MovieBuzzSection = () => {
                     🔥
                   </motion.div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-white group-hover:text-orange-400 transition-colors">
+                    <h4 className="font-semibold text-white transition-colors group-hover:text-orange-400">
                       Cuộc thảo luận hot
                     </h4>
-                    <p className="text-xs text-gray-400 mt-1">MCU Phase 5: Có còn hấp dẫn?</p>
+                    <p className="mt-1 text-xs text-gray-400">MCU Phase 5: Có còn hấp dẫn?</p>
                     <div className="mt-2 flex items-center gap-2">
                       <div className="text-sm font-bold text-orange-400">78 replies</div>
                       <span className="text-xs text-gray-500">đang diễn ra</span>

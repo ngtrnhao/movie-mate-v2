@@ -608,7 +608,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """
         try:
             # Cache key for complete details
-            cache_key = f'movie_details_complete_{pk}'
+            cache_key = f'movie_details_complete_v2_{pk}'  # v2 to bust old cache
             cached_data = cache.get(cache_key)
 
             if cached_data:

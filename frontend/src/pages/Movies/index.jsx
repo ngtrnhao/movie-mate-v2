@@ -300,7 +300,7 @@ const MoviesPage = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="text-center">
-          <p className="text-red-400 mb-4">{error.message}</p>
+          <p className="mb-4 text-red-400">{error.message}</p>
           <button
             onClick={() => window.location.reload()}
             className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
@@ -330,7 +330,7 @@ const MoviesPage = () => {
         {/* Header Section */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white text-optimize">
+            <h1 className="text-optimize text-3xl font-bold text-white">
               {t('title', 'Discover Movies')}
             </h1>
             <p className="text-gray-400">
@@ -343,7 +343,7 @@ const MoviesPage = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus-ring"
+              className="focus-ring flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
             >
               {showFilters ? <X size={20} /> : <SlidersHorizontal size={20} />}
               {showFilters ? 'Hide Filters' : 'Show Filters'}
@@ -353,7 +353,7 @@ const MoviesPage = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={resetFilters}
-              className="flex items-center gap-2 rounded-md bg-gray-700 px-4 py-2 text-white transition-colors hover:bg-gray-600 focus-ring"
+              className="focus-ring flex items-center gap-2 rounded-md bg-gray-700 px-4 py-2 text-white transition-colors hover:bg-gray-600"
             >
               Reset
             </motion.button>
@@ -378,7 +378,7 @@ const MoviesPage = () => {
                     placeholder="Search movies..."
                     value={filters.query}
                     onChange={e => handleFilterChange('query', e.target.value)}
-                    className="w-full rounded-md bg-gray-700 py-3 pl-10 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full rounded-md bg-gray-700 py-3 pl-10 pr-4 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
 
@@ -499,7 +499,7 @@ const MoviesPage = () => {
                       placeholder="e.g. 90"
                       value={filters.runtimeMin}
                       onChange={e => handleFilterChange('runtimeMin', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
                   <div>
@@ -512,7 +512,7 @@ const MoviesPage = () => {
                       placeholder="e.g. 180"
                       value={filters.runtimeMax}
                       onChange={e => handleFilterChange('runtimeMax', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
                 </div>

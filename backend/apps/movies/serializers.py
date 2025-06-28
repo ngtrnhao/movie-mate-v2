@@ -17,7 +17,7 @@ class MovieTrailerSerializer(serializers.ModelSerializer):
 class MovieCastSerializer(serializers.ModelSerializer):
     class Meta:
         model = MovieCast
-        fields = ['id', 'name', 'role', 'main_character', 'all_characters', 'order', 'job', 'category', 'imdb_id']
+        fields = ['id', 'name', 'role', 'main_character', 'all_characters', 'order', 'job', 'category', 'imdb_id', 'profile_path']
 
 class OptimizedMovieListSerializer(serializers.ModelSerializer):
     """Optimized serializer for movie list with cached rating fields"""

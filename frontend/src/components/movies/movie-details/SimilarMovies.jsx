@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
-import { Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getPrimaryRating, getRatingBadgeColors } from '../../../utils/ratingUtils';
 

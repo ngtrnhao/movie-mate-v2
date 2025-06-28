@@ -6,10 +6,10 @@ const FeaturedComment = ({ comment }) => {
     return (
       <div className="flex items-center gap-0.5">
         {[...Array(rating)].map((_, i) => (
-          <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+          <Star key={i} className="size-4 fill-yellow-400 text-yellow-400" />
         ))}
         {[...Array(5 - rating)].map((_, i) => (
-          <Star key={i} className="h-4 w-4 text-gray-600" />
+          <Star key={i} className="size-4 text-gray-600" />
         ))}
       </div>
     );
@@ -25,7 +25,7 @@ const FeaturedComment = ({ comment }) => {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Award className="h-5 w-5 text-yellow-400" />
+          <Award className="size-5 text-yellow-400" />
           <h3 className="font-semibold text-yellow-400">Bình luận nổi bật</h3>
         </div>
         <span className="text-xs text-gray-400">{comment.timeAgo}</span>
@@ -37,7 +37,7 @@ const FeaturedComment = ({ comment }) => {
           whileHover={{ scale: 1.1 }}
           src={comment.user.avatar}
           alt={comment.user.name}
-          className="h-12 w-12 rounded-full border-2 border-yellow-400/50"
+          className="size-12 rounded-full border-2 border-yellow-400/50"
         />
         <div className="flex-1">
           <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ const FeaturedComment = ({ comment }) => {
         transition={{ delay: 0.5 }}
         className="mb-4 rounded-lg bg-gray-800/50 p-4"
       >
-        <p className="text-gray-200 leading-relaxed">"{comment.text}"</p>
+        <p className="leading-relaxed text-gray-200">"{comment.text}"</p>
       </motion.div>
 
       {/* Actions */}
@@ -73,7 +73,7 @@ const FeaturedComment = ({ comment }) => {
             whileTap={{ scale: 0.95 }}
             className="flex items-center gap-2 text-red-400 hover:text-red-300"
           >
-            <Heart className={`h-4 w-4 ${comment.isHearted ? 'fill-current' : ''}`} />
+            <Heart className={`size-4 ${comment.isHearted ? 'fill-current' : ''}`} />
             <span className="text-sm font-medium">{comment.likes}</span>
           </motion.button>
 
@@ -82,7 +82,7 @@ const FeaturedComment = ({ comment }) => {
             whileTap={{ scale: 0.95 }}
             className="flex items-center gap-2 text-blue-400 hover:text-blue-300"
           >
-            <MessageSquare className="h-4 w-4" />
+            <MessageSquare className="size-4" />
             <span className="text-sm font-medium">{comment.replies}</span>
           </motion.button>
 
@@ -91,7 +91,7 @@ const FeaturedComment = ({ comment }) => {
             whileTap={{ scale: 0.95 }}
             className="flex items-center gap-2 text-green-400 hover:text-green-300"
           >
-            <Share2 className="h-4 w-4" />
+            <Share2 className="size-4" />
             <span className="text-sm">Chia sẻ</span>
           </motion.button>
         </div>

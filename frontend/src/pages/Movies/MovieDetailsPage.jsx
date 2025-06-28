@@ -116,7 +116,14 @@ const MovieDetailsPage = () => {
     }
   }, [movieId]);
 
-  const handleTrailerClick = (movie, trailerUrl) => {
+  const handleTrailerClick = movie => {
+    // Get trailer URL from movie object
+    const trailers = movie?.trailers || [];
+    const trailer = trailers.find(t => t.type === 'TRAILER') || trailers[0];
+    const trailerUrl = trailer?.youtube_key
+      ? `https://www.youtube.com/watch?v=${trailer.youtube_key}`
+      : null;
+
     setCurrentTrailerUrl(trailerUrl);
     setShowTrailer(true);
   };
@@ -162,41 +169,41 @@ const MovieDetailsPage = () => {
       <HeroSection movie={movie} />
 
       {/* Movie Info and Main Content Section */}
-      <div className="w-full px-4 pt-0 pb-8 relative">
+      <div className="relative w-full px-4 pb-8 pt-0">
         {/* Gradient overlay từ section lên backdrop */}
         <div
-          className="absolute top-0 left-0 right-0 h-32 pointer-events-none z-10"
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-32"
           style={{
             background:
               'linear-gradient(0deg, #18181b 0%, rgba(24,24,27,0.9) 40%, rgba(24,24,27,0.3) 70%, rgba(24,24,27,0.0) 100%)',
           }}
         />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-20">
+        <div className="relative z-20 grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Left Side: Movie Info Card (1/4 width) */}
-          <div className="lg:col-span-1 ml-4">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 text-white space-y-4">
+          <div className="ml-4 lg:col-span-1">
+            <div className="space-y-4 rounded-lg bg-gray-800/50 p-6 text-white backdrop-blur-sm">
               {/* Poster */}
               <div className="relative">
                 <img
                   src={movie.poster_url || movie.poster_path}
                   alt={movie.title}
-                  className="w-full object-cover rounded-lg shadow-2xl"
+                  className="w-full rounded-lg object-cover shadow-2xl"
                   onError={e => {
                     e.target.src = 'https://via.placeholder.com/266x400?text=No+Image';
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-lg"></div>
+                <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/50 to-transparent"></div>
               </div>
 
               {/* Movie Details */}
               <div className="space-y-3">
                 {/* Title */}
                 <div>
-                  <h1 className="text-2xl font-bold mb-1">
+                  <h1 className="mb-1 text-2xl font-bold">
                     {movie.title_vi || movie.title || movie.title_en}
                   </h1>
                   {movie.title_en && movie.title_en !== (movie.title_vi || movie.title) && (
-                    <h2 className="text-sm text-gray-300 italic">{movie.title_en}</h2>
+                    <h2 className="text-sm italic text-gray-300">{movie.title_en}</h2>
                   )}
                 </div>
 
@@ -220,21 +227,21 @@ const MovieDetailsPage = () => {
 
                   {/* Age Rating Badge */}
                   {movie.adult !== undefined && (
-                    <div className="bg-white text-black px-3 py-1 rounded-full text-xs font-bold">
+                    <div className="rounded-full bg-white px-3 py-1 text-xs font-bold text-black">
                       {movie.adult ? '18+' : 'T16'}
                     </div>
                   )}
 
                   {/* Year Badge */}
                   {movie.release_date && (
-                    <div className="bg-gray-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                    <div className="rounded-full bg-gray-600 px-3 py-1 text-xs font-semibold text-white">
                       {new Date(movie.release_date).getFullYear()}
                     </div>
                   )}
 
                   {/* Runtime Badge */}
                   {movie.runtime && (
-                    <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                    <div className="flex items-center gap-1 rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white">
                       <span>🕐</span>
                       <span>
                         {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m
@@ -247,8 +254,8 @@ const MovieDetailsPage = () => {
                 <div className="space-y-3 text-sm">
                   {/* Thời lượng */}
                   {movie.runtime && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300 font-medium">Thời lượng:</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-300">Thời lượng:</span>
                       <span className="text-white">
                         {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m
                       </span>
@@ -258,8 +265,8 @@ const MovieDetailsPage = () => {
                   {/* Quốc gia */}
                   {(movie.production_info?.production_countries?.length > 0 ||
                     movie.production_countries?.length > 0) && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300 font-medium">Quốc gia:</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-300">Quốc gia:</span>
                       <span className="text-white">
                         {movie.production_info?.production_countries?.[0]?.name ||
                           movie.production_info?.production_countries?.[0] ||
@@ -272,9 +279,9 @@ const MovieDetailsPage = () => {
                   {/* Ngôn ngữ */}
                   {(movie.original_language ||
                     movie.production_info?.spoken_languages?.length > 0) && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300 font-medium">Ngôn ngữ:</span>
-                      <span className="text-white uppercase">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-300">Ngôn ngữ:</span>
+                      <span className="uppercase text-white">
                         {movie.original_language ||
                           movie.production_info?.spoken_languages?.[0]?.name ||
                           movie.production_info?.spoken_languages?.[0]}
@@ -284,8 +291,8 @@ const MovieDetailsPage = () => {
 
                   {/* Trạng thái */}
                   {movie.status && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300 font-medium">Trạng thái:</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-300">Trạng thái:</span>
                       <span className="text-white">
                         {movie.status === 'Released'
                           ? 'Đã phát hành'
@@ -301,9 +308,9 @@ const MovieDetailsPage = () => {
                   {/* Sản xuất */}
                   {(movie.production_info?.production_companies?.length > 0 ||
                     movie.production_companies?.length > 0) && (
-                    <div className="flex justify-between items-start">
-                      <span className="text-gray-300 font-medium">Sản xuất:</span>
-                      <span className="text-white text-right max-w-32">
+                    <div className="flex items-start justify-between">
+                      <span className="font-medium text-gray-300">Sản xuất:</span>
+                      <span className="max-w-32 text-right text-white">
                         {(
                           movie.production_info?.production_companies ||
                           movie.production_companies ||
@@ -318,9 +325,9 @@ const MovieDetailsPage = () => {
 
                   {/* Đạo diễn */}
                   {movie.directors && movie.directors.length > 0 && (
-                    <div className="flex justify-between items-start">
-                      <span className="text-gray-300 font-medium">Đạo diễn:</span>
-                      <span className="text-white text-right max-w-32">
+                    <div className="flex items-start justify-between">
+                      <span className="font-medium text-gray-300">Đạo diễn:</span>
+                      <span className="max-w-32 text-right text-white">
                         {movie.directors
                           .slice(0, 2)
                           .map(director => director.name || director)
@@ -336,7 +343,7 @@ const MovieDetailsPage = () => {
                     {movie.genres.slice(0, 3).map((genre, index) => (
                       <span
                         key={index}
-                        className="px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs font-medium"
+                        className="rounded bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm"
                       >
                         {genre.name || genre}
                       </span>
@@ -346,7 +353,7 @@ const MovieDetailsPage = () => {
 
                 {/* Overview */}
                 {(movie.overview_vi || movie.overview_en || movie.overview) && (
-                  <p className="text-sm leading-relaxed text-gray-200 line-clamp-4">
+                  <p className="line-clamp-4 text-sm leading-relaxed text-gray-200">
                     {movie.overview_vi || movie.overview_en || movie.overview}
                   </p>
                 )}

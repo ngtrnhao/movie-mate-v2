@@ -1,35 +1,62 @@
-import { memo, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { memo, useCallback, useMemo, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
+import { useInView } from 'react-intersection-observer';
+import { useThrottledScroll } from '../../../hooks/useThrottledScroll';
 import MovieCard from '../movie-card';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import ErrorMessage from '../../common/ErrorMessage';
 import EmptyState from '../../common/EmptyState';
 import ImagePreloader from '../../common/ImagePreloader';
+import LoadingGrid from '../../common/LoadingGrid';
 
-// Animation variants - memoize để tránh re-render
+// Simplified animation variants - chỉ animate container
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.03, // Giảm delay để load nhanh hơn
+      duration: 0.3, // Giảm duration
     },
-  },
-  exit: { opacity: 0 },
-};
-
-const itemVariants = {
-  hidden: { y: 10, opacity: 0 }, // Giảm y offset để ít layout shift
-  visible: {
-    y: 0,
-    opacity: 1,
   },
 };
 
 const MovieGrid = memo(
-  ({ movies, loading, error, onMovieClick, onTrailerClick, className = '' }) => {
+  ({
+    movies,
+    loading,
+    error,
+    onMovieClick,
+    onTrailerClick,
+    className = '',
+    hasNextPage,
+    fetchNextPage,
+  }) => {
     const { t } = useTranslation('movies');
+
+    // Get scroll state để optimize rendering
+    const { isFastScrolling, isScrolling, scrollSpeed } = useThrottledScroll();
+
+    // Auto infinite scroll với scroll awareness
+    const { ref: loadMoreRef, inView } = useInView({
+      threshold: 0.1,
+      rootMargin: '400px 0px',
+      skip: isFastScrolling, // Skip auto-loading khi scroll quá nhanh
+    });
+
+    // Trigger auto-load với debouncing
+    useEffect(() => {
+      if (inView && hasNextPage && !loading && !isFastScrolling) {
+        const loadTimer = setTimeout(
+          () => {
+            fetchNextPage();
+          },
+          isScrolling ? 300 : 100
+        ); // Delay longer nếu đang scroll
+
+        return () => clearTimeout(loadTimer);
+      }
+    }, [inView, hasNextPage, loading, isFastScrolling, isScrolling, fetchNextPage]);
 
     // Memoize handlers
     const handleMovieClick = useCallback(
@@ -53,6 +80,56 @@ const MovieGrid = memo(
         .map(movie => movie.poster_path)
         .filter(Boolean);
     }, [filteredMovies]);
+
+    // Memoized movies list với scroll-aware rendering
+    const moviesList = useMemo(() => {
+      if (!movies || movies.length === 0) return null;
+
+      // Determine rendering strategy based on scroll speed
+      const renderStrategy = isFastScrolling ? 'minimal' : 'full';
+
+      return movies.map((movie, index) => {
+        // Priority loading cho first visible movies
+        const isPriority = index < 6;
+
+        // Skip complex rendering khi scroll nhanh
+        const shouldRenderFull = renderStrategy === 'full' || isPriority;
+
+        return (
+          <MovieCard
+            key={movie.id}
+            movie={movie}
+            priority={isPriority}
+            minimal={!shouldRenderFull}
+            style={
+              isFastScrolling
+                ? {
+                    // Reduce animations during fast scroll
+                    transition: 'none',
+                    transform: 'translateZ(0)', // Force GPU layer
+                  }
+                : undefined
+            }
+          />
+        );
+      });
+    }, [movies, isFastScrolling]);
+
+    // Container animations với scroll-aware behavior
+    const containerVariants = useMemo(
+      () => ({
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: {
+            // Faster animations khi scroll nhanh
+            duration: isFastScrolling ? 0.2 : 0.6,
+            staggerChildren: isFastScrolling ? 0.02 : 0.1,
+          },
+        },
+      }),
+      [isFastScrolling]
+    );
 
     // Loading state
     if (loading) {
@@ -83,30 +160,52 @@ const MovieGrid = memo(
 
     return (
       <ImagePreloader images={priorityImages}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${className}`}
-          >
-            {filteredMovies.map((movie, index) => (
-              <motion.div
-                key={movie.id}
-                variants={itemVariants}
-                whileHover={{ scale: 1.02 }} // Giảm scale để ít layout shift
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${className}`}
+        >
+          {moviesList}
+        </motion.div>
+
+        {/* Loading state với scroll awareness */}
+        {loading && (
+          <div className="mt-8">
+            <LoadingGrid count={isFastScrolling ? 6 : 12} />
+          </div>
+        )}
+
+        {/* Auto-load trigger với manual fallback */}
+        {hasNextPage && !loading && (
+          <div ref={loadMoreRef} className="mt-8 text-center">
+            {/* Manual load button - visible khi fast scrolling */}
+            {isFastScrolling && (
+              <button
+                onClick={fetchNextPage}
+                className="rounded-lg bg-blue-600 px-6 py-3 text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
-                <MovieCard
-                  movie={movie}
-                  index={index} // Truyền index để priority loading
-                  onClick={() => handleMovieClick(movie)}
-                  onTrailerClick={onTrailerClick}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        </AnimatePresence>
+                Load More Movies
+              </button>
+            )}
+
+            {/* Auto-load indicator */}
+            {!isFastScrolling && (
+              <div className="text-gray-400">
+                <div className="animate-pulse">Loading more movies...</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Scroll performance indicator (debug mode) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="fixed bottom-4 right-4 rounded bg-black/80 p-2 text-xs text-white">
+            <div>Scroll Speed: {scrollSpeed.toFixed(2)}</div>
+            <div>Fast Scroll: {isFastScrolling ? 'Yes' : 'No'}</div>
+            <div>Is Scrolling: {isScrolling ? 'Yes' : 'No'}</div>
+          </div>
+        )}
       </ImagePreloader>
     );
   }

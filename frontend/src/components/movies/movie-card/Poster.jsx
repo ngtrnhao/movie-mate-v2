@@ -1,80 +1,194 @@
 import { memo, useState, useCallback, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { useThrottledScroll } from '../../../hooks/useThrottledScroll';
 
-// Global image cache để tránh load lại
-const imageCache = new Map();
-const preloadQueue = new Set();
+// Simplified image cache và loading queue
+const imageCache = new Set();
+const loadingQueue = new Map(); // Track loading priority
+let activeLoading = 0;
+const MAX_CONCURRENT_LOADING = 3; // Limit concurrent image loads
 
 const Poster = memo(({ posterPath, title, priority = false }) => {
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(priority || imageCache.has(posterPath));
   const [imageError, setImageError] = useState(false);
-  const [currentSrc, setCurrentSrc] = useState('');
 
-  // Tối ưu useInView với rootMargin lớn hơn để preload sớm
+  // Get scroll state để adjust loading behavior
+  const { isFastScrolling, isScrolling } = useThrottledScroll();
+
+  // Optimized useInView với dynamic settings based on scroll speed
   const { ref, inView } = useInView({
     triggerOnce: true,
-    threshold: 0.01, // Giảm threshold để trigger sớm hơn
-    rootMargin: '200px 0px', // Tăng margin để preload sớm hơn
-    skip: false,
+    threshold: isFastScrolling ? 0.3 : 0.1, // Higher threshold khi scroll nhanh
+    rootMargin: isFastScrolling ? '20px 0px' : '50px 0px', // Smaller margin khi scroll nhanh
+    skip: priority, // Skip observer cho priority images
   });
 
-  // Preload image khi inView hoặc priority
-  useEffect(() => {
-    if ((inView || priority) && posterPath && !currentSrc) {
-      // Kiểm tra cache trước
-      if (imageCache.has(posterPath)) {
-        setCurrentSrc(posterPath);
-        setIsImageLoaded(true);
-        return;
-      }
+  const shouldLoadImage = priority || (inView && !isFastScrolling);
 
-      // Preload image
-      if (!preloadQueue.has(posterPath)) {
-        preloadQueue.add(posterPath);
+  // Smart image loading với queue management
+  const loadImageWithQueue = useCallback(
+    imagePath => {
+      return new Promise((resolve, reject) => {
+        // Check cache first
+        if (imageCache.has(imagePath)) {
+          resolve(imagePath);
+          return;
+        }
 
-        const img = new Image();
-        img.onload = () => {
-          imageCache.set(posterPath, posterPath);
-          preloadQueue.delete(posterPath);
-          setCurrentSrc(posterPath);
-          setIsImageLoaded(true);
-        };
-        img.onerror = () => {
-          preloadQueue.delete(posterPath);
-          setImageError(true);
-        };
-        img.src = posterPath;
-      }
+        // Check if already in queue
+        if (loadingQueue.has(imagePath)) {
+          loadingQueue.get(imagePath).callbacks.push({ resolve, reject });
+          return;
+        }
+
+        // Add to queue
+        loadingQueue.set(imagePath, {
+          callbacks: [{ resolve, reject }],
+          priority: priority ? 1 : inView ? 2 : 3,
+          timestamp: Date.now(),
+        });
+
+        // Process queue
+        processImageQueue();
+      });
+    },
+    [priority, inView]
+  );
+
+  // Process image loading queue với concurrency limit
+  const processImageQueue = useCallback(() => {
+    if (activeLoading >= MAX_CONCURRENT_LOADING) return;
+
+    // Sort queue by priority (1 = highest)
+    const sortedQueue = Array.from(loadingQueue.entries()).sort(([, a], [, b]) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return a.timestamp - b.timestamp; // FIFO for same priority
+    });
+
+    for (const [imagePath, queueItem] of sortedQueue) {
+      if (activeLoading >= MAX_CONCURRENT_LOADING) break;
+
+      activeLoading++;
+      loadingQueue.delete(imagePath);
+
+      const img = new Image();
+
+      img.onload = () => {
+        imageCache.add(imagePath);
+        activeLoading--;
+
+        // Resolve all callbacks for this image
+        queueItem.callbacks.forEach(({ resolve }) => resolve(imagePath));
+
+        // Process next in queue
+        if (loadingQueue.size > 0) {
+          setTimeout(processImageQueue, 10);
+        }
+      };
+
+      img.onerror = () => {
+        activeLoading--;
+        queueItem.callbacks.forEach(({ reject }) => reject(new Error('Image load failed')));
+
+        // Process next in queue
+        if (loadingQueue.size > 0) {
+          setTimeout(processImageQueue, 10);
+        }
+      };
+
+      img.src = imagePath;
     }
-  }, [inView, priority, posterPath, currentSrc]);
+  }, []);
+
+  // Load image when conditions are met
+  useEffect(() => {
+    if (shouldLoadImage && posterPath && !isImageLoaded && !imageError) {
+      // Delay loading khi fast scrolling để prevent flooding
+      const delay = isFastScrolling ? 100 : 0;
+
+      const loadTimer = setTimeout(() => {
+        loadImageWithQueue(posterPath)
+          .then(() => {
+            setIsImageLoaded(true);
+          })
+          .catch(() => {
+            setImageError(true);
+          });
+      }, delay);
+
+      return () => clearTimeout(loadTimer);
+    }
+  }, [shouldLoadImage, posterPath, isImageLoaded, imageError, isFastScrolling, loadImageWithQueue]);
+
+  // Handle priority loading immediately
+  useEffect(() => {
+    if (priority && posterPath && !isImageLoaded && !imageError) {
+      loadImageWithQueue(posterPath)
+        .then(() => setIsImageLoaded(true))
+        .catch(() => setImageError(true));
+    }
+  }, [priority, posterPath, isImageLoaded, imageError, loadImageWithQueue]);
 
   const handleImageLoad = useCallback(() => {
-    setIsImageLoaded(true);
-  }, []);
+    if (posterPath) {
+      imageCache.add(posterPath);
+      setIsImageLoaded(true);
+    }
+  }, [posterPath]);
 
   const handleImageError = useCallback(() => {
     setImageError(true);
   }, []);
 
-  // Memoize image className để tránh re-render
-  const imageClassName = useMemo(() => {
-    return `size-full object-cover transition-transform duration-300 will-change-transform group-hover:scale-105 ${
-      isImageLoaded ? 'opacity-100' : 'opacity-0'
-    }`;
-  }, [isImageLoaded]);
+  // Memoize image component với loading state
+  const imageComponent = useMemo(() => {
+    if (!shouldLoadImage && !priority) {
+      // Show placeholder during fast scroll
+      return null;
+    }
 
-  // Memoize placeholder để tránh re-render
-  const placeholder = useMemo(
-    () => (
+    if (!posterPath) return null;
+
+    return (
+      <img
+        src={posterPath}
+        alt={title}
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+        className={`size-full object-cover transition-opacity duration-300 will-change-transform group-hover:scale-105 ${
+          isImageLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        decoding="async"
+      />
+    );
+  }, [
+    shouldLoadImage,
+    priority,
+    posterPath,
+    title,
+    isImageLoaded,
+    handleImageLoad,
+    handleImageError,
+  ]);
+
+  // Optimized placeholder với loading state
+  const placeholder = useMemo(() => {
+    const showSpinner = isScrolling && shouldLoadImage && !isImageLoaded && !imageError;
+
+    return (
       <div className="flex size-full items-center justify-center bg-gray-700">
-        <span className="text-4xl text-gray-400">🎬</span>
+        {showSpinner ? (
+          <div className="animate-spin text-2xl">⭘</div>
+        ) : (
+          <span className="text-4xl text-gray-400">🎬</span>
+        )}
       </div>
-    ),
-    []
-  );
+    );
+  }, [isScrolling, shouldLoadImage, isImageLoaded, imageError]);
 
-  // Memoize error placeholder
+  // Error placeholder
   const errorPlaceholder = useMemo(
     () => (
       <div className="flex size-full items-center justify-center bg-gray-600">
@@ -85,40 +199,23 @@ const Poster = memo(({ posterPath, title, priority = false }) => {
   );
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }} // Giảm duration để load nhanh hơn
-      className="relative aspect-[2/3] w-full overflow-hidden"
-    >
-      {/* Poster Image - Render ngay lập tức nếu priority */}
-      {(priority || inView) && currentSrc && (
-        <img
-          src={currentSrc}
-          alt={title}
-          loading={priority ? 'eager' : 'lazy'}
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-          className={imageClassName}
-          fetchPriority={priority ? 'high' : 'auto'}
-        />
-      )}
+    <div ref={ref} className="relative aspect-[2/3] w-full overflow-hidden">
+      {/* Image component */}
+      {imageComponent}
 
-      {/* Placeholder - Chỉ hiển thị khi chưa load xong */}
+      {/* Placeholder - với smart loading state */}
       {!isImageLoaded && !imageError && placeholder}
 
       {/* Error placeholder */}
       {imageError && errorPlaceholder}
 
-      {/* Hover Overlay */}
+      {/* Hover Overlay với CSS-only animation */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         <div className="absolute inset-x-0 bottom-0 p-4">
           <h3 className="line-clamp-2 text-lg font-semibold text-white">{title}</h3>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
 

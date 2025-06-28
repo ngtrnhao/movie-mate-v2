@@ -122,7 +122,7 @@ function App() {
               <Route
                 path="/"
                 element={
-                  <div className="text-foreground flex min-h-screen flex-col">
+                  <div className="flex min-h-screen flex-col text-foreground">
                     <LandingPage />
                   </div>
                 }
@@ -140,9 +140,9 @@ function App() {
               <Route
                 path="/*"
                 element={
-                  <div className="text-foreground flex min-h-screen flex-col transition-colors duration-200">
+                  <div className="flex min-h-screen flex-col text-foreground transition-colors duration-200">
                     <Header />
-                    <main className="bg-background flex-1 transition-colors duration-200">
+                    <main className="flex-1 bg-background transition-colors duration-200">
                       <Routes>
                         <Route path="/home" element={<HomePage />} />
                         <Route path="/movies" element={<MoviesPage />} />

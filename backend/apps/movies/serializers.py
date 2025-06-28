@@ -17,7 +17,7 @@ class MovieTrailerSerializer(serializers.ModelSerializer):
 class MovieCastSerializer(serializers.ModelSerializer):
     class Meta:
         model = MovieCast
-        fields = ['id', 'name', 'role', 'main_character', 'all_characters', 'order', 'job', 'category', 'imdb_id']
+        fields = ['id', 'name', 'role', 'main_character', 'all_characters', 'order', 'job', 'category', 'imdb_id', 'profile_path']
 
 class OptimizedMovieListSerializer(serializers.ModelSerializer):
     """Optimized serializer for movie list with cached rating fields"""
@@ -94,35 +94,43 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
         return None
 
     def get_vote_average(self, obj):
-        """Use cached rating for performance"""
+        """Use cached rating for performance - Convert 10-star to 5-star scale"""
         try:
+            raw_rating = None
+
             # Try cached fields first
             if obj.combined_rating_score is not None:
-                return float(obj.combined_rating_score)
-            if obj.cached_imdb_rating is not None:
-                return float(obj.cached_imdb_rating)
-            if obj.cached_tmdb_rating is not None:
-                return float(obj.cached_tmdb_rating)
+                raw_rating = float(obj.combined_rating_score)
+            elif obj.cached_imdb_rating is not None:
+                raw_rating = float(obj.cached_imdb_rating)
+            elif obj.cached_tmdb_rating is not None:
+                raw_rating = float(obj.cached_tmdb_rating)
 
             # Fallback to prefetched ratings
-            if hasattr(obj, 'prefetched_ratings') and obj.prefetched_ratings:
+            if raw_rating is None and hasattr(obj, 'prefetched_ratings') and obj.prefetched_ratings:
                 rating = obj.prefetched_ratings[0]
                 if rating.imdb_rating:
-                    return float(rating.imdb_rating)
+                    raw_rating = float(rating.imdb_rating)
                 elif rating.tmdb_rating:
-                    return float(rating.tmdb_rating)
+                    raw_rating = float(rating.tmdb_rating)
                 elif rating.rotten_tomatoes_rating:
-                    return float(rating.rotten_tomatoes_rating)
+                    raw_rating = float(rating.rotten_tomatoes_rating)
 
             # Fallback to database query
-            rating = obj.ratings.first()
-            if rating:
-                if rating.imdb_rating:
-                    return float(rating.imdb_rating)
-                elif rating.tmdb_rating:
-                    return float(rating.tmdb_rating)
-                elif rating.rotten_tomatoes_rating:
-                    return float(rating.rotten_tomatoes_rating)
+            if raw_rating is None:
+                rating = obj.ratings.first()
+                if rating:
+                    if rating.imdb_rating:
+                        raw_rating = float(rating.imdb_rating)
+                    elif rating.tmdb_rating:
+                        raw_rating = float(rating.tmdb_rating)
+                    elif rating.rotten_tomatoes_rating:
+                        raw_rating = float(rating.rotten_tomatoes_rating)
+
+            # Convert from 10-star to 5-star scale
+            if raw_rating is not None:
+                return round(raw_rating / 2, 1)  # Convert 0-10 to 0-5 scale
+
         except (AttributeError, TypeError, ValueError) as e:
             logger.error(f"Error getting vote average for movie {obj.id}: {str(e)}")
         return None

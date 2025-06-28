@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
 import {
   SlidersHorizontal,
   X,
@@ -19,6 +20,7 @@ import MovieCard from '../../components/movies/movie-card';
 import MovieTrailerModal from '../../components/movies/movie-trailer/MovieTrailerModal';
 import { useTrailerModal } from '../../hooks/useTrailerModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useThrottledScroll } from '../../hooks/useThrottledScroll';
 
 const MoviesPage = () => {
   const { t } = useTranslation('movies');
@@ -46,6 +48,15 @@ const MoviesPage = () => {
   // Trailer modal hook
   const { isTrailerOpen, modalMovie, modalTrailerUrl, closeTrailerModal, handleTrailerClick } =
     useTrailerModal();
+
+  // Auto infinite scroll trigger
+  const { ref: infiniteScrollRef, inView } = useInView({
+    threshold: 0.1,
+    rootMargin: '100px',
+  });
+
+  // Get scroll state để apply performance optimizations
+  const { isFastScrolling, isScrolling, scrollSpeed } = useThrottledScroll();
 
   // Enhanced trailer click handler with better error handling
   const handleMovieTrailerClick = useCallback(
@@ -116,17 +127,67 @@ const MoviesPage = () => {
       },
     });
 
-  // Memoized movie list
+  // State to prevent duplicate fetchNextPage calls
+  const [isFetching, setIsFetching] = useState(false);
+
+  // Debounced fetch function to prevent rapid duplicate calls
+  const debouncedFetchNextPage = useCallback(async () => {
+    if (isFetching || isFetchingNextPage || !hasNextPage) {
+      return;
+    }
+
+    setIsFetching(true);
+    try {
+      await fetchNextPage();
+    } catch (error) {
+      console.error('Error fetching next page:', error);
+    } finally {
+      // Reset flag after a short delay to prevent immediate re-triggering
+      setTimeout(() => setIsFetching(false), 1000);
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetching]);
+
+  // Auto fetch next page when infinite scroll trigger is in view (with debouncing)
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage && !isFetching) {
+      debouncedFetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, isFetching, debouncedFetchNextPage]);
+
+  // Memoized movie list với optimized deduplication
   const movies = useMemo(() => {
     if (!data?.pages) return [];
 
-    // Safely extract movies from all pages
-    return data.pages.reduce((allMovies, page) => {
+    // Safely extract movies from all pages với deduplication
+    const allMovies = data.pages.reduce((accumulator, page) => {
       if (page && page.data && Array.isArray(page.data)) {
-        return [...allMovies, ...page.data];
+        return [...accumulator, ...page.data];
       }
-      return allMovies;
+      return accumulator;
     }, []);
+
+    // Debug: Track original vs deduplicated count
+    const originalCount = allMovies.length;
+
+    // Optimized deduplication using Map for O(n) performance
+    const uniqueMoviesMap = new Map();
+    allMovies.forEach(movie => {
+      if (movie && movie.id && !uniqueMoviesMap.has(movie.id)) {
+        uniqueMoviesMap.set(movie.id, movie);
+      }
+    });
+
+    const uniqueMovies = Array.from(uniqueMoviesMap.values());
+
+    // Debug logging cho development (chỉ log khi thực sự có duplicate)
+    if (process.env.NODE_ENV === 'development' && originalCount !== uniqueMovies.length) {
+      console.warn(
+        `[Movies Deduplication] Found ${originalCount - uniqueMovies.length} duplicate movies`
+      );
+      console.log(`Original: ${originalCount}, Unique: ${uniqueMovies.length}`);
+    }
+
+    return uniqueMovies;
   }, [data]);
 
   // Safe count extraction
@@ -196,23 +257,82 @@ const MoviesPage = () => {
     });
   }, []);
 
-  const loadMore = useCallback(() => {
+  // Manual load more function (for fallback button)
+  const loadMore = useCallback(async () => {
     try {
-      if (hasNextPage && !isFetchingNextPage && fetchNextPage) {
-        fetchNextPage();
+      if (hasNextPage && !isFetchingNextPage && !isFetching) {
+        await debouncedFetchNextPage();
       }
     } catch (error) {
       console.error('Error loading more movies:', error);
     }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, isFetching, debouncedFetchNextPage]);
+
+  // Apply fast-scroll CSS class to body
+  useEffect(() => {
+    const body = document.body;
+    if (isFastScrolling) {
+      body.classList.add('fast-scroll-mode');
+    } else {
+      body.classList.remove('fast-scroll-mode');
+    }
+
+    // Cleanup on unmount
+    return () => {
+      body.classList.remove('fast-scroll-mode');
+    };
+  }, [isFastScrolling]);
+
+  // Performance-aware container classes
+  const containerClasses = useMemo(() => {
+    const baseClasses = 'scroll-container min-h-screen bg-gray-900 py-8 pt-20';
+    const performanceClasses = isFastScrolling
+      ? 'fast-scroll-mode'
+      : isScrolling
+        ? 'scrolling-mode'
+        : '';
+
+    return `${baseClasses} ${performanceClasses}`.trim();
+  }, [isFastScrolling, isScrolling]);
+
+  // Error handling
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <p className="mb-4 text-red-400">{error.message}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 py-8 pt-20">
+    <motion.div
+      className={containerClasses}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{
+        duration: isFastScrolling ? 0.1 : 0.6,
+        ease: 'easeOut',
+      }}
+      style={{
+        // Dynamic will-change based on scroll state
+        willChange: isScrolling ? 'transform' : 'auto',
+      }}
+    >
       <div className="container mx-auto px-4">
         {/* Header Section */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">{t('title', 'Discover Movies')}</h1>
+            <h1 className="text-optimize text-3xl font-bold text-white">
+              {t('title', 'Discover Movies')}
+            </h1>
             <p className="text-gray-400">
               {totalCount ? `${totalCount.toLocaleString()} movies found` : 'Loading...'}
             </p>
@@ -223,7 +343,7 @@ const MoviesPage = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
+              className="focus-ring flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
             >
               {showFilters ? <X size={20} /> : <SlidersHorizontal size={20} />}
               {showFilters ? 'Hide Filters' : 'Show Filters'}
@@ -233,7 +353,7 @@ const MoviesPage = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={resetFilters}
-              className="flex items-center gap-2 rounded-md bg-gray-700 px-4 py-2 text-white transition-colors hover:bg-gray-600"
+              className="focus-ring flex items-center gap-2 rounded-md bg-gray-700 px-4 py-2 text-white transition-colors hover:bg-gray-600"
             >
               Reset
             </motion.button>
@@ -258,7 +378,7 @@ const MoviesPage = () => {
                     placeholder="Search movies..."
                     value={filters.query}
                     onChange={e => handleFilterChange('query', e.target.value)}
-                    className="w-full rounded-md bg-gray-700 py-3 pl-10 pr-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full rounded-md bg-gray-700 py-3 pl-10 pr-4 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
 
@@ -379,7 +499,7 @@ const MoviesPage = () => {
                       placeholder="e.g. 90"
                       value={filters.runtimeMin}
                       onChange={e => handleFilterChange('runtimeMin', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
                   <div>
@@ -392,7 +512,7 @@ const MoviesPage = () => {
                       placeholder="e.g. 180"
                       value={filters.runtimeMax}
                       onChange={e => handleFilterChange('runtimeMax', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
                 </div>
@@ -452,22 +572,17 @@ const MoviesPage = () => {
         </AnimatePresence>
 
         {/* Movies Grid */}
-        {error && (
-          <div className="mb-8 rounded-lg bg-red-900/20 border border-red-500 p-4 text-red-400">
-            Error loading movies: {error.message}
-          </div>
-        )}
-
         {isLoading ? (
           <div className="flex justify-center py-12">
             <LoadingSpinner />
           </div>
         ) : (
           <>
-            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {/* Optimized Movies Grid */}
+            <div className="movies-grid grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {movies.map((movie, index) => (
                 <MovieCard
-                  key={`${movie.id}-${index}`}
+                  key={movie.id} // Use only movie.id as key to prevent unnecessary re-renders
                   movie={movie}
                   index={index}
                   onTrailerClick={() => handleMovieTrailerClick(movie)}
@@ -475,9 +590,21 @@ const MoviesPage = () => {
               ))}
             </div>
 
-            {/* Load More Button */}
+            {/* Auto Infinite Scroll Trigger */}
             {hasNextPage && (
-              <div className="mt-8 flex justify-center">
+              <div ref={infiniteScrollRef} className="mt-8 flex justify-center py-4">
+                {isFetchingNextPage && (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <LoadingSpinner />
+                    <span>Loading more movies...</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Manual Load More Fallback (only show if auto-scroll fails) */}
+            {hasNextPage && !inView && movies.length > 20 && (
+              <div className="mt-4 flex justify-center">
                 <button
                   onClick={loadMore}
                   disabled={isFetchingNextPage}
@@ -488,16 +615,30 @@ const MoviesPage = () => {
               </div>
             )}
 
+            {/* End of Results Message */}
             {!hasNextPage && movies.length > 0 && (
               <div className="mt-8 text-center text-gray-400">
-                You've reached the end of the results
+                <div className="inline-flex items-center gap-2 rounded-lg bg-gray-800/50 px-4 py-2">
+                  <span>✨</span>
+                  <span>You've explored all {totalCount.toLocaleString()} movies!</span>
+                </div>
               </div>
             )}
 
+            {/* Empty State */}
             {movies.length === 0 && !isLoading && (
               <div className="py-12 text-center text-gray-400">
-                <p className="text-xl">No movies found</p>
-                <p className="mt-2">Try adjusting your filters</p>
+                <div className="mx-auto max-w-md">
+                  <div className="mb-4 text-6xl">🎬</div>
+                  <p className="text-xl font-semibold text-white">No movies found</p>
+                  <p className="mt-2">Try adjusting your filters or search terms</p>
+                  <button
+                    onClick={resetFilters}
+                    className="mt-4 rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
+                  >
+                    Clear All Filters
+                  </button>
+                </div>
               </div>
             )}
           </>
@@ -510,8 +651,25 @@ const MoviesPage = () => {
           movie={modalMovie}
           trailerUrl={modalTrailerUrl}
         />
+
+        {/* Performance Debug Panel (development only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="scroll-debug">
+            <div>
+              <strong>Scroll Performance Debug</strong>
+            </div>
+            <div>Movies Loaded: {movies.length}</div>
+            <div>Scroll Speed: {scrollSpeed.toFixed(2)}px/ms</div>
+            <div>Fast Scrolling: {isFastScrolling ? 'Yes' : 'No'}</div>
+            <div>Is Scrolling: {isScrolling ? 'Yes' : 'No'}</div>
+            <div>Has Next Page: {hasNextPage ? 'Yes' : 'No'}</div>
+            <div>Fetching (React Query): {isFetchingNextPage ? 'Yes' : 'No'}</div>
+            <div>Debounce Lock: {isFetching ? 'Yes' : 'No'}</div>
+            <div>In View: {inView ? 'Yes' : 'No'}</div>
+          </div>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

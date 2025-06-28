@@ -11,14 +11,14 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
         className="rounded-xl border border-gray-700 bg-gray-800 p-4"
       >
         <div className="mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-blue-400" />
+          <TrendingUp className="size-5 text-blue-400" />
           <h3 className="font-semibold text-white">Thống kê hôm nay</h3>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-pink-400" />
+              <MessageSquare className="size-4 text-pink-400" />
               <span className="text-sm text-gray-300">Bình luận</span>
             </div>
             <div className="text-right">
@@ -29,7 +29,7 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-blue-400" />
+              <Users className="size-4 text-blue-400" />
               <span className="text-sm text-gray-300">User active</span>
             </div>
             <div className="text-right">
@@ -40,7 +40,7 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 text-yellow-400" />
+              <Star className="size-4 text-yellow-400" />
               <span className="text-sm text-gray-300">Đánh giá mới</span>
             </div>
             <div className="text-right">
@@ -70,7 +70,7 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
         className="rounded-xl border border-gray-700 bg-gray-800 p-4"
       >
         <div className="mb-4 flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-yellow-400" />
+          <Trophy className="size-5 text-yellow-400" />
           <h3 className="font-semibold text-white">Top Reviewer</h3>
         </div>
 
@@ -81,11 +81,11 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + index * 0.1 }}
-              className="flex items-center gap-3 rounded-lg bg-gray-700/30 p-3 hover:bg-gray-700/50 transition-colors"
+              className="flex items-center gap-3 rounded-lg bg-gray-700/30 p-3 transition-colors hover:bg-gray-700/50"
             >
               <div className="text-lg">{user.badge}</div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-white truncate">{user.user}</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium text-white">{user.user}</div>
                 <div className="text-xs text-gray-400">{user.achievement}</div>
               </div>
               <div className="text-right">
@@ -118,7 +118,7 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
         className="rounded-xl border border-gray-700 bg-gray-800 p-4"
       >
         <div className="mb-4 flex items-center gap-2">
-          <Zap className="h-5 w-5 text-purple-400" />
+          <Zap className="size-5 text-purple-400" />
           <h3 className="font-semibold text-white">Trending Tags</h3>
         </div>
 
@@ -130,7 +130,7 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 + index * 0.05 }}
               whileHover={{ scale: 1.02 }}
-              className="flex items-center justify-between rounded-lg bg-gray-700/30 p-2 hover:bg-gray-700/50 transition-colors cursor-pointer"
+              className="flex cursor-pointer items-center justify-between rounded-lg bg-gray-700/30 p-2 transition-colors hover:bg-gray-700/50"
             >
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-purple-400">#{tag.tag}</span>
@@ -173,7 +173,7 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full rounded-lg bg-pink-600 py-2 text-sm font-medium text-white hover:bg-pink-500 transition-colors"
+            className="w-full rounded-lg bg-pink-600 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-500"
           >
             ✍️ Viết bình luận
           </motion.button>
@@ -181,7 +181,7 @@ const MovieBuzzSidebar = ({ stats, leaderboard, trendingTags }) => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full rounded-lg border border-purple-600 py-2 text-sm font-medium text-purple-400 hover:bg-purple-600/20 transition-colors"
+            className="w-full rounded-lg border border-purple-600 py-2 text-sm font-medium text-purple-400 transition-colors hover:bg-purple-600/20"
           >
             🎯 Tạo cuộc thảo luận
           </motion.button>

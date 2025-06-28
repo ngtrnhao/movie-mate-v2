@@ -45,26 +45,25 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
   };
 
   const handleWatchNow = () => {
-    const trailerUrl = getTrailerUrl();
-    if (trailerUrl && onTrailerClick) {
-      onTrailerClick(movie, trailerUrl);
+    if (onTrailerClick) {
+      onTrailerClick(movie);
     }
   };
 
   return (
     <div className="space-y-6">
       {/* All Action Buttons in One Row */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex flex-wrap items-center gap-4">
         {/* Trailer Button - Prominent but in same row */}
         {trailers.length > 0 && (
           <button
             onClick={handleWatchNow}
-            className="group relative flex items-center gap-3 rounded-full bg-gradient-to-r from-red-600 via-red-500 to-pink-500 px-6 py-3 text-base font-bold text-white shadow-lg transition-all duration-300 hover:from-red-500 hover:to-pink-400 hover:shadow-xl hover:scale-105"
+            className="group relative flex items-center gap-3 rounded-full bg-gradient-to-r from-red-600 via-red-500 to-pink-500 px-6 py-3 text-base font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-red-500 hover:to-pink-400 hover:shadow-xl"
           >
-            <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-full group-hover:bg-white/30 transition-all duration-300">
+            <div className="flex size-8 items-center justify-center rounded-full bg-white/20 transition-all duration-300 group-hover:bg-white/30">
               <Play size={18} fill="white" className="ml-0.5" />
             </div>
-            <span className="font-bold relative z-10">XEM TRAILER</span>
+            <span className="relative z-10 font-bold">XEM TRAILER</span>
           </button>
         )}
 
@@ -78,7 +77,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
           <Heart
             size={16}
             fill={isLiked ? 'currentColor' : 'none'}
-            className="group-hover:scale-110 transition-transform duration-200"
+            className="transition-transform duration-200 group-hover:scale-110"
           />
           <span>Yêu thích</span>
         </button>
@@ -90,23 +89,23 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             isInWatchlist ? 'text-green-500 hover:text-green-600' : 'text-white hover:text-red-500'
           }`}
         >
-          <Plus size={16} className="group-hover:scale-110 transition-transform duration-200" />
+          <Plus size={16} className="transition-transform duration-200 group-hover:scale-110" />
           <span>Thêm vào</span>
         </button>
 
         {/* Share Button */}
         <button
           onClick={handleShare}
-          className="group flex items-center gap-2 rounded-lg text-white hover:text-red-500 px-4 py-3 text-sm font-medium transition-all duration-200"
+          className="group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:text-red-500"
         >
-          <Share size={16} className="group-hover:scale-110 transition-transform duration-200" />
+          <Share size={16} className="transition-transform duration-200 group-hover:scale-110" />
           <span>Chia sẻ</span>
         </button>
 
         {/* Comment Button */}
-        <button className="group flex items-center gap-2 rounded-lg text-white hover:text-red-500 px-4 py-3 text-sm font-medium transition-all duration-200">
+        <button className="group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:text-red-500">
           <svg
-            className="size-4 group-hover:scale-110 transition-transform duration-200"
+            className="size-4 transition-transform duration-200 group-hover:scale-110"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

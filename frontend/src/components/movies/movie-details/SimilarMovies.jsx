@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
-import { Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getPrimaryRating, getRatingBadgeColors } from '../../../utils/ratingUtils';
 
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 
@@ -16,13 +16,8 @@ const SimilarMovies = ({ movies = [] }) => {
     return `${TMDB_IMAGE_BASE_URL}${path}`;
   };
 
-  const getRating = movie => {
-    if (movie.cached_imdb_rating) return parseFloat(movie.cached_imdb_rating);
-    if (movie.imdb_rating) return parseFloat(movie.imdb_rating);
-    if (movie.cached_tmdb_rating) return parseFloat(movie.cached_tmdb_rating);
-    if (movie.tmdb_rating) return parseFloat(movie.tmdb_rating);
-    if (movie.vote_average) return parseFloat(movie.vote_average);
-    return 0;
+  const getRatingInfo = movie => {
+    return getPrimaryRating(movie);
   };
 
   const getTitle = movie => {
@@ -73,10 +68,20 @@ const SimilarMovies = ({ movies = [] }) => {
                     {getTitle(movie)}
                   </h3>
                   <div className="mt-1 flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <Star className="size-3 fill-yellow-400 text-yellow-400" />
-                      <span className="text-xs text-gray-300">{getRating(movie).toFixed(1)}</span>
-                    </div>
+                    {(() => {
+                      const ratingInfo = getRatingInfo(movie);
+                      if (!ratingInfo) return null;
+
+                      const colors = getRatingBadgeColors(ratingInfo.source);
+                      return (
+                        <div
+                          className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-bold ${colors.bg} ${colors.text}`}
+                        >
+                          <span>{ratingInfo.source}</span>
+                          <span>{ratingInfo.value.toFixed(1)}</span>
+                        </div>
+                      );
+                    })()}
                     {movie.release_date && (
                       <span className="text-xs text-gray-400">
                         {new Date(movie.release_date).getFullYear()}

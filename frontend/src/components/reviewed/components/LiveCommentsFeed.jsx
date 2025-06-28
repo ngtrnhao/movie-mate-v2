@@ -56,15 +56,15 @@ const LiveCommentsFeed = ({ comments, isLive = true }) => {
           display: none;
         }
       `}</style>
-      <div className="rounded-xl border border-gray-700 bg-gray-800 p-4 h-[600px] flex flex-col">
+      <div className="flex h-[600px] flex-col rounded-xl border border-gray-700 bg-gray-800 p-4">
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between flex-shrink-0">
+        <div className="mb-4 flex shrink-0 items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 1, repeat: Infinity }}
-                className="h-3 w-3 rounded-full bg-red-500"
+                className="size-3 rounded-full bg-red-500"
               />
               <h3 className="font-semibold text-white">Live Comments</h3>
             </div>
@@ -80,7 +80,7 @@ const LiveCommentsFeed = ({ comments, isLive = true }) => {
               onClick={() => setIsPaused(!isPaused)}
               className="rounded-lg bg-gray-700 p-2 text-gray-300 hover:text-white"
             >
-              {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+              {isPaused ? <Play className="size-4" /> : <Pause className="size-4" />}
             </motion.button>
 
             <motion.button
@@ -88,14 +88,14 @@ const LiveCommentsFeed = ({ comments, isLive = true }) => {
               whileTap={{ scale: 0.95 }}
               className="rounded-lg bg-gray-700 p-2 text-gray-300 hover:text-white"
             >
-              <RotateCcw className="h-4 w-4" />
+              <RotateCcw className="size-4" />
             </motion.button>
           </div>
         </div>
 
         {/* Live Feed */}
         <div
-          className="space-y-3 flex-1 overflow-y-auto hide-scrollbar"
+          className="hide-scrollbar flex-1 space-y-3 overflow-y-auto"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <AnimatePresence mode="wait">
@@ -106,21 +106,21 @@ const LiveCommentsFeed = ({ comments, isLive = true }) => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3, delay: index * 0.1 }}
-                className="flex items-start gap-3 rounded-lg border border-gray-700/50 bg-gray-700/30 p-3 hover:bg-gray-700/50 transition-colors"
+                className="flex items-start gap-3 rounded-lg border border-gray-700/50 bg-gray-700/30 p-3 transition-colors hover:bg-gray-700/50"
               >
                 {/* Online Indicator */}
                 <motion.div
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ duration: 2, repeat: Infinity, delay: index * 0.2 }}
-                  className="mt-1 h-2 w-2 rounded-full bg-green-500"
+                  className="mt-1 size-2 rounded-full bg-green-500"
                 />
 
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   {/* User Action */}
                   <div className="flex items-center gap-1 text-sm">
                     <span className="font-medium text-blue-400">{comment.user}</span>
                     <span className="text-gray-400">{getCommentTypeText(comment.type)}</span>
-                    <span className="font-medium text-pink-400 truncate">'{comment.movie}'</span>
+                    <span className="truncate font-medium text-pink-400">'{comment.movie}'</span>
                   </div>
 
                   {/* Comment Content */}
@@ -128,13 +128,13 @@ const LiveCommentsFeed = ({ comments, isLive = true }) => {
                     <span className="text-lg">{getCommentIcon(comment.type)}</span>
                     <div className="flex-1">
                       {comment.rating && (
-                        <div className="flex items-center gap-1 mb-1">
+                        <div className="mb-1 flex items-center gap-1">
                           {[...Array(comment.rating)].map((_, i) => (
-                            <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <Star key={i} className="size-3 fill-yellow-400 text-yellow-400" />
                           ))}
                         </div>
                       )}
-                      <p className="text-gray-200 text-sm line-clamp-2">"{comment.text}"</p>
+                      <p className="line-clamp-2 text-sm text-gray-200">"{comment.text}"</p>
                     </div>
                   </div>
 
@@ -144,9 +144,9 @@ const LiveCommentsFeed = ({ comments, isLive = true }) => {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                      className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
                     >
-                      <MessageSquare className="h-3 w-3" />
+                      <MessageSquare className="size-3" />
                       Phản hồi
                     </motion.button>
                   </div>
@@ -160,7 +160,7 @@ const LiveCommentsFeed = ({ comments, isLive = true }) => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-4 flex items-center justify-between text-xs text-gray-400 border-t border-gray-700 pt-3 flex-shrink-0"
+          className="mt-4 flex shrink-0 items-center justify-between border-t border-gray-700 pt-3 text-xs text-gray-400"
         >
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">

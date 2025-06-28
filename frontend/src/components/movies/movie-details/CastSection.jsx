@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { Users, UserX } from 'lucide-react';
@@ -6,11 +7,24 @@ const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 
 const CastSection = ({ cast = [], isLoading = false, error = null }) => {
   const { t } = useTranslation('movies');
+  const [showAllCast, setShowAllCast] = useState(false);
 
   // Handle different data formats from backend
   const getDisplayCast = () => {
     if (!cast || !Array.isArray(cast)) return [];
-    return cast.filter(member => member.role === 'ACTOR' || !member.role).slice(0, 6);
+
+    // Filter actors first
+    const actors = cast.filter(member => member.role === 'ACTOR' || !member.role);
+
+    // Prioritize actors with profile images, then fallback to actors without images
+    const actorsWithImages = actors.filter(actor => actor.profile_path);
+    const actorsWithoutImages = actors.filter(actor => !actor.profile_path);
+
+    // Combine prioritized actors
+    const prioritizedActors = [...actorsWithImages, ...actorsWithoutImages];
+
+    // Return limited or all actors based on showAllCast state
+    return showAllCast ? prioritizedActors : prioritizedActors.slice(0, 6);
   };
 
   const getImageUrl = path => {
@@ -31,6 +45,12 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
   const displayCast = getDisplayCast();
   const hasCast = displayCast && displayCast.length > 0;
 
+  // DEBUG: Log cast data to console (remove this after testing)
+  console.log(
+    '🎭 Cast with images will show first:',
+    displayCast.filter(actor => actor.profile_path).length + ' actors have profile images'
+  );
+
   // Loading state
   if (isLoading) {
     return (
@@ -49,12 +69,12 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
             {[...Array(6)].map((_, index) => (
               <div
                 key={index}
-                className="group relative overflow-hidden rounded-lg bg-gray-800 animate-pulse"
+                className="group relative animate-pulse overflow-hidden rounded-lg bg-gray-800"
               >
                 <div className="aspect-[2/3] w-full bg-gray-700"></div>
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-4">
-                  <div className="h-4 bg-gray-600 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-700 rounded w-3/4"></div>
+                  <div className="mb-2 h-4 rounded bg-gray-600"></div>
+                  <div className="h-3 w-3/4 rounded bg-gray-700"></div>
                 </div>
               </div>
             ))}
@@ -79,16 +99,16 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
           </motion.h2>
 
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <UserX className="w-16 h-16 text-gray-600 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
+            <UserX className="mb-4 size-16 text-gray-600" />
+            <h3 className="mb-2 text-xl font-semibold text-gray-400">
               Không thể tải thông tin diễn viên
             </h3>
-            <p className="text-gray-500 mb-4">
+            <p className="mb-4 text-gray-500">
               Đã xảy ra lỗi khi tải danh sách diễn viên. Vui lòng thử lại sau.
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
             >
               Thử lại
             </button>
@@ -113,8 +133,8 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
           </motion.h2>
 
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Users className="w-16 h-16 text-gray-600 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
+            <Users className="mb-4 size-16 text-gray-600" />
+            <h3 className="mb-2 text-xl font-semibold text-gray-400">
               Chưa có thông tin diễn viên
             </h3>
             <p className="text-gray-500">
@@ -139,14 +159,20 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
           {t('details.cast')}
         </motion.h2>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        <div
+          className={`grid gap-4 ${
+            showAllCast
+              ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+              : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
+          }`}
+        >
           {displayCast.map((actor, index) => (
             <motion.div
               key={actor.cast_id || actor.id || `${actor.name}-${actor.order}-${index}`}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
+              transition={{ delay: showAllCast ? index * 0.05 : index * 0.1 }}
               className="group relative overflow-hidden rounded-lg bg-gray-800"
             >
               <div className="aspect-[2/3] w-full overflow-hidden">
@@ -155,30 +181,35 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
                   alt={actor.name || 'Actor'}
                   className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
                   onError={e => {
-                    e.target.src = 'https://via.placeholder.com/500x750?text=No+Image';
+                    e.target.src = 'https://placehold.co/600x400';
                   }}
                 />
               </div>
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-4">
-                <h3 className="text-sm font-semibold text-white line-clamp-1">
+                <h3 className="line-clamp-1 text-sm font-semibold text-white">
                   {actor.name || 'Unknown Actor'}
                 </h3>
-                <p className="mt-1 text-xs text-gray-300 line-clamp-1">{getCharacterName(actor)}</p>
+                <p className="mt-1 line-clamp-1 text-xs text-gray-300">{getCharacterName(actor)}</p>
               </div>
             </motion.div>
           ))}
         </div>
 
         {/* View All Cast Button */}
-        {cast && cast.length > 6 && (
+        {cast && cast.filter(member => member.role === 'ACTOR' || !member.role).length > 6 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="mt-8 flex justify-center"
           >
-            <button className="rounded-lg border border-white/20 px-6 py-3 text-white hover:bg-white/10 transition-colors">
-              Xem tất cả diễn viên ({cast.length})
+            <button
+              onClick={() => setShowAllCast(!showAllCast)}
+              className="rounded-lg border border-white/20 px-6 py-3 text-white transition-colors hover:border-white/40 hover:bg-white/10"
+            >
+              {showAllCast
+                ? 'Thu gọn diễn viên'
+                : `Xem tất cả diễn viên (${cast.filter(member => member.role === 'ACTOR' || !member.role).length})`}
             </button>
           </motion.div>
         )}

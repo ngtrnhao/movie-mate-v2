@@ -608,7 +608,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """
         try:
             # Cache key for complete details
-            cache_key = f'movie_details_complete_{pk}'
+            cache_key = f'movie_details_complete_v2_{pk}'  # v2 to bust old cache
             cached_data = cache.get(cache_key)
 
             if cached_data:
@@ -896,8 +896,9 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             # Use optimized pagination for large datasets
             try:
                 # For better performance with large datasets, limit the queryset
-                max_results = 10000  # Limit total results to prevent performance issues
+                max_results = 100000  # Limit total results to prevent performance issues
                 limited_queryset = queryset[:max_results]
+
 
                 paginator = Paginator(limited_queryset, page_size)
                 page_obj = paginator.get_page(page)

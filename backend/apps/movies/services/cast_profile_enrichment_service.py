@@ -131,8 +131,8 @@ class CastProfileEnrichmentService:
         # Get popular movies with TMDB ID and high ratings
         popular_movies = Movie.objects.filter(
             tmdb_id__isnull=False,
-            cached_tmdb_rating__gte=7.0
-        ).order_by('-cached_tmdb_rating')[:limit]
+            cached_imdb_rating__gte=7.0
+        ).order_by('-cached_imdb_rating')[:limit]
 
         total_updated = 0
         success_count = 0
@@ -164,8 +164,8 @@ class CastProfileEnrichmentService:
         movies_with_both_ids = Movie.objects.filter(
             imdb_id__isnull=False,
             tmdb_id__isnull=False,
-            cached_tmdb_rating__gte=6.0  # Focus on decent movies
-        ).order_by('-cached_tmdb_rating')[:batch_size]
+            cached_imdb_rating__gte=6.0  # Focus on decent movies
+        ).order_by('-cached_imdb_rating')[:batch_size]
 
         logger.info(f"Found {len(movies_with_both_ids)} movies with both IMDB and TMDB IDs")
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MessageCircle, Send, ThumbsUp, ThumbsDown, MoreHorizontal, Star } from 'lucide-react';
 
 const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showLabel = false }) => {
@@ -60,7 +60,7 @@ const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showL
             >
               <Star
                 size={size}
-                className={`${isActive ? 'text-yellow-400 fill-yellow-400' : 'text-gray-400'} transition-all duration-200`}
+                className={`${isActive ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'} transition-all duration-200`}
               />
             </button>
           );
@@ -70,7 +70,7 @@ const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showL
       {/* Rating Label */}
       {showLabel && (
         <div
-          className={`text-sm font-medium h-[24px] flex items-center justify-center transition-all duration-200 ${currentColor}`}
+          className={`flex h-[24px] items-center justify-center text-sm font-medium transition-all duration-200 ${currentColor}`}
         >
           {currentRating > 0 ? currentLabel : '\u00A0'}
         </div>
@@ -145,13 +145,13 @@ const RatingTab = ({ movieId }) => {
   return (
     <div className="space-y-6">
       {/* Rating Overview */}
-      <div className="bg-gray-800/50 rounded-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="rounded-lg bg-gray-800/50 p-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Average Rating */}
           <div className="text-center">
-            <div className="text-4xl font-bold text-white mb-2">{ratingStats.averageRating}</div>
+            <div className="mb-2 text-4xl font-bold text-white">{ratingStats.averageRating}</div>
             <StarRating rating={ratingStats.averageRating} size={24} />
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="mt-2 text-sm text-gray-400">
               {ratingStats.totalRatings.toLocaleString()} đánh giá
             </p>
           </div>
@@ -177,20 +177,20 @@ const RatingTab = ({ movieId }) => {
 
               return (
                 <div key={stars} className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 w-20">
+                  <div className="flex w-20 items-center gap-1">
                     <span className="text-sm text-gray-300">{stars}</span>
-                    <Star size={14} className="text-yellow-400 fill-yellow-400" />
+                    <Star size={14} className="fill-yellow-400 text-yellow-400" />
                   </div>
-                  <div className="flex-1 bg-gray-700 rounded-full h-2">
+                  <div className="h-2 flex-1 rounded-full bg-gray-700">
                     <div
-                      className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                      className="h-2 rounded-full bg-yellow-400 transition-all duration-300"
                       style={{ width: `${getPercentage(ratingStats.distribution[stars])}%` }}
                     />
                   </div>
-                  <span className="text-xs text-gray-400 w-12 text-right">
+                  <span className="w-12 text-right text-xs text-gray-400">
                     {getPercentage(ratingStats.distribution[stars])}%
                   </span>
-                  <span className={`text-xs w-20 text-left font-medium ${emotionColors[stars]}`}>
+                  <span className={`w-20 text-left text-xs font-medium ${emotionColors[stars]}`}>
                     {emotionLabels[stars]}
                   </span>
                 </div>
@@ -201,13 +201,13 @@ const RatingTab = ({ movieId }) => {
       </div>
 
       {/* User Rating Form */}
-      <div className="bg-gray-800/50 rounded-lg p-4">
-        <h3 className="text-white font-medium mb-4">Đánh giá phim này</h3>
+      <div className="rounded-lg bg-gray-800/50 p-4">
+        <h3 className="mb-4 font-medium text-white">Đánh giá phim này</h3>
 
         <div className="space-y-4">
           <div className="pb-2">
-            <label className="block text-sm text-gray-300 mb-2">Số sao của bạn:</label>
-            <div className="min-h-[80px] flex flex-col items-center">
+            <label className="mb-2 block text-sm text-gray-300">Số sao của bạn:</label>
+            <div className="flex min-h-[80px] flex-col items-center">
               <StarRating
                 rating={userRating}
                 onRatingChange={setUserRating}
@@ -215,9 +215,9 @@ const RatingTab = ({ movieId }) => {
                 size={28}
                 showLabel={true}
               />
-              <div className="h-[20px] flex items-center mt-2">
+              <div className="mt-2 flex h-[20px] items-center">
                 {!userRating && (
-                  <p className="text-xs text-gray-500 italic transition-opacity duration-200">
+                  <p className="text-xs italic text-gray-500 transition-opacity duration-200">
                     Hover để xem mức độ đánh giá
                   </p>
                 )}
@@ -226,21 +226,21 @@ const RatingTab = ({ movieId }) => {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Nhận xét (tùy chọn):</label>
+            <label className="mb-2 block text-sm text-gray-300">Nhận xét (tùy chọn):</label>
             <textarea
               value={ratingComment}
               onChange={e => setRatingComment(e.target.value)}
               placeholder={getPlaceholderText(userRating)}
-              className="w-full bg-gray-700 text-white rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              className="w-full resize-none rounded-lg bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
               rows="3"
               maxLength={500}
             />
-            <div className="flex justify-between items-center mt-2">
+            <div className="mt-2 flex items-center justify-between">
               <span className="text-xs text-gray-400">{ratingComment.length} / 500</span>
               <button
                 onClick={handleSubmitRating}
                 disabled={userRating === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black text-sm font-medium rounded-lg transition-colors"
+                className="flex items-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-600"
               >
                 <Star size={16} />
                 Gửi đánh giá
@@ -252,26 +252,26 @@ const RatingTab = ({ movieId }) => {
 
       {/* Recent Ratings */}
       <div className="space-y-4">
-        <h3 className="text-white font-medium">Đánh giá gần đây</h3>
+        <h3 className="font-medium text-white">Đánh giá gần đây</h3>
         {recentRatings.map(rating => (
-          <div key={rating.id} className="bg-gray-800/30 rounded-lg p-4">
+          <div key={rating.id} className="rounded-lg bg-gray-800/30 p-4">
             <div className="flex items-start gap-3">
               <img
                 src={rating.user.avatar}
                 alt={rating.user.name}
-                className="w-10 h-10 rounded-full object-cover"
+                className="size-10 rounded-full object-cover"
                 onError={e => {
                   e.target.src = `https://ui-avatars.com/api/?name=${rating.user.name}&background=random&color=fff&size=40`;
                 }}
               />
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="mb-2 flex items-center gap-2">
                   <span className="font-medium text-white">{rating.user.name}</span>
                   <StarRating rating={rating.rating} size={16} />
-                  <span className="text-gray-400 text-xs">{rating.createdAt}</span>
+                  <span className="text-xs text-gray-400">{rating.createdAt}</span>
                 </div>
                 {rating.comment && (
-                  <p className="text-gray-200 text-sm leading-relaxed">{rating.comment}</p>
+                  <p className="text-sm leading-relaxed text-gray-200">{rating.comment}</p>
                 )}
               </div>
             </div>
@@ -356,9 +356,9 @@ const CommentTab = ({ movieId }) => {
   return (
     <div className="space-y-6">
       {/* Comment Input */}
-      <div className="bg-gray-800/50 rounded-lg p-4">
-        <p className="text-gray-300 text-sm mb-4">
-          Vui lòng <span className="text-yellow-400 cursor-pointer hover:underline">đăng nhập</span>{' '}
+      <div className="rounded-lg bg-gray-800/50 p-4">
+        <p className="mb-4 text-sm text-gray-300">
+          Vui lòng <span className="cursor-pointer text-yellow-400 hover:underline">đăng nhập</span>{' '}
           để tham gia bình luận.
         </p>
 
@@ -368,16 +368,16 @@ const CommentTab = ({ movieId }) => {
               value={newComment}
               onChange={e => setNewComment(e.target.value)}
               placeholder="Viết bình luận"
-              className="w-full bg-gray-700 text-white rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              className="w-full resize-none rounded-lg bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
               rows="3"
               maxLength={1000}
             />
-            <div className="flex justify-between items-center mt-2">
+            <div className="mt-2 flex items-center justify-between">
               <span className="text-xs text-gray-400">{newComment.length} / 1000</span>
               <button
                 onClick={handleSubmitComment}
                 disabled={!newComment.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black text-sm font-medium rounded-lg transition-colors"
+                className="flex items-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-600"
               >
                 <Send size={16} />
                 Gửi
@@ -390,32 +390,32 @@ const CommentTab = ({ movieId }) => {
       {/* Comment List */}
       <div className="space-y-4">
         {reviews.slice(0, showMore ? reviews.length : 3).map(review => (
-          <div key={review.id} className="bg-gray-800/30 rounded-lg p-4">
+          <div key={review.id} className="rounded-lg bg-gray-800/30 p-4">
             <div className="flex items-start gap-3">
               <div className="relative">
                 <img
                   src={review.user.avatar}
                   alt={review.user.name}
-                  className="w-10 h-10 rounded-full object-cover"
+                  className="size-10 rounded-full object-cover"
                   onError={e => {
                     e.target.src = `https://ui-avatars.com/api/?name=${review.user.name}&background=random&color=fff&size=40`;
                   }}
                 />
                 {review.user.isVerified && (
-                  <span className="absolute -top-1 -right-1 text-xs">{review.user.badge}</span>
+                  <span className="absolute -right-1 -top-1 text-xs">{review.user.badge}</span>
                 )}
               </div>
 
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="mb-1 flex items-center gap-2">
                   <span className="font-medium text-white">{review.user.name}</span>
                   {review.user.isVerified && (
-                    <span className="text-yellow-400 text-xs">{review.user.badge}</span>
+                    <span className="text-xs text-yellow-400">{review.user.badge}</span>
                   )}
-                  <span className="text-gray-400 text-xs">{review.createdAt}</span>
+                  <span className="text-xs text-gray-400">{review.createdAt}</span>
                 </div>
 
-                <p className="text-gray-200 text-sm mb-3 leading-relaxed">{review.content}</p>
+                <p className="mb-3 text-sm leading-relaxed text-gray-200">{review.content}</p>
 
                 <div className="flex items-center gap-4">
                   <button
@@ -438,9 +438,9 @@ const CommentTab = ({ movieId }) => {
                     {review.dislikes > 0 && review.dislikes}
                   </button>
 
-                  <button className="text-gray-400 hover:text-gray-300 text-xs">Trả lời</button>
+                  <button className="text-xs text-gray-400 hover:text-gray-300">Trả lời</button>
 
-                  <button className="text-gray-400 hover:text-gray-300 ml-auto">
+                  <button className="ml-auto text-gray-400 hover:text-gray-300">
                     <MoreHorizontal size={16} />
                   </button>
                 </div>
@@ -453,7 +453,7 @@ const CommentTab = ({ movieId }) => {
           <div className="text-center">
             <button
               onClick={() => setShowMore(!showMore)}
-              className="text-yellow-400 hover:text-yellow-300 text-sm font-medium"
+              className="text-sm font-medium text-yellow-400 hover:text-yellow-300"
             >
               {showMore ? '△ 1 bình luận' : `▽ ${reviews.length - 3} bình luận khác`}
             </button>
@@ -483,7 +483,7 @@ const MovieReviewSection = ({ movieId }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   activeTab === tab.id
                     ? 'bg-yellow-500 text-black'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'

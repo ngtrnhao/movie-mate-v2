@@ -74,7 +74,7 @@ const HeroSection = ({ movie }) => {
         />
 
         {/* Overlay làm tối */}
-        <div className="absolute inset-0 bg-gray-900/20 z-10"></div>
+        <div className="absolute inset-0 z-10 bg-gray-900/20"></div>
 
         {/* Dot Grid Overlay */}
         <div className="bg-dot-grid absolute inset-0 z-20"></div>

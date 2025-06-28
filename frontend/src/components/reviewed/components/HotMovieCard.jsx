@@ -10,11 +10,11 @@ const HotMovieCard = ({ movie }) => {
     return (
       <div className="flex items-center gap-0.5">
         {[...Array(fullStars)].map((_, i) => (
-          <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+          <Star key={i} className="size-3 fill-yellow-400 text-yellow-400" />
         ))}
-        {hasHalfStar && <Star className="h-3 w-3 fill-yellow-400/50 text-yellow-400" />}
+        {hasHalfStar && <Star className="size-3 fill-yellow-400/50 text-yellow-400" />}
         {[...Array(emptyStars)].map((_, i) => (
-          <Star key={i} className="h-3 w-3 text-gray-600" />
+          <Star key={i} className="size-3 text-gray-600" />
         ))}
         <span className="ml-1 text-xs text-gray-400">{rating}</span>
       </div>
@@ -38,14 +38,14 @@ const HotMovieCard = ({ movie }) => {
           animate={{ opacity: 1, scale: 1 }}
           className="absolute -right-2 -top-2 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-1 text-xs font-medium text-white"
         >
-          <Flame className="h-3 w-3" />
+          <Flame className="size-3" />
           Hot
         </motion.div>
       )}
 
       <div className="flex gap-3">
         {/* Movie Poster */}
-        <motion.div whileHover={{ scale: 1.05 }} className="flex-shrink-0">
+        <motion.div whileHover={{ scale: 1.05 }} className="shrink-0">
           <img src={movie.poster} alt={movie.title} className="h-24 w-16 rounded-lg object-cover" />
         </motion.div>
 
@@ -73,7 +73,7 @@ const HotMovieCard = ({ movie }) => {
 
           {/* Comment Count */}
           <div className="flex items-center gap-1 text-pink-400">
-            <MessageSquare className="h-3 w-3" />
+            <MessageSquare className="size-3" />
             <span className="text-xs font-medium">{movie.commentCount}</span>
           </div>
         </div>
@@ -87,7 +87,7 @@ const HotMovieCard = ({ movie }) => {
         className="mt-3 rounded-lg bg-gray-700/50 p-2"
       >
         <div className="flex items-center gap-2 text-xs text-gray-400">
-          <div className="h-2 w-2 rounded-full bg-green-500"></div>
+          <div className="size-2 rounded-full bg-green-500"></div>
           <span className="font-medium text-gray-300">{movie.latestComment.user}</span>
           <span>• {movie.latestComment.timeAgo}</span>
         </div>

@@ -2,6 +2,176 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom scrollbar for webkit browsers
+::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+  min-height: 60px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #374151;
+}
+
+::-webkit-scrollbar-corner {
+  background: #1f2937;
+  border-radius: 6px;
+} */
+
+/* Enhanced scrollbar cho containers khác */
+.scroll-container::-webkit-scrollbar {
+  width: 26px;
+  height: 26px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  min-height: 80px;
+}
+
+/* Responsive scrollbar cho mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    min-height: 40px;
+  }
+
+  .scroll-container::-webkit-scrollbar {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Enhanced scrollbar cho touch devices */
+@media (hover: none) and (pointer: coarse) {
+  ::-webkit-scrollbar {
+    width: 20px;
+    height: 20px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    min-height: 50px;
+  }
+}
+
+/* Firefox scrollbar fallback */
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: thick;
+    scrollbar-color: #4b5563 #1f2937;
+  }
+
+  .scroll-container {
+    scrollbar-width: thick;
+    scrollbar-color: #4b5563 #1f2937;
+  }
+}
+
+/* Performance optimizations for smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* GPU acceleration for movie cards */
+.movie-card {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+  transition: transform 0.2s ease-out;
+}
+
+.movie-card:hover {
+  transform: scale(1.02) translateZ(0);
+}
+
+/* Optimize image rendering */
+.movie-poster {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.movie-poster img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Smooth animations with reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .movie-card:hover {
+    transform: none;
+  }
+}
+
+/* Optimize scroll container */
+.scroll-container {
+  contain: layout style paint;
+  will-change: scroll-position;
+}
+
+/* Optimize grid layout */
+.movies-grid {
+  contain: layout style;
+  will-change: auto;
+}
+
+/* Intersection observer optimization */
+.lazy-load {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.lazy-load.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Focus styles for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900;
+}
+
+/* Loading spinner optimization */
+.spinner {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Typography optimization */
+.text-optimize {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 @layer base {
   :root {
     --background: 222.2 84% 4.9%;
@@ -44,4 +214,208 @@
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* ===== SCROLL PERFORMANCE OPTIMIZATIONS ===== */
+
+/* Scroll container optimization - prevent layout thrashing */
+.scroll-container {
+  /* CSS containment để isolate layout/style changes */
+  contain: layout style paint;
+
+  /* Hardware acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+
+  /* Smooth scrolling với performance consideration */
+  scroll-behavior: smooth;
+
+  /* Optimize scroll performance */
+  overflow-anchor: none; /* Prevent scroll anchoring issues */
+  overscroll-behavior: contain; /* Prevent bounce effects */
+}
+
+/* Movies grid optimization */
+.movies-grid {
+  /* CSS containment cho grid container */
+  contain: layout style;
+
+  /* GPU layer cho better performance */
+  will-change: transform;
+
+  /* Grid optimization */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+
+  /* Prevent grid jumps during image loading */
+  align-items: start;
+}
+
+/* Movie card performance optimizations */
+.movie-card {
+  /* Hardware acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+
+  /* CSS containment */
+  contain: layout style paint;
+
+  /* Optimized transitions - chỉ transform để avoid layout thrashing */
+  transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+
+  /* Prevent text selection during fast scroll */
+  user-select: none;
+  -webkit-user-select: none;
+
+  /* Memory optimization */
+  image-rendering: optimizeSpeed;
+}
+
+/* Hover effects với GPU acceleration */
+.movie-card:hover {
+  transform: translateZ(0) scale(1.05);
+}
+
+/* Intersection observer optimization */
+.movie-card[data-in-view="false"] {
+  /* Reduced rendering cho off-screen cards */
+  content-visibility: auto;
+  contain-intrinsic-size: 270px; /* Aspect ratio 2:3 with width 180px */
+}
+
+/* Fast scroll mode optimizations */
+.fast-scroll-mode .movie-card {
+  /* Disable animations during fast scroll */
+  transition: none !important;
+  animation: none !important;
+}
+
+.fast-scroll-mode .movie-card * {
+  /* Disable all child animations */
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Loading skeleton optimization */
+.loading-skeleton {
+  /* Hardware acceleration cho pulse animation */
+  transform: translateZ(0);
+
+  /* Optimized pulse animation */
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Image loading optimization */
+.poster-image {
+  /* Hardware acceleration */
+  transform: translateZ(0);
+
+  /* Optimize image rendering */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+
+  /* Prevent layout shift */
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-container {
+    scroll-behavior: auto;
+  }
+
+  .movie-card {
+    transition: none;
+  }
+
+  .movie-card:hover {
+    transform: translateZ(0);
+  }
+
+  .loading-skeleton {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* High performance mode cho old devices */
+@media (max-width: 768px) and (-webkit-max-device-pixel-ratio: 1) {
+  .movie-card {
+    /* Disable scale transform trên low-end devices */
+    transform: translateZ(0);
+  }
+
+  .movie-card:hover {
+    transform: translateZ(0);
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .movie-card:hover {
+    /* Disable hover effects trên touch devices */
+    transform: translateZ(0);
+  }
+
+  .movie-card {
+    /* Better touch targets */
+    min-height: 48px;
+  }
+}
+
+/* Scroll performance debugging (development only) */
+.scroll-debug {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Memory optimization cho large lists */
+.virtual-grid {
+  /* Contain painting và layout để improve performance */
+  contain: strict;
+
+  /* Set fixed dimensions để help browser optimize */
+  height: 100vh;
+  overflow: auto;
+}
+
+/* Focus management improvements */
+.focus-ring:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Text optimization cho better rendering */
+.text-optimize {
+  /* Improve text rendering performance */
+  text-rendering: optimizeSpeed;
+  font-smooth: never;
+  -webkit-font-smoothing: none;
+}
+
+/* Container queries support (future-proofing) */
+@container (width > 768px) {
+  .movies-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
 }

@@ -1,6 +1,37 @@
-# Getting Started with Create React App
+# Movie Mate Frontend
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+## 📋 Table of Contents
+
+- [Available Scripts](#available-scripts)
+- [Performance Optimization Guides](#performance-optimization-guides)
+- [Learn More](#learn-more)
+
+## 🚀 Performance Optimization Guides
+
+### Core Performance Documentation
+
+- **[FAST_SCROLL_LAG_SOLUTIONS.md](./FAST_SCROLL_LAG_SOLUTIONS.md)** - 📖 **COMPREHENSIVE GUIDE** covering:
+  - **Part 1**: Fast scroll lag solutions (throttling, queuing, CSS optimization)
+  - **Part 2**: React duplicate keys warnings & infinite scroll optimization
+- **[SCROLL_PERFORMANCE_OPTIMIZATIONS.md](./SCROLL_PERFORMANCE_OPTIMIZATIONS.md)** - General scroll performance improvements
+
+### Specific Optimization Areas
+
+- **[LCP_OPTIMIZATION_GUIDE.md](./LCP_OPTIMIZATION_GUIDE.md)** - Largest Contentful Paint optimization
+- **[IMAGE_OPTIMIZATION_GUIDE.md](./IMAGE_OPTIMIZATION_GUIDE.md)** - Image loading and optimization strategies
+
+### Integration Guides
+
+- **[PROPELLER_ADS_INTEGRATION.md](./PROPELLER_ADS_INTEGRATION.md)** - Ad integration with performance considerations
+- **[TRAILER_INTEGRATION_GUIDE.md](./TRAILER_INTEGRATION_GUIDE.md)** - Movie trailer modal integration
+
+### 🎯 Quick Performance Fixes
+
+1. **Fast Scroll Lag + Duplicate Keys Warning**: See [Complete Fast Scroll Guide](./FAST_SCROLL_LAG_SOLUTIONS.md) for end-to-end solution (Part 1 + Part 2)
+2. **General Scroll Issues**: Check [Scroll Performance Guide](./SCROLL_PERFORMANCE_OPTIMIZATIONS.md)
+3. **Image Loading Issues**: Reference [Image Optimization Guide](./IMAGE_OPTIMIZATION_GUIDE.md)
 
 ## Available Scripts
 

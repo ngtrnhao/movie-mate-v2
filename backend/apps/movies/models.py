@@ -179,18 +179,34 @@ class Movie(models.Model):
             bool: True if update was successful
         """
         try:
-            if "en" in titles:
+            # Chỉ update các trường thiếu, không thay đổi slug
+            updated_fields = []
+            
+            if "en" in titles and (not self.title_en or self.title_en.strip() == ''):
                 self.title_en = titles["en"]
-                # Update default title if it's empty or same as current title
+                updated_fields.append('title_en')
+                
+                # Update default title nếu nó trống hoặc giống title_vi
                 if not self.title or self.title == self.title_vi:
                     self.title = titles["en"]
+                    updated_fields.append('title')
 
-            if "vi" in titles:
+            if "vi" in titles and (not self.title_vi or self.title_vi.strip() == ''):
                 self.title_vi = titles["vi"]
+                updated_fields.append('title_vi')
 
-            self.last_title_sync = timezone.now()
-            self.save()
-            return True
+            # Chỉ update nếu có thay đổi
+            if updated_fields:
+                self.last_title_sync = timezone.now()
+                updated_fields.append('last_title_sync')
+                
+                # Sử dụng update_fields để chỉ update các trường cần thiết
+                self.save(update_fields=updated_fields)
+                return True
+            else:
+                # Không có gì để update
+                return True
+                
         except Exception as e:
             logger.error(f"Error updating movie titles: {str(e)}")
             return False
@@ -222,7 +238,11 @@ class Movie(models.Model):
             bool: True if update was successful
         """
         try:
-            # Clear existing genres
+            # Chỉ update nếu chưa có genres
+            if self.genres.count() > 0:
+                return True  # Đã có genres, không cần update
+                
+            # Clear existing genres (nếu có)
             MovieGenre.objects.filter(movie=self).delete()
 
             # Add new genres
@@ -235,7 +255,7 @@ class Movie(models.Model):
                     MovieGenre.objects.create(movie=self, genre=genre)
 
             self.last_genre_sync = timezone.now()
-            self.save()
+            self.save(update_fields=['last_genre_sync'])
             return True
         except Exception as e:
             logger.error(f"Error updating movie genres: {str(e)}")

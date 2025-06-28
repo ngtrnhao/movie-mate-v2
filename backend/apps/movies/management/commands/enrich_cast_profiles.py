@@ -35,24 +35,26 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         service = CastProfileEnrichmentService()
 
-        # Show current stats
-        total_cast = MovieCast.objects.count()
-        cast_with_profiles = MovieCast.objects.filter(profile_path__isnull=False).count()
-        movies_with_tmdb = Movie.objects.filter(tmdb_id__isnull=False).count()
+        # Chỉ hiển thị stats khi không phải single movie mode
+        if not options['movie_id']:
+            # Show current stats
+            total_cast = MovieCast.objects.count()
+            cast_with_profiles = MovieCast.objects.filter(profile_path__isnull=False).count()
+            movies_with_tmdb = Movie.objects.filter(tmdb_id__isnull=False).count()
 
-        self.stdout.write(f"📊 Current Status:")
-        self.stdout.write(f"   Total cast members: {total_cast:,}")
-        self.stdout.write(f"   With profiles: {cast_with_profiles:,}")
-        self.stdout.write(f"   Missing profiles: {total_cast - cast_with_profiles:,}")
-        self.stdout.write(f"   Movies with TMDB ID: {movies_with_tmdb:,}")
-        self.stdout.write("")
+            self.stdout.write(f"📊 Current Status:")
+            self.stdout.write(f"   Total cast members: {total_cast:,}")
+            self.stdout.write(f"   With profiles: {cast_with_profiles:,}")
+            self.stdout.write(f"   Missing profiles: {total_cast - cast_with_profiles:,}")
+            self.stdout.write(f"   Movies with TMDB ID: {movies_with_tmdb:,}")
+            self.stdout.write("")
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("🔍 DRY RUN MODE - No changes will be made"))
             return
 
         if options['movie_id']:
-            # Process specific movie
+            # Process specific movie - không cần stats
             movie_id = options['movie_id']
             self.stdout.write(f"🎬 Enriching cast for movie ID: {movie_id}")
 
@@ -68,6 +70,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.ERROR(f"❌ Failed: {result['error']}")
                 )
+            return  # Thoát sớm, không cần final stats
 
         elif options.get('popular'):
             # Process popular movies
@@ -101,20 +104,23 @@ class Command(BaseCommand):
                     )
                 )
 
-        # Final stats
-        new_cast_with_profiles = MovieCast.objects.filter(profile_path__isnull=False).count()
-        newly_added = new_cast_with_profiles - cast_with_profiles
+        # Final stats - chỉ hiển thị khi không phải single movie mode
+        if not options['movie_id']:
+            total_cast = MovieCast.objects.count()
+            cast_with_profiles = MovieCast.objects.filter(profile_path__isnull=False).count()
+            new_cast_with_profiles = MovieCast.objects.filter(profile_path__isnull=False).count()
+            newly_added = new_cast_with_profiles - cast_with_profiles
 
-        self.stdout.write("")
-        self.stdout.write(f"📈 Results:")
-        self.stdout.write(f"   Profiles added: {newly_added:,}")
-        self.stdout.write(f"   Total with profiles: {new_cast_with_profiles:,}")
-        if total_cast > 0:
-            completion = (new_cast_with_profiles/total_cast)*100
-            self.stdout.write(f"   Completion: {completion:.1f}%")
+            self.stdout.write("")
+            self.stdout.write(f"📈 Results:")
+            self.stdout.write(f"   Profiles added: {newly_added:,}")
+            self.stdout.write(f"   Total with profiles: {new_cast_with_profiles:,}")
+            if total_cast > 0:
+                completion = (new_cast_with_profiles/total_cast)*100
+                self.stdout.write(f"   Completion: {completion:.1f}%")
 
-        self.stdout.write("")
-        self.stdout.write("💡 Next steps:")
-        self.stdout.write("   1. Run with --popular 100 for more movies")
-        self.stdout.write("   2. Check frontend to see profile images")
-        self.stdout.write("   3. Consider running as Celery task for large batches")
+            self.stdout.write("")
+            self.stdout.write("💡 Next steps:")
+            self.stdout.write("   1. Run with --popular 100 for more movies")
+            self.stdout.write("   2. Check frontend to see profile images")
+            self.stdout.write("   3. Consider running as Celery task for large batches")

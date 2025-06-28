@@ -8,6 +8,7 @@ import {
   getMovieDetailsParallel,
 } from '../../api/movieService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { getPrimaryRating, getRatingBadgeColors } from '../../utils/ratingUtils';
 
 // Import existing components
 import HeroSection from './components/HeroSection';
@@ -201,12 +202,21 @@ const MovieDetailsPage = () => {
 
                 {/* Quick Info Badges */}
                 <div className="flex flex-wrap gap-2">
-                  {/* IMDb Rating Badge */}
-                  {(movie.cached_imdb_rating || movie.vote_average) && (
-                    <div className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold">
-                      IMDb {(movie.cached_imdb_rating || movie.vote_average).toFixed(1)}
-                    </div>
-                  )}
+                  {/* Rating Badge - Using Shared Rating Utility */}
+                  {(() => {
+                    const ratingInfo = getPrimaryRating(movie);
+                    if (!ratingInfo) return null;
+
+                    const colors = getRatingBadgeColors(ratingInfo.source);
+                    return (
+                      <div
+                        className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold ${colors.bg} ${colors.text}`}
+                      >
+                        <span>{ratingInfo.source}</span>
+                        <span>{ratingInfo.value.toFixed(1)}</span>
+                      </div>
+                    );
+                  })()}
 
                   {/* Age Rating Badge */}
                   {movie.adult !== undefined && (

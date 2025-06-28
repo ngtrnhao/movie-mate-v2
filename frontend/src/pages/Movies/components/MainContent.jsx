@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Users, Settings, Image, Heart } from 'lucide-react';
+import { getPrimaryRating, getRatingBadgeColors } from '../../../utils/ratingUtils';
 
 // Import existing components to reuse
 import CastSection from '../../../components/movies/movie-details/CastSection';
@@ -330,26 +331,18 @@ const RecommendTabSection = ({ similarMovies }) => (
                 </h4>
                 <div className="mt-1 flex items-center gap-2">
                   {(() => {
-                    // Handle different rating formats
-                    let ratingValue = null;
+                    const ratingInfo = getPrimaryRating(movie);
+                    if (!ratingInfo) return null;
 
-                    if (typeof movie.rating === 'number') {
-                      ratingValue = movie.rating;
-                    } else if (movie.rating && typeof movie.rating === 'object') {
-                      ratingValue =
-                        movie.rating.imdb || movie.rating.tmdb || movie.rating.combined_score;
-                    } else if (movie.cached_imdb_rating) {
-                      ratingValue = parseFloat(movie.cached_imdb_rating);
-                    } else if (movie.vote_average) {
-                      ratingValue = parseFloat(movie.vote_average);
-                    }
-
-                    return ratingValue && ratingValue > 0 ? (
-                      <div className="flex items-center gap-1">
-                        <span className="text-yellow-400">★</span>
-                        <span className="text-xs text-gray-300">{ratingValue.toFixed(1)}</span>
+                    const colors = getRatingBadgeColors(ratingInfo.source);
+                    return (
+                      <div
+                        className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-bold ${colors.bg} ${colors.text}`}
+                      >
+                        <span>{ratingInfo.source}</span>
+                        <span>{ratingInfo.value.toFixed(1)}</span>
                       </div>
-                    ) : null;
+                    );
                   })()}
                   {movie.release_date && (
                     <span className="text-xs text-gray-400">

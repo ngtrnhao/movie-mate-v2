@@ -259,17 +259,13 @@ class Movie(models.Model):
                 self.cached_tmdb_rating = rating.tmdb_rating
                 self.cached_tmdb_votes = rating.tmdb_votes
 
-                # Calculate combined rating score (weighted average)
-                ratings = []
+                # Use single rating as combined score (priority: IMDB > TMDB > RT)
                 if rating.imdb_rating:
-                    ratings.append(float(rating.imdb_rating) * 0.5)  # IMDB weight 50%
-                if rating.tmdb_rating:
-                    ratings.append(float(rating.tmdb_rating) * 0.3)  # TMDB weight 30%
-                if rating.rotten_tomatoes_rating:
-                    ratings.append(float(rating.rotten_tomatoes_rating) * 0.2)  # RT weight 20%
-
-                if ratings:
-                    self.combined_rating_score = sum(ratings) / len(ratings)
+                    self.combined_rating_score = rating.imdb_rating
+                elif rating.tmdb_rating:
+                    self.combined_rating_score = rating.tmdb_rating
+                elif rating.rotten_tomatoes_rating:
+                    self.combined_rating_score = rating.rotten_tomatoes_rating
                 else:
                     self.combined_rating_score = None
 

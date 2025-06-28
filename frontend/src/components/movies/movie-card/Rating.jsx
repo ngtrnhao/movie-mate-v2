@@ -5,18 +5,18 @@ const Rating = memo(({ rating, voteAverage, voteCount }) => {
   const { t } = useTranslation('movies');
 
   const mainRating = useMemo(() => {
-    if (rating?.tmdb && rating?.tmdb_votes > 0) {
-      return {
-        value: rating.tmdb,
-        votes: rating.tmdb_votes,
-        source: 'TMDB',
-      };
-    }
     if (rating?.imdb && rating?.imdb_votes > 0) {
       return {
         value: rating.imdb,
         votes: rating.imdb_votes,
         source: 'IMDb',
+      };
+    }
+    if (rating?.tmdb && rating?.tmdb_votes > 0) {
+      return {
+        value: rating.tmdb,
+        votes: rating.tmdb_votes,
+        source: 'TMDB',
       };
     }
     if (voteAverage && voteCount > 0) {
@@ -31,6 +31,7 @@ const Rating = memo(({ rating, voteAverage, voteCount }) => {
 
   const starRating = useMemo(() => {
     if (!mainRating?.value) return 0;
+    // Convert from 10-star to 5-star scale for star display
     return Math.round(mainRating.value / 2);
   }, [mainRating]);
 
@@ -52,7 +53,11 @@ const Rating = memo(({ rating, voteAverage, voteCount }) => {
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-      <div className="flex items-center gap-1" title={`${mainRating.value.toFixed(1)} / 10`}>
+      {/* Stars Display */}
+      <div
+        className="flex items-center gap-1"
+        title={`${(mainRating.value / 2).toFixed(1)} / 5 stars`}
+      >
         {[1, 2, 3, 4, 5].map(star => (
           <span
             key={star}
@@ -64,18 +69,21 @@ const Rating = memo(({ rating, voteAverage, voteCount }) => {
           </span>
         ))}
       </div>
-      <div className="flex items-center gap-2 text-gray-400">
-        <span className="font-bold text-white">{mainRating.value.toFixed(1)}</span>
-        <span>({formattedVoteCount})</span>
-        <span
-          className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${
-            mainRating.source === 'IMDb'
-              ? 'bg-yellow-500/20 text-yellow-400'
-              : 'bg-blue-500/20 text-blue-400'
+
+      {/* Rating inside Source Icon */}
+      <div className="flex items-center gap-2">
+        <div
+          className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold ${
+            mainRating.source === 'IMDb' ? 'bg-yellow-500 text-black' : 'bg-blue-500 text-white'
           }`}
+          title={`${mainRating.source} Rating: ${mainRating.value.toFixed(1)}/10`}
         >
-          {mainRating.source}
-        </span>
+          <span>{mainRating.source}</span>
+          <span className="font-bold">{mainRating.value.toFixed(1)}</span>
+        </div>
+
+        {/* Vote Count */}
+        <span className="text-gray-400">({formattedVoteCount})</span>
       </div>
     </div>
   );

@@ -30,6 +30,7 @@ import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { logout } from '../../store/slices/authSlice';
 import { setCurrentTab } from '../../store/slices/movieSlice';
 import { useTrailerModal } from '../../hooks/useTrailerModal';
+import { getPrimaryRating } from '../../utils/ratingUtils';
 
 const TABS = [
   { key: 'trending', label: 'latestReleases.tabs.trending' },
@@ -507,23 +508,26 @@ const LandingPage = () => {
               </h2>
               <div className="mb-4 flex items-center justify-center gap-2">
                 <div className="flex">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <span
-                      key={star}
-                      className={`text-lg ${
-                        star <= Math.round((currentMovie?.vote_average || 0) / 2)
-                          ? 'text-yellow-400'
-                          : 'text-gray-400'
-                      }`}
-                    >
-                      ★
-                    </span>
-                  ))}
+                  {[1, 2, 3, 4, 5].map(star => {
+                    const ratingInfo = getPrimaryRating(currentMovie);
+                    const starRating = ratingInfo ? Math.round(ratingInfo.value / 2) : 0;
+                    return (
+                      <span
+                        key={star}
+                        className={`text-lg ${
+                          star <= starRating ? 'text-yellow-400' : 'text-gray-400'
+                        }`}
+                      >
+                        ★
+                      </span>
+                    );
+                  })}
                 </div>
                 <span className="ml-1 font-medium text-white">
-                  {currentMovie?.vote_average
-                    ? `${Math.round(currentMovie.vote_average / 2)}/5`
-                    : 'N/A'}
+                  {(() => {
+                    const ratingInfo = getPrimaryRating(currentMovie);
+                    return ratingInfo ? `${Math.round(ratingInfo.value / 2)}/5` : 'N/A';
+                  })()}
                 </span>
                 <span className="text-gray-400">
                   | {new Date(currentMovie?.release_date).getFullYear()}

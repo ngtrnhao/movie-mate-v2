@@ -1,4 +1,5 @@
-import { memo, useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Actions from './Actions';
 import Badge from './Badge';
@@ -7,10 +8,19 @@ import Poster from './Poster';
 import Rating from './Rating';
 import RecommendedInfo from './RecommendedInfo';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
+import animationCache from '../../../utils/animationCache';
+
+// Slide up animation variants
+const posterVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
+};
 
 const MovieCard = memo(
   ({ movie, index = 0, onClick, onTrailerClick, priority = false, minimal = false, style }) => {
     const { i18n } = useTranslation();
+    const [posterLoaded, setPosterLoaded] = useState(false);
+    const [hasAnimated, setHasAnimated] = useState(animationCache.isMovieAnimated(movie.id));
 
     // Memoize stable movie data to prevent re-calculations
     const movieData = useMemo(
@@ -100,85 +110,136 @@ const MovieCard = memo(
       [movieData, onTrailerClick]
     );
 
+    // Mark movie as animated when it comes into view
+    const handleAnimationComplete = useCallback(() => {
+      if (!hasAnimated && movie.id) {
+        animationCache.markMovieAnimated(movie.id);
+        setHasAnimated(true);
+      }
+    }, [hasAnimated, movie.id]);
+
     // Minimal rendering cho fast scroll - chỉ hiển thị poster và title
     if (minimal) {
+      if (posterLoaded) {
+        return (
+          <motion.div
+            variants={hasAnimated ? {} : posterVariants}
+            initial={hasAnimated ? 'visible' : 'hidden'}
+            whileInView={hasAnimated ? undefined : 'visible'}
+            viewport={hasAnimated ? undefined : { once: true, amount: 0.2 }}
+            onAnimationComplete={handleAnimationComplete}
+            className="movie-card focus-ring group relative rounded-lg bg-gray-800 shadow-lg transition-transform will-change-transform hover:scale-105"
+            style={style}
+          >
+            <Link to={`/movies/${movieData.id}`} onClick={handleClick}>
+              <Poster
+                posterPath={movieData.poster_path}
+                title={movieData.title}
+                priority={priority}
+                onLoadDone={() => setPosterLoaded(true)}
+              />
+              {/* Simplified title overlay */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                <h3 className="line-clamp-1 text-sm font-medium text-white">{movieData.title}</h3>
+              </div>
+            </Link>
+          </motion.div>
+        );
+      }
       return (
         <div
           className="movie-card focus-ring group relative rounded-lg bg-gray-800 shadow-lg transition-transform will-change-transform hover:scale-105"
           style={style}
         >
-          <Link to={`/movies/${movieData.id}`} onClick={handleClick}>
-            <Poster
-              posterPath={movieData.poster_path}
-              title={movieData.title}
-              priority={priority}
-            />
-            {/* Simplified title overlay */}
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-              <h3 className="line-clamp-1 text-sm font-medium text-white">{movieData.title}</h3>
-            </div>
-          </Link>
+          <Poster
+            posterPath={movieData.poster_path}
+            title={movieData.title}
+            priority={priority}
+            onLoadDone={() => setPosterLoaded(true)}
+          />
         </div>
       );
     }
 
     // Full rendering với all features
-    return (
-      <div className="movie-card focus-ring group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md">
-        {/* Adult Content Badge */}
-        {movieData.adult && <Badge />}
+    if (posterLoaded) {
+      return (
+        <motion.div
+          variants={hasAnimated ? {} : posterVariants}
+          initial={hasAnimated ? 'visible' : 'hidden'}
+          whileInView={hasAnimated ? undefined : 'visible'}
+          viewport={hasAnimated ? undefined : { once: true, amount: 0.2 }}
+          onAnimationComplete={handleAnimationComplete}
+          className="movie-card focus-ring group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md"
+        >
+          {/* Adult Content Badge */}
+          {movieData.adult && <Badge />}
 
-        {/* Movie Poster with Link */}
-        <Link to={`/movies/${movieData.id}`} className="block" onClick={handleClick}>
-          <div className="movie-poster">
-            <Poster
-              posterPath={movieData.poster_path}
-              title={displayValues.title}
-              priority={isPriority}
-            />
-          </div>
-        </Link>
-
-        {/* Movie Info Section */}
-        <div className="flex min-h-[180px] flex-1 flex-col justify-between p-4">
-          <Link to={`/movies/${movieData.id}`} className="focus-ring block rounded">
-            <div>
-              <Info
+          {/* Movie Poster with Link */}
+          <Link to={`/movies/${movieData.id}`} className="block" onClick={handleClick}>
+            <div className="movie-poster">
+              <Poster
+                posterPath={movieData.poster_path}
                 title={displayValues.title}
-                originalTitle={movieData.original_title}
-                releaseDate={movieData.release_date}
-                runtime={movieData.runtime}
-                overview={displayValues.overview}
-                genres={displayValues.genres}
-                isPopular={movieData.is_popular}
-                isTopRated={movieData.is_top_rated}
-                isUpcoming={movieData.is_upcoming}
-              />
-              <RecommendedInfo
-                match={movieData.match}
-                recommendReason={movieData.recommendReason}
-              />
-              <Rating
-                rating={movieData.rating}
-                voteAverage={movieData.vote_average}
-                voteCount={movieData.vote_count}
+                priority={isPriority}
+                onLoadDone={() => setPosterLoaded(true)}
               />
             </div>
           </Link>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="flex flex-1 gap-2">
-              <Actions movie={movieData} onlyMainButton onTrailerClick={handleTrailerClick} />
-              {movieData.match && (
-                <button
-                  className="focus-ring rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white shadow transition hover:bg-white/20"
-                  type="button"
-                >
-                  Why Recommend?
-                </button>
-              )}
+
+          {/* Movie Info Section */}
+          <div className="flex min-h-[180px] flex-1 flex-col justify-between p-4">
+            <Link to={`/movies/${movieData.id}`} className="focus-ring block rounded">
+              <div>
+                <Info
+                  title={displayValues.title}
+                  originalTitle={movieData.original_title}
+                  releaseDate={movieData.release_date}
+                  runtime={movieData.runtime}
+                  overview={displayValues.overview}
+                  genres={displayValues.genres}
+                  isPopular={movieData.is_popular}
+                  isTopRated={movieData.is_top_rated}
+                  isUpcoming={movieData.is_upcoming}
+                />
+                <RecommendedInfo
+                  match={movieData.match}
+                  recommendReason={movieData.recommendReason}
+                />
+                <Rating
+                  rating={movieData.rating}
+                  voteAverage={movieData.vote_average}
+                  voteCount={movieData.vote_count}
+                />
+              </div>
+            </Link>
+            <div className="mt-3 flex items-center gap-2">
+              <div className="flex flex-1 gap-2">
+                <Actions movie={movieData} onlyMainButton onTrailerClick={handleTrailerClick} />
+                {movieData.match && (
+                  <button
+                    className="focus-ring rounded bg-white/10 px-3 py-2 text-xs font-semibold text-white shadow transition hover:bg-white/20"
+                    type="button"
+                  >
+                    Why Recommend?
+                  </button>
+                )}
+              </div>
+              <Actions movie={movieData} onlyBookmark />
             </div>
-            <Actions movie={movieData} onlyBookmark />
           </div>
+        </motion.div>
+      );
+    }
+    return (
+      <div className="movie-card focus-ring group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md">
+        <div className="movie-poster">
+          <Poster
+            posterPath={movieData.poster_path}
+            title={displayValues.title}
+            priority={isPriority}
+            onLoadDone={() => setPosterLoaded(true)}
+          />
         </div>
       </div>
     );
@@ -187,7 +248,6 @@ const MovieCard = memo(
     // Custom comparison function để tránh unnecessary re-renders
     return (
       prevProps.movie?.id === nextProps.movie?.id &&
-      prevProps.index === nextProps.index &&
       prevProps.movie?.poster_path === nextProps.movie?.poster_path &&
       prevProps.movie?.title === nextProps.movie?.title &&
       prevProps.movie?.vote_average === nextProps.movie?.vote_average &&

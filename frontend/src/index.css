@@ -138,7 +138,7 @@
 
 /* Optimize grid layout */
 .movies-grid {
-  contain: layout style;
+  contain: layout style paint;
   will-change: auto;
 }
 
@@ -417,5 +417,33 @@ code {
 @container (width > 768px) {
   .movies-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
+/* Performance optimizations for resize */
+.movies-grid {
+  contain: layout style paint;
+  will-change: auto;
+}
+
+/* Prevent layout shift during resize */
+.movies-grid > * {
+  contain: layout style paint;
+}
+
+/* Optimize grid transitions */
+@media (prefers-reduced-motion: no-preference) {
+  .movies-grid {
+    transition: none;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .movies-grid,
+  .movies-grid > * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

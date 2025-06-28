@@ -40,7 +40,7 @@ const MovieGrid = memo(
     // Auto infinite scroll với scroll awareness
     const { ref: loadMoreRef, inView } = useInView({
       threshold: 0.1,
-      rootMargin: '400px 0px',
+      rootMargin: '800px 0px',
       skip: isFastScrolling, // Skip auto-loading khi scroll quá nhanh
     });
 
@@ -101,6 +101,7 @@ const MovieGrid = memo(
             movie={movie}
             priority={isPriority}
             minimal={!shouldRenderFull}
+            onClick={handleMovieClick}
             style={
               isFastScrolling
                 ? {
@@ -110,10 +111,11 @@ const MovieGrid = memo(
                   }
                 : undefined
             }
+            onTrailerClick={onTrailerClick}
           />
         );
       });
-    }, [movies, isFastScrolling]);
+    }, [movies, isFastScrolling, onTrailerClick]);
 
     // Container animations với scroll-aware behavior
     const containerVariants = useMemo(
@@ -122,13 +124,12 @@ const MovieGrid = memo(
         visible: {
           opacity: 1,
           transition: {
-            // Faster animations khi scroll nhanh
-            duration: isFastScrolling ? 0.2 : 0.6,
-            staggerChildren: isFastScrolling ? 0.02 : 0.1,
+            duration: 0.2,
+            staggerChildren: 0,
           },
         },
       }),
-      [isFastScrolling]
+      []
     );
 
     // Loading state
@@ -165,6 +166,7 @@ const MovieGrid = memo(
           initial="hidden"
           animate="visible"
           className={`grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${className}`}
+          transition={{ duration: 0 }}
         >
           {moviesList}
         </motion.div>
@@ -172,7 +174,7 @@ const MovieGrid = memo(
         {/* Loading state với scroll awareness */}
         {loading && (
           <div className="mt-8">
-            <LoadingGrid count={isFastScrolling ? 6 : 12} />
+            <LoadingGrid count={6} />
           </div>
         )}
 

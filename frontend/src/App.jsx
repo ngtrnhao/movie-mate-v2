@@ -25,7 +25,7 @@ import { rehydrateAuth } from './store/slices/authSlice';
 import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
-import PerformanceMonitor from './components/common/PerformanceMonitor';
+// import PerformanceMonitor from './components/common/PerformanceMonitor';
 // import AdDisplayTest from './components/ads/AdDisplayTest';
 // import AdFrequencyStatus from './components/common/AdFrequencyStatus';
 // import AdWaitMessage from './components/common/AdWaitMessage';
@@ -175,7 +175,7 @@ function App() {
               />
             </Routes>
 
-            <PerformanceMonitor />
+            {/* <PerformanceMonitor /> */}
 
             {/* Ad Display Test - chỉ hiển thị trong development */}
             {/* <AdDisplayTest /> */}

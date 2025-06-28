@@ -12,6 +12,7 @@ import {
   Clock,
   Eye,
   EyeOff,
+  ArrowUp,
 } from 'lucide-react';
 import { searchMovies } from '../../api/movieService';
 import { useCategories } from '../../hooks/useCategories';
@@ -21,10 +22,12 @@ import MovieTrailerModal from '../../components/movies/movie-trailer/MovieTraile
 import { useTrailerModal } from '../../hooks/useTrailerModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useThrottledScroll } from '../../hooks/useThrottledScroll';
+import animationCache from '../../utils/animationCache';
 
 const MoviesPage = () => {
   const { t } = useTranslation('movies');
   const [showFilters, setShowFilters] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [genres, setGenres] = useState([]);
   const [filters, setFilters] = useState({
     genres: [],
@@ -49,14 +52,43 @@ const MoviesPage = () => {
   const { isTrailerOpen, modalMovie, modalTrailerUrl, closeTrailerModal, handleTrailerClick } =
     useTrailerModal();
 
-  // Auto infinite scroll trigger
+  // Get scroll state để apply performance optimizations
+  const { isFastScrolling, isScrolling } = useThrottledScroll();
+
+  // Auto infinite scroll trigger với scroll awareness
   const { ref: infiniteScrollRef, inView } = useInView({
     threshold: 0.1,
-    rootMargin: '100px',
+    rootMargin: '600px 0px', // Trigger sớm hơn để load trước khi user scroll đến cuối
+    skip: isFastScrolling, // Skip auto-loading khi scroll quá nhanh
   });
 
-  // Get scroll state để apply performance optimizations
-  const { isFastScrolling, isScrolling, scrollSpeed } = useThrottledScroll();
+  // Track scroll position để hiển thị back to top button với debounce
+  useEffect(() => {
+    let timeoutId;
+
+    const handleScroll = () => {
+      // Debounce scroll events để tránh lag khi resize
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const scrollY = window.scrollY;
+        setShowBackToTop(scrollY > 800);
+      }, 16); // ~60fps
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  // Back to top function
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  }, []);
 
   // Enhanced trailer click handler with better error handling
   const handleMovieTrailerClick = useCallback(
@@ -130,7 +162,7 @@ const MoviesPage = () => {
   // State to prevent duplicate fetchNextPage calls
   const [isFetching, setIsFetching] = useState(false);
 
-  // Debounced fetch function to prevent rapid duplicate calls
+  // Debounced fetch function với scroll-aware behavior
   const debouncedFetchNextPage = useCallback(async () => {
     if (isFetching || isFetchingNextPage || !hasNextPage) {
       return;
@@ -138,21 +170,25 @@ const MoviesPage = () => {
 
     setIsFetching(true);
     try {
+      // Delay thông minh dựa trên scroll speed
+      const delay = isFastScrolling ? 200 : isScrolling ? 100 : 50;
+
+      await new Promise(resolve => setTimeout(resolve, delay));
       await fetchNextPage();
     } catch (error) {
       console.error('Error fetching next page:', error);
     } finally {
-      // Reset flag after a short delay to prevent immediate re-triggering
-      setTimeout(() => setIsFetching(false), 1000);
+      // Reset flag sau delay để tránh re-triggering ngay lập tức
+      setTimeout(() => setIsFetching(false), 500);
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetching]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetching, isFastScrolling, isScrolling]);
 
-  // Auto fetch next page when infinite scroll trigger is in view (with debouncing)
+  // Auto fetch next page khi infinite scroll trigger in view (với scroll awareness)
   useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage && !isFetching) {
+    if (inView && hasNextPage && !isFetchingNextPage && !isFetching && !isFastScrolling) {
       debouncedFetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, isFetching, debouncedFetchNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetching, isFastScrolling, isScrolling]);
 
   // Memoized movie list với optimized deduplication
   const movies = useMemo(() => {
@@ -228,6 +264,10 @@ const MoviesPage = () => {
       ...prev,
       [type]: value,
     }));
+
+    // Clear animation cache khi filter thay đổi để cho phép re-animate
+    // Chỉ clear movies cache, giữ poster cache để tránh re-load ảnh
+    animationCache.clearMovies();
   }, []);
 
   const handleGenreToggle = useCallback(genreId => {
@@ -237,6 +277,9 @@ const MoviesPage = () => {
         ? prev.genres.filter(id => id !== genreId)
         : [...prev.genres, genreId],
     }));
+
+    // Clear animation cache khi filter thay đổi
+    animationCache.clearMovies();
   }, []);
 
   const resetFilters = useCallback(() => {
@@ -255,6 +298,9 @@ const MoviesPage = () => {
       sortBy: 'popularity',
       order: 'desc',
     });
+
+    // Clear animation cache khi reset filters
+    animationCache.clearMovies();
   }, []);
 
   // Manual load more function (for fallback button)
@@ -295,6 +341,34 @@ const MoviesPage = () => {
     return `${baseClasses} ${performanceClasses}`.trim();
   }, [isFastScrolling, isScrolling]);
 
+  // Memoized movies grid để tránh re-render khi resize
+  const moviesGrid = useMemo(() => {
+    if (!movies || movies.length === 0) return null;
+
+    return (
+      <div
+        className={`movies-grid grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${
+          isFastScrolling ? 'scroll-fast' : ''
+        }`}
+        style={{
+          // Prevent layout shift during resize
+          contain: 'layout',
+          willChange: 'auto',
+        }}
+      >
+        {movies.map((movie, index) => (
+          <MovieCard
+            key={movie.id}
+            movie={movie}
+            index={index}
+            minimal={isFastScrolling && index > 12}
+            onTrailerClick={() => handleMovieTrailerClick(movie)}
+          />
+        ))}
+      </div>
+    );
+  }, [movies, isFastScrolling, handleMovieTrailerClick]);
+
   // Error handling
   if (error) {
     return (
@@ -314,19 +388,29 @@ const MoviesPage = () => {
 
   return (
     <motion.div
-      className={containerClasses}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{
-        duration: isFastScrolling ? 0.1 : 0.6,
-        ease: 'easeOut',
-      }}
-      style={{
-        // Dynamic will-change based on scroll state
-        willChange: isScrolling ? 'transform' : 'auto',
-      }}
+      transition={{ duration: 0.3 }}
+      className="min-h-screen bg-gray-900 text-white"
     >
-      <div className="container mx-auto px-4">
+      {/* Back to Top Button - Fixed to screen corner */}
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 z-[9999] flex h-12 w-12 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-all duration-300 hover:bg-red-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            aria-label="Back to top"
+          >
+            <ArrowUp size={20} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <div className="container mx-auto px-4 pt-28">
         {/* Header Section */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -359,7 +443,6 @@ const MoviesPage = () => {
             </motion.button>
           </div>
         </div>
-
         {/* Advanced Filters */}
         <AnimatePresence>
           {showFilters && (
@@ -570,7 +653,6 @@ const MoviesPage = () => {
             </motion.div>
           )}
         </AnimatePresence>
-
         {/* Movies Grid */}
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -578,19 +660,9 @@ const MoviesPage = () => {
           </div>
         ) : (
           <>
-            {/* Optimized Movies Grid */}
-            <div className="movies-grid grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {movies.map((movie, index) => (
-                <MovieCard
-                  key={movie.id} // Use only movie.id as key to prevent unnecessary re-renders
-                  movie={movie}
-                  index={index}
-                  onTrailerClick={() => handleMovieTrailerClick(movie)}
-                />
-              ))}
-            </div>
+            {moviesGrid}
 
-            {/* Auto Infinite Scroll Trigger */}
+            {/* Auto Infinite Scroll Trigger với scroll awareness */}
             {hasNextPage && (
               <div ref={infiniteScrollRef} className="mt-8 flex justify-center py-4">
                 {isFetchingNextPage && (
@@ -599,10 +671,15 @@ const MoviesPage = () => {
                     <span>Loading more movies...</span>
                   </div>
                 )}
+                {!isFetchingNextPage && isFastScrolling && (
+                  <div className="text-gray-400">
+                    <span>Scroll slower to auto-load more movies</span>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Manual Load More Fallback (only show if auto-scroll fails) */}
+            {/* Manual Load More Fallback (chỉ hiển thị khi auto-scroll fails) */}
             {hasNextPage && !inView && movies.length > 20 && (
               <div className="mt-4 flex justify-center">
                 <button
@@ -643,7 +720,6 @@ const MoviesPage = () => {
             )}
           </>
         )}
-
         {/* Movie Trailer Modal */}
         <MovieTrailerModal
           isOpen={isTrailerOpen}
@@ -651,23 +727,6 @@ const MoviesPage = () => {
           movie={modalMovie}
           trailerUrl={modalTrailerUrl}
         />
-
-        {/* Performance Debug Panel (development only) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="scroll-debug">
-            <div>
-              <strong>Scroll Performance Debug</strong>
-            </div>
-            <div>Movies Loaded: {movies.length}</div>
-            <div>Scroll Speed: {scrollSpeed.toFixed(2)}px/ms</div>
-            <div>Fast Scrolling: {isFastScrolling ? 'Yes' : 'No'}</div>
-            <div>Is Scrolling: {isScrolling ? 'Yes' : 'No'}</div>
-            <div>Has Next Page: {hasNextPage ? 'Yes' : 'No'}</div>
-            <div>Fetching (React Query): {isFetchingNextPage ? 'Yes' : 'No'}</div>
-            <div>Debounce Lock: {isFetching ? 'Yes' : 'No'}</div>
-            <div>In View: {inView ? 'Yes' : 'No'}</div>
-          </div>
-        )}
       </div>
     </motion.div>
   );

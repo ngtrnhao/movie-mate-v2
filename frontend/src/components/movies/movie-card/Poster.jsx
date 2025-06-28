@@ -1,6 +1,7 @@
-import { memo, useState, useCallback, useMemo, useEffect } from 'react';
+import { memo, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useThrottledScroll } from '../../../hooks/useThrottledScroll';
+import animationCache from '../../../utils/animationCache';
 
 // Simplified image cache và loading queue
 const imageCache = new Set();
@@ -8,9 +9,13 @@ const loadingQueue = new Map(); // Track loading priority
 let activeLoading = 0;
 const MAX_CONCURRENT_LOADING = 3; // Limit concurrent image loads
 
-const Poster = memo(({ posterPath, title, priority = false }) => {
+// Cache để track poster đã từng hiển thị (để tránh animate lại)
+const shownPosters = new Set();
+
+const Poster = memo(({ posterPath, title, priority = false, onLoadDone }) => {
   const [isImageLoaded, setIsImageLoaded] = useState(priority || imageCache.has(posterPath));
   const [imageError, setImageError] = useState(false);
+  const [hasBeenVisible, setHasBeenVisible] = useState(animationCache.isPosterAnimated(posterPath));
 
   // Get scroll state để adjust loading behavior
   const { isFastScrolling, isScrolling } = useThrottledScroll();
@@ -129,12 +134,21 @@ const Poster = memo(({ posterPath, title, priority = false }) => {
     }
   }, [priority, posterPath, isImageLoaded, imageError, loadImageWithQueue]);
 
+  // Mark poster as shown when it comes into view and image is loaded
+  useEffect(() => {
+    if (inView && isImageLoaded && posterPath && !hasBeenVisible) {
+      animationCache.markPosterAnimated(posterPath);
+      setHasBeenVisible(true);
+    }
+  }, [inView, isImageLoaded, posterPath, hasBeenVisible]);
+
   const handleImageLoad = useCallback(() => {
     if (posterPath) {
       imageCache.add(posterPath);
       setIsImageLoaded(true);
+      if (onLoadDone) onLoadDone();
     }
-  }, [posterPath]);
+  }, [posterPath, onLoadDone]);
 
   const handleImageError = useCallback(() => {
     setImageError(true);
@@ -149,6 +163,14 @@ const Poster = memo(({ posterPath, title, priority = false }) => {
 
     if (!posterPath) return null;
 
+    // Chỉ animate opacity nếu poster chưa từng được hiển thị trước đó
+    const shouldAnimate = !hasBeenVisible;
+    const opacityClass = shouldAnimate
+      ? isImageLoaded
+        ? 'opacity-100'
+        : 'opacity-0'
+      : 'opacity-100';
+
     return (
       <img
         src={posterPath}
@@ -157,9 +179,9 @@ const Poster = memo(({ posterPath, title, priority = false }) => {
         fetchPriority={priority ? 'high' : 'auto'}
         onLoad={handleImageLoad}
         onError={handleImageError}
-        className={`size-full object-cover transition-opacity duration-300 will-change-transform group-hover:scale-105 ${
-          isImageLoaded ? 'opacity-100' : 'opacity-0'
-        }`}
+        className={`size-full object-cover will-change-transform group-hover:scale-105 ${
+          shouldAnimate ? 'transition-opacity duration-300' : ''
+        } ${opacityClass}`}
         decoding="async"
       />
     );
@@ -169,6 +191,7 @@ const Poster = memo(({ posterPath, title, priority = false }) => {
     posterPath,
     title,
     isImageLoaded,
+    hasBeenVisible,
     handleImageLoad,
     handleImageError,
   ]);

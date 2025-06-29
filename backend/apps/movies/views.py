@@ -682,12 +682,16 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                             similar_data.append({
                                 'id': similar_movie.id,
                                 'title': similar_movie.title_en or similar_movie.title,
+                                'title_en': similar_movie.title_en,
                                 'title_vi': similar_movie.title_vi,
+                                'original_title': similar_movie.original_title,
                                 'poster_url': similar_movie.poster_url,
                                 'backdrop_url': similar_movie.backdrop_url,
                                 'rating': float(similar_movie.cached_imdb_rating) if similar_movie.cached_imdb_rating else None,
                                 'release_date': similar_movie.release_date.isoformat() if similar_movie.release_date else None,
                                 'overview': similar_movie.overview_en or similar_movie.overview_vi,
+                                'overview_en': similar_movie.overview_en,
+                                'overview_vi': similar_movie.overview_vi,
                                 'runtime': similar_movie.runtime
                             })
 
@@ -740,10 +744,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             genres = request.GET.getlist('genres')
             year_from = request.GET.get('year_from')
             year_to = request.GET.get('year_to')
-            rating_min = request.GET.get('rating_min')
-            rating_max = request.GET.get('rating_max')
-            runtime_min = request.GET.get('runtime_min')
-            runtime_max = request.GET.get('runtime_max')
+            country = request.GET.get('country')
             status_filter = request.GET.get('status')
             adult = request.GET.get('adult', 'false')
             language = request.GET.get('language', 'en')
@@ -758,10 +759,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'genres': ','.join(sorted(genres)),
                 'year_from': year_from,
                 'year_to': year_to,
-                'rating_min': rating_min,
-                'rating_max': rating_max,
-                'runtime_min': runtime_min,
-                'runtime_max': runtime_max,
+                'country': country,
                 'status': status_filter,
                 'adult': adult,
                 'language': language,
@@ -809,54 +807,23 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 except (ValueError, TypeError):
                     pass
 
-            # Rating filters - use cached rating fields for performance
-            if rating_min or rating_max:
-                rating_conditions = Q()
-
-                if rating_min:
-                    try:
-                        rating_min_float = float(rating_min)
-                        # Use cached fields first, fallback to join if needed
-                        rating_conditions |= Q(cached_imdb_rating__gte=rating_min_float)
-                        rating_conditions |= Q(cached_tmdb_rating__gte=rating_min_float)
-                        rating_conditions |= Q(combined_rating_score__gte=rating_min_float)
-                    except (ValueError, TypeError):
-                        pass
-
-                if rating_max:
-                    try:
-                        rating_max_float = float(rating_max)
-                        rating_conditions &= (
-                            Q(cached_imdb_rating__lte=rating_max_float) |
-                            Q(cached_tmdb_rating__lte=rating_max_float) |
-                            Q(combined_rating_score__lte=rating_max_float)
-                        )
-                    except (ValueError, TypeError):
-                        pass
-
-                if rating_conditions:
-                    queryset = queryset.filter(rating_conditions)
-
-            # Runtime filters - use indexed runtime field
-            if runtime_min:
-                try:
-                    queryset = queryset.filter(runtime__gte=int(runtime_min))
-                except (ValueError, TypeError):
-                    pass
-
-            if runtime_max:
-                try:
-                    queryset = queryset.filter(runtime__lte=int(runtime_max))
-                except (ValueError, TypeError):
-                    pass
+            # Country filter - check production_countries in metadata
+            if country:
+                queryset = queryset.filter(
+                    moviemetadata__production_countries__contains=[{'iso_3166_1': country}]
+                )
 
             # Status filter - use indexed status field
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
 
-            # Adult content filter - use indexed adult field
+            # Adult content filter - use indexed is_adult field
             if adult.lower() == 'false':
-                queryset = queryset.filter(adult=False)
+                queryset = queryset.filter(is_adult=False)
+            elif adult.lower() == 'true':
+                pass  # No filter applied
+            else:
+                queryset = queryset.filter(is_adult=False)
 
             # Search query - simplified for performance (no icontains for large datasets)
             if search_query:

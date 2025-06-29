@@ -46,7 +46,6 @@ class Movie(models.Model):
     is_top_rated = models.BooleanField(default=False)
     is_upcoming = models.BooleanField(default=False)
     last_synced = models.DateTimeField(null=True)
-    adult = models.BooleanField(default=False)
     end_year = models.IntegerField(null=True, blank=True)
     is_adult = models.BooleanField(default=False)
 
@@ -97,8 +96,8 @@ class Movie(models.Model):
 
             # Performance indexes for filter combinations
             models.Index(fields=["runtime"], name="idx_movie_runtime"),
-            models.Index(fields=["adult"], name="idx_movie_adult"),
-            models.Index(fields=["status", "adult"], name="idx_movie_status_adult"),
+            models.Index(fields=["is_adult"], name="idx_movie_is_adult"),
+            models.Index(fields=["status", "is_adult"], name="idx_movie_status_is_adult"),
             models.Index(fields=["release_date", "status"], name="idx_movie_release_status"),
             models.Index(fields=["runtime", "status"], name="idx_movie_runtime_status"),
 
@@ -181,11 +180,11 @@ class Movie(models.Model):
         try:
             # Chỉ update các trường thiếu, không thay đổi slug
             updated_fields = []
-            
+
             if "en" in titles and (not self.title_en or self.title_en.strip() == ''):
                 self.title_en = titles["en"]
                 updated_fields.append('title_en')
-                
+
                 # Update default title nếu nó trống hoặc giống title_vi
                 if not self.title or self.title == self.title_vi:
                     self.title = titles["en"]
@@ -199,14 +198,14 @@ class Movie(models.Model):
             if updated_fields:
                 self.last_title_sync = timezone.now()
                 updated_fields.append('last_title_sync')
-                
+
                 # Sử dụng update_fields để chỉ update các trường cần thiết
                 self.save(update_fields=updated_fields)
                 return True
             else:
                 # Không có gì để update
                 return True
-                
+
         except Exception as e:
             logger.error(f"Error updating movie titles: {str(e)}")
             return False
@@ -241,7 +240,7 @@ class Movie(models.Model):
             # Chỉ update nếu chưa có genres
             if self.genres.count() > 0:
                 return True  # Đã có genres, không cần update
-                
+
             # Clear existing genres (nếu có)
             MovieGenre.objects.filter(movie=self).delete()
 
@@ -553,27 +552,6 @@ class MovieAward(models.Model):
             models.Index(fields=["name", "category"]),
             models.Index(fields=["is_prestigious"]),
         ]
-
-class MovieAlternativeTitle(models.Model):
-    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='alternative_titles')
-    title = models.CharField(max_length=255)
-    region = models.CharField(max_length=10, null=True, blank=True)
-    language = models.CharField(max_length=10, null=True,blank=True)
-    types = models.JSONField(default=list, blank=True)
-    attributes = models.JSONField(default=list,blank=True)
-    is_original_title = models.BooleanField(default=False)
-    ordering = models.IntegerField(default=0)
-    is_original = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    class Meta:
-        db_table = 'movies_alternative_title'
-        indexes = [
-            models.Index(fields=['movie']),
-            models.Index(fields=['region']),
-            models.Index(fields=['language']),
-        ]
-        unique_together = ('movie','title','region','language')
 
 class MovieCast(models.Model):
     ROLE_CHOICES = [

@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import Genre, GenreSummary
 from .services import GenreService
 from apps.movies.serializers import MovieListSerializer
+from apps.movies.models import MovieCast
+from apps.movies.serializers import MovieCastSerializer
 import logging
 
 logger = logging.getLogger(__name__)
@@ -104,7 +106,7 @@ class GenreSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Genre
-        fields = ['id', 'name', 'slug', 'count', 'description', 'language', 'latest_movie']
+        fields = ['id', 'name', 'slug', 'description', 'language']
         list_serializer_class = GenreListSerializer
 
     def get_count(self, obj):
@@ -122,10 +124,14 @@ class GenreSerializer(serializers.ModelSerializer):
         return None
 
 class GenreDetailSerializer(GenreSerializer):
+    movie_count = serializers.SerializerMethodField()
     movies = serializers.SerializerMethodField()
 
     class Meta(GenreSerializer.Meta):
-        fields = GenreSerializer.Meta.fields + ['movies']
+        fields = GenreSerializer.Meta.fields + ['movie_count', 'movies']
+
+    def get_movie_count(self, obj):
+        return obj.movie_set.count()
 
     def get_movies(self, obj):
         try:
@@ -145,3 +151,40 @@ class GenrePerformanceSerializer(serializers.Serializer):
     language_stats = serializers.DictField()
     latest_update = serializers.DateTimeField()
     cache_status = serializers.DictField()
+class PersonSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Person data extracted from MovieCast
+    """
+    name = serializers.CharField()
+    biography = serializers.CharField(source='biography', allow_null=True)
+    place_of_birth = serializers.CharField(source='place_of_birth', allow_null=True)
+    birth_year = serializers.IntegerField(source='birth_year', allow_null=True)
+    death_year = serializers.IntegerField(source='death_year', allow_null=True)
+    profile_path = serializers.CharField(source='profile_path', allow_null=True)
+    imdb_id = serializers.CharField(source='imdb_id', allow_null=True)
+    tmdb_id = serializers.IntegerField(source='tmdb_id', allow_null=True)
+    popularity = serializers.DecimalField(source='popularity', max_digits=8, decimal_places=3, allow_null=True)
+    gender = serializers.IntegerField(source='gender', allow_null=True)
+    primary_profession = serializers.ListField(source='primary_profession', default=list)
+    known_for_titles = serializers.ListField(source='known_for_titles', default=list)
+
+    # Statistics
+    movie_count = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MovieCast
+        fields = [
+            'name', 'biography', 'place_of_birth', 'birth_year', 'death_year',
+            'profile_path', 'imdb_id', 'tmdb_id', 'popularity', 'gender',
+            'primary_profession', 'known_for_titles', 'movie_count', 'roles'
+        ]
+
+    def get_movie_count(self, obj):
+        """Get total number of movies for this person"""
+        return MovieCast.objects.filter(name=obj.name).count()
+
+    def get_roles(self, obj):
+        """Get unique roles this person has played"""
+        return list(MovieCast.objects.filter(name=obj.name).values_list('role', flat=True).distinct())
+

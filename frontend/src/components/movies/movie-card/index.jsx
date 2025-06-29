@@ -8,6 +8,7 @@ import Poster from './Poster';
 import Rating from './Rating';
 import RecommendedInfo from './RecommendedInfo';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
+import { getDisplayTitle, getDisplayOverview } from '../../../utils/titleUtils';
 import animationCache from '../../../utils/animationCache';
 
 // Slide up animation variants
@@ -27,6 +28,7 @@ const MovieCard = memo(
       () => ({
         id: movie.id,
         title: movie.title,
+        title_en: movie.title_en,
         title_vi: movie.title_vi,
         original_title: movie.original_title,
         poster_path: movie.poster_path,
@@ -49,6 +51,7 @@ const MovieCard = memo(
       [
         movie.id,
         movie.title,
+        movie.title_en,
         movie.title_vi,
         movie.original_title,
         movie.poster_path,
@@ -72,12 +75,8 @@ const MovieCard = memo(
 
     // Memoize display values để tránh re-computation
     const displayValues = useMemo(() => {
-      const displayTitle =
-        i18n.language === 'vi' && movieData.title_vi ? movieData.title_vi : movieData.title;
-      const displayOverview =
-        i18n.language === 'vi' && movieData.overview_vi
-          ? movieData.overview_vi
-          : movieData.overview_en;
+      const displayTitle = getDisplayTitle(movieData, i18n.language);
+      const displayOverview = getDisplayOverview(movieData, i18n.language);
       const displayGenres = movieData.genres?.filter(g => g.language === i18n.language) || [];
 
       return {

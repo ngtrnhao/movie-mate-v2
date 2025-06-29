@@ -101,16 +101,14 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <UserX className="mb-4 size-16 text-gray-600" />
             <h3 className="mb-2 text-xl font-semibold text-gray-400">
-              Không thể tải thông tin diễn viên
+              {t('details.cannotLoadCast')}
             </h3>
-            <p className="mb-4 text-gray-500">
-              Đã xảy ra lỗi khi tải danh sách diễn viên. Vui lòng thử lại sau.
-            </p>
+            <p className="mb-4 text-gray-500">{t('details.cannotLoadCastDesc')}</p>
             <button
               onClick={() => window.location.reload()}
               className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
             >
-              Thử lại
+              {t('details.retry')}
             </button>
           </div>
         </div>
@@ -134,12 +132,8 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
 
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Users className="mb-4 size-16 text-gray-600" />
-            <h3 className="mb-2 text-xl font-semibold text-gray-400">
-              Chưa có thông tin diễn viên
-            </h3>
-            <p className="text-gray-500">
-              Thông tin về diễn viên cho bộ phim này sẽ được cập nhật sớm.
-            </p>
+            <h3 className="mb-2 text-xl font-semibold text-gray-400">{t('details.noCastInfo')}</h3>
+            <p className="text-gray-500">{t('details.noCastInfoDesc')}</p>
           </div>
         </div>
       </section>
@@ -208,8 +202,10 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
               className="rounded-lg border border-white/20 px-6 py-3 text-white transition-colors hover:border-white/40 hover:bg-white/10"
             >
               {showAllCast
-                ? 'Thu gọn diễn viên'
-                : `Xem tất cả diễn viên (${cast.filter(member => member.role === 'ACTOR' || !member.role).length})`}
+                ? t('details.collapseCast')
+                : t('details.viewAllCast', {
+                    count: cast.filter(member => member.role === 'ACTOR' || !member.role).length,
+                  })}
             </button>
           </motion.div>
         )}

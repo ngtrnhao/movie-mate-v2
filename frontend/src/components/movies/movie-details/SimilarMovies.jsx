@@ -2,11 +2,12 @@ import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { Link } from 'react-router-dom';
 import { getPrimaryRating, getRatingBadgeColors } from '../../../utils/ratingUtils';
+import { getDisplayTitle } from '../../../utils/titleUtils';
 
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 
 const SimilarMovies = ({ movies = [] }) => {
-  const { t } = useTranslation('movies');
+  const { t, currentLanguage } = useTranslation('movies');
 
   if (!movies || movies.length === 0) return null;
 
@@ -21,11 +22,7 @@ const SimilarMovies = ({ movies = [] }) => {
   };
 
   const getTitle = movie => {
-    if (movie.title_vi) return movie.title_vi;
-    if (movie.title_en) return movie.title_en;
-    if (movie.title) return movie.title;
-    if (movie.original_title) return movie.original_title;
-    return 'No Title';
+    return getDisplayTitle(movie, currentLanguage);
   };
 
   return (

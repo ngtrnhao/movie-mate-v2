@@ -294,56 +294,6 @@ class IMDBDatasetService:
         logger.info(f"Import finished: {success} principals updated, {fail} errors.")
 
     @transaction.atomic
-    def import_title_akas(self):
-        """Import and map title.akas.tsv data"""
-        logger.info("Starting import of title.akas.tsv")
-        success = 0
-        fail = 0
-        for i, row in enumerate(self._read_tsv('title.akas.tsv')):
-            try:
-                # Skip if not English or Vietnamese
-                if row['language'] not in ['en', 'vi']:
-                    continue
-
-                movie = Movie.objects.filter(imdb_id=row['titleId']).first()
-                if not movie:
-                    continue
-
-                # For English titles, update the main title if it's the original title
-                if row['language'] == 'en' and row['isOriginalTitle'] == '1':
-                    movie.title = row['title']
-                    # Update overview if available in attributes
-                    if row['attributes'] != '\\N':
-                        attributes = row['attributes'].split(',')
-                        for attr in attributes:
-                            if attr.startswith('plot:'):
-                                movie.overview = attr[5:]  # Remove 'plot:' prefix
-                                break
-                    movie.save()
-
-                # Create alternative title
-                MovieAlternativeTitle.objects.update_or_create(
-                    movie=movie,
-                    title=row['title'],
-                    region=row['region'] if row['region'] != '\\N' else None,
-                    defaults={
-                        'ordering': self._parse_int(row['ordering']),
-                        'language': row['language'],
-                        'types': row['types'].split(',') if row['types'] != '\\N' else [],
-                        'attributes': row['attributes'].split(',') if row['attributes'] != '\\N' else [],
-                        'is_original_title': row['isOriginalTitle'] == '1'
-                    }
-                )
-                success += 1
-                if i % 1000 == 0:
-                    logger.info(f"Updated alternative titles for {success} movies, {fail} errors so far...")
-            except Exception as e:
-                logger.error(f"Error processing alternative title for movie {row.get('titleId')}: {str(e)}")
-                fail += 1
-                continue
-        logger.info(f"Import finished: {success} alternative titles updated, {fail} errors.")
-
-    @transaction.atomic
     def import_name_basics(self):
         """Import and map name.basics.tsv data"""
         logger.info("Starting import of name.basics.tsv")
@@ -388,7 +338,6 @@ class IMDBDatasetService:
 
         # 5. Import alternative titles
         logger.info("Step 5/6: Importing alternative titles...")
-        self.import_title_akas()
 
         # 6. Update cast names
         logger.info("Step 6/6: Updating cast names...")
@@ -560,86 +509,6 @@ class IMDBDatasetService:
                     )
         except Exception as e:
             logger.error(f"Error processing principals batch: {str(e)}")
-
-    def import_title_akas_optimized(self, batch_size=1000):
-        """Import title.akas.tsv with optimization"""
-        logger.info("Starting optimized import of title.akas.tsv (English and Vietnamese titles only)")
-        file_name = "title.akas.tsv"
-        if not self._check_file_exists(file_name):
-            return False, 0
-
-        batch_data = []
-        count = 0
-        errors = 0
-
-        for i, row in enumerate(self._read_tsv(file_name)):
-            try:
-                # Skip if not English or Vietnamese
-                if row['language'] not in ['en', 'vi']:
-                    continue
-
-                movie = Movie.objects.filter(imdb_id=row['titleId']).first()
-                if not movie:
-                    continue
-
-                # For English titles, update the main title if it's the original title
-                if row['language'] == 'en' and row['isOriginalTitle'] == '1':
-                    movie.title = row['title']
-                    # Update overview if available in attributes
-                    if row['attributes'] != '\\N':
-                        attributes = row['attributes'].split(',')
-                        for attr in attributes:
-                            if attr.startswith('plot:'):
-                                movie.overview_en = attr[5:]  # Remove 'plot:' prefix
-                                break
-                    movie.save()
-
-                batch_data.append({
-                    'movie': movie,
-                    'title': row['title'],
-                    'region': row['region'] if row['region'] != '\\N' else None,
-                    'ordering': self._parse_int(row['ordering']),
-                    'language': row['language'],
-                    'types': row['types'].split(',') if row['types'] != '\\N' else [],
-                    'attributes': row['attributes'].split(',') if row['attributes'] != '\\N' else [],
-                    'is_original_title': row['isOriginalTitle'] == '1'
-                })
-
-                # Process batch
-                if len(batch_data) >= batch_size:
-                    self._process_akas_batch(batch_data)
-                    count += len(batch_data)
-                    batch_data = []
-
-                if i % 10000 == 0:
-                    logger.info(f"Processed {i} alternative title records, {count} created, {errors} errors")
-
-            except Exception as e:
-                logger.error(f"Error processing alternative title for movie {row.get('titleId')}: {str(e)}")
-                errors += 1
-                continue
-
-        # Process remaining batch
-        if batch_data:
-            self._process_akas_batch(batch_data)
-            count += len(batch_data)
-
-        logger.info(f"Optimized alternative titles import finished: {count} records created, {errors} errors.")
-        return True, count
-
-    def _process_akas_batch(self, batch_data):
-        """Process alternative titles data in batch"""
-        try:
-            with transaction.atomic():
-                for aka_data in batch_data:
-                    MovieAlternativeTitle.objects.update_or_create(
-                        movie=aka_data['movie'],
-                        title=aka_data['title'],
-                        region=aka_data['region'],
-                        defaults=aka_data
-                    )
-        except Exception as e:
-            logger.error(f"Error processing alternative titles batch: {str(e)}")
 
     def import_name_basics_optimized(self, batch_size=1000):
         """Import name.basics.tsv with optimization"""

@@ -33,7 +33,7 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Movie
         fields = [
-            'id', 'slug', 'title', 'title_vi', 'original_title', 'overview_en', 'overview_vi', 'release_date',
+            'id', 'slug', 'title', 'title_en', 'title_vi', 'original_title', 'overview_en', 'overview_vi', 'release_date',
             'poster_path', 'backdrop_path', 'runtime', 'status', 'genres',
             'rating', 'vote_average', 'vote_count', 'is_popular',
             'is_top_rated', 'is_upcoming', 'overviews', 'trailers'
@@ -201,7 +201,7 @@ class MovieDetailSerializer(MovieListSerializer):
 
     class Meta(MovieListSerializer.Meta):
         fields = MovieListSerializer.Meta.fields + [
-            'imdb_id', 'adult', 'end_year', 'is_adult', 'cast',
+            'imdb_id', 'is_adult', 'end_year', 'is_adult', 'cast',
             'production_info', 'directors', 'original_language', 'images'
         ]
 

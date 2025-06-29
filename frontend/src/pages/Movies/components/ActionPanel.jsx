@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Plus, Heart, Share, Play } from 'lucide-react';
+import { useTranslation } from '../../../i18n/hooks/useTranslation';
 
 const ActionPanel = ({ movie, onTrailerClick }) => {
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const { t } = useTranslation('movies');
 
   if (!movie) return null;
 
@@ -63,7 +65,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             <div className="flex size-8 items-center justify-center rounded-full bg-white/20 transition-all duration-300 group-hover:bg-white/30">
               <Play size={18} fill="white" className="ml-0.5" />
             </div>
-            <span className="relative z-10 font-bold">XEM TRAILER</span>
+            <span className="relative z-10 font-bold">{t('details.watchTrailer')}</span>
           </button>
         )}
 
@@ -79,7 +81,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             fill={isLiked ? 'currentColor' : 'none'}
             className="transition-transform duration-200 group-hover:scale-110"
           />
-          <span>Yêu thích</span>
+          <span>{t('details.addToFavorites')}</span>
         </button>
 
         {/* Add to Watchlist */}
@@ -90,7 +92,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
           }`}
         >
           <Plus size={16} className="transition-transform duration-200 group-hover:scale-110" />
-          <span>Thêm vào</span>
+          <span>{t('details.addToWatchlist')}</span>
         </button>
 
         {/* Share Button */}
@@ -99,7 +101,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
           className="group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:text-red-500"
         >
           <Share size={16} className="transition-transform duration-200 group-hover:scale-110" />
-          <span>Chia sẻ</span>
+          <span>{t('details.share')}</span>
         </button>
 
         {/* Comment Button */}
@@ -117,7 +119,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
               d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
             />
           </svg>
-          <span>Bình luận</span>
+          <span>{t('details.comment')}</span>
         </button>
       </div>
     </div>

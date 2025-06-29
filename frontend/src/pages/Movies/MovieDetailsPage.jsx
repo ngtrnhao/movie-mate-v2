@@ -9,6 +9,8 @@ import {
 } from '../../api/movieService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { getPrimaryRating, getRatingBadgeColors } from '../../utils/ratingUtils';
+import { getDisplayTitle, getDisplayOverview } from '../../utils/titleUtils';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 
 // Import existing components
 import HeroSection from './components/HeroSection';
@@ -18,6 +20,7 @@ import MovieTrailerModal from '../../components/movies/movie-trailer/MovieTraile
 
 const MovieDetailsPage = () => {
   const { movieId } = useParams();
+  const { currentLanguage, t } = useTranslation('movies');
   const [movie, setMovie] = useState(null);
   const [cast, setCast] = useState([]);
   const [similarMovies, setSimilarMovies] = useState([]);
@@ -27,6 +30,10 @@ const MovieDetailsPage = () => {
   const [castError, setCastError] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
   const [currentTrailerUrl, setCurrentTrailerUrl] = useState(null);
+
+  // Filter genres by current language
+  const filteredGenres =
+    movie?.genres?.filter(genre => genre.language === currentLanguage || !genre.language) || [];
 
   useEffect(() => {
     const fetchMovieData = async () => {
@@ -85,7 +92,7 @@ const MovieDetailsPage = () => {
           setCast(castData?.data || []);
         } catch (castError) {
           console.error('Error fetching cast:', castError);
-          setCastError('Không thể tải thông tin diễn viên');
+          setCastError(t('details.cannotLoadCast'));
           setCast([]);
         } finally {
           setIsLoadingCast(false);
@@ -94,8 +101,12 @@ const MovieDetailsPage = () => {
         // Fetch similar movies based on genres
         if (movieData?.data?.genres?.length || movieData?.genres?.length) {
           try {
-            const genres = movieData?.data?.genres || movieData?.genres || [];
-            const similarData = await getSimilarMovies(movieId, genres, 6);
+            const allGenres = movieData?.data?.genres || movieData?.genres || [];
+            // Filter genres by current language for similar movies
+            const filteredGenresForSimilar = allGenres.filter(
+              genre => genre.language === currentLanguage || !genre.language
+            );
+            const similarData = await getSimilarMovies(movieId, filteredGenresForSimilar, 6);
             console.log('Similar movies data:', similarData);
             setSimilarMovies(similarData?.results || similarData?.data || []);
           } catch (similarError) {
@@ -114,7 +125,7 @@ const MovieDetailsPage = () => {
     if (movieId) {
       fetchMovieData();
     }
-  }, [movieId]);
+  }, [movieId, currentLanguage, t]);
 
   const handleTrailerClick = movie => {
     // Get trailer URL from movie object
@@ -145,7 +156,7 @@ const MovieDetailsPage = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="text-center text-white">
-          <h2 className="mb-2 text-2xl font-bold">Error</h2>
+          <h2 className="mb-2 text-2xl font-bold">{t('details.error')}</h2>
           <p>{error}</p>
         </div>
       </div>
@@ -156,8 +167,8 @@ const MovieDetailsPage = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-900">
         <div className="text-center text-white">
-          <h2 className="mb-2 text-2xl font-bold">Movie Not Found</h2>
-          <p>The requested movie could not be found.</p>
+          <h2 className="mb-2 text-2xl font-bold">{t('details.notFound')}</h2>
+          <p>{t('details.notFoundDesc')}</p>
         </div>
       </div>
     );
@@ -200,11 +211,19 @@ const MovieDetailsPage = () => {
                 {/* Title */}
                 <div>
                   <h1 className="mb-1 text-2xl font-bold">
-                    {movie.title_vi || movie.title || movie.title_en}
+                    {getDisplayTitle(movie, currentLanguage)}
                   </h1>
-                  {movie.title_en && movie.title_en !== (movie.title_vi || movie.title) && (
-                    <h2 className="text-sm italic text-gray-300">{movie.title_en}</h2>
-                  )}
+                  {/* Show alternative title if different from main title */}
+                  {currentLanguage === 'vi' &&
+                    movie.original_title &&
+                    movie.original_title !== movie.title_vi && (
+                      <h2 className="text-sm italic text-gray-300">{movie.original_title}</h2>
+                    )}
+                  {currentLanguage === 'en' &&
+                    movie.original_title &&
+                    movie.original_title !== movie.title_en && (
+                      <h2 className="text-sm italic text-gray-300">{movie.original_title}</h2>
+                    )}
                 </div>
 
                 {/* Quick Info Badges */}
@@ -228,7 +247,7 @@ const MovieDetailsPage = () => {
                   {/* Age Rating Badge */}
                   {movie.adult !== undefined && (
                     <div className="rounded-full bg-white px-3 py-1 text-xs font-bold text-black">
-                      {movie.adult ? '18+' : 'T16'}
+                      {movie.adult ? t('details.age18') : t('details.age16')}
                     </div>
                   )}
 
@@ -255,7 +274,7 @@ const MovieDetailsPage = () => {
                   {/* Thời lượng */}
                   {movie.runtime && (
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-300">Thời lượng:</span>
+                      <span className="font-medium text-gray-300">{t('details.duration')}:</span>
                       <span className="text-white">
                         {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m
                       </span>
@@ -266,7 +285,7 @@ const MovieDetailsPage = () => {
                   {(movie.production_info?.production_countries?.length > 0 ||
                     movie.production_countries?.length > 0) && (
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-300">Quốc gia:</span>
+                      <span className="font-medium text-gray-300">{t('details.country')}:</span>
                       <span className="text-white">
                         {movie.production_info?.production_countries?.[0]?.name ||
                           movie.production_info?.production_countries?.[0] ||
@@ -280,7 +299,7 @@ const MovieDetailsPage = () => {
                   {(movie.original_language ||
                     movie.production_info?.spoken_languages?.length > 0) && (
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-300">Ngôn ngữ:</span>
+                      <span className="font-medium text-gray-300">{t('details.language')}:</span>
                       <span className="uppercase text-white">
                         {movie.original_language ||
                           movie.production_info?.spoken_languages?.[0]?.name ||
@@ -292,14 +311,14 @@ const MovieDetailsPage = () => {
                   {/* Trạng thái */}
                   {movie.status && (
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-300">Trạng thái:</span>
+                      <span className="font-medium text-gray-300">{t('details.status')}:</span>
                       <span className="text-white">
                         {movie.status === 'Released'
-                          ? 'Đã phát hành'
+                          ? t('details.released')
                           : movie.status === 'In Production'
-                            ? 'Đang sản xuất'
+                            ? t('details.inProduction')
                             : movie.status === 'Post Production'
-                              ? 'Hậu kỳ'
+                              ? t('details.postProduction')
                               : movie.status}
                       </span>
                     </div>
@@ -309,7 +328,7 @@ const MovieDetailsPage = () => {
                   {(movie.production_info?.production_companies?.length > 0 ||
                     movie.production_companies?.length > 0) && (
                     <div className="flex items-start justify-between">
-                      <span className="font-medium text-gray-300">Sản xuất:</span>
+                      <span className="font-medium text-gray-300">{t('details.production')}:</span>
                       <span className="max-w-32 text-right text-white">
                         {(
                           movie.production_info?.production_companies ||
@@ -326,7 +345,7 @@ const MovieDetailsPage = () => {
                   {/* Đạo diễn */}
                   {movie.directors && movie.directors.length > 0 && (
                     <div className="flex items-start justify-between">
-                      <span className="font-medium text-gray-300">Đạo diễn:</span>
+                      <span className="font-medium text-gray-300">{t('details.directors')}:</span>
                       <span className="max-w-32 text-right text-white">
                         {movie.directors
                           .slice(0, 2)
@@ -338,9 +357,9 @@ const MovieDetailsPage = () => {
                 </div>
 
                 {/* Genres */}
-                {movie.genres && movie.genres.length > 0 && (
+                {filteredGenres.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {movie.genres.slice(0, 3).map((genre, index) => (
+                    {filteredGenres.slice(0, 3).map((genre, index) => (
                       <span
                         key={index}
                         className="rounded bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm"
@@ -354,7 +373,7 @@ const MovieDetailsPage = () => {
                 {/* Overview */}
                 {(movie.overview_vi || movie.overview_en || movie.overview) && (
                   <p className="line-clamp-4 text-sm leading-relaxed text-gray-200">
-                    {movie.overview_vi || movie.overview_en || movie.overview}
+                    {getDisplayOverview(movie, currentLanguage)}
                   </p>
                 )}
               </div>

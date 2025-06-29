@@ -13,7 +13,14 @@ const Info = memo(
     isTopRated,
     isUpcoming,
   }) => {
-    const { t } = useTranslation('movies');
+    const { t, currentLanguage } = useTranslation('movies');
+
+    // Filter genres by current language
+    const filteredGenres = useMemo(() => {
+      if (!genres) return [];
+      return genres.filter(genre => genre.language === currentLanguage || !genre.language);
+    }, [genres, currentLanguage]);
+
     // Memoize computed values
     const year = useMemo(
       () => (releaseDate ? new Date(releaseDate).getFullYear() : 'N/A'),
@@ -69,9 +76,9 @@ const Info = memo(
         {overview && <p className="line-clamp-2 text-sm text-gray-300">{overview}</p>}
 
         {/* Genres */}
-        {genres && genres.length > 0 && (
+        {filteredGenres.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {genres.slice(0, 2).map(genre => (
+            {filteredGenres.slice(0, 2).map(genre => (
               <span
                 key={genre.id}
                 className="rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-300"
@@ -79,8 +86,8 @@ const Info = memo(
                 {genre.name}
               </span>
             ))}
-            {genres.length > 2 && (
-              <span className="text-xs text-gray-400">+{genres.length - 2}</span>
+            {filteredGenres.length > 2 && (
+              <span className="text-xs text-gray-400">+{filteredGenres.length - 2}</span>
             )}
           </div>
         )}

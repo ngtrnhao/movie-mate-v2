@@ -10,9 +10,9 @@ from django.db.models import Count, Prefetch, Q
 from django.db import connection, models
 from django.conf import settings
 from .models import Genre, GenreSummary
-from .serializers import GenreSerializer, GenreDetailSerializer
-from apps.movies.models import Movie
-from apps.movies.serializers import MovieListSerializer
+from .serializers import GenreSerializer, GenreDetailSerializer, PersonSerializer
+from apps.movies.models import Movie, MovieCast
+from apps.movies.serializers import MovieListSerializer, MovieCastSerializer
 import logging
 import time
 import json
@@ -490,3 +490,130 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PersonViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for Person (actors, directors, etc.) using MovieCast data
+    """
+    serializer_class = PersonSerializer
+    lookup_field = 'name'  # Use name as lookup field
+
+    def get_queryset(self):
+        """
+        Get unique persons from MovieCast
+        """
+        # Get distinct persons with their latest info
+        return MovieCast.objects.values('name').annotate(
+            latest_id=models.Max('id')
+        ).values('latest_id')
+
+    def get_object(self):
+        """
+        Get a specific person by name
+        """
+        name = self.kwargs.get('name')
+        return MovieCast.objects.filter(name=name).first()
+
+    @action(detail=True, methods=['get'])
+    def filmography(self, request, name=None):
+        """
+        Get all movies for a specific person
+        """
+        person_name = self.kwargs.get('name')
+        role_filter = request.query_params.get('role', None)
+
+        queryset = MovieCast.objects.filter(name=person_name)
+        if role_filter:
+            queryset = queryset.filter(role=role_filter)
+
+        queryset = queryset.select_related('movie').order_by('-movie__release_date')
+
+        # Group by role
+        filmography = {
+            'actor': queryset.filter(role='ACTOR'),
+            'director': queryset.filter(role='DIRECTOR'),
+            'writer': queryset.filter(role='WRITER'),
+            'producer': queryset.filter(role='PRODUCER'),
+        }
+
+        # Get person info from first record
+        person_info = queryset.first()
+
+        return Response({
+            'person': PersonSerializer(person_info).data if person_info else None,
+            'filmography': {
+                role: MovieCastSerializer(movies, many=True).data
+                for role, movies in filmography.items() if movies.exists()
+            }
+        })
+
+    @action(detail=False, methods=['get'])
+    def top_actors(self, request):
+        """
+        Get top actors by number of movies
+        """
+        limit = int(request.query_params.get('limit', 10))
+
+        top_actors = MovieCast.objects.filter(role='ACTOR').values('name').annotate(
+            movie_count=Count('id')
+        ).order_by('-movie_count')[:limit]
+
+        # Get full person data for each
+        persons = []
+        for actor in top_actors:
+            person = MovieCast.objects.filter(name=actor['name']).first()
+            if person:
+                persons.append(person)
+
+        return Response(PersonSerializer(persons, many=True).data)
+
+    @action(detail=False, methods=['get'])
+    def top_directors(self, request):
+        """
+        Get top directors by number of movies
+        """
+        limit = int(request.query_params.get('limit', 10))
+
+        top_directors = MovieCast.objects.filter(role='DIRECTOR').values('name').annotate(
+            movie_count=Count('id')
+        ).order_by('-movie_count')[:limit]
+
+        # Get full person data for each
+        persons = []
+        for director in top_directors:
+            person = MovieCast.objects.filter(name=director['name']).first()
+            if person:
+                persons.append(person)
+
+        return Response(PersonSerializer(persons, many=True).data)
+
+    @action(detail=True, methods=['get'])
+    def similar_actors(self, request, name=None):
+        """
+        Get actors who often work together
+        """
+        person_name = self.kwargs.get('name')
+        limit = int(request.query_params.get('limit', 5))
+
+        # Get movies where this person acted
+        person_movies = MovieCast.objects.filter(
+            name=person_name,
+            role='ACTOR'
+        ).values_list('movie_id', flat=True)
+
+        # Find other actors in the same movies
+        similar_actors = MovieCast.objects.filter(
+            movie_id__in=person_movies,
+            role='ACTOR'
+        ).exclude(name=person_name).values('name').annotate(
+            collaboration_count=Count('id')
+        ).order_by('-collaboration_count')[:limit]
+
+        # Get full person data for each
+        persons = []
+        for actor in similar_actors:
+            person = MovieCast.objects.filter(name=actor['name']).first()
+            if person:
+                persons.append(person)
+
+        return Response(PersonSerializer(persons, many=True).data)

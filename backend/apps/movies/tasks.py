@@ -21,12 +21,15 @@ from .models import (
     MovieRating,
     MovieReview,
     MovieTrailer,
-    MovieAlternativeTitle,
     MovieImage,
+    MovieAward,
+    MovieNews
 )
 from .services.imdb_service import IMDBService
 from apps.movies.services.tmdb_service import TMDBService
 from apps.movies.services.movie_tmdb_enrich_service import MovieTMDBEnrichService
+from .services.movie_title_genre_service import MovieTitleGenreService
+from .services.movie_overview_service import MovieOverviewService
 
 logger = get_task_logger(__name__)
 
@@ -464,37 +467,6 @@ def sync_movie_trailers(self, imdb_id):
         logger.info(f"Synced trailers for movie {imdb_id}")
     except Exception as e:
         logger.error(f"Error syncing trailers for movie {imdb_id}: {str(e)}")
-
-
-@shared_task(bind=True)
-def sync_movie_alternative_titles(self, imdb_id):
-    """Sync alternative titles for a movie from IMDB, chỉ khi chưa có alternative title"""
-    try:
-        movie = Movie.objects.filter(imdb_id=imdb_id).first()
-        if not movie:
-            logger.error(f"Movie not found for imdb_id {imdb_id}")
-            return
-        if MovieAlternativeTitle.objects.filter(movie=movie).exists():
-            logger.info(f"Movie {imdb_id} already has alternative titles, skip syncing.")
-            return
-        alt_titles = IMDBService.get_alternative_titles(imdb_id) if hasattr(IMDBService, 'get_alternative_titles') else None
-        if not alt_titles or "titles" not in alt_titles:
-            logger.warning(f"No alternative titles found for movie {imdb_id}")
-            return
-        for title in alt_titles.get("titles", []):
-            MovieAlternativeTitle.objects.create(
-                movie=movie,
-                title=title.get("title", ""),
-                region=title.get("region"),
-                language=title.get("language"),
-                types=title.get("types", []),
-                attributes=title.get("attributes", []),
-                is_original_title=title.get("isOriginalTitle", False),
-                ordering=title.get("ordering", 0)
-            )
-        logger.info(f"Synced alternative titles for movie {imdb_id}")
-    except Exception as e:
-        logger.error(f"Error syncing alternative titles for movie {imdb_id}: {str(e)}")
 
 
 @shared_task(bind=True)

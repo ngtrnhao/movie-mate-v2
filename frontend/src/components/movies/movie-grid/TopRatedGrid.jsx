@@ -156,11 +156,9 @@ export default function TopRatedGrid() {
         {activeTab !== 'all' && (
           <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed border-gray-600 p-8 text-center">
             <div>
-              <p className="text-lg font-medium text-white">Coming Soon</p>
+              <p className="text-lg font-medium text-white">{t('details.comingSoon')}</p>
               <p className="text-sm text-gray-400">
-                {activeTab === 'week'
-                  ? 'Weekly ratings will be available soon'
-                  : 'Monthly ratings will be available soon'}
+                {activeTab === 'week' ? t('details.weeklyRatings') : t('details.monthlyRatings')}
               </p>
             </div>
           </div>

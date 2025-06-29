@@ -33,10 +33,21 @@ const MoviesPage = () => {
     genres: [],
     yearFrom: '',
     yearTo: '',
-    ratingMin: '',
-    ratingMax: '',
-    runtimeMin: '',
-    runtimeMax: '',
+    country: '',
+    status: '',
+    adult: false,
+    language: 'en',
+    query: '',
+    sortBy: 'popularity',
+    order: 'desc',
+  });
+
+  // Add pending filters state to avoid API calls while selecting
+  const [pendingFilters, setPendingFilters] = useState({
+    genres: [],
+    yearFrom: '',
+    yearTo: '',
+    country: '',
     status: '',
     adult: false,
     language: 'en',
@@ -234,15 +245,76 @@ const MoviesPage = () => {
 
   // Filter options
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 50 }, (_, i) => currentYear - i);
-  const ratings = [
-    { value: '', label: 'Any Rating' },
-    { value: '9', label: '9+ Excellent' },
-    { value: '8', label: '8+ Very Good' },
-    { value: '7', label: '7+ Good' },
-    { value: '6', label: '6+ Fair' },
-    { value: '5', label: '5+ Poor' },
+  const years = Array.from({ length: currentYear - 2009 }, (_, i) => currentYear - i);
+
+  const countries = [
+    { value: '', label: 'Any Country' },
+    { value: 'US', label: 'United States' },
+    { value: 'GB', label: 'United Kingdom' },
+    { value: 'FR', label: 'France' },
+    { value: 'DE', label: 'Germany' },
+    { value: 'IT', label: 'Italy' },
+    { value: 'ES', label: 'Spain' },
+    { value: 'CA', label: 'Canada' },
+    { value: 'AU', label: 'Australia' },
+    { value: 'JP', label: 'Japan' },
+    { value: 'KR', label: 'South Korea' },
+    { value: 'CN', label: 'China' },
+    { value: 'IN', label: 'India' },
+    { value: 'BR', label: 'Brazil' },
+    { value: 'MX', label: 'Mexico' },
+    { value: 'RU', label: 'Russia' },
+    { value: 'SE', label: 'Sweden' },
+    { value: 'NO', label: 'Norway' },
+    { value: 'DK', label: 'Denmark' },
+    { value: 'NL', label: 'Netherlands' },
+    { value: 'BE', label: 'Belgium' },
+    { value: 'CH', label: 'Switzerland' },
+    { value: 'AT', label: 'Austria' },
+    { value: 'PL', label: 'Poland' },
+    { value: 'CZ', label: 'Czech Republic' },
+    { value: 'HU', label: 'Hungary' },
+    { value: 'RO', label: 'Romania' },
+    { value: 'BG', label: 'Bulgaria' },
+    { value: 'HR', label: 'Croatia' },
+    { value: 'SI', label: 'Slovenia' },
+    { value: 'SK', label: 'Slovakia' },
+    { value: 'LT', label: 'Lithuania' },
+    { value: 'LV', label: 'Latvia' },
+    { value: 'EE', label: 'Estonia' },
+    { value: 'FI', label: 'Finland' },
+    { value: 'IE', label: 'Ireland' },
+    { value: 'PT', label: 'Portugal' },
+    { value: 'GR', label: 'Greece' },
+    { value: 'TR', label: 'Turkey' },
+    { value: 'IL', label: 'Israel' },
+    { value: 'ZA', label: 'South Africa' },
+    { value: 'EG', label: 'Egypt' },
+    { value: 'MA', label: 'Morocco' },
+    { value: 'TN', label: 'Tunisia' },
+    { value: 'DZ', label: 'Algeria' },
+    { value: 'TH', label: 'Thailand' },
+    { value: 'VN', label: 'Vietnam' },
+    { value: 'PH', label: 'Philippines' },
+    { value: 'MY', label: 'Malaysia' },
+    { value: 'SG', label: 'Singapore' },
+    { value: 'ID', label: 'Indonesia' },
+    { value: 'NZ', label: 'New Zealand' },
+    { value: 'AR', label: 'Argentina' },
+    { value: 'CL', label: 'Chile' },
+    { value: 'PE', label: 'Peru' },
+    { value: 'CO', label: 'Colombia' },
+    { value: 'VE', label: 'Venezuela' },
+    { value: 'UY', label: 'Uruguay' },
+    { value: 'PY', label: 'Paraguay' },
+    { value: 'BO', label: 'Bolivia' },
+    { value: 'EC', label: 'Ecuador' },
+    { value: 'GY', label: 'Guyana' },
+    { value: 'SR', label: 'Suriname' },
+    { value: 'FK', label: 'Falkland Islands' },
+    { value: 'GF', label: 'French Guiana' },
   ];
+
   const sortOptions = [
     { value: 'popularity', label: 'Most Popular' },
     { value: 'rating', label: 'Highest Rated' },
@@ -260,7 +332,7 @@ const MoviesPage = () => {
   ];
 
   const handleFilterChange = useCallback((type, value) => {
-    setFilters(prev => ({
+    setPendingFilters(prev => ({
       ...prev,
       [type]: value,
     }));
@@ -271,7 +343,7 @@ const MoviesPage = () => {
   }, []);
 
   const handleGenreToggle = useCallback(genreId => {
-    setFilters(prev => ({
+    setPendingFilters(prev => ({
       ...prev,
       genres: prev.genres.includes(genreId)
         ? prev.genres.filter(id => id !== genreId)
@@ -283,25 +355,37 @@ const MoviesPage = () => {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({
+    const defaultFilters = {
       genres: [],
       yearFrom: '',
       yearTo: '',
-      ratingMin: '',
-      ratingMax: '',
-      runtimeMin: '',
-      runtimeMax: '',
+      country: '',
       status: '',
       adult: false,
       language: 'en',
       query: '',
       sortBy: 'popularity',
       order: 'desc',
-    });
+    };
+
+    setFilters(defaultFilters);
+    setPendingFilters(defaultFilters);
 
     // Clear animation cache khi reset filters
     animationCache.clearMovies();
   }, []);
+
+  // Apply pending filters
+  const applyFilters = useCallback(() => {
+    setFilters(pendingFilters);
+    setShowFilters(false);
+  }, [pendingFilters]);
+
+  // Cancel pending changes
+  const cancelFilters = useCallback(() => {
+    setPendingFilters(filters);
+    setShowFilters(false);
+  }, [filters]);
 
   // Manual load more function (for fallback button)
   const loadMore = useCallback(async () => {
@@ -313,6 +397,13 @@ const MoviesPage = () => {
       console.error('Error loading more movies:', error);
     }
   }, [hasNextPage, isFetchingNextPage, isFetching, debouncedFetchNextPage]);
+
+  // Sync pendingFilters with filters when opening filters panel
+  useEffect(() => {
+    if (showFilters) {
+      setPendingFilters(filters);
+    }
+  }, [showFilters, filters]);
 
   // Apply fast-scroll CSS class to body
   useEffect(() => {
@@ -368,6 +459,22 @@ const MoviesPage = () => {
       </div>
     );
   }, [movies, isFastScrolling, handleMovieTrailerClick]);
+
+  // Check if there are pending changes
+  const hasPendingChanges = useMemo(() => {
+    return JSON.stringify(pendingFilters) !== JSON.stringify(filters);
+  }, [pendingFilters, filters]);
+
+  // Count changed filters
+  const changedFiltersCount = useMemo(() => {
+    let count = 0;
+    Object.keys(pendingFilters).forEach(key => {
+      if (JSON.stringify(pendingFilters[key]) !== JSON.stringify(filters[key])) {
+        count++;
+      }
+    });
+    return count;
+  }, [pendingFilters, filters]);
 
   // Error handling
   if (error) {
@@ -458,8 +565,8 @@ const MoviesPage = () => {
                   <Search className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search movies..."
-                    value={filters.query}
+                    placeholder="Search movies by title..."
+                    value={pendingFilters.query}
                     onChange={e => handleFilterChange('query', e.target.value)}
                     className="w-full rounded-md bg-gray-700 py-3 pl-10 pr-4 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
@@ -477,13 +584,13 @@ const MoviesPage = () => {
                         key={genre.id}
                         onClick={() => handleGenreToggle(genre.id)}
                         className={`rounded-full px-3 py-1 text-sm transition-all ${
-                          filters.genres.includes(genre.id)
+                          pendingFilters.genres.includes(genre.id)
                             ? 'bg-red-600 text-white ring-2 ring-red-400'
                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         }`}
                       >
                         {genre.name}
-                        {filters.genres.includes(genre.id) && (
+                        {pendingFilters.genres.includes(genre.id) && (
                           <span className="ml-1 text-xs">✓</span>
                         )}
                       </button>
@@ -491,121 +598,105 @@ const MoviesPage = () => {
                   </div>
                 </div>
 
-                {/* Year Range */}
+                {/* Year Range with Search */}
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
                       <Calendar size={16} />
-                      From Year
+                      Year Range
                     </label>
-                    <select
-                      value={filters.yearFrom}
-                      onChange={e => handleFilterChange('yearFrom', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">Any Year</option>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          handleFilterChange('yearFrom', '');
+                          handleFilterChange('yearTo', '');
+                        }}
+                        className={`rounded-full px-3 py-1 text-sm transition-all ${
+                          !pendingFilters.yearFrom && !pendingFilters.yearTo
+                            ? 'bg-red-600 text-white ring-2 ring-red-400'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        All Years
+                      </button>
                       {years.map(year => (
-                        <option key={year} value={year}>
+                        <button
+                          key={year}
+                          onClick={() => {
+                            handleFilterChange('yearFrom', year.toString());
+                            handleFilterChange('yearTo', year.toString());
+                          }}
+                          className={`rounded-full px-3 py-1 text-sm transition-all ${
+                            pendingFilters.yearFrom === year.toString() &&
+                            pendingFilters.yearTo === year.toString()
+                              ? 'bg-red-600 text-white ring-2 ring-red-400'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
                           {year}
-                        </option>
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   </div>
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
-                      <Calendar size={16} />
-                      To Year
-                    </label>
-                    <select
-                      value={filters.yearTo}
-                      onChange={e => handleFilterChange('yearTo', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">Any Year</option>
-                      {years.map(year => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Rating Range */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
-                      <Star size={16} />
-                      Min Rating
-                    </label>
-                    <select
-                      value={filters.ratingMin}
-                      onChange={e => handleFilterChange('ratingMin', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      {ratings.map(rating => (
-                        <option key={rating.value} value={rating.value}>
-                          {rating.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
-                      <Star size={16} />
-                      Max Rating
-                    </label>
-                    <select
-                      value={filters.ratingMax}
-                      onChange={e => handleFilterChange('ratingMax', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">No Limit</option>
-                      {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(rating => (
-                        <option key={rating} value={rating}>
-                          {rating}+ Rating
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Runtime Range */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
-                      <Clock size={16} />
-                      Min Runtime (minutes)
+                      <Search size={16} />
+                      Custom Year
                     </label>
                     <input
                       type="number"
-                      placeholder="e.g. 90"
-                      value={filters.runtimeMin}
-                      onChange={e => handleFilterChange('runtimeMin', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Enter specific year..."
+                      min="1900"
+                      max="2030"
+                      value={pendingFilters.yearFrom}
+                      onChange={e => {
+                        const year = e.target.value;
+                        handleFilterChange('yearFrom', year);
+                        handleFilterChange('yearTo', year); // Set both to same year
+                      }}
+                      className={`w-full rounded-md p-3 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                        pendingFilters.yearFrom &&
+                        pendingFilters.yearFrom === pendingFilters.yearTo &&
+                        !years.includes(parseInt(pendingFilters.yearFrom))
+                          ? 'bg-red-600/20 border border-red-500'
+                          : 'bg-gray-700'
+                      }`}
                     />
-                  </div>
-                  <div>
-                    <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
-                      <Clock size={16} />
-                      Max Runtime (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 180"
-                      value={filters.runtimeMax}
-                      onChange={e => handleFilterChange('runtimeMax', e.target.value)}
-                      className="w-full rounded-md bg-gray-700 p-3 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                    />
+                    {pendingFilters.yearFrom &&
+                      pendingFilters.yearFrom === pendingFilters.yearTo &&
+                      !years.includes(parseInt(pendingFilters.yearFrom)) && (
+                        <p className="mt-1 text-xs text-red-400">Custom year selected</p>
+                      )}
                   </div>
                 </div>
 
-                {/* Status and Adult Content */}
-                <div className="grid gap-4 md:grid-cols-3">
+                {/* Country, Status, Sort, Content Filter */}
+                <div className="grid gap-4 md:grid-cols-4">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-white">Status</label>
+                    <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
+                      <Filter size={16} />
+                      Country
+                    </label>
                     <select
-                      value={filters.status}
+                      value={pendingFilters.country}
+                      onChange={e => handleFilterChange('country', e.target.value)}
+                      className="w-full rounded-md bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      {countries.map(country => (
+                        <option key={country.value} value={country.value}>
+                          {country.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
+                      <Filter size={16} />
+                      Status
+                    </label>
+                    <select
+                      value={pendingFilters.status}
                       onChange={e => handleFilterChange('status', e.target.value)}
                       className="w-full rounded-md bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                     >
@@ -618,9 +709,12 @@ const MoviesPage = () => {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-white">Sort By</label>
+                    <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
+                      <Filter size={16} />
+                      Sort By
+                    </label>
                     <select
-                      value={filters.sortBy}
+                      value={pendingFilters.sortBy}
                       onChange={e => handleFilterChange('sortBy', e.target.value)}
                       className="w-full rounded-md bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                     >
@@ -634,20 +728,44 @@ const MoviesPage = () => {
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-white">
-                      Adult Content
+                      Content Filter
                     </label>
                     <button
-                      onClick={() => handleFilterChange('adult', !filters.adult)}
+                      onClick={() => handleFilterChange('adult', !pendingFilters.adult)}
                       className={`flex w-full items-center justify-center gap-2 rounded-md p-3 transition-all ${
-                        filters.adult
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        pendingFilters.adult ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
                       }`}
                     >
-                      {filters.adult ? <Eye size={16} /> : <EyeOff size={16} />}
-                      {filters.adult ? 'Include Adult' : 'Family Friendly'}
+                      {pendingFilters.adult ? <Eye size={16} /> : <EyeOff size={16} />}
+                      {pendingFilters.adult ? 'Show All Content' : 'Family Friendly Only'}
                     </button>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {pendingFilters.adult ? 'Including adult content' : 'Excluding adult content'}
+                    </p>
                   </div>
+                </div>
+
+                {/* Filter Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-gray-700">
+                  <button
+                    onClick={applyFilters}
+                    disabled={!hasPendingChanges}
+                    className={`flex-1 rounded-md px-4 py-3 text-white font-medium transition-colors focus:outline-none focus:ring-2 ${
+                      hasPendingChanges
+                        ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                        : 'bg-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {hasPendingChanges
+                      ? `Apply Filters (${changedFiltersCount} changed)`
+                      : 'No Changes'}
+                  </button>
+                  <button
+                    onClick={cancelFilters}
+                    className="flex-1 rounded-md bg-gray-600 px-4 py-3 text-white font-medium transition-colors hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             </motion.div>

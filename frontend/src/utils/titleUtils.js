@@ -47,3 +47,35 @@ export const getAllTitles = movie => {
   // Remove duplicates
   return [...new Set(titles)];
 };
+
+/**
+ * Get display title based on current language with fallback
+ * @param {Object} movie - Movie object
+ * @param {string} language - Current language ('en' or 'vi')
+ * @returns {string} - Display title
+ */
+export const getDisplayTitle = (movie, language = 'en') => {
+  if (!movie) return '';
+
+  if (language === 'vi') {
+    return movie.title_vi || movie.original_title || movie.title_en || movie.title || '';
+  } else {
+    return movie.title_en || movie.original_title || movie.title_vi || movie.title || '';
+  }
+};
+
+/**
+ * Get display overview based on current language with fallback
+ * @param {Object} movie - Movie object
+ * @param {string} language - Current language ('en' or 'vi')
+ * @returns {string} - Display overview
+ */
+export const getDisplayOverview = (movie, language = 'en') => {
+  if (!movie) return '';
+
+  if (language === 'vi') {
+    return movie.overview_vi || movie.overview_en || movie.overview || '';
+  } else {
+    return movie.overview_en || movie.overview_vi || movie.overview || '';
+  }
+};

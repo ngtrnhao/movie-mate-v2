@@ -1,7 +1,17 @@
 import { Category, MovieFilter, LocalMovies } from '@mui/icons-material';
+import { useTranslation } from '../../../i18n/hooks/useTranslation';
+import { useMemo } from 'react';
 
 const GenreList = ({ genres }) => {
-  if (!genres || genres.length === 0) {
+  const { currentLanguage } = useTranslation();
+
+  // Filter genres by current language
+  const filteredGenres = useMemo(() => {
+    if (!genres) return [];
+    return genres.filter(genre => genre.language === currentLanguage || !genre.language);
+  }, [genres, currentLanguage]);
+
+  if (!filteredGenres || filteredGenres.length === 0) {
     return (
       <div className="rounded-2xl border border-gray-700 bg-gray-800/95 p-6 shadow-xl backdrop-blur-sm">
         <div className="mb-6 flex items-center gap-3">
@@ -32,7 +42,7 @@ const GenreList = ({ genres }) => {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {genres.map((genre, _index) => (
+        {filteredGenres.map((genre, _index) => (
           <span
             key={genre.id}
             className="rounded-full border border-red-600/30 bg-red-600/10 px-4 py-2 text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-600/20 hover:text-red-300"
@@ -43,9 +53,9 @@ const GenreList = ({ genres }) => {
         ))}
       </div>
 
-      {genres.length > 6 && (
+      {filteredGenres.length > 6 && (
         <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500">{genres.length} genres total</p>
+          <p className="text-sm text-gray-500">{filteredGenres.length} genres total</p>
         </div>
       )}
     </div>

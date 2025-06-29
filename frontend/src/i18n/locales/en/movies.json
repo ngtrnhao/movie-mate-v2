@@ -55,7 +55,7 @@
     "cannotLoadCastDesc": "An error occurred while loading the cast list. Please try again later.",
     "technicalInfo": "Technical Information",
     "media": "Media",
-    "recommend": "Recommendations",
+    "similar": "Similar Movies",
     "ageRating": "Age Rating",
     "suitableForAll": "Suitable for all ages",
     "ratingFromSources": "Ratings from sources",
@@ -68,7 +68,7 @@
       "cast": "Cast",
       "technical": "Technical Info",
       "media": "Media",
-      "recommend": "Recommendations"
+      "similar": "Similar Movies"
     },
     "addToFavorites": "Add to Favorites",
     "share": "Share",

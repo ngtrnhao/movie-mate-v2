@@ -56,7 +56,7 @@
     "retry": "Thử lại",
     "technicalInfo": "Thông tin kỹ thuật",
     "media": "Hình ảnh",
-    "recommend": "Đề xuất",
+    "similar": "Phim tương tự",
     "ageRating": "Giới hạn tuổi",
     "suitableForAll": "Phù hợp mọi lứa tuổi",
     "ratingFromSources": "Đánh giá từ các nguồn",
@@ -69,7 +69,7 @@
       "cast": "Diễn viên",
       "technical": "Thông tin kỹ thuật",
       "media": "Hình ảnh",
-      "recommend": "Đề xuất"
+      "similar": "Phim tương tự"
     },
     "addToFavorites": "Yêu thích",
     "share": "Chia sẻ",

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Settings, Image, Heart } from 'lucide-react';
+import { Users, Settings, Image, Film } from 'lucide-react';
 import { getPrimaryRating, getRatingBadgeColors } from '../../../utils/ratingUtils';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { Link } from 'react-router-dom';
@@ -22,7 +22,7 @@ const MainContent = ({
     { id: 'cast', label: t('details.tabs.cast'), icon: Users },
     { id: 'technical', label: t('details.tabs.technical'), icon: Settings },
     { id: 'media', label: t('details.tabs.media'), icon: Image },
-    { id: 'recommend', label: t('details.tabs.recommend'), icon: Heart },
+    { id: 'similar', label: t('details.tabs.similar'), icon: Film },
   ];
 
   if (!movie) return null;
@@ -59,7 +59,7 @@ const MainContent = ({
         )}
         {activeTab === 'technical' && <TechnicalSection movie={movie} />}
         {activeTab === 'media' && <MediaSection movie={movie} />}
-        {activeTab === 'recommend' && <RecommendTabSection similarMovies={similarMovies} />}
+        {activeTab === 'similar' && <SimilarMoviesSection similarMovies={similarMovies} />}
       </div>
 
       {/* Movie Reviews Section - Below Tabs */}
@@ -311,8 +311,8 @@ const MediaSection = ({ movie }) => {
   );
 };
 
-// Recommend Tab Section
-const RecommendTabSection = ({ similarMovies }) => {
+// Similar Movies Section - renamed from RecommendTabSection
+const SimilarMoviesSection = ({ similarMovies }) => {
   const { t } = useTranslation('movies');
 
   return (
@@ -327,7 +327,7 @@ const RecommendTabSection = ({ similarMovies }) => {
                 className="group relative overflow-hidden rounded-lg bg-gray-800 transition-transform hover:scale-105"
               >
                 <Link to={`/movies/${movie.id}`}>
-                  <div className="aspect-[2/3] w-full overflow-hidden">
+                  <div className="aspect-[1/2] w-full overflow-hidden">
                     <img
                       src={movie.poster_url || movie.poster_path}
                       alt={movie.title}

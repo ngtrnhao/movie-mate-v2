@@ -1,5 +1,6 @@
 from django.db.models import Q, Count
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from .models import (
     Movie, MovieRating, MovieAward, MovieCast,
     MovieReview, MovieBoxOffice, MovieMetadata,
@@ -7,7 +8,14 @@ from .models import (
 )
 import logging
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
+
+# Simple UserSerializer to avoid circular import
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender', 'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type']
 
 class MovieTrailerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -443,42 +451,140 @@ class UnifiedMovieReviewSerializer(serializers.ModelSerializer):
         else:
             return "Vừa xong"
 
-class MovieReviewCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating user reviews"""
+class MovieReviewSerializer(serializers.ModelSerializer):
+    """
+    Serializer for MovieReview model
+    """
+    user = UserSerializer(read_only=True)
+    reviewer_name = serializers.CharField(read_only=True)
+    reviewer_avatar = serializers.CharField(read_only=True)
+    is_verified_reviewer = serializers.BooleanField(read_only=True)
+    helpfulness_ratio = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+    can_vote = serializers.SerializerMethodField()
+    user_vote = serializers.SerializerMethodField()  # 'helpful', 'not_helpful', or None
+
     class Meta:
         model = MovieReview
-        fields = ['movie', 'title', 'content', 'rating', 'is_public', 'is_spoiler']
-
-    def create(self, validated_data):
-        # Set review_type to USER and link with current user
-        validated_data['review_type'] = 'USER'
-        validated_data['user'] = self.context['request'].user
-        return super().create(validated_data)
+        fields = [
+            'id', 'movie', 'user', 'title', 'content', 'rating',
+            'review_type', 'language', 'is_public', 'is_spoiler',
+            'helpful_votes', 'total_votes', 'helpfulness_ratio',
+            'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
+            'can_edit', 'can_vote', 'user_vote',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'user', 'helpful_votes', 'total_votes', 'helpfulness_ratio',
+            'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
+            'can_edit', 'can_vote', 'user_vote', 'created_at', 'updated_at'
+        ]
 
     def validate_rating(self, value):
-        """Validate rating is within 5-star system (0.0 - 5.0)"""
+        """Validate rating is between 0.0 and 5.0"""
         if value is not None:
             if value < 0.0 or value > 5.0:
-                raise serializers.ValidationError("Rating must be between 0.0 and 5.0 stars")
-            # Allow only half-star increments (0.0, 0.5, 1.0, 1.5, etc.)
-            if (value * 2) % 1 != 0:
-                raise serializers.ValidationError("Rating must be in half-star increments (e.g. 0.5, 1.0, 1.5)")
+                raise serializers.ValidationError("Rating must be between 0.0 and 5.0")
         return value
 
-    def validate(self, data):
-        user = self.context['request'].user
-        movie = data['movie']
+    def validate_content(self, value):
+        """Validate content is not empty and has minimum length"""
+        if not value or len(value.strip()) < 10:
+            raise serializers.ValidationError("Review content must be at least 10 characters long")
+        return value.strip()
 
-        # Check if user already has a review for this movie
-        if MovieReview.objects.filter(user=user, movie=movie, review_type='USER').exists():
-            raise serializers.ValidationError("Bạn đã có review cho phim này rồi.")
+    def get_helpfulness_ratio(self, obj):
+        """Calculate helpfulness ratio"""
+        return obj.get_helpfulness_ratio()
 
-        return data
+    def get_can_edit(self, obj):
+        """Check if current user can edit this review"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.can_be_edited_by(request.user)
 
-# Keep old name for backward compatibility
-class MovieReviewSerializer(UnifiedMovieReviewSerializer):
-    """Backward compatibility alias"""
-    pass
+    def get_can_vote(self, obj):
+        """Check if current user can vote on this review"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        # Users can't vote on their own reviews
+        return obj.user != request.user
+
+    def get_user_vote(self, obj):
+        """Get current user's vote on this review"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+
+        try:
+            from apps.movies.models import ReviewVote
+            vote = ReviewVote.objects.filter(
+                review=obj,
+                user=request.user
+            ).first()
+            return vote.vote_type if vote else None
+        except:
+            return None
+
+    def create(self, validated_data):
+        """Set the user automatically from request"""
+        validated_data['user'] = self.context['request'].user
+        validated_data['review_type'] = 'USER'
+        return super().create(validated_data)
+
+
+class MovieReviewCreateSerializer(serializers.ModelSerializer):
+    """
+    Simplified serializer for creating reviews
+    """
+    class Meta:
+        model = MovieReview
+        fields = ['movie', 'title', 'content', 'rating', 'language', 'is_public', 'is_spoiler']
+
+    def validate_rating(self, value):
+        if value is not None:
+            if value < 0.0 or value > 5.0:
+                raise serializers.ValidationError("Rating must be between 0.0 and 5.0")
+        return value
+
+    def validate_content(self, value):
+        if not value or len(value.strip()) < 10:
+            raise serializers.ValidationError("Review content must be at least 10 characters long")
+        return value.strip()
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        validated_data['review_type'] = 'USER'
+        return super().create(validated_data)
+
+
+class MovieReviewUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating reviews
+    """
+    class Meta:
+        model = MovieReview
+        fields = ['title', 'content', 'rating', 'language', 'is_public', 'is_spoiler']
+
+    def validate_rating(self, value):
+        if value is not None:
+            if value < 0.0 or value > 5.0:
+                raise serializers.ValidationError("Rating must be between 0.0 and 5.0")
+        return value
+
+    def validate_content(self, value):
+        if not value or len(value.strip()) < 10:
+            raise serializers.ValidationError("Review content must be at least 10 characters long")
+        return value.strip()
+
+
+class ReviewVoteSerializer(serializers.Serializer):
+    """
+    Serializer for voting on reviews
+    """
+    vote = serializers.ChoiceField(choices=['helpful', 'not_helpful'])
 
 class MovieBoxOfficeSerializer(serializers.ModelSerializer):
     class Meta:

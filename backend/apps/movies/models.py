@@ -4,6 +4,7 @@ from django.db import models, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 import logging
+from datetime import timedelta
 
 # Create your models here.
 
@@ -720,37 +721,70 @@ class MovieReview(models.Model):
         """Check if this is from a verified internal user"""
         return self.review_type == 'USER' and self.user is not None
 
+    def get_helpfulness_ratio(self):
+        """Calculate helpfulness ratio (helpful_votes / total_votes)"""
+        if self.total_votes == 0:
+            return 0.0
+        return round(self.helpful_votes / self.total_votes, 2)
+
+    def update_vote_counts(self):
+        """Update helpful_votes and total_votes based on ReviewVote records"""
+        votes = self.votes.all()
+        self.helpful_votes = votes.filter(vote_type='helpful').count()
+        self.total_votes = votes.count()
+        self.save(update_fields=['helpful_votes', 'total_votes'])
+
     def can_be_edited_by(self, user):
         """Check if user can edit this review"""
-        return (self.review_type == 'USER' and
-                self.user == user and
-                user.is_authenticated)
-
-    def get_helpfulness_ratio(self):
-        """Calculate helpfulness ratio"""
-        if self.total_votes == 0:
-            return 0
-        return (self.helpful_votes / self.total_votes) * 100
+        if not user.is_authenticated:
+            return False
+        return self.user == user or user.is_staff
 
     @classmethod
     def get_featured_reviews(cls, limit=5):
-        """Get featured reviews (most helpful across all types)"""
+        """Get featured reviews (most helpful, recent)"""
         return cls.objects.filter(
-            is_public=True,
-            helpful_votes__gte=5
+            review_type='USER',
+            is_public=True
         ).order_by('-helpful_votes', '-created_at')[:limit]
 
     @classmethod
     def get_recent_user_activity(cls, hours=24, limit=20):
-        """Get recent user review activity for live feed"""
-        from django.utils import timezone
-        from datetime import timedelta
-
+        """Get recent user review activity"""
+        cutoff_time = timezone.now() - timedelta(hours=hours)
         return cls.objects.filter(
             review_type='USER',
-            created_at__gte=timezone.now() - timedelta(hours=hours),
-            is_public=True
+            is_public=True,
+            created_at__gte=cutoff_time
         ).select_related('user', 'movie').order_by('-created_at')[:limit]
+
+
+class ReviewVote(models.Model):
+    """
+    Model for tracking user votes on reviews (helpful/not helpful)
+    """
+    VOTE_TYPES = [
+        ('helpful', 'Helpful'),
+        ('not_helpful', 'Not Helpful'),
+    ]
+
+    review = models.ForeignKey(MovieReview, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE)
+    vote_type = models.CharField(max_length=20, choices=VOTE_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "movies_review_vote"
+        unique_together = ('review', 'user')
+        indexes = [
+            models.Index(fields=['review', 'vote_type']),
+            models.Index(fields=['user', 'vote_type']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} voted {self.vote_type} on review {self.review.id}"
 
 
 # Doanh thu của bộ phim

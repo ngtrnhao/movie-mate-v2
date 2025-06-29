@@ -206,49 +206,77 @@ export const getSimilarMovies = async (movieId, genres = [], limit = 6) => {
 };
 
 // Get movie reviews (updated for unified review system)
-export const getMovieReviews = async (movieId, page = 1, pageSize = 10, type = null) => {
+export const getMovieReviews = async (movieId, page = 1, limit = 20, sortBy = 'recent') => {
   try {
-    const params = new URLSearchParams();
-    params.append('page', page);
-    params.append('page_size', pageSize);
-    if (type) params.append('type', type); // 'USER' or 'EXTERNAL'
-
-    const response = await axiosInstance.get(`/api/movies/${movieId}/reviews/?${params}`);
-    return handleResponse(response.data);
+    const response = await axiosInstance.get(`/api/movies/${movieId}/reviews/`, {
+      params: { page, page_size: limit, sort_by: sortBy },
+    });
+    return response.data;
   } catch (error) {
     console.error('Error fetching movie reviews:', error);
-    return {
-      data: [],
-      count: 0,
-      current_page: page,
-      total_pages: 1,
-    };
+    throw error;
   }
 };
 
 // Submit movie review with rating (updated for unified review system)
-export const submitMovieReview = async (
-  movieId,
-  { title, content, rating, isPublic = true, isSpoiler = false }
-) => {
+export const submitMovieReview = async (movieId, reviewData) => {
   try {
-    const reviewData = {
+    const response = await axiosInstance.post(`/api/movies/${movieId}/reviews/`, {
       movie: movieId,
-      title,
-      content,
-      rating: rating, // 0.0 - 5.0 scale
-      is_public: isPublic,
-      is_spoiler: isSpoiler,
-    };
-
-    const response = await axiosInstance.post(`/api/movies/${movieId}/reviews/`, reviewData);
-    return handleResponse(response.data);
+      ...reviewData,
+    });
+    return response.data;
   } catch (error) {
     console.error('Error submitting movie review:', error);
-    throw {
-      error: error.response?.data?.message || 'Failed to submit review',
-      details: error.response?.data,
-    };
+    throw error;
+  }
+};
+
+// Vote on a review (helpful/not helpful)
+export const voteOnReview = async (reviewId, voteType) => {
+  try {
+    const response = await axiosInstance.post(`/api/reviews/${reviewId}/vote/`, {
+      vote: voteType, // 'helpful' or 'not_helpful'
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error voting on review:', error);
+    throw error;
+  }
+};
+
+// Update a review
+export const updateReview = async (reviewId, reviewData) => {
+  try {
+    const response = await axiosInstance.patch(`/api/reviews/${reviewId}/`, reviewData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating review:', error);
+    throw error;
+  }
+};
+
+// Delete a review
+export const deleteReview = async reviewId => {
+  try {
+    const response = await axiosInstance.delete(`/api/reviews/${reviewId}/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    throw error;
+  }
+};
+
+// Get user's own review for a movie
+export const getUserReview = async movieId => {
+  try {
+    const response = await axiosInstance.get(`/api/reviews/my_reviews/`, {
+      params: { movie_id: movieId },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user review:', error);
+    throw error;
   }
 };
 

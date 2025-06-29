@@ -65,6 +65,18 @@ class Command(BaseCommand):
             action='store_true',
             help='Create synthetic users for TMDB reviewers (for user-based features)'
         )
+        parser.add_argument(
+            '--movie-limit',
+            type=int,
+            default=800000,
+            help='Maximum number of movies to process (default: 1000)'
+        )
+        parser.add_argument(
+            '--language',
+            type=str,
+            default='en-US',
+            help='Language for TMDB reviews (default: en-US, options: en-US, vi-VN, etc.)'
+        )
 
     def handle(self, *args, **options):
         # Get API key from command line or environment
@@ -76,6 +88,8 @@ class Command(BaseCommand):
         all_movies = options['all_movies']
         include_imdb_mapping = options['include_imdb_mapping']
         create_synthetic_users = options['create_synthetic_users']
+        movie_limit = options['movie_limit']
+        language = options['language']
 
         if not api_key:
             self.stdout.write(self.style.ERROR("❌ TMDB API key required!"))
@@ -93,14 +107,16 @@ class Command(BaseCommand):
         self.stdout.write(f"All movies: {all_movies}")
         self.stdout.write(f"Include IMDB mapping: {include_imdb_mapping}")
         self.stdout.write(f"Create synthetic users: {create_synthetic_users}")
+        self.stdout.write(f"Movie limit: {movie_limit}")
+        self.stdout.write(f"Language: {language}")
 
         # Get movies to import reviews for
-        movies = self.get_movies_for_reviews(popular_only, top_rated_only, all_movies, include_imdb_mapping)
+        movies = self.get_movies_for_reviews(popular_only, top_rated_only, all_movies, include_imdb_mapping, movie_limit)
 
         # Import reviews for each movie
-        self.import_tmdb_reviews(movies, api_key, max_reviews, batch_size, create_synthetic_users)
+        self.import_tmdb_reviews(movies, api_key, max_reviews, batch_size, create_synthetic_users, movie_limit, language)
 
-    def get_movies_for_reviews(self, popular_only, top_rated_only, all_movies, include_imdb_mapping):
+    def get_movies_for_reviews(self, popular_only, top_rated_only, all_movies, include_imdb_mapping, movie_limit=1000):
         """Get movies to import reviews for"""
         if popular_only:
             # Get popular movies with TMDB IDs or IMDB IDs
@@ -109,14 +125,14 @@ class Command(BaseCommand):
                     is_popular=True
                 ).filter(
                     models.Q(tmdb_id__isnull=False) | models.Q(imdb_id__isnull=False)
-                )[:50]
-                self.stdout.write(f"🎯 Mode: Popular movies (TMDB + IMDB mapping)")
+                )[:movie_limit]
+                self.stdout.write(f"🎯 Mode: Popular movies (TMDB + IMDB mapping, limit: {movie_limit})")
             else:
                 movies = Movie.objects.filter(
                     tmdb_id__isnull=False,
                     is_popular=True
-                )[:50]
-                self.stdout.write(f"🎯 Mode: Popular movies (TMDB only)")
+                )[:movie_limit]
+                self.stdout.write(f"🎯 Mode: Popular movies (TMDB only, limit: {movie_limit})")
         elif top_rated_only:
             # Get top rated movies with TMDB IDs or IMDB IDs
             if include_imdb_mapping:
@@ -124,44 +140,45 @@ class Command(BaseCommand):
                     is_top_rated=True
                 ).filter(
                     models.Q(tmdb_id__isnull=False) | models.Q(imdb_id__isnull=False)
-                )[:50]
-                self.stdout.write(f"🏆 Mode: Top rated movies (TMDB + IMDB mapping)")
+                )[:movie_limit]
+                self.stdout.write(f"🏆 Mode: Top rated movies (TMDB + IMDB mapping, limit: {movie_limit})")
             else:
                 movies = Movie.objects.filter(
                     tmdb_id__isnull=False,
                     is_top_rated=True
-                )[:50]
-                self.stdout.write(f"🏆 Mode: Top rated movies (TMDB only)")
+                )[:movie_limit]
+                self.stdout.write(f"🏆 Mode: Top rated movies (TMDB only, limit: {movie_limit})")
         elif all_movies:
             # Get all movies with TMDB IDs or IMDB IDs
             if include_imdb_mapping:
                 movies = Movie.objects.filter(
                     models.Q(tmdb_id__isnull=False) | models.Q(imdb_id__isnull=False)
-                )[:1000]
-                self.stdout.write(f"🌍 Mode: All movies (TMDB + IMDB mapping)")
+                )[:movie_limit]
+                self.stdout.write(f"🌍 Mode: All movies (TMDB + IMDB mapping, limit: {movie_limit})")
             else:
                 movies = Movie.objects.filter(
                     tmdb_id__isnull=False
-                )[:1000]
-                self.stdout.write(f"🌍 Mode: All movies (TMDB only)")
+                )[:movie_limit]
+                self.stdout.write(f"🌍 Mode: All movies (TMDB only, limit: {movie_limit})")
         else:
             # Default: Get all movies with TMDB IDs or IMDB IDs (limited)
+            default_limit = min(500, movie_limit)  # Default 500, but respect movie_limit
             if include_imdb_mapping:
                 movies = Movie.objects.filter(
                     models.Q(tmdb_id__isnull=False) | models.Q(imdb_id__isnull=False)
-                )[:500]
-                self.stdout.write(f"📽️ Mode: Default (TMDB + IMDB mapping, first 500)")
+                )[:default_limit]
+                self.stdout.write(f"📽️ Mode: Default (TMDB + IMDB mapping, limit: {default_limit})")
             else:
                 movies = Movie.objects.filter(
                     tmdb_id__isnull=False
-                )[:500]
-                self.stdout.write(f"📽️ Mode: Default (TMDB only, first 500)")
+                )[:default_limit]
+                self.stdout.write(f"📽️ Mode: Default (TMDB only, limit: {default_limit})")
 
         self.stdout.write(f"📽️ Found {movies.count()} movies with TMDB/IMDB IDs")
         return movies
 
-    def import_tmdb_reviews(self, movies, api_key, max_reviews, batch_size, create_synthetic_users):
-        """Import TMDB reviews for movies"""
+    def import_tmdb_reviews(self, movies, api_key, max_reviews, batch_size, create_synthetic_users, movie_limit, language):
+        """Import TMDB reviews for movies: lấy cả tiếng Việt và tiếng Anh, ưu tiên tiếng Việt nếu trùng author/id"""
 
         total_imported = 0
         total_skipped = 0
@@ -169,46 +186,72 @@ class Command(BaseCommand):
         consecutive_errors = 0
         max_consecutive_errors = 5
 
+        self.stdout.write(f"🎬 Processing up to {movie_limit} movies...")
+        self.stdout.write(f"📊 Total movies to process: {movies.count()}")
+
         for movie in movies:
             if total_imported >= max_reviews:
                 break
 
-            # Stop if too many consecutive errors
             if consecutive_errors >= max_consecutive_errors:
                 self.stdout.write(f"❌ Too many consecutive errors ({consecutive_errors}), stopping...")
                 break
 
-            # Determine which ID to use for TMDB API
             tmdb_id = movie.tmdb_id
             if not tmdb_id and movie.imdb_id:
-                # Try to find TMDB ID using IMDB ID
                 tmdb_id = self.find_tmdb_id_by_imdb(movie.imdb_id, api_key)
                 if tmdb_id:
                     self.stdout.write(f"🎬 Processing: {movie.title} (IMDB: {movie.imdb_id} → TMDB: {tmdb_id})")
                 else:
                     self.stdout.write(f"⚠️  No TMDB ID found for {movie.title} (IMDB: {movie.imdb_id})")
-                    # Don't count as error - this is normal
                     continue
             elif tmdb_id:
                 self.stdout.write(f"🎬 Processing: {movie.title} (TMDB: {tmdb_id})")
             else:
                 self.stdout.write(f"⚠️  No TMDB or IMDB ID for {movie.title}")
-                # Don't count as error - this is normal
                 continue
 
             try:
-                # Get TMDB reviews for this movie
-                reviews = self.get_tmdb_movie_reviews(tmdb_id, api_key)
+                # Lấy reviews tiếng Anh và tiếng Việt
+                reviews_en = self.get_tmdb_movie_reviews(tmdb_id, api_key, 'en-US')
+                reviews_vi = self.get_tmdb_movie_reviews(tmdb_id, api_key, 'vi-VN')
 
-                if not reviews:
-                    self.stdout.write(f"⚠️  No reviews found for {movie.title}")
-                    # Don't count as error - this is normal
-                    continue
+                # Map author hoặc id của review tiếng Việt
+                vi_authors = set()
+                for r in reviews_vi:
+                    key = r.get('author') or r.get('id')
+                    if key:
+                        vi_authors.add(key)
 
-                # Import reviews for this movie
-                imported, skipped, errors = self.import_movie_reviews(
-                    movie, reviews, batch_size, create_synthetic_users
-                )
+                imported = 0
+                skipped = 0
+                errors = 0
+
+                # Import tất cả review tiếng Việt
+                for review_data in reviews_vi:
+                    review_data['language'] = 'vi'
+                    result = self.import_single_tmdb_review(movie, review_data, create_synthetic_users, 'vi')
+                    if result == 'imported':
+                        imported += 1
+                    elif result == 'skipped':
+                        skipped += 1
+                    elif result == 'error':
+                        errors += 1
+
+                # Import review tiếng Anh nếu chưa có bản tiếng Việt cùng author/id
+                for review_data in reviews_en:
+                    key = review_data.get('author') or review_data.get('id')
+                    if key in vi_authors:
+                        skipped += 1
+                        continue  # đã có bản tiếng Việt, skip
+                    review_data['language'] = 'en'
+                    result = self.import_single_tmdb_review(movie, review_data, create_synthetic_users, 'en')
+                    if result == 'imported':
+                        imported += 1
+                    elif result == 'skipped':
+                        skipped += 1
+                    elif result == 'error':
+                        errors += 1
 
                 total_imported += imported
                 total_skipped += skipped
@@ -217,23 +260,18 @@ class Command(BaseCommand):
                 if errors > 0:
                     consecutive_errors += 1
                 else:
-                    consecutive_errors = 0  # Reset on success
+                    consecutive_errors = 0
 
                 self.stdout.write(f"✅ {movie.title}: {imported} imported, {skipped} skipped, {errors} errors")
-
-                # Rate limiting - increase delay for repeated runs
-                time.sleep(1.0)  # Increased from 0.5s to 1.0s
+                time.sleep(1.0)
 
             except Exception as e:
                 total_errors += 1
                 consecutive_errors += 1
                 logger.error(f"Error processing {movie.title}: {str(e)}")
                 self.stdout.write(f"❌ Error: {str(e)}")
-
-                # Additional delay on error
                 time.sleep(2.0)
 
-        # Final report
         self.stdout.write(self.style.SUCCESS(f"""
 ✅ TMDB Import completed!
 📈 Total imported: {total_imported}
@@ -266,12 +304,12 @@ class Command(BaseCommand):
             logger.error(f"TMDB API error finding TMDB ID for IMDB {imdb_id}: {str(e)}")
             return None
 
-    def get_tmdb_movie_reviews(self, tmdb_id, api_key):
+    def get_tmdb_movie_reviews(self, tmdb_id, api_key, language):
         """Get TMDB reviews for a movie"""
         url = f"https://api.themoviedb.org/3/movie/{tmdb_id}/reviews"
         params = {
             'api_key': api_key,
-            'language': 'en-US',
+            'language': language,
             'page': 1
         }
 
@@ -288,29 +326,7 @@ class Command(BaseCommand):
             logger.error(f"TMDB API error for movie {tmdb_id}: {str(e)}")
             return []
 
-    def import_movie_reviews(self, movie, reviews, batch_size, create_synthetic_users):
-        """Import reviews for a specific movie"""
-
-        imported = 0
-        skipped = 0
-        errors = 0
-
-        for review_data in reviews:
-            try:
-                result = self.import_single_tmdb_review(movie, review_data, create_synthetic_users)
-
-                if result == 'imported':
-                    imported += 1
-                elif result == 'skipped':
-                    skipped += 1
-
-            except Exception as e:
-                errors += 1
-                logger.error(f"Error importing review: {str(e)}")
-
-        return imported, skipped, errors
-
-    def import_single_tmdb_review(self, movie, review_data, create_synthetic_users):
+    def import_single_tmdb_review(self, movie, review_data, create_synthetic_users, language):
         """Import a single TMDB review"""
 
         # Extract review data
@@ -374,7 +390,7 @@ class Command(BaseCommand):
                 content=content[:500000],  # Limit content length
                 rating=Decimal(str(rating)),
                 review_type=review_type,
-                language='en',
+                language=language,
                 source='tmdb',
                 external_review_id=f"tmdb_{review_id}",
                 external_username=external_username,

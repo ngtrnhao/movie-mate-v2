@@ -1,23 +1,6 @@
 import { useState, useEffect } from 'react';
-import {
-  MessageCircle,
-  Send,
-  ThumbsUp,
-  ThumbsDown,
-  MoreHorizontal,
-  Star,
-  Eye,
-  EyeOff,
-  Edit,
-  Trash2,
-  AlertTriangle,
-} from 'lucide-react';
-import {
-  getMovieReviews,
-  voteOnReview,
-  deleteReview,
-  submitMovieReview,
-} from '../../../api/movieService';
+import { Send, Star, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { getMovieReviews, voteOnReview, submitMovieReview } from '../../../api/movieService';
 import ReviewActions from '../../../components/common/ReviewActions';
 
 const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showLabel = false }) => {

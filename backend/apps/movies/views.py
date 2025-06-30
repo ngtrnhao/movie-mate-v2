@@ -8,7 +8,8 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from django.core.cache import cache
-from django.db.models import Count, Prefetch, Q, F, Avg
+from django.db.models import Count, Prefetch, Q, F, Avg, Case, When, Value, IntegerField, DecimalField
+from django.db.models.functions import Greatest, Coalesce, Cast
 from django.core.paginator import Paginator
 from django.db import models
 from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote
@@ -851,7 +852,13 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             # Optimized sorting using indexed fields
             sort_fields = {
                 'popularity': '-is_popular',
-                'rating': ['-combined_rating_score', '-cached_imdb_rating', '-cached_tmdb_rating'],
+                'rating': [
+                    '-has_rating',  # Custom field to sort rated movies first
+                    '-highest_rating',  # Custom field for highest rating between IMDB and TMDB
+                    '-cached_imdb_votes',  # Prefer movies with more votes when ratings are equal
+                    '-cached_tmdb_votes',
+                    '-release_date'
+                ],
                 'release_date': '-release_date',
                 'title': 'title_en' if language == 'en' else 'title_vi',
                 'runtime': '-runtime',
@@ -864,7 +871,31 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             if isinstance(sort_field, list):
                 if order == 'asc':
                     sort_field = [field.lstrip('-') for field in sort_field]
-                queryset = queryset.order_by(*sort_field, '-release_date')
+                if sort_by == 'rating':
+                    # Add custom fields for rating sort
+                    queryset = queryset.annotate(
+                        has_rating=Case(
+                            When(
+                                Q(cached_imdb_rating__isnull=False) |
+                                Q(cached_tmdb_rating__isnull=False),
+                                then=Value(1)
+                            ),
+                            default=Value(0),
+                            output_field=IntegerField(),
+                        ),
+                        highest_rating=Greatest(
+                            Coalesce(
+                                Cast('cached_imdb_rating', DecimalField(max_digits=3, decimal_places=1)),
+                                Value(0, output_field=DecimalField(max_digits=3, decimal_places=1))
+                            ),
+                            Coalesce(
+                                Cast('cached_tmdb_rating', DecimalField(max_digits=3, decimal_places=1)),
+                                Value(0, output_field=DecimalField(max_digits=3, decimal_places=1))
+                            ),
+                            output_field=DecimalField(max_digits=3, decimal_places=1)
+                        )
+                    )
+                queryset = queryset.order_by(*sort_field)
             else:
                 if order == 'asc':
                     sort_field = sort_field.lstrip('-')

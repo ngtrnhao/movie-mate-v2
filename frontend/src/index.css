@@ -235,6 +235,26 @@ code {
   overscroll-behavior: contain; /* Prevent bounce effects */
 }
 
+/* Prevent scroll restoration flash */
+html {
+  scroll-behavior: auto !important; /* Override smooth scroll for restoration */
+}
+
+/* Prevent layout shift during page transitions */
+body {
+  /* Prevent scroll position jump during navigation */
+  overflow-anchor: none;
+  /* Ensure consistent layout */
+  min-height: 100vh;
+}
+
+/* Movies page specific optimizations */
+.movies-page {
+  /* Prevent flash during restoration */
+  will-change: scroll-position;
+  contain: layout style;
+}
+
 /* Movies grid optimization */
 .movies-grid {
   /* CSS containment cho grid container */

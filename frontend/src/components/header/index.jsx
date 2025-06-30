@@ -2,18 +2,20 @@ import SearchBar from './SearchBar';
 import Navigation from './Navigation';
 import MovieMateLogo from './Logo';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Menu, MenuItem, IconButton, Tooltip } from '@mui/material';
 import { AccountCircle, Settings, Logout } from '@mui/icons-material';
+import { ChevronLeft } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
 import { selectIsAuthenticated, selectUser } from '../../store/selectors/authSelectors';
 import { getUserType, USER_TYPES } from '../../utils/userPermissions';
-
+import { motion } from 'framer-motion';
 const Header = () => {
   const { t } = useTranslation('common');
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const [isScrolled, setIsScrolled] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -21,6 +23,8 @@ const Header = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectUser);
   const userType = getUserType(user);
+  const isMovieDetailsPage =
+    location.pathname.startsWith('/movies/') && location.pathname !== '/movies';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,26 +64,47 @@ const Header = () => {
     window.location.href = '/home';
   };
 
+  const handleBack = e => {
+    e.preventDefault();
+    // Simply navigate back without scroll position handling
+    navigate(-1);
+  };
+
   return (
     <header
       className={`fixed top-0 z-50 w-full transition-all duration-300 ${
         isScrolled ? 'bg-gray-900/90 backdrop-blur-md' : 'bg-transparent'
       }`}
     >
-      <div className="mx-auto max-w-[1400px] px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo/Brand */}
-          <MovieMateLogo />
+      <div className="mx-auto max-w-[1400px] px-2 sm:px-4">
+        <div className="flex h-16 items-center w-full">
+          {/* Left: Back button + Logo */}
+          <div className="flex items-center gap-1 sm:gap-3 min-w-0">
+            {isMovieDetailsPage && (
+              <button
+                onClick={handleBack}
+                className="relative group flex items-center gap-2 rounded-xl bg-gradient-to-r from-gray-800/80 to-gray-700/80 backdrop-blur-sm border border-gray-600/50 px-2 py-1 sm:px-3 sm:py-2 text-white/90 shadow-lg transition-all duration-300 hover:from-red-600/80 hover:to-red-500/80 hover:border-red-400/50 hover:text-white hover:shadow-red-500/25 hover:scale-105 hover:-translate-x-1 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                aria-label="Back"
+              >
+                <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
+                <span className="hidden sm:inline text-sm font-medium">Back</span>
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              </button>
+            )}
+            <div className="flex items-center min-w-0">
+              <MovieMateLogo />
+            </div>
+          </div>
 
-          {/* Center section */}
-          <div className="flex flex-1 items-center justify-center">
-            <div className="w-[400px]">
+          {/* Center: Search bar (hidden on xs, visible from sm) */}
+          <div className="hidden flex-1 justify-center px-2 sm:flex">
+            <div className="w-full max-w-[400px]">
               <SearchBar />
             </div>
           </div>
 
-          {/* Right section */}
-          <div className="flex items-center space-x-4 md:space-x-6">
+          {/* Right: Navigation + Profile */}
+          <div className="flex items-center gap-2 sm:gap-4 ml-auto">
             <Navigation />
             <div className="flex items-center gap-2 md:gap-4">
               {isAuthenticated && user?.id ? (
@@ -253,13 +278,19 @@ const Header = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => navigate('/login')}
-                    className="rounded-md border border-red-600 px-4 py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                    className="rounded-md border border-red-600 px-3 py-1 sm:px-4 sm:py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white text-sm sm:text-base"
                   >
                     {t('auth.signIn')}
                   </button>
                 </div>
               )}
             </div>
+          </div>
+        </div>
+        {/* Mobile search bar below header */}
+        <div className="flex sm:hidden w-full py-2">
+          <div className="w-full">
+            <SearchBar />
           </div>
         </div>
       </div>

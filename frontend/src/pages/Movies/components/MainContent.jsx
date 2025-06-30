@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Users, Settings, Image, Film } from 'lucide-react';
-import { getPrimaryRating, getRatingBadgeColors } from '../../../utils/ratingUtils';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { Link } from 'react-router-dom';
 

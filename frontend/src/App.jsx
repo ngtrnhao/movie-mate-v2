@@ -52,6 +52,15 @@ if (typeof window !== 'undefined') {
 
 function App() {
   const dispatch = useDispatch();
+
+  // Prevent automatic scroll restoration for better UX
+  useEffect(() => {
+    // Override browser's scroll restoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   // Khi app khởi động, gọi rehydrateAuth để khôi phục trạng thái đăng nhập từ localStorage vào Redux
   useEffect(() => {
     dispatch(rehydrateAuth());
@@ -122,7 +131,7 @@ function App() {
               <Route
                 path="/"
                 element={
-                  <div className="flex min-h-screen flex-col text-foreground">
+                  <div className="text-foreground flex min-h-screen flex-col">
                     <LandingPage />
                   </div>
                 }
@@ -140,9 +149,9 @@ function App() {
               <Route
                 path="/*"
                 element={
-                  <div className="flex min-h-screen flex-col text-foreground transition-colors duration-200">
+                  <div className="text-foreground flex min-h-screen flex-col transition-colors duration-200">
                     <Header />
-                    <main className="flex-1 bg-background transition-colors duration-200">
+                    <main className="bg-background flex-1 transition-colors duration-200">
                       <Routes>
                         <Route path="/home" element={<HomePage />} />
                         <Route path="/movies" element={<MoviesPage />} />

@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { Users, UserX } from 'lucide-react';
-
-const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+import { getProfileUrl } from '../../../utils/imageUtils';
 
 const CastSection = ({ cast = [], isLoading = false, error = null }) => {
   const { t } = useTranslation('movies');
@@ -25,12 +24,6 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
 
     // Return limited or all actors based on showAllCast state
     return showAllCast ? prioritizedActors : prioritizedActors.slice(0, 6);
-  };
-
-  const getImageUrl = path => {
-    if (!path) return 'https://via.placeholder.com/500x750?text=No+Image';
-    if (path.startsWith('http')) return path;
-    return `${TMDB_IMAGE_BASE_URL}${path}`;
   };
 
   const getCharacterName = member => {
@@ -171,11 +164,12 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
             >
               <div className="aspect-[2/3] w-full overflow-hidden">
                 <img
-                  src={getImageUrl(actor.profile_path)}
+                  src={getProfileUrl(actor, 'w500')}
                   alt={actor.name || 'Actor'}
                   className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
                   onError={e => {
-                    e.target.src = 'https://placehold.co/600x400';
+                    // Fallback to default avatar if both profile URL and gender-specific fallback fail
+                    e.target.src = '/images/avatar_default.jpg';
                   }}
                 />
               </div>

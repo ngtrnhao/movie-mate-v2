@@ -1,43 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MovieTrailerModal from '../../../components/movies/movie-trailer/MovieTrailerModal';
-
-const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
+import { getBackdropUrl } from '../../../utils/imageUtils';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft } from 'lucide-react';
 
 const HeroSection = ({ movie }) => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const navigate = useNavigate();
+
+  // Log backdrop URL information
+  useEffect(() => {
+    if (movie) {
+      console.log('Backdrop URL Debug:');
+      console.log('movie.backdrop_url:', movie.backdrop_url);
+      console.log('movie.backdrop_path:', movie.backdrop_path);
+      console.log('movie.poster_url:', movie.poster_url);
+      console.log('Final backdrop URL:', getBackdropUrl(movie));
+    }
+  }, [movie]);
 
   if (!movie) return null;
 
-  // Handle different image URL formats (same as InfoSection)
-  const getImageUrl = path => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return `${TMDB_IMAGE_BASE_URL}${path}`;
-  };
+  // const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : 'TBA';
+  // const runtime = movie.runtime ? `${movie.runtime} phút` : '';
+  // const rating = movie.vote_average || movie.rating?.imdb || 0;
+  // const genres = movie.genres || [];
+  // const trailers = movie.trailers || [];
 
-  const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : 'TBA';
-  const runtime = movie.runtime ? `${movie.runtime} phút` : '';
-  const rating = movie.vote_average || movie.rating?.imdb || 0;
-  const genres = movie.genres || [];
-  const trailers = movie.trailers || [];
+  // const handleWatchTrailer = () => {
+  //   if (trailers.length > 0) {
+  //     setShowTrailer(true);
+  //   }
+  // };
 
-  const handleWatchTrailer = () => {
-    if (trailers.length > 0) {
-      setShowTrailer(true);
-    }
-  };
+  // const handleToggleLike = () => {
+  //   setIsLiked(!isLiked);
+  //   // TODO: Implement API call to add/remove from favorites
+  // };
 
-  const handleToggleLike = () => {
-    setIsLiked(!isLiked);
-    // TODO: Implement API call to add/remove from favorites
-  };
+  // const handleToggleWatchlist = () => {
+  //   setIsInWatchlist(!isInWatchlist);
+  //   // TODO: Implement API call to add/remove from watchlist
+  // };
 
-  const handleToggleWatchlist = () => {
-    setIsInWatchlist(!isInWatchlist);
-    // TODO: Implement API call to add/remove from watchlist
-  };
+  // const handleBack = e => {
+  //   e.preventDefault();
+  //   navigate(-1, { replace: true });
+  // };
 
   return (
     <>
@@ -46,9 +57,7 @@ const HeroSection = ({ movie }) => {
         <div
           className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url(${getImageUrl(
-              movie.backdrop_url || movie.backdrop_path || movie.poster_url
-            )})`,
+            backgroundImage: `url(${getBackdropUrl(movie)})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
@@ -81,13 +90,13 @@ const HeroSection = ({ movie }) => {
       </div>
 
       {/* Trailer Modal */}
-      {showTrailer && trailers.length > 0 && (
+      {/* {showTrailer && trailers.length > 0 && (
         <MovieTrailerModal
           isOpen={showTrailer}
           onClose={() => setShowTrailer(false)}
           trailers={trailers}
         />
-      )}
+      )} */}
     </>
   );
 };

@@ -1,7 +1,8 @@
-import { memo, useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useThrottledScroll } from '../../../hooks/useThrottledScroll';
 import animationCache from '../../../utils/animationCache';
+import { getPosterUrl } from '../../../utils/imageUtils';
 
 // Simplified image cache và loading queue
 const imageCache = new Set();
@@ -12,13 +13,20 @@ const MAX_CONCURRENT_LOADING = 3; // Limit concurrent image loads
 // Cache để track poster đã từng hiển thị (để tránh animate lại)
 const shownPosters = new Set();
 
-const Poster = memo(({ posterPath, title, priority = false, onLoadDone }) => {
-  const [isImageLoaded, setIsImageLoaded] = useState(priority || imageCache.has(posterPath));
+const Poster = memo(({ movie, title, priority = false, onLoadDone }) => {
+  const [isImageLoaded, setIsImageLoaded] = useState(
+    priority || imageCache.has(movie?.poster_path)
+  );
   const [imageError, setImageError] = useState(false);
-  const [hasBeenVisible, setHasBeenVisible] = useState(animationCache.isPosterAnimated(posterPath));
+  const [hasBeenVisible, setHasBeenVisible] = useState(
+    animationCache.isPosterAnimated(movie?.poster_path)
+  );
 
   // Get scroll state để adjust loading behavior
   const { isFastScrolling, isScrolling } = useThrottledScroll();
+
+  // Get poster URL using utility function
+  const posterUrl = useMemo(() => getPosterUrl(movie, 'w500'), [movie]);
 
   // Optimized useInView với dynamic settings based on scroll speed
   const { ref, inView } = useInView({
@@ -107,12 +115,12 @@ const Poster = memo(({ posterPath, title, priority = false, onLoadDone }) => {
 
   // Load image when conditions are met
   useEffect(() => {
-    if (shouldLoadImage && posterPath && !isImageLoaded && !imageError) {
+    if (shouldLoadImage && posterUrl && !isImageLoaded && !imageError) {
       // Delay loading khi fast scrolling để prevent flooding
       const delay = isFastScrolling ? 100 : 0;
 
       const loadTimer = setTimeout(() => {
-        loadImageWithQueue(posterPath)
+        loadImageWithQueue(posterUrl)
           .then(() => {
             setIsImageLoaded(true);
           })
@@ -123,32 +131,32 @@ const Poster = memo(({ posterPath, title, priority = false, onLoadDone }) => {
 
       return () => clearTimeout(loadTimer);
     }
-  }, [shouldLoadImage, posterPath, isImageLoaded, imageError, isFastScrolling, loadImageWithQueue]);
+  }, [shouldLoadImage, posterUrl, isImageLoaded, imageError, isFastScrolling, loadImageWithQueue]);
 
   // Handle priority loading immediately
   useEffect(() => {
-    if (priority && posterPath && !isImageLoaded && !imageError) {
-      loadImageWithQueue(posterPath)
+    if (priority && posterUrl && !isImageLoaded && !imageError) {
+      loadImageWithQueue(posterUrl)
         .then(() => setIsImageLoaded(true))
         .catch(() => setImageError(true));
     }
-  }, [priority, posterPath, isImageLoaded, imageError, loadImageWithQueue]);
+  }, [priority, posterUrl, isImageLoaded, imageError, loadImageWithQueue]);
 
   // Mark poster as shown when it comes into view and image is loaded
   useEffect(() => {
-    if (inView && isImageLoaded && posterPath && !hasBeenVisible) {
-      animationCache.markPosterAnimated(posterPath);
+    if (inView && isImageLoaded && movie?.poster_path && !hasBeenVisible) {
+      animationCache.markPosterAnimated(movie.poster_path);
       setHasBeenVisible(true);
     }
-  }, [inView, isImageLoaded, posterPath, hasBeenVisible]);
+  }, [inView, isImageLoaded, movie?.poster_path, hasBeenVisible]);
 
   const handleImageLoad = useCallback(() => {
-    if (posterPath) {
-      imageCache.add(posterPath);
+    if (posterUrl) {
+      imageCache.add(posterUrl);
       setIsImageLoaded(true);
       if (onLoadDone) onLoadDone();
     }
-  }, [posterPath, onLoadDone]);
+  }, [posterUrl, onLoadDone]);
 
   const handleImageError = useCallback(() => {
     setImageError(true);
@@ -161,7 +169,7 @@ const Poster = memo(({ posterPath, title, priority = false, onLoadDone }) => {
       return null;
     }
 
-    if (!posterPath) return null;
+    if (!posterUrl) return null;
 
     // Chỉ animate opacity nếu poster chưa từng được hiển thị trước đó
     const shouldAnimate = !hasBeenVisible;
@@ -173,7 +181,7 @@ const Poster = memo(({ posterPath, title, priority = false, onLoadDone }) => {
 
     return (
       <img
-        src={posterPath}
+        src={posterUrl}
         alt={title}
         loading={priority ? 'eager' : 'lazy'}
         fetchPriority={priority ? 'high' : 'auto'}
@@ -188,7 +196,7 @@ const Poster = memo(({ posterPath, title, priority = false, onLoadDone }) => {
   }, [
     shouldLoadImage,
     priority,
-    posterPath,
+    posterUrl,
     title,
     isImageLoaded,
     hasBeenVisible,

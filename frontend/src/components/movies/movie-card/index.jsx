@@ -89,6 +89,7 @@ const MovieCard = memo(
     const isPriority = index < 8;
 
     const handleClick = useCallback(() => {
+      // Remove sessionStorage handling - let the global hook handle it
       if (onClick) {
         onClick(movieData);
       }
@@ -130,9 +131,13 @@ const MovieCard = memo(
             className="movie-card focus-ring group relative rounded-lg bg-gray-800 shadow-lg transition-transform will-change-transform hover:scale-105"
             style={style}
           >
-            <Link to={`/movies/${movieData.id}`} onClick={handleClick}>
+            <Link
+              to={`/movies/${movieData.id}`}
+              state={{ preserveScroll: true }}
+              onClick={handleClick}
+            >
               <Poster
-                posterPath={movieData.poster_path}
+                movie={movieData}
                 title={movieData.title}
                 priority={priority}
                 onLoadDone={() => setPosterLoaded(true)}
@@ -151,7 +156,7 @@ const MovieCard = memo(
           style={style}
         >
           <Poster
-            posterPath={movieData.poster_path}
+            movie={movieData}
             title={movieData.title}
             priority={priority}
             onLoadDone={() => setPosterLoaded(true)}
@@ -175,10 +180,15 @@ const MovieCard = memo(
           {movieData.adult && <Badge />}
 
           {/* Movie Poster with Link */}
-          <Link to={`/movies/${movieData.id}`} className="block" onClick={handleClick}>
+          <Link
+            to={`/movies/${movieData.id}`}
+            state={{ preserveScroll: true }}
+            className="block"
+            onClick={handleClick}
+          >
             <div className="movie-poster">
               <Poster
-                posterPath={movieData.poster_path}
+                movie={movieData}
                 title={displayValues.title}
                 priority={isPriority}
                 onLoadDone={() => setPosterLoaded(true)}
@@ -188,7 +198,12 @@ const MovieCard = memo(
 
           {/* Movie Info Section */}
           <div className="flex min-h-[180px] flex-1 flex-col justify-between p-4">
-            <Link to={`/movies/${movieData.id}`} className="focus-ring block rounded">
+            <Link
+              to={`/movies/${movieData.id}`}
+              state={{ preserveScroll: true }}
+              className="focus-ring block rounded"
+              onClick={handleClick}
+            >
               <div>
                 <Info
                   title={displayValues.title}
@@ -234,7 +249,7 @@ const MovieCard = memo(
       <div className="movie-card focus-ring group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md">
         <div className="movie-poster">
           <Poster
-            posterPath={movieData.poster_path}
+            movie={movieData}
             title={displayValues.title}
             priority={isPriority}
             onLoadDone={() => setPosterLoaded(true)}

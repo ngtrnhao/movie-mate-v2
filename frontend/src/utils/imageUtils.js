@@ -1,46 +1,92 @@
-/**
- * Get optimized image URL with fallback handling
- * @param {string} imageUrl - The image URL from API
- * @param {string} size - Optional size parameter (w300, w500, w780, original)
- * @returns {string} - Processed image URL
- */
-export const getImageUrl = (imageUrl, size = 'original') => {
-  if (!imageUrl) {
-    return '/images/placeholder-poster.jpg'; // Fallback placeholder
-  }
+const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
 
-  // If it's already a full URL, return as is
-  if (imageUrl.startsWith('http')) {
-    return imageUrl;
-  }
-
-  // If it's a relative path from TMDB, construct full URL
-  if (imageUrl.startsWith('/')) {
-    return `https://image.tmdb.org/t/p/${size}${imageUrl}`;
-  }
-
-  // Return the URL as is for other cases
-  return imageUrl;
+// Fallback URLs
+const FALLBACK_URLS = {
+  poster: '/images/placeholder-poster.jpg',
+  backdrop: '/images/placeholder-backdrop.jpg',
+  profile: {
+    male: '/images/avatar-male.png',
+    female: '/images/avatar-female.png',
+    default: '/images/avatar-default.png',
+  },
 };
 
 /**
- * Get poster image URL with appropriate size
- * @param {string} posterUrl - Poster URL from API
- * @param {string} size - Size (w154, w185, w342, w500, w780, original)
- * @returns {string} - Poster image URL
+ * Get the full image URL from various possible formats
+ * @param {string} path - The image path or URL
+ * @param {string} [size='original'] - The size for TMDB images (original, w500, etc.)
+ * @returns {string|null} The full image URL or null if no valid path
  */
-export const getPosterUrl = (posterUrl, size = 'w500') => {
-  return getImageUrl(posterUrl, size);
+export const getImageUrl = (path, size = 'original') => {
+  if (!path) return null;
+
+  // Case 1: Already a full URL (including Amazon, IMDB, etc)
+  if (path.startsWith('http') || path.startsWith('https')) {
+    return path;
+  }
+
+  // Case 2: TMDB path
+  if (path.startsWith('/')) {
+    return `${TMDB_IMAGE_BASE_URL.replace('original', size)}${path}`;
+  }
+
+  // Case 3: TMDB path without leading slash
+  return `${TMDB_IMAGE_BASE_URL.replace('original', size)}/${path}`;
 };
 
 /**
- * Get backdrop image URL with appropriate size
- * @param {string} backdropUrl - Backdrop URL from API
- * @param {string} size - Size (w300, w780, w1280, original)
- * @returns {string} - Backdrop image URL
+ * Get the backdrop URL from movie object
+ * @param {Object} movie - The movie object
+ * @param {string} [size='original'] - The size for TMDB images
+ * @returns {string|null} The backdrop URL or null if not found
  */
-export const getBackdropUrl = (backdropUrl, size = 'original') => {
-  return getImageUrl(backdropUrl, size);
+export const getBackdropUrl = (movie, size = 'original') => {
+  if (!movie) return FALLBACK_URLS.backdrop;
+
+  // Try all possible backdrop fields
+  const backdropPath = movie.backdrop_url || movie.backdrop_path;
+  if (backdropPath) {
+    return getImageUrl(backdropPath, size);
+  }
+
+  // Fallback to poster if no backdrop
+  const posterUrl = getPosterUrl(movie, size);
+  return posterUrl || FALLBACK_URLS.backdrop;
+};
+
+/**
+ * Get the poster URL from movie object
+ * @param {Object} movie - The movie object
+ * @param {string} [size='original'] - The size for TMDB images
+ * @returns {string|null} The poster URL or null if not found
+ */
+export const getPosterUrl = (movie, size = 'original') => {
+  if (!movie) return FALLBACK_URLS.poster;
+
+  // Try all possible poster fields
+  const posterPath = movie.poster_url || movie.poster_path;
+  return posterPath ? getImageUrl(posterPath, size) : FALLBACK_URLS.poster;
+};
+
+/**
+ * Get the profile image URL for cast/crew
+ * @param {Object} person - The person object
+ * @param {string} [size='original'] - The size for TMDB images
+ * @returns {string} The profile URL or appropriate fallback avatar
+ */
+export const getProfileUrl = (person, size = 'original') => {
+  if (!person) return FALLBACK_URLS.profile.default;
+
+  const profilePath = person.profile_url || person.profile_path;
+  if (profilePath) {
+    return getImageUrl(profilePath, size);
+  }
+
+  // Use gender-specific fallback if available
+  if (person.gender === 1) return FALLBACK_URLS.profile.female;
+  if (person.gender === 2) return FALLBACK_URLS.profile.male;
+
+  return FALLBACK_URLS.profile.default;
 };
 
 /**

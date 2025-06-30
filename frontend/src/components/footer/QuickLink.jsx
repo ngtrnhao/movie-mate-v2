@@ -19,7 +19,6 @@ const QuickLink = () => {
             <Link
               to={link.path}
               className="text-muted-foreground transition-colors duration-200 hover:text-red-600"
-              onClick={() => window.scrollTo(0, 0)}
             >
               {link.name}
             </Link>

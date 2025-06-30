@@ -3,13 +3,13 @@ import {
   getProfileAPI,
   updateProfileAPI,
   uploadAvatarAPI,
+  getUserRatings,
+  getUserReviewsAPI,
   getUserStatsAPI,
+  getFavoriteGenresAPI,
   // followUserAPI,
   // getFollowersAPI,
   // getWatchedMoviesAPI,
-  getUserReviewsAPI,
-  getUserRatingsAPI,
-  getFavoriteGenresAPI,
   // updateProfileSettingsAPI,
   // deleteAccountAPI,
 } from '../../api/profileService';
@@ -69,9 +69,13 @@ export const fetchUserReviews = createAsyncThunk(
 
 export const fetchUserRatings = createAsyncThunk(
   'profile/fetchUserRatings',
-  async ({ userId, page = 1 }) => {
-    const response = await getUserRatingsAPI(userId, page);
-    return response;
+  async ({ userId, page = 1 }, { rejectWithValue }) => {
+    try {
+      const response = await getUserRatings(userId, page);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
 );
 

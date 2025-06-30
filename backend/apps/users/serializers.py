@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import User, Watchlist, UserFavoriteGenre, PasswordResetToken
+from .models import User, Watchlist, UserFavoriteGenre, PasswordResetToken, UserFavoriteMovie
 from apps.movies.serializers import MovieSerializer
 from django.conf import settings
 import requests
@@ -153,11 +153,38 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return latest_transaction.end_date if latest_transaction else None
 
 class UserStatsSerializer(serializers.Serializer):
-    watched_movies_count = serializers.IntegerField()
+    # Basic counts
+    # watched_movies_count = serializers.IntegerField()
     reviews_count = serializers.IntegerField()
     ratings_count = serializers.IntegerField()
+    favorites_count = serializers.IntegerField()
     followers_count = serializers.IntegerField()
     following_count = serializers.IntegerField()
+
+    # Rating statistics
+    average_rating = serializers.FloatField()
+    total_ratings = serializers.IntegerField()
+    highest_rating = serializers.FloatField()
+    lowest_rating = serializers.FloatField()
+
+    # Activity statistics
+    streak_days = serializers.IntegerField()
+    days_since_last_activity = serializers.IntegerField()
+    total_watch_time = serializers.IntegerField()  # in minutes
+
+    # Rating distribution
+    rating_distribution = serializers.DictField()
+
+    # Recent activity
+    reviews_this_week = serializers.IntegerField()
+    reviews_this_month = serializers.IntegerField()
+    ratings_this_week = serializers.IntegerField()
+    ratings_this_month = serializers.IntegerField()
+
+    # Community stats
+    helpful_votes_received = serializers.IntegerField()
+    total_votes_received = serializers.IntegerField()
+    helpfulness_ratio = serializers.FloatField()
 
 # UserRatingSerializer has been deprecated
 # Use movies.serializers.UnifiedMovieReviewSerializer with review_type='USER' instead
@@ -175,6 +202,15 @@ class UserFavoriteGenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserFavoriteGenre
         fields = ['id', 'genre_name']
+
+class UserFavoriteMovieSerializer(serializers.ModelSerializer):
+    movie_title = serializers.CharField(source='movie.title')
+    movie_poster = serializers.CharField(source='movie.poster_url')
+    movie_id = serializers.IntegerField(source='movie.id')
+
+    class Meta:
+        model = UserFavoriteMovie
+        fields = ['id', 'movie_id', 'movie_title', 'movie_poster', 'created_at']
 
 class GoogleAuthSerializer(serializers.Serializer):
     access_token = serializers.CharField()

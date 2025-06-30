@@ -13,9 +13,11 @@ from .views import (
     UserReviewsView,
     UserRatingsView,
     UserFavoriteGenresView,
+    UserFavoriteMoviesView,
     UserViewSet,
     UserWatchlistViewSet,
     UserFavoriteGenreViewSet,
+    UserFavoriteMovieViewSet,
     GoogleAuthView,
     CustomTokenRefreshView
 )
@@ -25,6 +27,7 @@ router.register(r'users', UserViewSet)
 # router.register(r'ratings', UserRatingViewSet, basename='user-rating')  # Deprecated - use movies app
 router.register(r'watchlist', UserWatchlistViewSet, basename='user-watchlist')
 router.register(r'favorite-genres', UserFavoriteGenreViewSet, basename='user-favorite-genre')
+router.register(r'favorite-movies', UserFavoriteMovieViewSet, basename='user-favorite-movie')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -40,5 +43,6 @@ urlpatterns = [
     path('profile/<int:userId>/reviews/', UserReviewsView.as_view(), name='user-reviews'),
     path('profile/<int:userId>/ratings/', UserRatingsView.as_view(), name='user-ratings'),
     path('profile/<int:userId>/favorite-genres/', UserFavoriteGenresView.as_view(), name='user-favorite-genres'),
+    path('profile/<int:userId>/favorite-movies/', UserFavoriteMoviesView.as_view(), name='user-favorite-movies'),
     path('google/', GoogleAuthView.as_view(), name='google-auth'),
 ]

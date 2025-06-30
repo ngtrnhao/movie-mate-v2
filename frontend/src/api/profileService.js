@@ -102,14 +102,14 @@ export const getUserReviewsAPI = async (userId, page = 1) => {
 };
 
 //Get rating
-export const getUserRatingsAPI = async (userId, page = 1) => {
+export const getUserRatings = async (userId, page = 1) => {
   try {
     const response = await axiosInstance.get(`/api/auth/profile/${userId}/ratings/`, {
       params: { page },
     });
     return response.data;
   } catch (error) {
-    throw error.response?.data || { error: 'Failed to fetch user ratings' };
+    throw new Error('Failed to fetch user ratings');
   }
 };
 

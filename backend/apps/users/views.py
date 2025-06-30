@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
-from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken
+from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken, UserFavoriteMovie
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -14,14 +14,15 @@ from .serializers import (
     UserSerializer,
     UserProfileSerializer,
     UserStatsSerializer,
-
     UserWatchlistSerializer,
     UserFavoriteGenreSerializer,
+    UserFavoriteMovieSerializer,
     GoogleAuthSerializer
 )
 from .services import send_verification_email, send_password_reset_email
 from rest_framework.views import APIView
 import logging
+from rest_framework.pagination import PageNumberPagination
 
 logger = logging.getLogger(__name__)
 
@@ -354,14 +355,135 @@ class UserStatsView(generics.RetrieveAPIView):
         try:
             user = User.objects.get(id=user_id)
 
-            # Calculate stats
-            from apps.movies.models import MovieReview
+            # Import required models
+            from apps.movies.models import MovieReview, ReviewVote
+            from django.db.models import Avg, Count, Max, Min, Q
+            from django.utils import timezone
+            from datetime import timedelta
+
+            # Calculate basic counts
+            watched_movies_count = Watchlist.objects.filter(user=user, status='WATCHED').count()
+            reviews_count = MovieReview.objects.filter(user=user, review_type='USER').count()
+            ratings_count = MovieReview.objects.filter(user=user, review_type='USER', rating__isnull=False).count()
+
+            # Use UserFavoriteMovie for favorites count
+            favorites_count = UserFavoriteMovie.objects.filter(user=user).count()
+
+            # Placeholder for social features
+            followers_count = 0
+            following_count = 0
+
+            # Calculate rating statistics
+            user_ratings = MovieReview.objects.filter(
+                user=user,
+                review_type='USER',
+                rating__isnull=False
+            )
+
+            rating_stats = user_ratings.aggregate(
+                avg_rating=Avg('rating'),
+                total_ratings=Count('id'),
+                highest_rating=Max('rating'),
+                lowest_rating=Min('rating')
+            )
+
+            average_rating = float(rating_stats['avg_rating']) if rating_stats['avg_rating'] else 0.0
+            total_ratings = rating_stats['total_ratings']
+            highest_rating = float(rating_stats['highest_rating']) if rating_stats['highest_rating'] else 0.0
+            lowest_rating = float(rating_stats['lowest_rating']) if rating_stats['lowest_rating'] else 0.0
+
+            # Calculate rating distribution
+            rating_distribution = {}
+            for i in range(1, 6):  # 1 to 5 stars
+                count = user_ratings.filter(
+                    rating__gte=i,
+                    rating__lt=i + 1
+                ).count()
+                rating_distribution[f"{i}_star"] = count
+
+            # Calculate activity statistics
+            # Streak calculation (consecutive days with activity)
+            streak_days = self.calculate_streak_days(user)
+
+            # Days since last activity
+            last_activity = MovieReview.objects.filter(
+                user=user,
+                review_type='USER'
+            ).order_by('-created_at').first()
+
+            days_since_last_activity = 0
+            if last_activity:
+                days_since_last_activity = (timezone.now() - last_activity.created_at).days
+
+            # Total watch time (estimate based on watched movies runtime)
+            total_watch_time = self.calculate_total_watch_time(user)
+
+            # Recent activity
+            week_ago = timezone.now() - timedelta(days=7)
+            month_ago = timezone.now() - timedelta(days=30)
+
+            reviews_this_week = MovieReview.objects.filter(
+                user=user,
+                review_type='USER',
+                created_at__gte=week_ago
+            ).count()
+
+            reviews_this_month = MovieReview.objects.filter(
+                user=user,
+                review_type='USER',
+                created_at__gte=month_ago
+            ).count()
+
+            ratings_this_week = MovieReview.objects.filter(
+                user=user,
+                review_type='USER',
+                rating__isnull=False,
+                created_at__gte=week_ago
+            ).count()
+
+            ratings_this_month = MovieReview.objects.filter(
+                user=user,
+                review_type='USER',
+                rating__isnull=False,
+                created_at__gte=month_ago
+            ).count()
+
+            # Community stats (votes received on user's reviews)
+            user_reviews = MovieReview.objects.filter(user=user, review_type='USER')
+            helpful_votes_received = user_reviews.aggregate(
+                total=Count('votes', filter=Q(votes__vote_type='helpful'))
+            )['total'] or 0
+
+            total_votes_received = user_reviews.aggregate(
+                total=Count('votes')
+            )['total'] or 0
+
+            helpfulness_ratio = 0.0
+            if total_votes_received > 0:
+                helpfulness_ratio = round(helpful_votes_received / total_votes_received, 2)
+
             stats = {
-                'watched_movies_count': Watchlist.objects.filter(user=user, status='WATCHED').count(),
-                'reviews_count': MovieReview.objects.filter(user=user, review_type='USER').count(),
-                'ratings_count': MovieReview.objects.filter(user=user, review_type='USER').count(),
-                'followers_count': 0,  # Implement if you have followers functionality
-                'following_count': 0,  # Implement if you have following functionality
+                'watched_movies_count': watched_movies_count,
+                'reviews_count': reviews_count,
+                'ratings_count': ratings_count,
+                'favorites_count': favorites_count,
+                'followers_count': followers_count,
+                'following_count': following_count,
+                'average_rating': average_rating,
+                'total_ratings': total_ratings,
+                'highest_rating': highest_rating,
+                'lowest_rating': lowest_rating,
+                'streak_days': streak_days,
+                'days_since_last_activity': days_since_last_activity,
+                'total_watch_time': total_watch_time,
+                'rating_distribution': rating_distribution,
+                'reviews_this_week': reviews_this_week,
+                'reviews_this_month': reviews_this_month,
+                'ratings_this_week': ratings_this_week,
+                'ratings_this_month': ratings_this_month,
+                'helpful_votes_received': helpful_votes_received,
+                'total_votes_received': total_votes_received,
+                'helpfulness_ratio': helpfulness_ratio,
             }
 
             serializer = self.get_serializer(stats)
@@ -371,6 +493,61 @@ class UserStatsView(generics.RetrieveAPIView):
                 {"error": "User not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    def calculate_streak_days(self, user):
+        """Calculate consecutive days with activity"""
+        from apps.movies.models import MovieReview
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Get all user activity dates
+        activity_dates = MovieReview.objects.filter(
+            user=user,
+            review_type='USER'
+        ).values_list('created_at__date', flat=True).distinct().order_by('-created_at__date')
+
+        if not activity_dates:
+            return 0
+
+        # Convert to list and reverse to get chronological order
+        dates = list(activity_dates)[::-1]
+
+        # Calculate streak
+        streak = 0
+        current_date = timezone.now().date()
+
+        for i, activity_date in enumerate(dates):
+            if i == 0:
+                # Check if first activity is today or yesterday
+                if activity_date == current_date or activity_date == current_date - timedelta(days=1):
+                    streak = 1
+                    current_date = activity_date
+                else:
+                    break
+            else:
+                # Check if consecutive
+                if activity_date == current_date - timedelta(days=1):
+                    streak += 1
+                    current_date = activity_date
+                else:
+                    break
+
+        return streak
+
+    def calculate_total_watch_time(self, user):
+        """Calculate total watch time based on watched movies runtime"""
+        from apps.movies.models import Movie
+
+        # Get watched movies with runtime
+        watched_movies = Movie.objects.filter(
+            watchlist__user=user,
+            watchlist__status='WATCHED',
+            runtime__isnull=False
+        ).values_list('runtime', flat=True)
+
+        # Sum up runtime (convert to minutes if needed)
+        total_minutes = sum(watched_movies)
+        return total_minutes
 
 class UserReviewsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -389,6 +566,7 @@ class UserReviewsView(generics.ListAPIView):
 
 class UserRatingsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    pagination_class = PageNumberPagination
 
     def get_queryset(self):
         from apps.movies.models import MovieReview
@@ -396,11 +574,17 @@ class UserRatingsView(generics.ListAPIView):
         return MovieReview.objects.filter(
             user_id=user_id,
             review_type='USER'
-        ).select_related('user', 'movie')
+        ).select_related(
+            'user',
+            'movie'
+        ).prefetch_related(
+            'movie__genres',
+            'movie__cast'
+        ).order_by('-created_at')
 
     def get_serializer_class(self):
-        from apps.movies.serializers import UnifiedMovieReviewSerializer
-        return UnifiedMovieReviewSerializer
+        from apps.movies.serializers import UnifiedMovieReviewWithDetailsSerializer
+        return UnifiedMovieReviewWithDetailsSerializer
 
 class UserFavoriteGenresView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -409,6 +593,14 @@ class UserFavoriteGenresView(generics.ListAPIView):
     def get_queryset(self):
         user_id = self.kwargs.get('userId')
         return UserFavoriteGenre.objects.filter(user_id=user_id).select_related('genre')
+
+class UserFavoriteMoviesView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserFavoriteMovieSerializer
+
+    def get_queryset(self):
+        user_id = self.kwargs.get('userId')
+        return UserFavoriteMovie.objects.filter(user_id=user_id).select_related('movie')
 
 class GoogleAuthView(APIView):
     permission_classes = []  # Allow unauthenticated access
@@ -469,6 +661,16 @@ class UserFavoriteGenreViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return UserFavoriteGenre.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class UserFavoriteMovieViewSet(viewsets.ModelViewSet):
+    serializer_class = UserFavoriteMovieSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return UserFavoriteMovie.objects.filter(user=self.request.user).select_related('movie')
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

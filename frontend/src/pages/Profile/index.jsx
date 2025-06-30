@@ -19,7 +19,8 @@ import {
 } from '../../store/selectors/profileSelectors';
 import { CircularProgress, Alert, Tabs, Tab, IconButton } from '@mui/material';
 import { LocationOn, CalendarToday, Email, Share, MoreVert } from '@mui/icons-material';
-import ReviewList from './components/ReviewList';
+import { styled } from '@mui/material/styles';
+// import ReviewList from './components/ReviewList';
 import RatingList from './components/RatingList';
 import StatsCard from './components/StatsCard';
 import GenreList from './components/GenreList';
@@ -38,6 +39,24 @@ const TabPanel = ({ children, value, index, ...other }) => (
     {value === index && children}
   </div>
 );
+
+const StyledTabs = styled(Tabs)({
+  '& .MuiTab-root': {
+    color: '#fff',
+    fontSize: '0.95rem',
+    fontWeight: 500,
+    textTransform: 'none',
+    transition: 'all 0.2s',
+    '&:hover': {
+      color: '#ef4444',
+      backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    },
+    '&.Mui-selected': {
+      color: '#ef4444',
+      fontWeight: 600,
+    },
+  },
+});
 
 const Profile = () => {
   const { userId } = useParams();
@@ -250,35 +269,34 @@ const Profile = () => {
           <div className="lg:col-span-2">
             <div className="overflow-hidden rounded-3xl shadow-2xl">
               <div className="bg-gray-800/95 backdrop-blur-sm">
-                <Tabs
+                <StyledTabs
                   value={tabValue}
                   onChange={handleTabChange}
                   variant="fullWidth"
                   className="border-b border-gray-700"
                   TabIndicatorProps={{
-                    style: { backgroundColor: '#dc2626', height: 3 },
+                    style: { backgroundColor: '#dc2626', height: 2 },
                   }}
                 >
-                  <Tab
-                    label="Reviews"
-                    className="text-gray-300 hover:text-red-600 data-[selected]:text-red-600"
-                  />
-                  <Tab
-                    label="Ratings"
-                    className="text-gray-300 hover:text-red-600 data-[selected]:text-red-600"
-                  />
-                  <Tab
-                    label="Activity"
-                    className="text-gray-300 hover:text-red-600 data-[selected]:text-red-600"
-                  />
-                </Tabs>
+                  <Tab label="Ratings & Reviews" className="py-4" />
+                  <Tab label="My Lists" className="py-4" />
+                  <Tab label="Activity" className="py-4" />
+                </StyledTabs>
 
                 <TabPanel value={tabValue} index={0}>
-                  <ReviewList reviews={reviews?.items || []} />
+                  <RatingList ratings={ratings?.items || []} />
                 </TabPanel>
 
                 <TabPanel value={tabValue} index={1}>
-                  <RatingList ratings={ratings?.items || []} />
+                  <div className="p-12 text-center">
+                    <h3 className="text-xl font-semibold text-gray-300">
+                      Create Your Movie Collections
+                    </h3>
+                    <p className="mt-2 text-gray-400">
+                      Organize movies into custom lists like "Best Action Movies", "Family
+                      Favorites", or "Weekend Watchlist"
+                    </p>
+                  </div>
                 </TabPanel>
 
                 <TabPanel value={tabValue} index={2}>

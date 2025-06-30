@@ -38,7 +38,7 @@ app.conf.beat_schedule = {
         "schedule": timedelta(days=7),
     },
     "refresh_genre_summary": {
-        "task": "apps.metadata.tasks.refresh_genre_summary_task",
+        "task": "apps.metadata.tasks.refresh_genre_summary_unique_task",
         "schedule": timedelta(hours=6),  # Every 6 hours
     },
 }

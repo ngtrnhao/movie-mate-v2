@@ -93,6 +93,25 @@ class UserFavoriteGenre(models.Model):
         db_table = 'users_users_favorite_genres'
         unique_together = ('user', 'genre')
 
+class UserFavoriteMovie(models.Model):
+    """Model to track user's favorite movies"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    movie = models.ForeignKey('movies.Movie', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'users_users_favorite_movies'
+        unique_together = ('user', 'movie')
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['movie']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.movie.title}"
+
 # UserMovieRating model has been deprecated and unified into MovieReview
 # All user ratings are now handled through movies.MovieReview with review_type='USER'
 

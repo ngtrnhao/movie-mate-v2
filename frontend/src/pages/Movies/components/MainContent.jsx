@@ -96,7 +96,11 @@ const TechnicalSection = ({ movie }) => {
           <div className="rounded-lg bg-gray-800/50 p-4">
             <h4 className="mb-2 font-semibold text-gray-300">{t('details.releaseDate')}</h4>
             <p className="text-gray-200">
-              {new Date(movie.release_date).toLocaleDateString('vi-VN')}
+              {new Date(movie.release_date).toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })}
             </p>
           </div>
         )}

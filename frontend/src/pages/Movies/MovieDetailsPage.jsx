@@ -245,9 +245,9 @@ const MovieDetailsPage = () => {
                   })()}
 
                   {/* Age Rating Badge */}
-                  {movie.adult !== undefined && (
+                  {movie.is_adult !== undefined && (
                     <div className="rounded-full bg-white px-3 py-1 text-xs font-bold text-black">
-                      {movie.adult ? t('details.age18') : t('details.age16')}
+                      {movie.is_adult ? t('details.age18') : t('details.age16')}
                     </div>
                   )}
 

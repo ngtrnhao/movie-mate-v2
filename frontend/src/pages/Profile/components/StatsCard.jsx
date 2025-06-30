@@ -1,9 +1,68 @@
-import { Star, Favorite, RateReview, ThumbUp } from '@mui/icons-material';
+import {
+  Star,
+  Favorite,
+  RateReview,
+  ThumbUp,
+  TrendingUp,
+  TrendingDown,
+  BarChart,
+} from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../../store/selectors/authSelectors';
 import { getUserType, getUserLimit, USER_TYPES } from '../../../utils/userPermissions';
 import LimitCounter from '../../../components/common/LimitCounter';
 import UpgradePrompt from '../../../components/common/UpgradePrompt';
+
+// Cải tiến UI cho Rating Distribution
+const RatingDistribution = ({ distribution }) => {
+  if (!distribution) return null;
+  const stars = [5, 4, 3, 2, 1];
+
+  // Find the maximum count for percentage calculation
+  const maxCount = Math.max(...stars.map(star => distribution[`${star}_star`] || 0));
+  const totalRatings = stars.reduce((sum, star) => sum + (distribution[`${star}_star`] || 0), 0);
+
+  return (
+    <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+      <div className="flex items-center gap-2 mb-4">
+        <BarChart className="w-5 h-5 text-blue-400" />
+        <h3 className="text-gray-200 font-medium">Rating Distribution</h3>
+        <span className="text-gray-400 text-sm ml-auto">{totalRatings} total</span>
+      </div>
+
+      <div className="space-y-3">
+        {stars.map(star => {
+          const count = distribution[`${star}_star`] || 0;
+          const percentage = totalRatings > 0 ? (count / totalRatings) * 100 : 0;
+
+          return (
+            <div key={star} className="grid grid-cols-12 gap-2 items-center">
+              {/* Star Rating */}
+              <div className="col-span-2 flex items-center text-sm">
+                <span className="text-yellow-400">{star}</span>
+                <Star className="w-4 h-4 text-yellow-400 ml-1" />
+              </div>
+
+              {/* Progress Bar */}
+              <div className="col-span-8 h-4 bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400/80 rounded-full transition-all duration-300"
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
+
+              {/* Count & Percentage */}
+              <div className="col-span-2 text-right">
+                <span className="text-gray-300 text-sm">{count}</span>
+                <span className="text-gray-500 text-xs ml-1">({percentage.toFixed(0)}%)</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const StatsCard = ({ stats }) => {
   const user = useSelector(selectUser);
@@ -51,13 +110,69 @@ const StatsCard = ({ stats }) => {
       color: 'text-purple-400',
       showLimit: false,
     },
-    // {
-    //   label: 'Watch Time',
-    //   value: stats?.total_watch_time ? `${Math.round(stats.total_watch_time / 60)}h` : '0h',
-    //   icon: <Visibility className="text-red-600" />,
-    //   color: 'text-indigo-400',
-    //   showLimit: false,
-    // },
+    {
+      label: 'Highest Rating',
+      value: stats?.highest_rating ? `${stats.highest_rating.toFixed(1)}★` : 'N/A',
+      icon: <TrendingUp className="text-green-400" />,
+      color: 'text-green-400',
+      showLimit: false,
+    },
+    {
+      label: 'Lowest Rating',
+      value: stats?.lowest_rating ? `${stats.lowest_rating.toFixed(1)}★` : 'N/A',
+      icon: <TrendingDown className="text-red-400" />,
+      color: 'text-red-400',
+      showLimit: false,
+    },
+    {
+      label: 'Helpful Votes',
+      value: stats?.helpful_votes_received || 0,
+      icon: <ThumbUp className="text-blue-400" />,
+      color: 'text-blue-400',
+      showLimit: false,
+    },
+    {
+      label: 'Helpfulness Ratio',
+      value: stats?.helpfulness_ratio ? `${(stats.helpfulness_ratio * 100).toFixed(0)}%` : '0%',
+      icon: <ThumbUp className="text-blue-400" />,
+      color: 'text-blue-400',
+      showLimit: false,
+    },
+    {
+      label: 'Total Watch Time',
+      value: stats?.total_watch_time ? `${Math.round(stats.total_watch_time / 60)}h` : '0h',
+      icon: <Star className="text-indigo-400" />,
+      color: 'text-indigo-400',
+      showLimit: false,
+    },
+    {
+      label: 'Reviews This Week',
+      value: stats?.reviews_this_week || 0,
+      icon: <RateReview className="text-green-400" />,
+      color: 'text-green-400',
+      showLimit: false,
+    },
+    {
+      label: 'Reviews This Month',
+      value: stats?.reviews_this_month || 0,
+      icon: <RateReview className="text-green-400" />,
+      color: 'text-green-400',
+      showLimit: false,
+    },
+    {
+      label: 'Ratings This Week',
+      value: stats?.ratings_this_week || 0,
+      icon: <ThumbUp className="text-purple-400" />,
+      color: 'text-purple-400',
+      showLimit: false,
+    },
+    {
+      label: 'Ratings This Month',
+      value: stats?.ratings_this_month || 0,
+      icon: <ThumbUp className="text-purple-400" />,
+      color: 'text-purple-400',
+      showLimit: false,
+    },
   ];
 
   return (
@@ -90,6 +205,11 @@ const StatsCard = ({ stats }) => {
           </div>
         ))}
       </div>
+
+      {/* Rating Distribution */}
+      {stats?.rating_distribution && (
+        <RatingDistribution distribution={stats.rating_distribution} />
+      )}
 
       {stats?.streak_days && stats.streak_days > 0 && (
         <div className="mt-6 rounded-lg border border-red-600/30 bg-red-600/10 p-4">

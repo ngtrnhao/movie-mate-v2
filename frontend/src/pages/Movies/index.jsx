@@ -438,8 +438,8 @@ const MoviesPage = () => {
         }`}
         style={{
           // Prevent layout shift during resize
-          contain: 'layout',
-          willChange: 'auto',
+          contain: 'layout', // Grid giữ nguyên kích thước, không ảnh hưởng layout xung quanh(tránh resize khi load thêm movies làm nhảy layout)
+          willChange: 'auto', // Giúp trình duyệt tối ưu hóa rendering khi scroll
         }}
       >
         {movies.map((movie, index) => (

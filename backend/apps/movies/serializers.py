@@ -610,3 +610,110 @@ class MovieNewsSerializer(serializers.ModelSerializer):
     class Meta:
         model = MovieNews
         fields = '__all__'
+
+class UnifiedMovieReviewWithDetailsSerializer(serializers.ModelSerializer):
+    rating_stars = serializers.SerializerMethodField()
+    reviewer_name = serializers.CharField(source='user.username')
+    reviewer_avatar = serializers.URLField(source='user.avatar_url', allow_null=True)
+    is_verified_reviewer = serializers.BooleanField(default=True)
+    helpfulness_ratio = serializers.FloatField(default=0)
+    time_ago = serializers.SerializerMethodField()
+    movie_details = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MovieReview
+        fields = [
+            'id',
+            'title',
+            'content',
+            'rating',
+            'rating_stars',
+            'review_type',
+            'reviewer_name',
+            'reviewer_avatar',
+            'is_verified_reviewer',
+            'helpful_votes',
+            'total_votes',
+            'helpfulness_ratio',
+            'is_spoiler',
+            'is_public',
+            'source',
+            'source_url',
+            'created_at',
+            'time_ago',
+            'movie_details'
+        ]
+
+    def get_rating_stars(self, obj):
+        if not obj.rating:
+            return None
+
+        rating = float(obj.rating)
+        full_stars = int(rating)
+        half_star = (rating - full_stars) >= 0.5
+        empty_stars = 5 - full_stars - (1 if half_star else 0)
+
+        return {
+            'numeric': rating,
+            'display': '★' * full_stars + ('½' if half_star else '') + '☆' * empty_stars,
+            'full_stars': full_stars,
+            'half_star': half_star,
+            'empty_stars': empty_stars
+        }
+
+    def get_time_ago(self, obj):
+        from django.utils import timezone
+        from datetime import datetime, timedelta
+
+        now = timezone.now()
+        diff = now - obj.created_at
+
+        if diff < timedelta(minutes=1):
+            return 'vừa xong'
+        elif diff < timedelta(hours=1):
+            minutes = int(diff.total_seconds() / 60)
+            return f'{minutes} phút trước'
+        elif diff < timedelta(days=1):
+            hours = int(diff.total_seconds() / 3600)
+            return f'{hours} giờ trước'
+        elif diff < timedelta(days=30):
+            days = diff.days
+            return f'{days} ngày trước'
+        elif diff < timedelta(days=365):
+            months = int(diff.days / 30)
+            return f'{months} tháng trước'
+        else:
+            years = int(diff.days / 365)
+            return f'{years} năm trước'
+
+    def get_movie_details(self, obj):
+        movie = obj.movie
+        if not movie:
+            return None
+
+        # Get the first 5 cast members with their details
+        cast = movie.cast.filter(role='ACTOR').order_by('order')[:5]
+        cast_details = []
+
+        for cast_member in cast:
+            cast_details.append({
+                'id': cast_member.id,
+                'name': cast_member.name,
+                'profile_path': cast_member.profile_path,
+                'character': cast_member.main_character or ''
+            })
+
+        return {
+            'id': movie.id,
+            'title': movie.title,
+            'original_title': movie.original_title,
+            'release_date': movie.release_date,
+            'poster_path': movie.poster_url,
+            'backdrop_path': movie.backdrop_url,
+            'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()],
+            'runtime': movie.runtime,
+            'vote_average': movie.cached_tmdb_rating,
+            'vote_count': movie.cached_tmdb_votes,
+            'overview': movie.overview_en or movie.overview_vi or '',
+            'cast': cast_details
+        }

@@ -8,10 +8,10 @@ import { getPosterUrl } from '../../../utils/imageUtils';
 const imageCache = new Set();
 const loadingQueue = new Map(); // Track loading priority
 let activeLoading = 0;
-const MAX_CONCURRENT_LOADING = 3; // Limit concurrent image loads
+const MAX_CONCURRENT_LOADING = 5; // Limit concurrent image loads
 
 // Cache để track poster đã từng hiển thị (để tránh animate lại)
-const shownPosters = new Set();
+// const shownPosters = new Set();
 
 const Poster = memo(({ movie, title, priority = false, onLoadDone }) => {
   const [isImageLoaded, setIsImageLoaded] = useState(

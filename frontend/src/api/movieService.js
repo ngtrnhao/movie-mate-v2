@@ -547,3 +547,27 @@ export const getMyReviews = async movieId => {
     return { data: [] }; // Return empty list on error
   }
 };
+
+// Reply to review
+export const replyToReview = async (reviewId, replyData) => {
+  try {
+    const response = await axiosInstance.post(`/api/reviews/${reviewId}/reply/`, replyData);
+    return response.data;
+  } catch (error) {
+    console.error('Error replying to review:', error);
+    throw error;
+  }
+};
+
+// Get replies for a review
+export const getReviewReplies = async (reviewId, page = 1, pageSize = 10) => {
+  try {
+    const response = await axiosInstance.get(`/api/reviews/${reviewId}/replies/`, {
+      params: { page, page_size: pageSize },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching review replies:', error);
+    throw error;
+  }
+};

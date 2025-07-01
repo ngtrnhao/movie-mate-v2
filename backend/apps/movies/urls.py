@@ -22,6 +22,10 @@ urlpatterns = [
     # Movie reviews endpoints
     path('movies/<int:pk>/reviews/', views.MovieViewSet.as_view({'get': 'reviews', 'post': 'reviews'}), name='movie-reviews'),
 
+    # Review reply endpoints
+    path('reviews/<int:pk>/reply/', views.MovieReviewViewSet.as_view({'post': 'reply'}), name='review-reply'),
+    path('reviews/<int:pk>/replies/', views.MovieReviewViewSet.as_view({'get': 'replies'}), name='review-replies'),
+
     # Movie detail by slug
     re_path(r'^movies/(?P<slug>[\w-]+)/$', views.MovieViewSet.as_view({'get': 'retrieve'}), name='movie-detail'),
     re_path(r'^movies/(?P<slug>[\w-]+)/cast/$', views.MovieViewSet.as_view({'get': 'cast'}), name='movie-cast'),

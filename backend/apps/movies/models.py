@@ -635,6 +635,10 @@ class MovieReview(models.Model):
     rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True,
                                help_text="Rating scale 0.0-5.0 (5-star system)")
 
+    # Reply system - add parent review reference
+    parent_review = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True,
+                                    related_name='replies', help_text="Parent review for replies")
+
     # Metadata
     review_type = models.CharField(max_length=20, choices=REVIEW_TYPES, default='USER')
     language = models.CharField(max_length=10, default='en',
@@ -672,6 +676,7 @@ class MovieReview(models.Model):
             models.Index(fields=["movie", "review_type", "is_public"]),
             models.Index(fields=["created_at"]),
             models.Index(fields=["source"]),
+            models.Index(fields=["parent_review"]),  # Index for reply queries
         ]
         constraints = [
             # Ensure user XOR external_username (one must be set, not both)
@@ -682,10 +687,10 @@ class MovieReview(models.Model):
                 ),
                 name='review_user_xor_external'
             ),
-            # Unique user review per movie (users can only have one review per movie)
+            # Unique user review per movie (users can only have one MAIN review per movie, not replies)
             models.UniqueConstraint(
                 fields=['user', 'movie'],
-                condition=models.Q(user__isnull=False, review_type='USER'),
+                condition=models.Q(user__isnull=False, review_type='USER', parent_review__isnull=True),
                 name='unique_user_movie_review'
             ),
             # External reviews must have external_review_id if from external source
@@ -695,6 +700,14 @@ class MovieReview(models.Model):
                     models.Q(review_type='EXTERNAL', external_review_id__isnull=False)
                 ),
                 name='external_review_must_have_id'
+            ),
+            # Replies cannot have ratings (only main reviews can have ratings)
+            models.CheckConstraint(
+                check=(
+                    models.Q(parent_review__isnull=True) |  # Main review (can have rating)
+                    models.Q(parent_review__isnull=False, rating__isnull=True)  # Reply (no rating)
+                ),
+                name='replies_cannot_have_rating'
             )
         ]
 
@@ -739,6 +752,37 @@ class MovieReview(models.Model):
         if not user.is_authenticated:
             return False
         return self.user == user or user.is_staff
+
+    @property
+    def is_reply(self):
+        """Check if this is a reply to another review"""
+        return self.parent_review is not None
+
+    def get_reply_count(self):
+        """Get total number of replies (including nested)"""
+        count = self.replies.count()
+        for reply in self.replies.all():
+            count += reply.get_reply_count()
+        return count
+
+    def get_top_level_replies(self):
+        """Get direct replies only (not nested)"""
+        return self.replies.filter(is_public=True).order_by('created_at')
+
+    def can_reply(self, user):
+        """Check if user can reply to this review"""
+        if not user.is_authenticated:
+            return False
+        # Users can't reply to their own reviews
+        if self.user == user:
+            return False
+        # Can't reply to external reviews
+        if self.review_type == 'EXTERNAL':
+            return False
+        # Can't reply to private reviews
+        if not self.is_public:
+            return False
+        return True
 
     @classmethod
     def get_featured_reviews(cls, limit=5):

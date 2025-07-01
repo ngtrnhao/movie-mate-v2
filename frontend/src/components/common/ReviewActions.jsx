@@ -99,8 +99,7 @@ const ReviewActions = ({
         </span>
       )}
 
-      {/* Reply Button */}
-      <button className={`${textSize} text-gray-400 hover:text-gray-300`}>Trả lời</button>
+      {/* Reply Button - Removed as it's handled by ReplySection component */}
 
       {/* More Actions */}
       {showMoreActions && (

@@ -11,6 +11,7 @@ import {
   getUserReview,
 } from '../../../api/movieService';
 import ReviewActions from '../../../components/common/ReviewActions';
+import ReplySection from '../../../components/common/ReplySection';
 
 const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showLabel = false }) => {
   const [hoverRating, setHoverRating] = useState(0);
@@ -535,6 +536,18 @@ const RatingTab = ({ movieId }) => {
                           setUserRating(0);
                           setRatingComment('');
                         }
+                      }}
+                    />
+
+                    {/* Reply Section */}
+                    <ReplySection
+                      review={review}
+                      onReplySuccess={(reviewId, reply) => {
+                        setReviews(prev =>
+                          prev.map(r =>
+                            r.id === reviewId ? { ...r, reply_count: (r.reply_count || 0) + 1 } : r
+                          )
+                        );
                       }}
                     />
                   </div>

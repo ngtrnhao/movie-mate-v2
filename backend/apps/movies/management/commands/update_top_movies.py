@@ -103,49 +103,49 @@ class Command(BaseCommand):
     def get_top_movies_by_category(self, limit):
         """Get top movies by different sorting categories"""
         categories = {}
-        
+
         # 1. Most Popular (is_popular=True)
         popular_movies = Movie.objects.filter(
             is_popular=True,
             imdb_id__isnull=False
         ).order_by('-cached_imdb_rating', '-release_date')[:limit]
         categories['popular'] = popular_movies
-        
+
         # 2. Highest Rated (by combined_rating_score)
         top_rated_movies = Movie.objects.filter(
             imdb_id__isnull=False,
             combined_rating_score__isnull=False
         ).order_by('-combined_rating_score', '-cached_imdb_rating', '-release_date')[:limit]
         categories['top_rated'] = top_rated_movies
-        
+
         # 3. Newest (by release_date)
         newest_movies = Movie.objects.filter(
             imdb_id__isnull=False,
             release_date__isnull=False
         ).order_by('-release_date', '-cached_imdb_rating')[:limit]
         categories['newest'] = newest_movies
-        
+
         # 4. Most Voted (by vote count)
         most_voted_movies = Movie.objects.filter(
             imdb_id__isnull=False,
             cached_imdb_votes__isnull=False
         ).order_by('-cached_imdb_votes', '-cached_imdb_rating', '-release_date')[:limit]
         categories['most_voted'] = most_voted_movies
-        
+
         # 5. Top Rated by IMDB Rating
         top_imdb_movies = Movie.objects.filter(
             imdb_id__isnull=False,
             cached_imdb_rating__isnull=False
         ).order_by('-cached_imdb_rating', '-cached_imdb_votes', '-release_date')[:limit]
         categories['top_imdb'] = top_imdb_movies
-        
+
         # 6. Top Rated by TMDB Rating
         top_tmdb_movies = Movie.objects.filter(
             imdb_id__isnull=False,
             cached_tmdb_rating__isnull=False
         ).order_by('-cached_tmdb_rating', '-cached_tmdb_votes', '-release_date')[:limit]
         categories['top_tmdb'] = top_tmdb_movies
-        
+
         return categories
 
     def update_movie_overview(self, movie, dry_run=False):
@@ -186,7 +186,7 @@ class Command(BaseCommand):
 
             # Use the existing service to enrich trailers
             MovieTMDBEnrichService.enrich_movie_trailers(movie)
-            
+
             # Check if trailers were added
             trailer_count = MovieTrailer.objects.filter(movie=movie).count()
             if trailer_count > 0:
@@ -207,10 +207,10 @@ class Command(BaseCommand):
             # Use the existing service to enrich backdrop
             old_backdrop = movie.backdrop_url
             MovieTMDBEnrichService.enrich_backdrop_and_tmdb_id(movie)
-            
+
             # Refresh movie to get updated data
             movie.refresh_from_db()
-            
+
             if movie.backdrop_url and movie.backdrop_url != old_backdrop:
                 return True, f"Updated backdrop: {movie.backdrop_url[:50]}..."
             else:
@@ -228,21 +228,21 @@ class Command(BaseCommand):
 
             # Get TMDB data
             tmdb_service = TMDBService()
-            tmdb_data = tmdb_service.get_movie_by_id(movie.tmdb_id) if getattr(movie, 'tmdb_id', None) else None
-            
+            tmdb_data = tmdb_service.get_movie_details(movie.tmdb_id) if getattr(movie, 'tmdb_id', None) else None
+
             if not tmdb_data and movie.imdb_id:
                 # Try to find TMDB ID from IMDB ID
-                find_result = tmdb_service._make_request(f"find/{movie.imdb_id}", {"external_source": "imdb_id"})
+                find_result = tmdb_service.get_movie_by_imdb_id(movie.imdb_id)
                 if find_result and find_result.get("movie_results"):
                     tmdb_id = find_result["movie_results"][0]["id"]
                     movie.tmdb_id = tmdb_id
-                    tmdb_data = tmdb_service.get_movie_by_id(tmdb_id)
-            
+                    tmdb_data = tmdb_service.get_movie_details(tmdb_id)
+
             if tmdb_data and tmdb_data.get('poster_path'):
                 old_poster = movie.poster_url
                 movie.poster_url = f"https://image.tmdb.org/t/p/w500{tmdb_data.get('poster_path')}"
                 movie.save(update_fields=['poster_url', 'tmdb_id'])
-                
+
                 if movie.poster_url != old_poster:
                     return True, f"Updated poster: {movie.poster_url[:50]}..."
                 else:
@@ -266,14 +266,14 @@ class Command(BaseCommand):
         backdrop_only = options['backdrop_only']
         skip_poster = options['skip_poster']
         poster_only = options['poster_only']
-        
+
         # Kiểm tra xem có cần update không
         needs_title_genre_update = self.needs_update(movie)
         needs_overview_update = self.needs_overview_update(movie)
         needs_trailer_update = self.needs_trailer_update(movie)
         needs_backdrop_update = self.needs_backdrop_update(movie)
         needs_poster_update = self.needs_poster_update(movie)
-        
+
         # Determine what to update based on options
         if overview_only:
             # Chỉ update overview
@@ -306,17 +306,17 @@ class Command(BaseCommand):
         # Hiển thị thông tin trước khi update
         self.stdout.write(f"   🎬 {movie.title} (ID: {movie.id})")
         self.stdout.write(f"      IMDB: {movie.imdb_id} | Rating: {movie.cached_imdb_rating or 'N/A'}")
-        
+
         if not any([overview_only, trailer_only, backdrop_only, poster_only]):
             self.stdout.write(f"      Title EN: {movie.title_en or '❌ Missing'}")
             self.stdout.write(f"      Title VI: {movie.title_vi or '❌ Missing'}")
-            
+
             genres_en = list(movie.genres.filter(language='en').values_list('name', flat=True))
             genres_vi = list(movie.genres.filter(language='vi').values_list('name', flat=True))
-            
+
             self.stdout.write(f"      Genres EN: {genres_en or '❌ Missing'}")
             self.stdout.write(f"      Genres VI: {genres_vi or '❌ Missing'}")
-        
+
         if not skip_overview and not any([trailer_only, backdrop_only, poster_only]):
             self.stdout.write(f"      Overview EN: {movie.overview_en[:50] + '...' if movie.overview_en and len(movie.overview_en) > 50 else movie.overview_en or '❌ Missing'}")
             self.stdout.write(f"      Overview VI: {movie.overview_vi[:50] + '...' if movie.overview_vi and len(movie.overview_vi) > 50 else movie.overview_vi or '❌ Missing'}")
@@ -337,7 +337,7 @@ class Command(BaseCommand):
 
         # Thực hiện sync
         success_messages = []
-        
+
         # Update title/genre nếu cần
         if not any([overview_only, trailer_only, backdrop_only, poster_only]) and (needs_title_genre_update or force):
             self.stdout.write("      🔄 Syncing title/genre from TMDB...")
@@ -346,7 +346,7 @@ class Command(BaseCommand):
                 success_messages.append("Title/genre sync successful")
             else:
                 self.stdout.write(f"      ❌ Title/genre sync failed: {message}")
-        
+
         # Update overview nếu cần
         if not skip_overview and not any([trailer_only, backdrop_only, poster_only]) and (needs_overview_update or force):
             self.stdout.write("      🔄 Syncing overview from TMDB...")
@@ -355,7 +355,7 @@ class Command(BaseCommand):
                 success_messages.append("Overview sync successful")
             else:
                 self.stdout.write(f"      ❌ Overview sync failed: {message}")
-        
+
         # Update trailer nếu cần
         if not skip_trailer and not any([overview_only, backdrop_only, poster_only]) and (needs_trailer_update or force):
             self.stdout.write("      🔄 Syncing trailer from TMDB...")
@@ -364,7 +364,7 @@ class Command(BaseCommand):
                 success_messages.append("Trailer sync successful")
             else:
                 self.stdout.write(f"      ❌ Trailer sync failed: {message}")
-        
+
         # Update backdrop nếu cần
         if not skip_backdrop and not any([overview_only, trailer_only, poster_only]) and (needs_backdrop_update or force):
             self.stdout.write("      🔄 Syncing backdrop from TMDB...")
@@ -373,7 +373,7 @@ class Command(BaseCommand):
                 success_messages.append("Backdrop sync successful")
             else:
                 self.stdout.write(f"      ❌ Backdrop sync failed: {message}")
-        
+
         # Update poster nếu cần
         if not skip_poster and not any([overview_only, trailer_only, backdrop_only]) and (needs_poster_update or force):
             self.stdout.write("      🔄 Syncing poster from TMDB...")
@@ -382,11 +382,11 @@ class Command(BaseCommand):
                 success_messages.append("Poster sync successful")
             else:
                 self.stdout.write(f"      ❌ Poster sync failed: {message}")
-        
+
         if success_messages:
             # Refresh movie object để lấy data mới
             movie.refresh_from_db()
-            
+
             self.stdout.write("      ✅ " + " | ".join(success_messages))
             return True, " | ".join(success_messages)
         else:
@@ -403,10 +403,10 @@ class Command(BaseCommand):
         backdrop_only = options['backdrop_only']
         skip_poster = options['skip_poster']
         poster_only = options['poster_only']
-        
+
         self.stdout.write("🎯 Updating top movies from movies page...")
         self.stdout.write(f"📊 Processing top {limit} movies per category")
-        
+
         # Determine mode
         if overview_only:
             self.stdout.write("📝 Mode: Overview only")
@@ -428,10 +428,10 @@ class Command(BaseCommand):
             self.stdout.write("📝 Mode: Title/Genre + Overview")
         else:
             self.stdout.write("📝 Mode: All data (Title/Genre + Overview + Trailer + Backdrop + Poster)")
-        
+
         # Lấy top movies theo từng category
         categories = self.get_top_movies_by_category(limit)
-        
+
         # Thống kê tổng quan
         total_movies = 0
         for category, movies in categories.items():
@@ -446,18 +446,18 @@ class Command(BaseCommand):
                     filtered_movies = [m for m in movies if self.needs_poster_update(m)]
                 else:
                     filtered_movies = [m for m in movies if (
-                        self.needs_update(m) or 
-                        self.needs_overview_update(m) or 
-                        self.needs_trailer_update(m) or 
+                        self.needs_update(m) or
+                        self.needs_overview_update(m) or
+                        self.needs_trailer_update(m) or
                         self.needs_backdrop_update(m) or
                         self.needs_poster_update(m)
                     )]
             else:
                 filtered_movies = list(movies)
             total_movies += len(filtered_movies)
-            
+
             self.stdout.write(f"   📈 {category.replace('_', ' ').title()}: {len(filtered_movies)} movies")
-        
+
         if total_movies == 0:
             self.stdout.write(self.style.WARNING("⚠️  No movies found to process"))
             return
@@ -465,7 +465,7 @@ class Command(BaseCommand):
         # Process từng category
         overall_success_count = 0
         overall_error_count = 0
-        
+
         for category, movies in categories.items():
             if missing_only:
                 if overview_only:
@@ -478,24 +478,24 @@ class Command(BaseCommand):
                     filtered_movies = [m for m in movies if self.needs_poster_update(m)]
                 else:
                     filtered_movies = [m for m in movies if (
-                        self.needs_update(m) or 
-                        self.needs_overview_update(m) or 
-                        self.needs_trailer_update(m) or 
+                        self.needs_update(m) or
+                        self.needs_overview_update(m) or
+                        self.needs_trailer_update(m) or
                         self.needs_backdrop_update(m) or
                         self.needs_poster_update(m)
                     )]
             else:
                 filtered_movies = list(movies)
-                
+
             if not filtered_movies:
                 continue
-                
+
             self.stdout.write(f"\n🌟 Processing {category.replace('_', ' ').title()} movies:")
             self.stdout.write("=" * 60)
-            
+
             success_count = 0
             error_count = 0
-            
+
             for i, movie in enumerate(filtered_movies, 1):
                 try:
                     success, message = self.process_single_movie(movie, options)
@@ -503,19 +503,19 @@ class Command(BaseCommand):
                         success_count += 1
                     else:
                         error_count += 1
-                        
+
                     # Progress indicator
                     if i % 10 == 0 or i == len(filtered_movies):
                         self.stdout.write(f"      📈 Progress: {i}/{len(filtered_movies)} ({i/len(filtered_movies)*100:.1f}%)")
-                        
+
                 except Exception as e:
                     self.stdout.write(f"      💥 Error processing movie {movie.id}: {str(e)}")
                     error_count += 1
                     continue
-            
+
             overall_success_count += success_count
             overall_error_count += error_count
-            
+
             self.stdout.write(f"\n📊 {category.replace('_', ' ').title()} Summary:")
             self.stdout.write(f"   Successful: {success_count}")
             self.stdout.write(f"   Errors: {error_count}")
@@ -530,7 +530,7 @@ class Command(BaseCommand):
         self.stdout.write(f"   Errors: {overall_error_count}")
         if total_movies > 0:
             self.stdout.write(f"   Success rate: {overall_success_count/total_movies*100:.1f}%")
-        
+
         self.stdout.write(f"\n💡 Categories processed:")
         for category in categories.keys():
-            self.stdout.write(f"   • {category.replace('_', ' ').title()}") 
+            self.stdout.write(f"   • {category.replace('_', ' ').title()}")

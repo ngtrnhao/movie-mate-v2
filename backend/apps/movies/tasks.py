@@ -292,30 +292,250 @@ def process_movie_data(self, imdb_id: str) -> Optional[dict]:
                     return default
             return current
 
+        # Log the raw response structure for debugging
+        logger.info(f"Raw movie_details structure for {imdb_id}: {type(movie_details)}")
+        if isinstance(movie_details, dict):
+            logger.info(f"Top level keys: {list(movie_details.keys())}")
+
+        # Extract title with proper fallbacks from new API structure
+        title_data = None
+        if isinstance(movie_details, dict):
+            # First try GraphQL structure
+            if "data" in movie_details and isinstance(movie_details.get("data"), dict):
+                logger.info(f"Processing as GraphQL response for {imdb_id}")
+                title_data = safe_get(movie_details["data"], "title")
+                logger.info(f"GraphQL title_data keys: {list(title_data.keys()) if isinstance(title_data, dict) else 'Not a dict'}")
+            # Then try direct API structure
+            elif any(key in movie_details for key in ["title", "base", "@type", "titleType"]):
+                logger.info(f"Processing as direct API response for {imdb_id}")
+                title_data = movie_details
+                logger.info(f"Direct API title_data keys: {list(movie_details.keys())}")
+            else:
+                logger.warning(f"Unknown response structure for {imdb_id}: {list(movie_details.keys())}")
+                title_data = movie_details  # Try to process anyway
+        else:
+            logger.error(f"Invalid movie_details type for {imdb_id}: {type(movie_details)}")
+
+        if title_data:
+            logger.info(f"Found title_data structure: {list(title_data.keys()) if isinstance(title_data, dict) else 'Not a dict'}")
+            # Try to get title in order: titleText -> originalTitleText -> existing title -> placeholder
+            title = None
+
+            # Try titleText (GraphQL structure)
+            title_text = safe_get(title_data, "titleText")
+            if title_text and isinstance(title_text, dict):
+                title = title_text.get("text")
+                if title:
+                    logger.info(f"Got title from titleText: {title}")
+
+            # Try originalTitleText if no titleText (GraphQL structure)
+            if not title:
+                original_title_text = safe_get(title_data, "originalTitleText")
+                if original_title_text and isinstance(original_title_text, dict):
+                    title = original_title_text.get("text")
+                    if title:
+                        logger.info(f"Got title from originalTitleText: {title}")
+
+            # Try direct API structure fields
+            if not title:
+                # Try title field directly
+                title = safe_get(title_data, "title")
+                if title:
+                    logger.info(f"Got title from direct title field: {title}")
+
+                # Try base.title
+                if not title:
+                    title = safe_get(title_data, "base", "title")
+                    if title:
+                        logger.info(f"Got title from base.title: {title}")
+
+            # If still no title, try to get from existing movie
+            if not title:
+                existing_movie = Movie.objects.filter(imdb_id=imdb_id).first()
+                if existing_movie and existing_movie.title:
+                    title = existing_movie.title
+                    logger.info(f"Using existing movie title: {title}")
+                else:
+                    title = f"Untitled ({imdb_id})"
+                    logger.warning(f"Using placeholder title for {imdb_id}")
+        else:
+            logger.error(f"No title data found in API response for {imdb_id}")
+            title = f"Untitled ({imdb_id})"
+
+        # Get release date from new structure
+        release_date = None
+        if title_data:
+            # Try GraphQL structure first
+            release_date_data = safe_get(title_data, "releaseDate")
+            if release_date_data:
+                logger.info(f"Found releaseDate data: {release_date_data}")
+                year = safe_get(release_date_data, "year")
+                month = safe_get(release_date_data, "month")
+                day = safe_get(release_date_data, "day")
+                if all(x is not None for x in [year, month, day]):
+                    try:
+                        # Ensure all components are integers and create ISO format date string
+                        year = int(year)
+                        month = int(month)
+                        day = int(day)
+                        release_date = f"{year:04d}-{month:02d}-{day:02d}"
+                        logger.info(f"Got full release date from GraphQL structure: {release_date}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Error formatting GraphQL release date: {e}")
+                        release_date = None
+
+            if not release_date:
+                # Try GraphQL releaseYear
+                release_year_data = safe_get(title_data, "releaseYear")
+                if release_year_data and isinstance(release_year_data, dict):
+                    year = safe_get(release_year_data, "year")
+                    if year:
+                        try:
+                            # Ensure year is formatted as string
+                            release_date = f"{int(year):04d}-01-01"
+                            logger.info(f"Got release date from releaseYear (defaulting to Jan 1): {release_date}")
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Error formatting release year: {e}")
+                            release_date = None
+
+                # Try direct year field
+                if not release_date:
+                    year = safe_get(title_data, "year")
+                    if year:
+                        try:
+                            release_date = f"{int(year):04d}-01-01"
+                            logger.info(f"Got release date from direct year field (defaulting to Jan 1): {release_date}")
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Error formatting year: {e}")
+                            release_date = None
+
+                        # Try base.year as last resort
+                        if not release_date:
+                            year = safe_get(title_data, "base", "year")
+                            if year:
+                                try:
+                                    release_date = f"{int(year):04d}-01-01"
+                                    logger.info(f"Got release date from base.year (defaulting to Jan 1): {release_date}")
+                                except (ValueError, TypeError) as e:
+                                    logger.warning(f"Error formatting base year: {e}")
+                                    release_date = None
+
+        if release_date:
+            logger.info(f"Final release date value: {release_date}")
+        else:
+            logger.warning(f"No release date found for {imdb_id}")
+
+        # Get runtime from new structure
+        runtime = None
+        # Try GraphQL structure first
+        runtime_data = safe_get(title_data, "runtime", "seconds")
+        if runtime_data:
+            try:
+                runtime = int(runtime_data) // 60  # Convert seconds to minutes
+                logger.info(f"Got runtime from GraphQL structure: {runtime} minutes")
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Error converting GraphQL runtime: {e}")
+                runtime = None
+
+        # Try direct API structure if no runtime yet
+        if not runtime:
+            runtime = safe_get(title_data, "runningTimeInMinutes")
+            if runtime:
+                logger.info(f"Got runtime from direct API structure: {runtime} minutes")
+
+        # Get image URL from new structure
+        image_data = None
+        # Try GraphQL structure first
+        primary_image = safe_get(title_data, "primaryImage")
+        if primary_image:
+            image_data = primary_image
+            logger.info("Found image data in GraphQL structure")
+        else:
+            # Try direct API structure
+            image_data = safe_get(title_data, "image") or safe_get(title_data, "base", "image")
+            if image_data:
+                logger.info("Found image data in direct API structure")
+
+        poster_url = safe_get(image_data, "url") if image_data else None
+        if poster_url:
+            logger.info(f"Got poster URL: {poster_url}")
+
         # Map the data to our structure with safe extraction
         mapped_data = {
             "imdb_id": imdb_id,
-            "title": safe_get(movie_details, "title", "title") or safe_get(movie_details, "base", "title"),
-            "original_title": safe_get(movie_details, "title", "originalTitle") or safe_get(movie_details, "base", "title"),
-            "release_date": safe_get(movie_details, "title", "releaseDate") or safe_get(movie_details, "base", "year"),
-            "poster_url": safe_get(movie_details, "title", "image", "url") or safe_get(movie_details, "base", "image", "url"),
-            "runtime": safe_get(movie_details, "title", "runningTimeInMinutes"),
+            "title": title,  # Now guaranteed to have a value
+            "original_title": (
+                safe_get(title_data, "originalTitleText", "text") or  # GraphQL structure
+                safe_get(title_data, "originalTitle") or  # Direct API structure
+                safe_get(title_data, "base", "title")  # Direct API fallback
+            ),
+            "release_date": release_date,
+            "poster_url": poster_url,
+            "runtime": runtime,
             "languages": [],
             "countries": [],
             "links": {
                 "imdb": f"https://www.imdb.com/title/{imdb_id}/",
-                "poster": safe_get(movie_details, "title", "image", "url") or safe_get(movie_details, "base", "image", "url"),
+                "poster": poster_url,
             },
+            "last_synced": timezone.now()
         }
 
-        # Safely extract languages and countries
-        languages = safe_get(movie_details, "title", "languages", default=[])
-        if isinstance(languages, list):
-            mapped_data["languages"] = [lang.get("id") for lang in languages if isinstance(lang, dict) and "id" in lang]
+        # Extract languages from new structure
+        languages = []
+        # Try GraphQL structure first
+        spoken_languages = safe_get(title_data, "spokenLanguages", "spokenLanguages", default=[])
+        if isinstance(spoken_languages, list):
+            languages = [
+                lang.get("id")
+                for lang in spoken_languages
+                if isinstance(lang, dict) and "id" in lang
+            ]
+            if languages:
+                logger.info(f"Got languages from GraphQL structure: {languages}")
 
-        countries = safe_get(movie_details, "title", "countries", default=[])
-        if isinstance(countries, list):
-            mapped_data["countries"] = [country.get("id") for country in countries if isinstance(country, dict) and "id" in country]
+        # Try direct API structure if no languages found
+        if not languages:
+            direct_languages = safe_get(title_data, "languages", default=[])
+            if isinstance(direct_languages, list):
+                languages = [
+                    lang.get("id")
+                    for lang in direct_languages
+                    if isinstance(lang, dict) and "id" in lang
+                ]
+                if languages:
+                    logger.info(f"Got languages from direct API structure: {languages}")
+
+        mapped_data["languages"] = languages
+
+        # Extract countries from new structure
+        countries = []
+        # Try GraphQL structure first
+        origin_countries = safe_get(title_data, "countriesOfOrigin", "countries", default=[])
+        if isinstance(origin_countries, list):
+            countries = [
+                country.get("id")
+                for country in origin_countries
+                if isinstance(country, dict) and "id" in country
+            ]
+            if countries:
+                logger.info(f"Got countries from GraphQL structure: {countries}")
+
+        # Try direct API structure if no countries found
+        if not countries:
+            direct_countries = safe_get(title_data, "countries", default=[])
+            if isinstance(direct_countries, list):
+                countries = [
+                    country.get("id")
+                    for country in direct_countries
+                    if isinstance(country, dict) and "id" in country
+                ]
+                if countries:
+                    logger.info(f"Got countries from direct API structure: {countries}")
+
+        mapped_data["countries"] = countries
+
+        logger.info(f"Final mapped data for {imdb_id}: {mapped_data}")
 
         # Get existing movie if any
         existing_movie = Movie.objects.filter(imdb_id=imdb_id).first()
@@ -370,7 +590,7 @@ def process_movie_data(self, imdb_id: str) -> Optional[dict]:
 
         # Update cache for this movie with longer expiration
         cache_key = f"movie:{imdb_id}"
-        cache.set(cache_key, movie, timeout=3600 * 24)  # Cache for 24 hours
+        cache.set(cache_key, movie, timeout=3600 * 24)
 
         # Update cache for lists
         for limit in [3, 10, 20, 50, 100]:
@@ -381,7 +601,7 @@ def process_movie_data(self, imdb_id: str) -> Optional[dict]:
                 .prefetch_related("genres")
                 .order_by("-release_date")[:limit]
             )
-            cache.set(f"popular_movies:{limit}", popular_movies, timeout=3600 * 24)  # Cache for 24 hours
+            cache.set(f"popular_movies:{limit}", popular_movies, timeout=3600 * 24)
 
             # Update top rated movies cache
             top_rated_movies = list(
@@ -390,7 +610,7 @@ def process_movie_data(self, imdb_id: str) -> Optional[dict]:
                 .prefetch_related("genres")
                 .order_by("-release_date")[:limit]
             )
-            cache.set(f"top_rated_movies:{limit}", top_rated_movies, timeout=3600 * 24)  # Cache for 24 hours
+            cache.set(f"top_rated_movies:{limit}", top_rated_movies, timeout=3600 * 24)
 
             # Update upcoming movies cache
             upcoming_movies = list(
@@ -399,11 +619,11 @@ def process_movie_data(self, imdb_id: str) -> Optional[dict]:
                 .prefetch_related("genres")
                 .order_by("release_date")[:limit]
             )
-            cache.set(f"upcoming_movies:{limit}", upcoming_movies, timeout=3600 * 24)  # Cache for 24 hours
+            cache.set(f"upcoming_movies:{limit}", upcoming_movies, timeout=3600 * 24)
 
         logger.info(f"Successfully processed movie {imdb_id}")
 
-        # Return JSON-serializable data instead of Movie object
+        # Return JSON-serializable data
         return {
             "imdb_id": imdb_id,
             "title": movie.title,

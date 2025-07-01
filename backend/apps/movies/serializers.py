@@ -463,6 +463,10 @@ class MovieReviewSerializer(serializers.ModelSerializer):
     can_edit = serializers.SerializerMethodField()
     can_vote = serializers.SerializerMethodField()
     user_vote = serializers.SerializerMethodField()  # 'helpful', 'not_helpful', or None
+    can_reply = serializers.SerializerMethodField()
+    reply_count = serializers.SerializerMethodField()
+    is_reply = serializers.ReadOnlyField()
+    replies = serializers.SerializerMethodField()
 
     class Meta:
         model = MovieReview
@@ -471,7 +475,8 @@ class MovieReviewSerializer(serializers.ModelSerializer):
             'review_type', 'language', 'is_public', 'is_spoiler',
             'helpful_votes', 'total_votes', 'helpfulness_ratio',
             'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
-            'can_edit', 'can_vote', 'user_vote',
+            'can_edit', 'can_vote', 'user_vote', 'can_reply', 'reply_count',
+            'is_reply', 'parent_review', 'replies',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -527,6 +532,27 @@ class MovieReviewSerializer(serializers.ModelSerializer):
             return vote.vote_type if vote else None
         except:
             return None
+
+    def get_can_reply(self, obj):
+        """Check if current user can reply to this review"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        # Users can't reply to their own reviews
+        return obj.user != request.user
+
+    def get_reply_count(self, obj):
+        """Get reply count for this review"""
+        return obj.replies.count()
+
+    def get_replies(self, obj):
+        """Get replies for this review"""
+        # Only show replies for main reviews (not for replies to avoid deep nesting)
+        if obj.is_reply:
+            return []
+
+        replies = obj.get_top_level_replies()
+        return MovieReplySerializer(replies, many=True, context=self.context).data
 
     def create(self, validated_data):
         """Set the user automatically from request"""
@@ -717,3 +743,107 @@ class UnifiedMovieReviewWithDetailsSerializer(serializers.ModelSerializer):
             'overview': movie.overview_en or movie.overview_vi or '',
             'cast': cast_details
         }
+
+class MovieReplySerializer(serializers.ModelSerializer):
+    """Simplified serializer for replies to avoid infinite recursion"""
+    user = UserSerializer(read_only=True)
+    reviewer_name = serializers.CharField(read_only=True)
+    reviewer_avatar = serializers.CharField(read_only=True)
+    is_verified_reviewer = serializers.BooleanField(read_only=True)
+    helpfulness_ratio = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+    can_vote = serializers.SerializerMethodField()
+    user_vote = serializers.SerializerMethodField()
+    can_reply = serializers.SerializerMethodField()
+    is_reply = serializers.ReadOnlyField()
+
+    class Meta:
+        model = MovieReview
+        fields = [
+            'id', 'user', 'content', 'is_public', 'is_spoiler',
+            'helpful_votes', 'total_votes', 'helpfulness_ratio',
+            'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
+            'can_edit', 'can_vote', 'user_vote', 'can_reply',
+            'is_reply', 'parent_review', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'user', 'helpful_votes', 'total_votes', 'helpfulness_ratio',
+            'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
+            'can_edit', 'can_vote', 'user_vote', 'can_reply',
+            'is_reply', 'parent_review', 'created_at', 'updated_at'
+        ]
+
+    def get_helpfulness_ratio(self, obj):
+        return obj.get_helpfulness_ratio()
+
+    def get_can_edit(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.can_be_edited_by(request.user)
+
+    def get_can_vote(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.user != request.user
+
+    def get_user_vote(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+
+        try:
+            from apps.movies.models import ReviewVote
+            vote = ReviewVote.objects.filter(
+                review=obj,
+                user=request.user
+            ).first()
+            return vote.vote_type if vote else None
+        except:
+            return None
+
+    def get_can_reply(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.can_reply(request.user)
+
+class MovieReplyCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating replies to reviews
+    """
+    class Meta:
+        model = MovieReview
+        fields = ['parent_review', 'content', 'language', 'is_public', 'is_spoiler']
+
+    def validate_content(self, value):
+        if not value or len(value.strip()) < 5:
+            raise serializers.ValidationError("Reply content must be at least 5 characters long")
+        return value.strip()
+
+    def validate_parent_review(self, value):
+        if value is None:
+            raise serializers.ValidationError("Parent review is required for replies")
+
+        # Check if parent review exists and is public
+        if not value.is_public:
+            raise serializers.ValidationError("Cannot reply to private reviews")
+
+        # Check if parent is external review
+        if value.review_type == 'EXTERNAL':
+            raise serializers.ValidationError("Cannot reply to external reviews")
+
+        # Check if parent is already a reply (no deep nesting)
+        if value.is_reply:
+            raise serializers.ValidationError("Cannot reply to replies. Please reply to the main review instead.")
+
+        return value
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        validated_data['review_type'] = 'USER'
+        validated_data['movie'] = validated_data['parent_review'].movie
+        validated_data['rating'] = None  # Replies cannot have ratings
+        validated_data['title'] = None   # Replies don't need titles
+        return super().create(validated_data)

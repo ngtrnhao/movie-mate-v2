@@ -13,7 +13,7 @@ from django.db.models.functions import Greatest, Coalesce, Cast
 from django.core.paginator import Paginator
 from django.db import models
 from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote
-from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer
+from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer
 import logging
 import hashlib
 from django.utils import timezone
@@ -1082,8 +1082,8 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         user = self.request.user
         movie = serializer.validated_data['movie']
 
-        # Check if user already has a review for this movie
-        if MovieReview.objects.filter(user=user, movie=movie, review_type='USER').exists():
+        # Check if user already has a MAIN review for this movie (not replies)
+        if MovieReview.objects.filter(user=user, movie=movie, review_type='USER', parent_review__isnull=True).exists():
             raise serializers.ValidationError("Bạn đã có review cho phim này rồi.")
 
         serializer.save()
@@ -1229,3 +1229,68 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         }
 
         return Response(stats)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def reply(self, request, pk=None):
+        """Create a reply to a review"""
+        try:
+            # Get parent review
+            parent_review = self.get_object()
+        except MovieReview.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Review not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if user can reply
+        if not parent_review.can_reply(request.user):
+            return Response({
+                'status': 'error',
+                'message': 'You cannot reply to this review'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Create reply data
+        reply_data = request.data.copy()
+        reply_data['parent_review'] = parent_review.id
+
+        serializer = MovieReplyCreateSerializer(data=reply_data, context={'request': request})
+
+        if serializer.is_valid():
+            reply = serializer.save()
+            response_serializer = MovieReplySerializer(reply, context={'request': request})
+            return Response({
+                'status': 'success',
+                'message': 'Reply created successfully',
+                'data': response_serializer.data
+            }, status=status.HTTP_201_CREATED)
+
+        return Response({
+            'status': 'error',
+            'message': 'Invalid data',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    def replies(self, request, pk=None):
+        """Get all replies for a review"""
+        try:
+            review = self.get_object()
+        except MovieReview.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Review not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        replies = review.get_top_level_replies()
+        page = self.paginate_queryset(replies)
+
+        if page is not None:
+            serializer = MovieReplySerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+
+        serializer = MovieReplySerializer(replies, many=True, context={'request': request})
+        return Response({
+            'status': 'success',
+            'count': len(replies),
+            'data': serializer.data
+        })

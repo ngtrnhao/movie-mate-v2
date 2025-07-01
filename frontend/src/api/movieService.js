@@ -528,3 +528,22 @@ export const getCommunityStats = async () => {
     };
   }
 };
+
+// Get my reviews for a movie (with auth check)
+export const getMyReviews = async movieId => {
+  try {
+    // Check if user is authenticated by checking token in localStorage
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return { data: [] }; // Return empty list if not authenticated
+    }
+
+    const response = await axiosInstance.get('/api/reviews/my_reviews/', {
+      params: { movie_id: movieId },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching my reviews:', error);
+    return { data: [] }; // Return empty list on error
+  }
+};

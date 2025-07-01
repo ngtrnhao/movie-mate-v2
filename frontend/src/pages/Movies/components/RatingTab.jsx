@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Star, Filter, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   getMovieReviews,
   submitMovieReview,
@@ -89,6 +91,9 @@ const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showL
 };
 
 const RatingTab = ({ movieId }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   const [userRating, setUserRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -104,8 +109,18 @@ const RatingTab = ({ movieId }) => {
 
   useEffect(() => {
     fetchReviews();
-    fetchUserReview();
-  }, [movieId, currentPage, sortBy]);
+    if (isAuthenticated) {
+      fetchUserReview();
+    }
+  }, [movieId, currentPage, sortBy, isAuthenticated]);
+
+  const handleAuthRequired = () => {
+    const returnPath = {
+      pathname: location.pathname,
+      search: location.search,
+    };
+    navigate('/login', { state: { from: returnPath } });
+  };
 
   const fetchReviews = async () => {
     setLoading(true);
@@ -143,10 +158,10 @@ const RatingTab = ({ movieId }) => {
   };
 
   const fetchUserReview = async () => {
+    if (!isAuthenticated) return;
+
     try {
       const data = await getUserReview(movieId);
-
-      // Handle both paginated and non-paginated response formats
       const reviews = data.results || data.data || [];
 
       if (reviews.length > 0) {
@@ -163,6 +178,11 @@ const RatingTab = ({ movieId }) => {
   };
 
   const handleSubmitRating = async () => {
+    if (!isAuthenticated) {
+      handleAuthRequired();
+      return;
+    }
+
     if (userRating > 0 && ratingComment.trim().length >= 10) {
       try {
         const reviewData = {
@@ -191,10 +211,13 @@ const RatingTab = ({ movieId }) => {
   };
 
   const handleVoteReview = async (reviewId, voteType) => {
+    if (!isAuthenticated) {
+      handleAuthRequired();
+      return;
+    }
+
     try {
       const result = await voteOnReview(reviewId, voteType);
-
-      // Update local review state
       setReviews(prev =>
         prev.map(review =>
           review.id === reviewId
@@ -213,6 +236,11 @@ const RatingTab = ({ movieId }) => {
   };
 
   const handleDeleteReview = async reviewId => {
+    if (!isAuthenticated) {
+      handleAuthRequired();
+      return;
+    }
+
     if (window.confirm('Bạn có chắc muốn xóa đánh giá này?')) {
       try {
         await deleteReview(reviewId);
@@ -230,6 +258,11 @@ const RatingTab = ({ movieId }) => {
   };
 
   const handleEditReview = review => {
+    if (!isAuthenticated) {
+      handleAuthRequired();
+      return;
+    }
+
     setEditingReview(review);
     setUserRating(parseFloat(review.rating) || 0);
     setRatingComment(review.content || '');
@@ -325,31 +358,15 @@ const RatingTab = ({ movieId }) => {
           {userReview ? 'Cập nhật đánh giá' : 'Đánh giá phim này'}
         </h3>
 
-        <div className="space-y-4">
-          <div className="pb-2">
-            <label className="mb-2 block text-sm text-gray-300">Số sao của bạn:</label>
-            <div className="flex min-h-[80px] flex-col items-center">
-              <StarRating
-                rating={userRating}
-                onRatingChange={setUserRating}
-                editable={true}
-                size={28}
-                showLabel={true}
-              />
-              <div className="mt-2 flex h-[20px] items-center">
-                {!userRating && (
-                  <p className="text-xs italic text-gray-500 transition-opacity duration-200">
-                    Hover để xem mức độ đánh giá
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm text-gray-300">
-              Nhận xét (bắt buộc, ít nhất 10 ký tự):
-            </label>
+        {isAuthenticated ? (
+          <div className="space-y-3">
+            <StarRating
+              rating={userRating}
+              onRatingChange={setUserRating}
+              editable={true}
+              size={24}
+              showLabel={true}
+            />
             <textarea
               value={ratingComment}
               onChange={e => setRatingComment(e.target.value)}
@@ -358,24 +375,34 @@ const RatingTab = ({ movieId }) => {
               rows="3"
               maxLength={500}
             />
-            <div className="mt-2 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="text-xs text-gray-400">{ratingComment.length} / 500</span>
                 {ratingComment.length > 0 && ratingComment.length < 10 && (
-                  <span className="text-xs text-red-400">Nhận xét phải có ít nhất 10 ký tự</span>
+                  <span className="text-xs text-red-400">Đánh giá phải có ít nhất 10 ký tự</span>
                 )}
               </div>
               <button
                 onClick={handleSubmitRating}
-                disabled={userRating === 0 || ratingComment.trim().length < 10}
+                disabled={!userRating || !ratingComment.trim() || ratingComment.length < 10}
                 className="flex items-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-600"
               >
                 <Star size={16} />
-                {userReview ? 'Cập nhật' : 'Gửi đánh giá'}
+                {userReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
               </button>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center space-y-4 py-6">
+            <p className="text-center text-gray-400">Bạn cần đăng nhập để đánh giá phim này</p>
+            <button
+              onClick={handleAuthRequired}
+              className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              Đăng nhập ngay
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Review Controls */}

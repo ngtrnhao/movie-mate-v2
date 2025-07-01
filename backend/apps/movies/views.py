@@ -447,7 +447,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['get', 'post'])
+    @action(detail=True, methods=['get', 'post'], permission_classes=[AllowAny])
     def reviews(self, request, pk=None):
         """Get or create reviews for a specific movie"""
         try:
@@ -491,6 +491,13 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 })
 
             elif request.method == 'POST':
+                # Check if user is authenticated for POST
+                if not request.user.is_authenticated:
+                    return Response({
+                        'status': 'error',
+                        'message': 'Bạn cần đăng nhập để viết review'
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+
                 # Create new user review
                 serializer = MovieReviewCreateSerializer(data=request.data, context={'request': request})
 
@@ -1151,9 +1158,16 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def my_reviews(self, request):
         """Get current user's reviews"""
+        if not request.user.is_authenticated:
+            return Response({
+                'status': 'success',
+                'count': 0,
+                'data': []
+            })
+
         reviews = MovieReview.objects.filter(
             user=request.user,
             review_type='USER'

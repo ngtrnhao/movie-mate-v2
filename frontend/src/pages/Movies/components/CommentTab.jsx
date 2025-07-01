@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Send, Star, Eye, EyeOff, AlertTriangle } from 'lucide-react';
-import { getMovieReviews, voteOnReview, submitMovieReview } from '../../../api/movieService';
+import {
+  getMovieReviews,
+  voteOnReview,
+  submitMovieReview,
+  getMyReviews,
+} from '../../../api/movieService';
 import ReviewActions from '../../../components/common/ReviewActions';
+import { useSelector } from 'react-redux';
 
 const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showLabel = false }) => {
   const [hoverRating, setHoverRating] = useState(0);
@@ -56,14 +62,22 @@ const CommentTab = ({ movieId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [myReview, setMyReview] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showSpoilers, setShowSpoilers] = useState(false);
   const [newComment, setNewComment] = useState('');
 
+  // Get auth state from Redux store
+  const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+
   useEffect(() => {
     fetchReviews();
-  }, [movieId, currentPage]);
+    // Only fetch my reviews if user is authenticated
+    if (isAuthenticated) {
+      fetchMyReview();
+    }
+  }, [movieId, currentPage, isAuthenticated]);
 
   const fetchReviews = async () => {
     setLoading(true);
@@ -81,7 +95,29 @@ const CommentTab = ({ movieId }) => {
     }
   };
 
+  const fetchMyReview = async () => {
+    if (!isAuthenticated) {
+      console.log('User not authenticated, skipping my_reviews fetch');
+      return;
+    }
+
+    try {
+      const data = await getMyReviews(movieId);
+      if (data.data && data.data.length > 0) {
+        setMyReview(data.data[0]);
+      }
+    } catch (err) {
+      console.error('Error fetching my review:', err);
+      // Don't set error state as this is not critical
+    }
+  };
+
   const handleLike = async reviewId => {
+    if (!isAuthenticated) {
+      // Show login prompt
+      return;
+    }
+
     try {
       await voteOnReview(reviewId, 'helpful');
       // Update local state
@@ -103,6 +139,11 @@ const CommentTab = ({ movieId }) => {
   };
 
   const handleDislike = async reviewId => {
+    if (!isAuthenticated) {
+      // Show login prompt
+      return;
+    }
+
     try {
       await voteOnReview(reviewId, 'not_helpful');
       // Update local state
@@ -123,19 +164,24 @@ const CommentTab = ({ movieId }) => {
   };
 
   const handleSubmitComment = async () => {
+    if (!isAuthenticated) {
+      // Show login prompt
+      return;
+    }
+
     if (newComment.trim().length >= 10) {
       try {
         const reviewData = {
           title: '',
           content: newComment.trim(),
-          rating: null, // Comments don't require rating
+          rating: null,
           is_public: true,
           is_spoiler: false,
         };
 
         await submitMovieReview(movieId, reviewData);
         setNewComment('');
-        fetchReviews(); // Refresh comments
+        fetchReviews();
       } catch (err) {
         console.error('Error submitting comment:', err);
         setError('Không thể gửi bình luận.');

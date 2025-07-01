@@ -5,7 +5,7 @@ class ImagePreloaderService {
   constructor() {
     this.cache = new Map();
     this.queue = new Set();
-    this.maxConcurrent = 6; // Giới hạn số lượng image load đồng thời
+    this.maxConcurrent = 20; // Giới hạn số lượng image load đồng thời
     this.currentLoading = 0;
   }
 

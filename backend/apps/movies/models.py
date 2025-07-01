@@ -734,73 +734,96 @@ class MovieReview(models.Model):
         """Check if this is from a verified internal user"""
         return self.review_type == 'USER' and self.user is not None
 
+    def get_top_level_replies(self):
+        """Get all top-level replies for this review, sorted by creation time"""
+        return MovieReview.objects.filter(
+            parent_review=self,
+            is_public=True
+        ).select_related(
+            'user'
+        ).prefetch_related(
+            'votes'
+        ).order_by(
+            'created_at'  # Sort by creation time ascending (oldest first)
+        )
+
+    @property
+    def is_reply(self):
+        """Check if this review is a reply"""
+        return self.parent_review is not None
+
+    @property
+    def reply_count(self):
+        """Get the count of replies for this review"""
+        if hasattr(self, '_reply_count'):
+            return self._reply_count
+        return MovieReview.objects.filter(parent_review=self, is_public=True).count()
+
+    def can_reply(self, user):
+        """Check if user can reply to this review"""
+        if not user or not user.is_authenticated:
+            return False
+
+        # Cannot reply to own review
+        if self.user and self.user.id == user.id:
+            return False
+
+        # Cannot reply to a reply
+        if self.is_reply:
+            return False
+
+        return True
+
     def get_helpfulness_ratio(self):
-        """Calculate helpfulness ratio (helpful_votes / total_votes)"""
+        """Calculate helpfulness ratio"""
         if self.total_votes == 0:
-            return 0.0
-        return round(self.helpful_votes / self.total_votes, 2)
+            return 0
+        return round((self.helpful_votes / self.total_votes) * 100, 1)
 
     def update_vote_counts(self):
-        """Update helpful_votes and total_votes based on ReviewVote records"""
-        votes = self.votes.all()
-        self.helpful_votes = votes.filter(vote_type='helpful').count()
-        self.total_votes = votes.count()
+        """Update vote counts from actual votes"""
+        helpful = self.votes.filter(vote_type='helpful').count()
+        total = self.votes.count()
+
+        self.helpful_votes = helpful
+        self.total_votes = total
         self.save(update_fields=['helpful_votes', 'total_votes'])
 
     def can_be_edited_by(self, user):
         """Check if user can edit this review"""
-        if not user.is_authenticated:
+        if not user or not user.is_authenticated:
             return False
-        return self.user == user or user.is_staff
-
-    @property
-    def is_reply(self):
-        """Check if this is a reply to another review"""
-        return self.parent_review is not None
-
-    def get_reply_count(self):
-        """Get total number of replies (including nested)"""
-        count = self.replies.count()
-        for reply in self.replies.all():
-            count += reply.get_reply_count()
-        return count
-
-    def get_top_level_replies(self):
-        """Get direct replies only (not nested)"""
-        return self.replies.filter(is_public=True).order_by('created_at')
-
-    def can_reply(self, user):
-        """Check if user can reply to this review"""
-        if not user.is_authenticated:
-            return False
-        # Users can't reply to their own reviews
-        if self.user == user:
-            return False
-        # Can't reply to external reviews
-        if self.review_type == 'EXTERNAL':
-            return False
-        # Can't reply to private reviews
-        if not self.is_public:
-            return False
-        return True
+        return self.user and self.user.id == user.id
 
     @classmethod
     def get_featured_reviews(cls, limit=5):
-        """Get featured reviews (most helpful, recent)"""
+        """Get featured reviews based on helpfulness and recency"""
         return cls.objects.filter(
             review_type='USER',
-            is_public=True
-        ).order_by('-helpful_votes', '-created_at')[:limit]
+            is_public=True,
+            parent_review__isnull=True  # Only parent reviews
+        ).select_related(
+            'user', 'movie'
+        ).order_by(
+            '-helpful_votes',
+            '-created_at'
+        )[:limit]
 
     @classmethod
     def get_recent_user_activity(cls, hours=24, limit=20):
         """Get recent user review activity"""
-        cutoff_time = timezone.now() - timedelta(hours=hours)
+        from django.utils import timezone
+        from datetime import timedelta
+
         return cls.objects.filter(
             review_type='USER',
             is_public=True,
-            created_at__gte=cutoff_time
-        ).select_related('user', 'movie').order_by('-created_at')[:limit]
+            created_at__gte=timezone.now() - timedelta(hours=hours)
+        ).select_related(
+            'user', 'movie'
+        ).order_by(
+            '-created_at'
+        )[:limit]
 
 
 class ReviewVote(models.Model):

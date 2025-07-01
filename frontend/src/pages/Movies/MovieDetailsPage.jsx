@@ -372,7 +372,7 @@ const MovieDetailsPage = () => {
 
                 {/* Overview */}
                 {(movie.overview_vi || movie.overview_en || movie.overview) && (
-                  <p className="line-clamp-4 text-sm leading-relaxed text-gray-200">
+                  <p className=" text-sm leading-relaxed text-gray-200">
                     {getDisplayOverview(movie, currentLanguage)}
                   </p>
                 )}

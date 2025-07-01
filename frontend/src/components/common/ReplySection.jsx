@@ -24,7 +24,8 @@ const ReplySection = ({ review, onReplySuccess }) => {
 
     try {
       const response = await getReviewReplies(review.id);
-      setReplies(response.data || []);
+      // Get replies from the results array in paginated response
+      setReplies(response.results || []);
     } catch (err) {
       console.error('Error fetching replies:', err);
       setError('Không thể tải phản hồi');
@@ -80,9 +81,13 @@ const ReplySection = ({ review, onReplySuccess }) => {
         setShowReplyForm(false);
         setShowReplies(true);
 
+        // Update reply count in parent review
         if (onReplySuccess) {
           onReplySuccess(review.id, response.data);
         }
+
+        // Fetch latest replies to ensure correct order
+        fetchReplies();
       }
     } catch (err) {
       console.error('Error submitting reply:', err);
@@ -193,38 +198,40 @@ const ReplySection = ({ review, onReplySuccess }) => {
           ) : error ? (
             <div className="text-center text-red-400 py-4">{error}</div>
           ) : replies.length > 0 ? (
-            replies.map(reply => (
-              <div key={reply.id} className="bg-gray-800/20 rounded-lg p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <img
-                    src={reply.reviewer_avatar || '/api/placeholder/32/32'}
-                    alt={reply.reviewer_name || 'User'}
-                    className="w-8 h-8 rounded-full object-cover"
-                    onError={e => {
-                      e.target.src = `https://ui-avatars.com/api/?name=${reply.reviewer_name || 'User'}&background=random&color=fff&size=32`;
-                    }}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-white text-sm">{reply.reviewer_name}</h4>
-                      {reply.is_verified_reviewer && (
-                        <span className="text-xs text-blue-400">✓</span>
-                      )}
-                      <span className="text-xs text-gray-500">
-                        {new Date(reply.created_at).toLocaleDateString('vi-VN')}
-                      </span>
-                    </div>
-                    <p className="text-gray-300 text-sm leading-relaxed mb-3">{reply.content}</p>
-                    <ReviewActions
-                      review={reply}
-                      onVoteUpdate={handleVoteUpdate}
-                      showMoreActions={false}
-                      size="sm"
+            <div className="space-y-4 pl-4">
+              {replies.map(reply => (
+                <div key={reply.id} className="bg-gray-800/20 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={reply.reviewer_avatar || '/api/placeholder/32/32'}
+                      alt={reply.reviewer_name || 'User'}
+                      className="w-8 h-8 rounded-full object-cover"
+                      onError={e => {
+                        e.target.src = `https://ui-avatars.com/api/?name=${reply.reviewer_name || 'User'}&background=random&color=fff&size=32`;
+                      }}
                     />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium text-white text-sm">{reply.reviewer_name}</h4>
+                        {reply.is_verified_reviewer && (
+                          <span className="text-xs text-blue-400">✓</span>
+                        )}
+                        <span className="text-xs text-gray-500">
+                          {new Date(reply.created_at).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                      <p className="text-gray-300 text-sm leading-relaxed mb-3">{reply.content}</p>
+                      <ReviewActions
+                        review={reply}
+                        onVoteUpdate={handleVoteUpdate}
+                        showMoreActions={false}
+                        size="sm"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
             <div className="text-center text-gray-500 py-4">Chưa có phản hồi nào</div>
           )}

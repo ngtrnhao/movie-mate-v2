@@ -12,7 +12,7 @@ from django.db.models import Count, Prefetch, Q, F, Avg, Case, When, Value, Inte
 from django.db.models.functions import Greatest, Coalesce, Cast
 from django.core.paginator import Paginator
 from django.db import models
-from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote
+from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer
 from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer
 import logging
 import hashlib
@@ -39,7 +39,12 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         ).prefetch_related(
             Prefetch('ratings', to_attr='prefetched_ratings'),
             Prefetch('genres', to_attr='prefetched_genres'),
-            Prefetch('trailers', to_attr='prefetched_trailers'),
+            # Add trailers prefetch back but with proper filtering
+            Prefetch(
+                'trailers',
+                queryset=MovieTrailer.objects.filter(type='TRAILER'),
+                to_attr='prefetched_trailers'
+            ),
             # Add cast prefetch for detail views
             Prefetch(
                 'cast',
@@ -49,6 +54,44 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             # Add images prefetch for media gallery
             Prefetch('movieimage_set', to_attr='prefetched_images')
         )
+
+    def get_movie_score(self, movie):
+        """Calculate movie score based on data completeness"""
+        score = 0
+
+        # Base score for having poster
+        if movie.poster_url and movie.poster_url.strip():
+            score += 1
+            logger.debug(f"Movie {movie.id} +1 for poster")
+
+        # Check trailers using prefetched data
+        if hasattr(movie, 'prefetched_trailers') and movie.prefetched_trailers:
+            score += 2  # Higher weight for trailers
+            logger.debug(f"Movie {movie.id} +2 for {len(movie.prefetched_trailers)} trailers")
+
+        # Additional points for cached data
+        if movie.backdrop_url and movie.backdrop_url.strip():
+            score += 1
+            logger.debug(f"Movie {movie.id} +1 for backdrop")
+
+        if movie.overview_en and movie.overview_en.strip():
+            score += 1
+            logger.debug(f"Movie {movie.id} +1 for English overview")
+
+        if movie.overview_vi and movie.overview_vi.strip():
+            score += 1
+            logger.debug(f"Movie {movie.id} +1 for Vietnamese overview")
+
+        if movie.cached_imdb_rating:
+            score += 2  # Higher weight for rating
+            logger.debug(f"Movie {movie.id} +2 for IMDB rating")
+
+        if movie.genres.all():
+            score += 1
+            logger.debug(f"Movie {movie.id} +1 for genres")
+
+        logger.debug(f"Movie {movie.id} final score: {score}")
+        return score
 
     def get_queryset(self):
         return self.get_optimized_queryset()
@@ -89,42 +132,48 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """Get 3 featured movies for hero section with complete data"""
         try:
             logger.info("Fetching featured movies...")
-            cache_key = 'featured_movies_v2'
+            cache_key = 'featured_movies_v3'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached featured movies")
                 return Response(cached_data)
 
-            # Optimized query using cached rating fields
+            # Get movies with trailers
             movies = self.get_optimized_queryset().filter(
                 is_popular=True,
                 poster_url__isnull=False,
-                poster_url__gt=''
+                poster_url__gt='',
+                trailers__isnull=False,
+                trailers__type='TRAILER'
             ).exclude(
                 poster_url__exact=''
-            ).order_by(
-                '-combined_rating_score',  # Use cached combined score
-                '-cached_imdb_rating',     # Fallback to cached IMDB rating
+            ).distinct().order_by(
+                '-combined_rating_score',
+                '-cached_imdb_rating',
                 '-release_date'
-            )[:10]  # Get top 10 to have options
+            )[:10]
 
-            logger.info(f"Found {len(movies)} popular movies")
+            logger.info(f"Found {len(movies)} popular movies with trailers")
 
             if not movies:
-                logger.warning("No popular movies found, using top rated fallback")
+                logger.warning("No popular movies with trailers found, using top rated fallback")
                 movies = self.get_optimized_queryset().filter(
                     is_top_rated=True,
                     poster_url__isnull=False,
-                    poster_url__gt=''
-                ).order_by(
+                    poster_url__gt='',
+                    trailers__isnull=False,
+                    trailers__type='TRAILER'
+                ).exclude(
+                    poster_url__exact=''
+                ).distinct().order_by(
                     '-combined_rating_score',
                     '-cached_imdb_rating',
                     '-release_date'
                 )[:10]
 
             if not movies:
-                logger.warning("No suitable movies found for featured section")
+                logger.warning("No suitable movies with trailers found for featured section")
                 response_data = {
                     'status': 'success',
                     'count': 0,
@@ -133,28 +182,8 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 cache.set(cache_key, response_data, timeout=300)
                 return Response(response_data)
 
-            # Score movies based on data completeness (simplified for performance)
-            scored_movies = []
-            for movie in movies:
-                score = 0
-                # Base score for having poster
-                score += 1
-
-                # Additional points for cached data
-                if movie.backdrop_url:
-                    score += 1
-                if movie.overview_en and movie.overview_en.strip():
-                    score += 1
-                if movie.overview_vi and movie.overview_vi.strip():
-                    score += 1
-                if movie.cached_imdb_rating:
-                    score += 2  # Higher weight for rating
-                if hasattr(movie, 'prefetched_genres') and movie.prefetched_genres:
-                    score += 1
-                if hasattr(movie, 'prefetched_trailers') and movie.prefetched_trailers:
-                    score += 1
-
-                scored_movies.append((movie, score))
+            # Score movies based on data completeness
+            scored_movies = [(movie, self.get_movie_score(movie)) for movie in movies]
 
             # Sort by score and take top 3
             scored_movies.sort(key=lambda x: x[1], reverse=True)
@@ -182,72 +211,37 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def trending(self, request):
-        """Get 30 trending movies with complete data"""
+        """Get trending movies"""
         try:
             logger.info("Fetching trending movies...")
-            cache_key = 'trending_movies'
+            cache_key = 'trending_movies_v3'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached trending movies")
                 return Response(cached_data)
 
-            # Get all popular movies with at least poster
+            # Get popular movies
             movies = self.get_optimized_queryset().filter(
                 is_popular=True,
                 poster_url__isnull=False,
+                poster_url__gt=''
+            ).exclude(
+                poster_url__exact=''
             ).order_by(
+                '-combined_rating_score',
+                '-cached_imdb_rating',
                 '-release_date'
-            )
+            )[:20]
 
             logger.info(f"Found {len(movies)} popular movies")
 
-            if not movies:
-                logger.warning("No popular movies found in database")
-                response_data = {
-                    'status': 'success',
-                    'count': 0,
-                    'data': []
-                }
-                cache.set(cache_key, response_data, timeout=300)
-                return Response(response_data)
+            # Score movies based on data completeness
+            scored_movies = [(movie, self.get_movie_score(movie)) for movie in movies]
 
-            # Score each movie based on data completeness
-            scored_movies = []
-            for movie in movies:
-                score = 0
-                # Base score for having poster
-                score += 1
-
-                # Additional points for other data
-                if movie.backdrop_url:
-                    score += 1
-                if movie.overview_en and movie.overview_en.strip():
-                    score += 1
-                if movie.overview_vi and movie.overview_vi.strip():
-                    score += 1
-                if movie.prefetched_ratings:
-                    score += 1
-                if movie.prefetched_genres:
-                    score += 1
-                if movie.prefetched_trailers:
-                    score += 1
-
-                scored_movies.append((movie, score))
-
-            # Sort by score in descending order and take top 30
+            # Sort by score and take top movies
             scored_movies.sort(key=lambda x: x[1], reverse=True)
             top_movies = [movie for movie, score in scored_movies[:30]]
-
-            if not top_movies:
-                logger.warning("No valid movies after scoring")
-                response_data = {
-                    'status': 'success',
-                    'count': 0,
-                    'data': []
-                }
-                cache.set(cache_key, response_data, timeout=300)
-                return Response(response_data)
 
             serializer = self.get_serializer(top_movies, many=True)
             logger.info("Successfully serialized trending movies")
@@ -258,10 +252,10 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'data': serializer.data
             }
 
-            # Cache the response for 5 minutes
+            # Cache for 5 minutes
             cache.set(cache_key, response_data, timeout=300)
-
             return Response(response_data)
+
         except Exception as e:
             logger.error(f"Error in trending movies: {str(e)}", exc_info=True)
             return Response({
@@ -271,72 +265,37 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def top_rated(self, request):
-        """Get 30 top rated movies with complete data"""
+        """Get top rated movies"""
         try:
             logger.info("Fetching top rated movies...")
-            cache_key = 'top_rated_movies'
+            cache_key = 'top_rated_movies_v3'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached top rated movies")
                 return Response(cached_data)
 
-            # Get all top rated movies with at least poster
+            # Get top rated movies
             movies = self.get_optimized_queryset().filter(
                 is_top_rated=True,
                 poster_url__isnull=False,
+                poster_url__gt=''
+            ).exclude(
+                poster_url__exact=''
             ).order_by(
+                '-combined_rating_score',
+                '-cached_imdb_rating',
                 '-release_date'
-            )
+            )[:20]
 
             logger.info(f"Found {len(movies)} top rated movies")
 
-            if not movies:
-                logger.warning("No top rated movies found in database")
-                response_data = {
-                    'status': 'success',
-                    'count': 0,
-                    'data': []
-                }
-                cache.set(cache_key, response_data, timeout=300)
-                return Response(response_data)
+            # Score movies based on data completeness
+            scored_movies = [(movie, self.get_movie_score(movie)) for movie in movies]
 
-            # Score each movie based on data completeness
-            scored_movies = []
-            for movie in movies:
-                score = 0
-                # Base score for having poster
-                score += 1
-
-                # Additional points for other data
-                if movie.backdrop_url:
-                    score += 1
-                if movie.overview_en and movie.overview_en.strip():
-                    score += 1
-                if movie.overview_vi and movie.overview_vi.strip():
-                    score += 1
-                if movie.prefetched_ratings:
-                    score += 1
-                if movie.prefetched_genres:
-                    score += 1
-                if movie.prefetched_trailers:
-                    score += 1
-
-                scored_movies.append((movie, score))
-
-            # Sort by score in descending order and take top 30
+            # Sort by score and take top movies
             scored_movies.sort(key=lambda x: x[1], reverse=True)
             top_movies = [movie for movie, score in scored_movies[:30]]
-
-            if not top_movies:
-                logger.warning("No valid movies after scoring")
-                response_data = {
-                    'status': 'success',
-                    'count': 0,
-                    'data': []
-                }
-                cache.set(cache_key, response_data, timeout=300)
-                return Response(response_data)
 
             serializer = self.get_serializer(top_movies, many=True)
             logger.info("Successfully serialized top rated movies")
@@ -347,10 +306,10 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'data': serializer.data
             }
 
-            # Cache the response for 5 minutes
+            # Cache for 5 minutes
             cache.set(cache_key, response_data, timeout=300)
-
             return Response(response_data)
+
         except Exception as e:
             logger.error(f"Error in top rated movies: {str(e)}", exc_info=True)
             return Response({
@@ -360,72 +319,37 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
-        """Get 30 upcoming movies with complete data"""
+        """Get upcoming movies"""
         try:
             logger.info("Fetching upcoming movies...")
-            cache_key = 'upcoming_movies'
+            cache_key = 'upcoming_movies_v3'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached upcoming movies")
                 return Response(cached_data)
 
-            # Get all upcoming movies with at least poster
+            # Get upcoming movies
             movies = self.get_optimized_queryset().filter(
                 is_upcoming=True,
                 poster_url__isnull=False,
+                poster_url__gt=''
+            ).exclude(
+                poster_url__exact=''
             ).order_by(
-                'release_date'  # Sắp xếp theo ngày phát hành sớm nhất
-            )
+                '-combined_rating_score',
+                '-cached_imdb_rating',
+                'release_date'
+            )[:20]
 
             logger.info(f"Found {len(movies)} upcoming movies")
 
-            if not movies:
-                logger.warning("No upcoming movies found in database")
-                response_data = {
-                    'status': 'success',
-                    'count': 0,
-                    'data': []
-                }
-                cache.set(cache_key, response_data, timeout=300)
-                return Response(response_data)
+            # Score movies based on data completeness
+            scored_movies = [(movie, self.get_movie_score(movie)) for movie in movies]
 
-            # Score each movie based on data completeness
-            scored_movies = []
-            for movie in movies:
-                score = 0
-                # Base score for having poster
-                score += 1
-
-                # Additional points for other data
-                if movie.poster_url:
-                    score += 1
-                if movie.overview_en and movie.overview_en.strip():
-                    score += 1
-                if movie.overview_vi and movie.overview_vi.strip():
-                    score += 1
-                if movie.prefetched_ratings:
-                    score += 1
-                if movie.prefetched_genres:
-                    score += 1
-                if movie.prefetched_trailers:
-                    score += 1
-
-                scored_movies.append((movie, score))
-
-            # Sort by score in descending order and take top 30
+            # Sort by score and take top movies
             scored_movies.sort(key=lambda x: x[1], reverse=True)
             top_movies = [movie for movie, score in scored_movies[:30]]
-
-            if not top_movies:
-                logger.warning("No valid movies after scoring")
-                response_data = {
-                    'status': 'success',
-                    'count': 0,
-                    'data': []
-                }
-                cache.set(cache_key, response_data, timeout=300)
-                return Response(response_data)
 
             serializer = self.get_serializer(top_movies, many=True)
             logger.info("Successfully serialized upcoming movies")
@@ -436,10 +360,10 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'data': serializer.data
             }
 
-            # Cache the response for 5 minutes
+            # Cache for 5 minutes
             cache.set(cache_key, response_data, timeout=300)
-
             return Response(response_data)
+
         except Exception as e:
             logger.error(f"Error in upcoming movies: {str(e)}", exc_info=True)
             return Response({
@@ -454,8 +378,11 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             movie = self.get_object()
 
             if request.method == 'GET':
-                # Get all reviews for this movie
-                reviews = movie.reviews.filter(is_public=True).select_related('user')
+                # Get only parent reviews (not replies) for this movie
+                reviews = movie.reviews.filter(
+                    is_public=True,
+                    parent_review__isnull=True  # Only get parent reviews
+                ).select_related('user')
 
                 # Filter by review type if specified
                 review_type = request.query_params.get('type')
@@ -626,7 +553,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """
         try:
             # Cache key for complete details
-            cache_key = f'movie_details_complete_v2_{pk}'  # v2 to bust old cache
+            cache_key = f'movie_details_complete_v3_{pk}'  # v2 to bust old cache
             cached_data = cache.get(cache_key)
 
             if cached_data:
@@ -655,7 +582,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 if movie_data.get('genres') and len(movie_data['genres']) > 0:
                     # Use first genre only for performance
                     primary_genre_id = movie_data['genres'][0]['id']
-                    similar_cache_key = f'similar_movies_v2_{pk}_{primary_genre_id}'
+                    similar_cache_key = f'similar_movies_v3_{pk}_{primary_genre_id}'
                     similar_movies = cache.get(similar_cache_key)
 
                     if not similar_movies:
@@ -790,7 +717,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
             # Create a more stable cache key
             cache_string = '&'.join([f"{k}={v}" for k, v in sorted(cache_params.items()) if v])
-            cache_key = f"movies_search_v2_{hashlib.md5(cache_string.encode()).hexdigest()}"
+            cache_key = f"movies_search_v3_{hashlib.md5(cache_string.encode()).hexdigest()}"
 
             # Check cache first
             cached_data = cache.get(cache_key)
@@ -1269,7 +1196,6 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             'message': 'Invalid data',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def replies(self, request, pk=None):
         """Get all replies for a review"""
@@ -1294,3 +1220,4 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             'count': len(replies),
             'data': serializer.data
         })
+

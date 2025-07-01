@@ -100,7 +100,8 @@ class TMDBService:
         """Get detailed movie information from TMDB"""
         return cls._make_request(
             f"/movie/{tmdb_id}",
-            params={"language": "vi-VN"},  # Get Vietnamese content
+            params={"language": "en-US"},  # Get Vietnamese content
+            #   params={"language": "vi-VN"},
             use_cache=use_cache
         )
 
@@ -165,12 +166,29 @@ class TMDBService:
             return {"title": {"en": None, "vi": None}, "genres": {"en": [], "vi": []}}
 
         result = {"title": {}, "genres": {}}
-        for lang, lang_code in [("en", "en-US"), ("vi", "vi-VN")]:
-            movie = cls._make_request(f"/movie/{tmdb_id}", {"language": lang_code}, use_cache=use_cache)
-            if movie:
-                result["title"][lang] = movie.get("title")
-                result["genres"][lang] = [g["name"] for g in movie.get("genres", [])]
+
+        # Get English data first
+        en_movie = cls._make_request(f"/movie/{tmdb_id}", {"language": "en-US"}, use_cache=use_cache)
+        if en_movie:
+            result["title"]["en"] = en_movie.get("title")
+            result["genres"]["en"] = [g["name"] for g in en_movie.get("genres", [])]
+        else:
+            result["title"]["en"] = None
+            result["genres"]["en"] = []
+
+        # Get Vietnamese data
+        vi_movie = cls._make_request(f"/movie/{tmdb_id}", {"language": "vi-VN"}, use_cache=use_cache)
+        if vi_movie:
+            vi_title = vi_movie.get("title")
+            # Check if title contains CJK characters (Chinese, Japanese, Korean)
+            if vi_title and any(ord(c) > 0x3000 for c in vi_title):
+                # If title contains CJK characters, use English title as fallback
+                result["title"]["vi"] = result["title"]["en"]
             else:
-                result["title"][lang] = None
-                result["genres"][lang] = []
+                result["title"]["vi"] = vi_title
+            result["genres"]["vi"] = [g["name"] for g in vi_movie.get("genres", [])]
+        else:
+            result["title"]["vi"] = result["title"]["en"]  # Fallback to English
+            result["genres"]["vi"] = []
+
         return result

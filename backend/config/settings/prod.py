@@ -67,7 +67,7 @@ ELASTICSEARCH_DSL = {
         'timeout': 30,
         'retry_on_timeout': True,
         'max_retries': 3,
-        'sniff_on_start': True,
+        'sniff_on_start': False,
         'sniff_on_connection_fail': False,
     }
 }

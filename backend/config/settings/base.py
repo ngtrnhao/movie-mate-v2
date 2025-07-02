@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'whitenoise.runserver_nostatic',
     'django_redis',  # Add django-redis
+    'django_elasticsearch_dsl',  # Add Elasticsearch DSL
 
     # Local apps
     'apps.core.apps.CoreConfig',

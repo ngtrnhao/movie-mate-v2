@@ -1,15 +1,15 @@
 from django.core.management.base import BaseCommand
-from django_elasticsearch_dsl.registries import registry
+from apps.movies.document import MovieDocument
 
 class Command(BaseCommand):
-    help = 'Setup Elasticsearch indexs'
+    help = 'Setup Elasticsearch indexes'
 
     def handle(self, *args, **options):
         self.stdout.write('Creating Elasticsearch indexes...')
 
         try:
-            #Create all indexes
-            registry.update()
+            # Tạo lại index/mapping cho MovieDocument
+            MovieDocument.init()
             self.stdout.write(
                 self.style.SUCCESS('Successfully created Elasticsearch indexes')
             )

@@ -296,6 +296,16 @@ if not DEBUG:
 ELASTICSEARCH_DSL_AUTOSYNC = env.bool('ELASTICSEARCH_DSL_AUTOSYNC', True)
 ELASTICSEARCH_DSL_AUTO_REFRESH = env.bool('ELASTICSEARCH_DSL_AUTO_REFRESH', True)
 
+# Default Elasticsearch configuration (for local development)
+ELASTICSEARCH_DSL = {
+    'default': {
+        'hosts': [env('ELASTICSEARCH_HOST', default='localhost:9200')],
+        'timeout': 30,
+        'retry_on_timeout': True,
+        'max_retries': 3,
+    }
+}
+
 # Migration settings
 MIGRATION_SECRET_KEY = env('MIGRATION_SECRET_KEY', default='your-secret-key-here')
 

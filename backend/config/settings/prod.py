@@ -59,16 +59,19 @@ ELASTICSEARCH_DSL = {
     'default': {
         'hosts': [os.environ.get('ELASTICSEARCH_CLOUD_URL')],
         'http_auth': (
-            os.environ.get('ELASTICSEARCH_USERNAME','elastic'),
-            os.environ.get('ELASTICSEARCH_PASSWORD','elastic'),
+            os.environ.get('ELASTICSEARCH_USERNAME', 'elastic'),
+            os.environ.get('ELASTICSEARCH_PASSWORD'),
         ),
         'use_ssl': True,
-        'verify_certs':True,
+        'verify_certs': True,
         'timeout': 30,
         'retry_on_timeout': True,
         'max_retries': 3,
         'sniff_on_start': False,
         'sniff_on_connection_fail': False,
+        'ca_certs': None,
+        'client_cert': None,
+        'client_key': None,
     }
 }
 # Email settings

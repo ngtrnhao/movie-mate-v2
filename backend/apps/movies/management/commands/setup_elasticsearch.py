@@ -5,7 +5,7 @@ class Command(BaseCommand):
     help = 'Setup Elasticsearch indexs'
 
     def handle(self, *args, **options):
-        self.stdou.write('Creating Elasticsearch indexes...')
+        self.stdout.write('Creating Elasticsearch indexes...')
 
         try:
             #Create all indexes

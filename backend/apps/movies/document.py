@@ -13,8 +13,14 @@ class MovieDocument(Document):
         analyzer='standard',
         fields={'raw': fields.KeywordField()}
     )
-    overview_en = fields.TextField(analyzer='english')
-    overview_vi = fields.TextField(analyzer='standard')
+    overview_en = fields.TextField(
+        analyzer='english',
+        fields={'raw': fields.KeywordField()}
+    )
+    overview_vi = fields.TextField(
+        analyzer='vietnamese_analyzer',
+        fields={'raw': fields.KeywordField()}
+    )
 
     # Metadata fields
     release_date = fields.DateField()
@@ -28,10 +34,6 @@ class MovieDocument(Document):
     is_adult = fields.BooleanField()
     status = fields.KeywordField()
     production_countries = fields.KeywordField(multi=True)
-
-    # Image URLs
-    poster_url = fields.KeywordField()
-    backdrop_url = fields.KeywordField()
 
     class Index:
         name = 'movies'
@@ -57,6 +59,8 @@ class MovieDocument(Document):
             'cached_tmdb_rating',
             'is_popular',
             'is_top_rated',
+            'poster_url',
+            'backdrop_url',
         ]
 
     def prepare_genres(self, instance):

@@ -18,11 +18,11 @@ import logging
 import hashlib
 from django.utils import timezone
 from datetime import timedelta
-
+from .services.search_service import MovieSearchService
 logger = logging.getLogger(__name__)
 
 class OptimizedMovieViewSet(viewsets.ModelViewSet):
-    """Optimized MovieViewSet for handling large datasets (2M+ records)"""
+    """Ehanced movie search using Elasticsearch with fallback to Django ORM"""
     queryset = Movie.objects.all()
     serializer_class = OptimizedMovieListSerializer
     permission_classes = [AllowAny]
@@ -699,6 +699,10 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             page = int(request.GET.get('page', 1))
             page_size = min(int(request.GET.get('page_size', 50)), 100)
 
+            #Forece Django ORM for specific case (fallback parameters)
+            use_django = request.GET.get('use_django','false').lower() == 'true'
+
+
             # Create cache key from filters
             cache_params = {
                 'genres': ','.join(sorted(genres)),
@@ -712,7 +716,8 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'sort_by': sort_by,
                 'order': order,
                 'page': page,
-                'page_size': page_size
+                'page_size': page_size,
+                'engine': 'django' if use_django else 'elasticsearch'
             }
 
             # Create a more stable cache key
@@ -724,15 +729,120 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             if cached_data:
                 logger.info(f"Returning cached search results for key: {cache_key}")
                 return Response(cached_data)
+            #Try Elasticsearch first
+            if not use_django:
+                try:
+                    search_service = MovieSearchService()
+                    search_params = {
+                        'q': search_query,
+                        'genres': genres,
+                        'year_from': year_from,
+                        'year_to': year_to,
+                        'country': country,
+                        'status': status_filter,
+                        'adult': adult,
+                        'language': language,
+                        'sort_by': sort_by,
+                        'order': order,
+                        'page': page,
+                        'page_size': page_size
+                    }
+                    logger.info(f"Elasticsearch for search with params: {search_params}")
+                    es_results = search_service.search(search_params)
 
+                    #Convert Elasticsearch results to expected format
+                    movies = []
+                    for hit in es_results.hits:
+                        movie_data = hit.to_dict()
+                        # Safely get nested values
+                        def safe_get(data, key, default=None):
+                            if isinstance(data, dict):
+                                return data.get(key, default)
+                            return default
+
+                        # Convert rating values safely
+                        def safe_float(value, default=None):
+                            try:
+                                return float(value) if value is not None else default
+                            except (ValueError, TypeError):
+                                return default
+
+                        # Process trailers safely
+                        trailers = movie_data.get('trailers', [])
+                        if isinstance(trailers, str):
+                            trailers = []
+                        elif not isinstance(trailers, list):
+                            trailers = [trailers] if trailers else []
+
+                        # Process genres safely
+                        genres = movie_data.get('genres', [])
+                        if isinstance(genres, str):
+                            genres = []
+                        elif not isinstance(genres, list):
+                            genres = [genres] if genres else []
+
+                        # Build the response data
+                        processed_data = {
+                            'id': hit.meta.id,
+                            'poster_path': safe_get(movie_data, 'poster_url'),
+                            'backdrop_path': safe_get(movie_data, 'backdrop_url'),
+                            'rating': {
+                                'imdb': safe_float(safe_get(movie_data, 'cached_imdb_rating')),
+                                'imdb_votes': safe_get(movie_data, 'cached_imdb_votes'),
+                                'tmdb': safe_float(safe_get(movie_data, 'cached_tmdb_rating')),
+                                'tmdb_votes': safe_get(movie_data, 'cached_tmdb_votes'),
+                                'combined_score': safe_float(safe_get(movie_data, 'combined_rating_score')),
+                            },
+                            'vote_average': safe_float(safe_get(movie_data, 'combined_rating_score'), 0) / 2,
+                            'vote_count': (safe_get(movie_data, 'cached_imdb_votes', 0) or 0) +
+                                        (safe_get(movie_data, 'cached_tmdb_votes', 0) or 0),
+                            'overviews': {
+                                'en': safe_get(movie_data, 'overview_en'),
+                                'vi': safe_get(movie_data, 'overview_vi')
+                            },
+                            'trailers': [
+                                {
+                                    'title': safe_get(trailer, 'title'),
+                                    'youtube_key': safe_get(trailer, 'youtube_key'),
+                                    'type': safe_get(trailer, 'type')
+                                }
+                                for trailer in trailers
+                            ],
+                            'genres': [
+                                {
+                                    'id': safe_get(genre, 'id'),
+                                    'name': safe_get(genre, 'name'),
+                                    'language': safe_get(genre, 'language')
+                                }
+                                for genre in genres
+                            ]
+                        }
+                        movies.append(processed_data)
+                    response_data = {
+                        'status': 'success',
+                        'count': es_results.hits.total.value,
+                        'pages': (es_results.hits.total.value + page_size -1) // page_size,
+                        'current_page': page,
+                        'page_size': page_size,
+                        'has_next': page * page_size < es_results.hits.total.value,
+                        'data': movies,
+                        'search_engine': 'elasticsearch'
+                    }
+
+                    #Cache for 10 minutes for search results
+                    cache.set(cache_key, response_data, timeout=600)
+                    logger.info(f"Cached search results for key: {cache_key}")
+
+                    return Response(response_data)
+
+                except Exception as es_error:
+                    logger.warning(f"Elasticsearch error: {str(es_error)}, falling back to Django ORM")
+                    #Continue to Django ORM
             # Start with optimized base queryset
             queryset = self.get_optimized_queryset().filter(
                 poster_url__isnull=False,
                 poster_url__gt=''
             )
-
-            # Apply filters efficiently using indexes
-
             # Genre filter - use the indexed many-to-many relationship
             if genres:
                 queryset = queryset.filter(genres__in=genres).distinct()
@@ -860,12 +970,13 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                     'has_next': page_obj.has_next(),
                     'has_previous': page_obj.has_previous(),
                     'data': serializer.data,
-                    'total_results_limited': paginator.count >= max_results
+                    'total_results_limited': paginator.count >= max_results,
+                    'search_engine': 'django_orm'
                 }
 
                 # Cache for 10 minutes for search results
                 cache.set(cache_key, response_data, timeout=600)
-                logger.info(f"Cached search results for key: {cache_key}")
+                logger.info(f"Cached Django ORM search results for key: {cache_key}")
 
                 return Response(response_data)
 
@@ -892,13 +1003,91 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                     'page_size': page_size,
                     'has_next': has_next,
                     'has_previous': has_previous,
-                    'data': serializer.data
+                    'data': serializer.data,
+                    'search_engine': 'django_orm_fallback'
                 }
 
                 return Response(response_data)
 
         except Exception as e:
             logger.error(f"Error in movie search: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    @action(detail=False, methods=['get'])
+    def search_suggestions(self, request):
+        """Get search suggestions from Elasticsearch"""
+        try:
+            query = request.GET.get('q', '').strip()
+            language = request.GET.get('language', 'en')
+            limit = min(int(request.GET.get('limit',5)),10)
+
+            if not query or len(query) <2 :
+                return Response({
+                    'status': 'success',
+                    'data': []
+                })
+            #Create cache key for suggestions
+            cache_key = f"suggestions_{language}_{hashlib.md5(query.encode()).hexdigest()}_{limit}"
+
+            #Check cache first
+            cached_suggestions = cache.get(cache_key)
+            if cached_suggestions:
+                return Response({
+                    'status':'success',
+                    'data': cached_suggestions
+                })
+            try:
+                #Try Elasticsearch suggestions first
+                search_services = MovieSearchService()
+                suggestions = search_services.get_suggestions(query, language, limit)
+
+                #If no Elasticsearch suggestions, fallback to Django ORM
+                if not suggestions:
+                    if language == 'vi':
+                        movies = Movie.objects.filter(
+                            Q(title_vi__icontains=query) |
+                            Q(title_en__icontains=query) |
+                            Q(title__icontains=query)
+                        ).exclude(
+                            Q(poster_url__isnull=True) | Q(poster_url='')
+                        ).values('id','title_vi','title_en','title','poster_url')[:limit]
+                    else:
+                        movies = Movie.objects.filter(
+                            Q(title_en__icontains=query) |
+                            Q(title__icontains=query) |
+                            Q(title_vi__icontains=query)
+                        ).exclude(
+                            Q(poster_url__isnull=True) | Q(poster_url='')
+                        ).values('id','title_en','title','title_vi','poster_url')[:limit]
+
+                    suggestions =[]
+                    for movie in movies:
+                        suggestions.append({
+                            'id': movie['id'],
+                            'title': movie['title_vi'] if language =='vi' else movie['title_en'] or movie['title'],
+                            'title_en': movie['title_en'],
+                            'title_vi': movie['title_vi'],
+                            'poster_url': movie['poster_url']
+                        })
+
+                #Cache suggestions for 1 hour
+                cache.set(cache_key, suggestions, timeout=3600)
+                logger.info(f"Cached suggestions for key: {cache_key}")
+
+                return Response({
+                    'status': 'success',
+                    'data': suggestions
+                })
+            except Exception as es_error:
+                logger.error(f"Error getting suggestions: {str(es_error)}")
+                return Response({
+                    'status': 'error',
+                    'data': []
+                })
+        except Exception as e:
+            logger.error(f"Error in search suggestions: {str(e)}", exc_info=True)
             return Response({
                 'status': 'error',
                 'message': str(e)

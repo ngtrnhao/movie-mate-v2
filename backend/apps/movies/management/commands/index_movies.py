@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from apps.movies.models import Movie
 from apps.movies.document import MovieDocument
 
+
 class Command(BaseCommand):
     help = 'Index all movies to Elasticsearch'
 

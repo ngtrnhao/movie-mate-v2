@@ -18,8 +18,14 @@
   },
   "search": {
     "placeholder": "Tìm kiếm phim...",
-    "noResults": "Không tìm thấy kết quả",
-    "error": "Lỗi tìm kiếm phim"
+    "recent": "Tìm kiếm gần đây",
+    "clear": "Xóa",
+    "suggestions": "Gợi ý",
+    "no_results": "Không tìm thấy kết quả",
+    "error": "Có lỗi xảy ra khi tìm kiếm",
+    "loading": "Đang tải...",
+    "noResults": "Không tìm thấy phim nào"
+
   },
   "errors": {
     "required": "Vui lòng điền thông tin này",

@@ -152,7 +152,8 @@ const CategoryGrid = memo(({ categories, onCategoryClick, loading, error, retry 
       if (onCategoryClick) {
         onCategoryClick(category);
       } else {
-        navigate(`/categories/${category.slug}`);
+        // Navigate to movies page with genre filter
+        navigate(`/movies?genres=${category.id}&sort_by=popularity&order=desc`);
       }
     },
     [onCategoryClick, navigate]

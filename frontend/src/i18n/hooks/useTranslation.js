@@ -27,11 +27,19 @@ export const useTranslation = (ns = 'common') => {
     }
   }, [i18n]);
 
+  const getStoredLanguage = () => {
+    try {
+      return localStorage.getItem(LANGUAGE_KEY) || DEFAULT_LANGUAGE;
+    } catch (error) {
+      return DEFAULT_LANGUAGE;
+    }
+  };
+
   return {
     t,
     i18n,
     changeLanguage,
-    currentLanguage: i18n.language,
-    app_language: localStorage.getItem(LANGUAGE_KEY) || DEFAULT_LANGUAGE,
+    currentLanguage: i18n.language || DEFAULT_LANGUAGE,
+    app_language: getStoredLanguage(),
   };
 };

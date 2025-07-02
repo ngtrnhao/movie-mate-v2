@@ -7,6 +7,7 @@ const cache = {
   upcoming: null,
   featured: null,
   search: new Map(), // Use Map for search results caching
+  suggestions: new Map(), // Use Map for suggestions caching
   lastFetch: {},
 };
 
@@ -398,7 +399,56 @@ export const searchMovies = async (filters = {}, page = 1, pageSize = 50) => {
     throw error;
   }
 };
+//Get search suggestions for autocomplete
+export const getSearchSuggestions = async (query, language = 'en', limit = 5) => {
+  try {
+    if (!query || query.length < 2) {
+      return { data: [] };
+    }
 
+    //create cache key for suggestions
+    const cacheKey = `suggestions_${language}_${btoa(query)
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .slice(0, 20)}_${limit}`;
+
+    //check cache first
+    if (cache.suggestions.has(cacheKey) && isCacheValid(`suggestions_${cacheKey}`, 300000)) {
+      //5 minutes cache for suggestions
+      console.log('Returning cached suggestions');
+      return cache.suggestions.get(cacheKey);
+    }
+    const params = new URLSearchParams();
+    params.append('q', query);
+    params.append('language', language);
+    params.append('limit', limit);
+    const response = await axiosInstance.get(`/api/movies/search_suggestions/?${params}`);
+
+    if (response.data.status === 'success') {
+      const result = {
+        data: response.data.data || [],
+      };
+
+      //Cache suggetions
+      cache.suggestions.set(cacheKey, result);
+      cache.lastFetch[`suggestions_${cacheKey}`] = Date.now();
+
+      // Limit cache size
+      if (cache.suggestions.size > 50) {
+        const firstKey = cache.suggestions.keys().next().value;
+        cache.suggestions.delete(firstKey);
+        delete cache.lastFetch[`suggestions_${firstKey}`];
+      }
+
+      return result;
+    } else {
+      throw new Error(response.data.message || 'Failed to get suggestions');
+    }
+  } catch (error) {
+    console.error('Error getting search suggestions:', error);
+    //Return empty array on error to prevent UI breaking
+    return { data: [] };
+  }
+};
 // Clear search cache - useful when filters change significantly
 export const clearSearchCache = () => {
   cache.search.clear();

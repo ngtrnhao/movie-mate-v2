@@ -1,39 +1,340 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
-const SearchBar = () => {
-  const { t } = useTranslation('common');
-  const [searchQuery, setSearchQuery] = useState('');
+import { useDebounce } from '../../hooks/useDebounce';
+import { getSearchSuggestions } from '../../api/movieService';
+import { Search, Clock, TrendingUp, X } from 'lucide-react';
 
-  const handleSearch = e => {
-    e.preventDefault();
-    // Implement search logic (Call API)
+const SearchBar = () => {
+  const { t, currentLanguage } = useTranslation('common');
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const searchInputRef = useRef(null);
+  const suggestionsRef = useRef(null);
+
+  // Debounce search query to avoid too many API calls
+  const debouncedQuery = useDebounce(searchQuery, 300);
+
+  // Get recent searches from localStorage
+  const getRecentSearches = () => {
+    try {
+      const recent = localStorage.getItem('recentSearches');
+      return recent ? JSON.parse(recent) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const [recentSearches, setRecentSearches] = useState(getRecentSearches());
+
+  // Save search to recent searches
+  const saveToRecentSearches = query => {
+    if (!query.trim()) return;
+
+    const updated = [query, ...recentSearches.filter(item => item !== query)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem('recentSearches', JSON.stringify(updated));
+  };
+
+  // Fetch suggestions when debounced query changes
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (debouncedQuery.length >= 2) {
+        setIsLoading(true);
+        try {
+          const result = await getSearchSuggestions(debouncedQuery, currentLanguage, 8);
+          setSuggestions(result.data || []);
+        } catch (error) {
+          console.error('Error fetching suggestions:', error);
+          setSuggestions([]);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    };
+
+    fetchSuggestions();
+  }, [debouncedQuery, currentLanguage]);
+
+  // Handle search submission
+  const handleSearch = (e, query = searchQuery) => {
+    e?.preventDefault();
+    const searchTerm = query.trim();
+
+    if (searchTerm) {
+      saveToRecentSearches(searchTerm);
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      // Update URL and navigate to movies page with search query
+      const currentPath = window.location.pathname;
+      const isMoviesPage = currentPath === '/movies';
+
+      if (isMoviesPage) {
+        // If already on movies page, just update the URL
+        const searchParams = new URLSearchParams(window.location.search);
+        searchParams.set('q', searchTerm);
+        navigate(`${currentPath}?${searchParams.toString()}`, { replace: true });
+      } else {
+        // Navigate to movies page with search query
+        navigate(`/movies?q=${encodeURIComponent(searchTerm)}`);
+      }
+    }
+  };
+
+  // Handle input changes
+  const handleInputChange = e => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setSelectedIndex(-1);
+
+    // If on movies page and input is cleared, reset search
+    if (!value.trim() && window.location.pathname === '/movies') {
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.delete('q');
+      navigate(`/movies?${searchParams.toString()}`, { replace: true });
+    }
+
+    setShowSuggestions(value.length >= 2);
+  };
+
+  // Handle clear search
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
+
+    // If on movies page, reset search
+    if (window.location.pathname === '/movies') {
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.delete('q');
+      navigate(`/movies?${searchParams.toString()}`, { replace: true });
+    }
+  };
+
+  // Handle keyboard navigation
+  const handleKeyDown = e => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const maxIndex = Math.max(suggestions.length - 1, recentSearches.length - 1);
+      setSelectedIndex(prev => (prev < maxIndex ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const maxIndex = Math.max(suggestions.length - 1, recentSearches.length - 1);
+      setSelectedIndex(prev => (prev > 0 ? prev - 1 : maxIndex));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0) {
+        if (searchQuery.length >= 2 && selectedIndex < suggestions.length) {
+          // Select from suggestions - navigate to movie details
+          const selectedSuggestion = suggestions[selectedIndex];
+          setShowSuggestions(false);
+          setSelectedIndex(-1);
+          navigate(`/movies/${selectedSuggestion.id}`);
+        } else if (searchQuery.length < 2 && selectedIndex < recentSearches.length) {
+          // Select from recent searches - do search
+          handleSearch(e, recentSearches[selectedIndex]);
+        }
+      } else {
+        handleSearch(e);
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      searchInputRef.current?.blur();
+    }
+  };
+
+  // Handle suggestion click
+  const handleSuggestionClick = suggestion => {
+    if (typeof suggestion === 'string') {
+      // If it's a string (from recent searches), do search
+      setSearchQuery(suggestion);
+      handleSearch(null, suggestion);
+    } else {
+      // If it's a movie suggestion, navigate to movie details
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      navigate(`/movies/${suggestion.id}`);
+    }
+  };
+
+  // Handle input focus
+  const handleInputFocus = () => {
+    if (searchQuery.length >= 2 || recentSearches.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = event => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target) &&
+        !searchInputRef.current?.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+        setSelectedIndex(-1);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Clear recent searches
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('recentSearches');
   };
 
   return (
-    <form onSubmit={handleSearch} className="w-full">
+    <form onSubmit={handleSearch} className="relative w-full">
+      {/* Search Input */}
       <div className="relative">
-        <svg
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
         <input
-          type="search"
+          ref={searchInputRef}
+          type="text"
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="h-10 w-full rounded-md border-0 bg-muted/50 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          placeholder={t('search.placeholder')}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onFocus={handleInputFocus}
+          className="h-10 w-full rounded-lg border-0 bg-gray-800/50 pl-10 pr-10 text-sm text-white placeholder:text-gray-400 focus:bg-gray-800/80 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all duration-200"
+          placeholder={t('search.placeholder') || 'Search movies...'}
+          autoComplete="off"
         />
+
+        {/* Clear button */}
+        {searchQuery && !isLoading && (
+          <button
+            type="button"
+            onClick={handleClearSearch}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-red-500"></div>
+          </div>
+        )}
       </div>
+
+      {/* Suggestions Dropdown */}
+      {showSuggestions && (
+        <div
+          ref={suggestionsRef}
+          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-96 overflow-y-auto rounded-lg border border-gray-700 bg-gray-800/95 backdrop-blur-sm shadow-xl"
+        >
+          {/* Recent Searches */}
+          {searchQuery.length < 2 && recentSearches.length > 0 && (
+            <div className="border-b border-gray-700 p-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-400 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {t('search.recent') || 'Recent searches'}
+                </span>
+                <button
+                  type="button"
+                  onClick={clearRecentSearches}
+                  className="text-xs text-gray-500 hover:text-gray-300"
+                >
+                  {t('search.clear') || 'Clear'}
+                </button>
+              </div>
+              {recentSearches.map((search, index) => (
+                <button
+                  key={`recent-${index}`}
+                  type="button"
+                  onClick={() => handleSuggestionClick(search)}
+                  className={`w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/50 rounded transition-colors ${
+                    selectedIndex === index ? 'bg-gray-700/50' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3 w-3 text-gray-500" />
+                    {search}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Movie Suggestions */}
+          {searchQuery.length >= 2 && !isLoading && (
+            <div className="p-2">
+              <div className="flex items-center gap-1 mb-2">
+                <TrendingUp className="h-3 w-3 text-gray-400" />
+                <span className="text-xs font-medium text-gray-400">
+                  {t('search.suggestions') || 'Suggestions'}
+                </span>
+              </div>
+              {suggestions.length > 0 ? (
+                suggestions.map((movie, index) => (
+                  <button
+                    key={`suggestion-${movie.id}`}
+                    type="button"
+                    onClick={() => handleSuggestionClick(movie)}
+                    className={`w-full text-left px-3 py-3 hover:bg-gray-700/50 rounded transition-colors ${
+                      selectedIndex === index ? 'bg-gray-700/50' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {movie.poster_url ? (
+                        <img
+                          src={movie.poster_url}
+                          alt={movie.title}
+                          className="h-12 w-8 rounded object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="h-12 w-8 rounded bg-gray-700 flex items-center justify-center">
+                          <span className="text-xs text-gray-400">No image</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{movie.title}</p>
+                        {movie.title_en && movie.title_vi && movie.title !== movie.title_en && (
+                          <p className="text-xs text-gray-400 truncate">
+                            {currentLanguage === 'vi' ? movie.title_en : movie.title_vi}
+                          </p>
+                        )}
+                        {movie.year && (
+                          <p className="text-xs text-gray-500">
+                            {movie.year}
+                            {movie.rating?.imdb && ` • IMDb ${movie.rating.imdb}`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-sm text-gray-400">
+                  {t('search.no_results') || 'No results found'}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* No results message */}
+          {searchQuery.length >= 2 && !isLoading && suggestions.length === 0 && (
+            <div className="p-4 text-center text-gray-400 text-sm">
+              {t('search.noResults') || 'No movies found'}
+            </div>
+          )}
+        </div>
+      )}
     </form>
   );
 };

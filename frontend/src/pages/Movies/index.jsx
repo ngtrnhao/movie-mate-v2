@@ -14,27 +14,17 @@ import { useThrottledScroll } from '../../hooks/useThrottledScroll';
 import { useScrollPosition } from '../../hooks/useScrollPosition';
 import animationCache from '../../utils/animationCache';
 import ImagePreloader from '../../components/common/ImagePreloader';
+import { useNavigate } from 'react-router-dom';
 
 const MoviesPage = () => {
   const { t } = useTranslation('movies');
+  const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [genres, setGenres] = useState([]);
-  const [filters, setFilters] = useState({
-    genres: [],
-    yearFrom: '',
-    yearTo: '',
-    country: '',
-    status: '',
-    adult: false,
-    language: 'en',
-    query: '',
-    sortBy: 'popularity',
-    order: 'desc',
-  });
 
-  // Add pending filters state to avoid API calls while selecting
-  const [pendingFilters, setPendingFilters] = useState({
+  // Define default filters
+  const defaultFilters = {
     genres: [],
     yearFrom: '',
     yearTo: '',
@@ -45,7 +35,83 @@ const MoviesPage = () => {
     query: '',
     sortBy: 'popularity',
     order: 'desc',
-  });
+  };
+
+  const [filters, setFilters] = useState(defaultFilters);
+  const [pendingFilters, setPendingFilters] = useState(defaultFilters);
+
+  // Handle reset filters
+  const handleResetFilters = useCallback(() => {
+    setFilters(defaultFilters);
+    setPendingFilters(defaultFilters);
+    // Clear URL parameters
+    navigate('/movies', { replace: true });
+  }, [navigate]);
+
+  // Reset filters when leaving page or on reload
+  useEffect(() => {
+    const resetFilters = () => {
+      setFilters(defaultFilters);
+      setPendingFilters(defaultFilters);
+    };
+
+    // Reset on page unload
+    window.addEventListener('beforeunload', resetFilters);
+
+    // Reset on component mount if no search params
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.toString()) {
+      resetFilters();
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', resetFilters);
+      resetFilters(); // Reset when leaving page
+    };
+  }, []);
+
+  // Listen for URL parameters
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const newFilters = { ...defaultFilters };
+
+    // Get all filter values from URL
+    if (searchParams.has('q')) {
+      newFilters.query = searchParams.get('q');
+    }
+    if (searchParams.has('genres')) {
+      const genreIds = searchParams.get('genres').split(',').map(Number);
+      newFilters.genres = genreIds;
+    }
+    if (searchParams.has('yearFrom')) {
+      newFilters.yearFrom = searchParams.get('yearFrom');
+    }
+    if (searchParams.has('yearTo')) {
+      newFilters.yearTo = searchParams.get('yearTo');
+    }
+    if (searchParams.has('country')) {
+      newFilters.country = searchParams.get('country');
+    }
+    if (searchParams.has('status')) {
+      newFilters.status = searchParams.get('status');
+    }
+    if (searchParams.has('adult')) {
+      newFilters.adult = searchParams.get('adult') === 'true';
+    }
+    if (searchParams.has('language')) {
+      newFilters.language = searchParams.get('language');
+    }
+    if (searchParams.has('sort_by')) {
+      newFilters.sortBy = searchParams.get('sort_by');
+    }
+    if (searchParams.has('order')) {
+      newFilters.order = searchParams.get('order');
+    }
+
+    // Update both filters and pendingFilters
+    setFilters(newFilters);
+    setPendingFilters(newFilters);
+  }, []);
 
   // Fetch genres using hook
   const { data: genresData, isLoading: genresLoading } = useCategories();
@@ -549,7 +615,7 @@ const MoviesPage = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={resetFilters}
+                  onClick={handleResetFilters}
                   className="focus-ring flex items-center gap-2 rounded-md bg-gray-700 px-4 py-2 text-white transition-colors hover:bg-gray-600"
                 >
                   {t('actions.reset')}
@@ -826,7 +892,7 @@ const MoviesPage = () => {
                 {!hasNextPage && movies.length > 0 && (
                   <div className="mt-8 text-center text-gray-400">
                     <div className="inline-flex items-center gap-2 rounded-lg bg-gray-800/50 px-4 py-2">
-                      <span>✨</span>
+                      {/* <span>✨</span> */}
                       <span>
                         {t('messages.exploreAll', { count: totalCount.toLocaleString() })}
                       </span>

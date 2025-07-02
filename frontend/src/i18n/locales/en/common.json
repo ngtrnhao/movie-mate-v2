@@ -22,7 +22,12 @@
   "search": {
     "placeholder": "Search movies...",
     "noResults": "No results found",
-    "error": "Error searching movies"
+    "error": "Error searching movies",
+    "recentSearches": "Recent Searches",
+    "clear": "Clear",
+    "suggestions": "Suggestions",
+    "no_results": "No results found",
+    "loading": "Loading..."
   },
   "errors": {
     "required": "This field is required",

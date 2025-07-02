@@ -95,17 +95,23 @@ class MovieSearchService:
 
             # Apply filters
             if params.get('genres'):
-                # Convert genres to list if it's a string
-                genre_list = params['genres']
-                if isinstance(genre_list, str):
-                    genre_list = [int(g) for g in genre_list.split(',') if g.strip()]
-                elif not isinstance(genre_list, list):
-                    genre_list = [int(genre_list)]
+                try:
+                    # Convert genres to list if it's a string
+                    genre_list = params['genres']
+                    if isinstance(genre_list, str):
+                        genre_list = [int(g) for g in genre_list.split(',') if g.strip()]
+                    elif not isinstance(genre_list, list):
+                        genre_list = [int(genre_list)]
 
-                # Convert genre IDs to names
-                genre_names = Genre.objects.filter(id__in=genre_list).values_list('name', flat=True)
-                if genre_names:
-                    search = search.filter('terms', genres=list(genre_names))
+                    # Convert genre IDs to names
+                    genre_names = list(Genre.objects.filter(id__in=genre_list).values_list('name', flat=True))
+                    if genre_names:
+                        search = search.filter('terms', genres=genre_names)
+                    else:
+                        logger.warning(f"No genre names found for IDs: {genre_list}")
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error processing genres: {str(e)}")
+                    # Don't return None here, continue with search without genre filter
 
             if params.get('year_from'):
                 search = search.filter('range', release_date={'gte': f"{params['year_from']}-01-01"})

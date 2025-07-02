@@ -54,7 +54,23 @@ CACHES = {
         'LOCATION': os.getenv('REDIS_URL'),
     }
 }
-
+# Elasticsearch settings
+ELASTICSEARCH_DSL = {
+    'default': {
+        'hosts': [os.environ.get('ELASTICSEARCH_CLOUD_URL')],
+        'http_auth': (
+            os.environ.get('ELASTICSEARCH_USERNAME','elastic'),
+            os.environ.get('ELASTICSEARCH_PASSWORD','elastic'),
+        ),
+        'use_ssl': True,
+        'verify_certs':True,
+        'timeout': 30,
+        'retry_on_timeout': True,
+        'max_retries': 3,
+        'sniff_on_start': True,
+        'sniff_on_connection_fail': False,
+    }
+}
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST')

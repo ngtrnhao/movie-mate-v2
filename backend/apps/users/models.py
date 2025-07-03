@@ -141,25 +141,37 @@ class CommentLike(models.Model):
         unique_together = ('user','comment')
 
 class Watchlist(models.Model):
-    STATUS_CHOICES = [
-        ('PLANNED', 'Planned to Watch'),
-        ('WATCHING', 'Currently Watching'),
-        ('WATCHED', 'Watched'),
-    ]
-
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username})"
+    class Meta:
+        db_table='users_watchlist'
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['name']),
+        ]
+        unique_together =['user','name']
+
+class WatchlistItem(models.Model):
+    watchlist = models.ForeignKey(Watchlist, on_delete=models.CASCADE, related_name='items')
     movie = models.ForeignKey('movies.Movie', on_delete=models.CASCADE)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=20, choices=[('PLANNED','Planned to Watch'),('WATCHING','Currently Watching'),('WATCHED','Watched')],default='PLANNED')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'users_watchlist'
-        unique_together = ('user', 'movie')
-        indexes = [
-            models.Index(fields=['user']),
-            models.Index(fields=['status']),
-        ]
+      db_table = 'users_watchlistitem'
+      unique_together =['watchlist','movie']
+      indexes = [
+          models.Index(fields=['watchlist']),
+          models.Index(fields=['movie']),
+          models.Index(fields=['status']),
+      ]
 
 class SearchHistory(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

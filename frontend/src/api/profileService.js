@@ -124,6 +124,128 @@ export const getFavoriteGenresAPI = async (userId, page = 1) => {
     throw error.response?.data || { error: 'Faileed to fetch favorite genres' };
   }
 };
+
+// Get user favorite movies
+export const getFavoriteMoviesAPI = async (userId, page = 1) => {
+  try {
+    const response = await axiosInstance.get(`/api/auth/profile/${userId}/favorite-movies/`, {
+      params: { page },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to fetch favorite movies' };
+  }
+};
+
+// Add movie to favorites - Alternative approach for current backend
+export const addToFavoritesAPI = async movieId => {
+  try {
+    // Ensure movieId is a number
+    const parsedMovieId = parseInt(movieId);
+    if (isNaN(parsedMovieId)) {
+      throw new Error(`Invalid movie ID: ${movieId}`);
+    }
+
+    console.log('🚀 API Call: Adding to favorites', { movieId, parsedMovieId });
+
+    const response = await axiosInstance.post('/api/auth/favorite-movies/', {
+      movie: parsedMovieId, // Use 'movie' field which is the foreign key
+    });
+    console.log('✅ API Response: Add to favorites', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ API Error: Add to favorites failed', {
+      movieId,
+      error: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      fullError: error,
+    });
+    throw error.response?.data || { error: 'Failed to add movie to favorites' };
+  }
+};
+
+// Remove movie from favorites
+export const removeFromFavoritesAPI = async favoriteId => {
+  try {
+    const response = await axiosInstance.delete(`/api/auth/favorite-movies/${favoriteId}/`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to remove movie from favorites' };
+  }
+};
+
+// Check if movie is in favorites
+export const checkFavoriteStatusAPI = async movieId => {
+  try {
+    const response = await axiosInstance.get('/api/auth/favorite-movies/', {
+      params: { movie: movieId },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to check favorite status' };
+  }
+};
+
+// Get user watchlist
+export const getWatchlistAPI = async (page = 1) => {
+  try {
+    const response = await axiosInstance.get('/api/auth/watchlist/', {
+      params: { page },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to fetch watchlist' };
+  }
+};
+
+// Add movie to watchlist
+export const addToWatchlistAPI = async (movieId, status = 'PLANNED') => {
+  try {
+    const response = await axiosInstance.post('/api/auth/watchlist/', {
+      movie: movieId,
+      status: status,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to add movie to watchlist' };
+  }
+};
+
+// Update watchlist status
+export const updateWatchlistStatusAPI = async (watchlistId, status) => {
+  try {
+    const response = await axiosInstance.patch(`/api/auth/watchlist/${watchlistId}/`, {
+      status: status,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to update watchlist status' };
+  }
+};
+
+// Remove movie from watchlist
+export const removeFromWatchlistAPI = async watchlistId => {
+  try {
+    const response = await axiosInstance.delete(`/api/auth/watchlist/${watchlistId}/`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to remove movie from watchlist' };
+  }
+};
+
+// Check if movie is in watchlist
+export const checkWatchlistStatusAPI = async movieId => {
+  try {
+    const response = await axiosInstance.get('/api/auth/watchlist/', {
+      params: { movie: movieId },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to check watchlist status' };
+  }
+};
+
 // //update profile settings
 // export const updateProfileSettingsAPI = async (userId, settings) => {
 //   try {

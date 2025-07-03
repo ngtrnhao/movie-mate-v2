@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
+from django.core.exceptions import PermissionDenied
 from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken, UserFavoriteMovie
 from .serializers import (
     RegisterSerializer,
@@ -15,6 +16,7 @@ from .serializers import (
     UserProfileSerializer,
     UserStatsSerializer,
     UserWatchlistSerializer,
+    UserWatchlistItemSerializer,
     UserFavoriteGenreSerializer,
     UserFavoriteMovieSerializer,
     GoogleAuthSerializer
@@ -654,6 +656,18 @@ class UserWatchlistViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+class UserWatchlistItemViewSet(viewsets.ModelViewSet):
+    serializer_class = UserWatchlistItemSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return UserWatchlistItemViewSet.objects.filter(watchlist__user=self.request.user)
+
+    def perform_create(self, serializer):
+        watchlist = serializer.validated_data['watchlist']
+        if watchlist.user != self.request.user:
+            raise PermissionDenied("You can only add items to your own watchlist")
+        serializer.save()
 
 class UserFavoriteGenreViewSet(viewsets.ModelViewSet):
     serializer_class = UserFavoriteGenreSerializer

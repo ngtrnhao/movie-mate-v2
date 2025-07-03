@@ -26,6 +26,8 @@ import StatsCard from './components/StatsCard';
 import GenreList from './components/GenreList';
 import UserBadge from '../../components/common/UserBadge';
 import { format } from 'date-fns';
+import FavoritesList from './components/FavoritesList';
+import WatchlistComponent from './components/WatchlistComponent';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -279,7 +281,8 @@ const Profile = () => {
                   }}
                 >
                   <Tab label="Ratings & Reviews" className="py-4" />
-                  <Tab label="My Lists" className="py-4" />
+                  <Tab label="Favorites" className="py-4" />
+                  <Tab label="Watchlist" className="py-4" />
                   <Tab label="Activity" className="py-4" />
                 </StyledTabs>
 
@@ -287,7 +290,7 @@ const Profile = () => {
                   <RatingList ratings={ratings?.items || []} />
                 </TabPanel>
 
-                <TabPanel value={tabValue} index={1}>
+                {/* <TabPanel value={tabValue} index={1}>
                   <div className="p-12 text-center">
                     <h3 className="text-xl font-semibold text-gray-300">
                       Create Your Movie Collections
@@ -297,9 +300,17 @@ const Profile = () => {
                       Favorites", or "Weekend Watchlist"
                     </p>
                   </div>
+                </TabPanel> */}
+
+                <TabPanel value={tabValue} index={1}>
+                  <FavoritesList />
                 </TabPanel>
 
                 <TabPanel value={tabValue} index={2}>
+                  <WatchlistComponent />
+                </TabPanel>
+
+                <TabPanel value={tabValue} index={3}>
                   <div className="p-12 text-center">
                     <h3 className="text-xl font-semibold text-gray-300">
                       Activity feed coming soon...

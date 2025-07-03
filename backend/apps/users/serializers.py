@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import User, Watchlist, UserFavoriteGenre, PasswordResetToken, UserFavoriteMovie
-from apps.movies.serializers import MovieSerializer
+from .models import User, Watchlist,WatchlistItem, UserFavoriteGenre, PasswordResetToken, UserFavoriteMovie
+# MovieSerializer import moved to lazy imports to avoid circular dependency
 from django.conf import settings
 import requests
+from apps.movies.serializers import MovieSerializer
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
@@ -189,13 +190,6 @@ class UserStatsSerializer(serializers.Serializer):
 # UserRatingSerializer has been deprecated
 # Use movies.serializers.UnifiedMovieReviewSerializer with review_type='USER' instead
 
-class UserWatchlistSerializer(serializers.ModelSerializer):
-    movie = MovieSerializer()
-
-    class Meta:
-        model = Watchlist
-        fields = ['id', 'movie', 'status', 'created_at']
-
 class UserFavoriteGenreSerializer(serializers.ModelSerializer):
     genre_name = serializers.CharField(source='genre.name')
 
@@ -204,13 +198,39 @@ class UserFavoriteGenreSerializer(serializers.ModelSerializer):
         fields = ['id', 'genre_name']
 
 class UserFavoriteMovieSerializer(serializers.ModelSerializer):
-    movie_title = serializers.CharField(source='movie.title')
-    movie_poster = serializers.CharField(source='movie.poster_url')
-    movie_id = serializers.IntegerField(source='movie.id')
+    # Read-only fields for response
+    movie_title = serializers.CharField(source='movie.title', read_only=True)
+    movie_poster = serializers.CharField(source='movie.poster_url', read_only=True)
+    movie_id = serializers.IntegerField(source='movie.id', read_only=True)
+
+    # Simple integer field for creation (accepts movie ID)
+    movie = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = UserFavoriteMovie
-        fields = ['id', 'movie_id', 'movie_title', 'movie_poster', 'created_at']
+        fields = ['id', 'movie', 'movie_id', 'movie_title', 'movie_poster', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def create(self, validated_data):
+        # Get movie ID from validated data
+        movie_id = validated_data.pop('movie', None)
+        if movie_id is None:
+            raise serializers.ValidationError({'movie': 'This field is required.'})
+
+        # Import Movie model here to avoid circular imports
+        from apps.movies.models import Movie
+
+        try:
+            movie = Movie.objects.get(id=movie_id)
+        except Movie.DoesNotExist:
+            raise serializers.ValidationError({'movie': f'Movie with id {movie_id} does not exist.'})
+
+        # Set user from context and movie object
+        user = self.context['request'].user
+        validated_data['user'] = user
+        validated_data['movie'] = movie
+
+        return super().create(validated_data)
 
 class GoogleAuthSerializer(serializers.Serializer):
     access_token = serializers.CharField()
@@ -254,3 +274,19 @@ class GoogleAuthSerializer(serializers.Serializer):
             'user': user,
             'access_token': access_token
         }
+
+class UserWatchlistItemSerializer(serializers.ModelSerializer):
+    movie_data = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = WatchlistItem
+        fields = ['id', 'watchlist', 'movie', 'status', 'created_at', 'updated_at', 'movie_data']
+
+    def get_movie_data(self, obj):
+        return MovieSerializer(obj.movie).data
+
+class UserWatchlistSerializer(serializers.ModelSerializer):
+    items = UserWatchlistItemSerializer(many=True, read_only=True)
+    class Meta:
+        model = Watchlist
+        fields = ['id', 'name', 'created_at', 'updated_at', 'items']

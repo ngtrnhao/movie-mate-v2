@@ -678,6 +678,7 @@ class MovieReview(models.Model):
             models.Index(fields=["source"]),
             models.Index(fields=["parent_review"]),  # Index for reply queries
         ]
+        ordering = ['-created_at']  # Add default ordering by creation date
         constraints = [
             # Ensure user XOR external_username (one must be set, not both)
             models.CheckConstraint(

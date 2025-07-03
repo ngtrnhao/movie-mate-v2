@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
 from django.core.exceptions import PermissionDenied
-from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken, UserFavoriteMovie
+from .models import User, EmailVerificationToken, Watchlist, UserFavoriteGenre, PasswordResetToken, UserFavoriteMovie, WatchlistItem
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -25,6 +25,7 @@ from .services import send_verification_email, send_password_reset_email
 from rest_framework.views import APIView
 import logging
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.decorators import action
 
 logger = logging.getLogger(__name__)
 
@@ -364,7 +365,10 @@ class UserStatsView(generics.RetrieveAPIView):
             from datetime import timedelta
 
             # Calculate basic counts
-            watched_movies_count = Watchlist.objects.filter(user=user, status='WATCHED').count()
+            watched_movies_count = WatchlistItem.objects.filter(
+                watchlist__user=user,
+                status='WATCHED'
+            ).count()
             reviews_count = MovieReview.objects.filter(user=user, review_type='USER').count()
             ratings_count = MovieReview.objects.filter(user=user, review_type='USER', rating__isnull=False).count()
 
@@ -542,13 +546,13 @@ class UserStatsView(generics.RetrieveAPIView):
 
         # Get watched movies with runtime
         watched_movies = Movie.objects.filter(
-            watchlist__user=user,
-            watchlist__status='WATCHED',
+            watchlistitem__watchlist__user=user,
+            watchlistitem__status='WATCHED',
             runtime__isnull=False
         ).values_list('runtime', flat=True)
 
         # Sum up runtime (convert to minutes if needed)
-        total_minutes = sum(watched_movies)
+        total_minutes = sum(watched_movies) if watched_movies else 0
         return total_minutes
 
 class UserReviewsView(generics.ListAPIView):
@@ -656,12 +660,27 @@ class UserWatchlistViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def movies(self, request, pk=None):
+        """Add a movie to a specific watchlist"""
+        watchlist = self.get_object()
+        # Create a mutable copy of the data and add the watchlist
+        data = request.data.copy()
+        data['watchlist'] = watchlist.id
+
+        serializer = UserWatchlistItemSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class UserWatchlistItemViewSet(viewsets.ModelViewSet):
     serializer_class = UserWatchlistItemSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return UserWatchlistItemViewSet.objects.filter(watchlist__user=self.request.user)
+        return WatchlistItem.objects.filter(watchlist__user=self.request.user)
 
     def perform_create(self, serializer):
         watchlist = serializer.validated_data['watchlist']

@@ -34,17 +34,9 @@ CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # Elasticsearch Cloud configuration
-ELASTICSEARCH_CLOUD_ID = "movie-mate:YXNpYS1zb3V0aGVhc3QxLmdjcC5lbGFzdGljLWNsb3VkLmNvbTo0NDMkNTlhODNmNzQwZmEyNDZkNWIxNDIxOGI2OWMwMjFlZTMk"
-ELASTICSEARCH_USERNAME = "elastic"
-ELASTICSEARCH_PASSWORD = "jOf8rSAqoSlOqvK8aNvamISh"
-
-# Legacy Elasticsearch configuration - keep for backward compatibility
 ELASTICSEARCH_DSL = {
     'default': {
-        'hosts': 'https://59a83f740fa246d5b14218b69c021ee3.asia-southeast1.gcp.elastic-cloud.com:443',
-        'http_auth': ('elastic', 'jOf8rSAqoSlOqvK8aNvamISh'),
-        'use_ssl': True,
-        'verify_certs': True,
+        'hosts': ['https://elastic:jOf8rSAqoSlOqvK8aNvamISh@59a83f740fa246d5b14218b69c021ee3.asia-southeast1.gcp.elastic-cloud.com:443'],
         'timeout': 20,
         'retry_on_timeout': True,
         'max_retries': 3,

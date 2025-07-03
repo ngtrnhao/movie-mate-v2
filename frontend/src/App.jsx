@@ -26,6 +26,11 @@ import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
 import './utils/testFavorites'; // Import for browser console access
+import { Provider } from 'react-redux';
+import store from './store';
+import { WatchlistProvider } from './context/WatchlistContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 // import PerformanceMonitor from './components/common/PerformanceMonitor';
 // import AdDisplayTest from './components/ads/AdDisplayTest';
 // import AdFrequencyStatus from './components/common/AdFrequencyStatus';
@@ -109,96 +114,112 @@ function App() {
   }, []);
 
   return (
-    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
-      <I18nProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <QueryProvider>
-            {/* Quản lý quảng cáo popup và interstitial */}
-            <div
-              style={{
-                position: 'fixed',
-                bottom: '20px',
-                right: '20px',
-                zIndex: 9999,
-                pointerEvents: 'none',
-              }}
-            >
-              <div style={{ pointerEvents: 'auto' }}>
-                <AdManager />
-              </div>
-            </div>
-            <Routes>
-              {/* Landing Page Route */}
-              <Route
-                path="/"
-                element={
-                  <div className="text-foreground flex min-h-screen flex-col">
-                    <LandingPage />
+    <Provider store={store}>
+      <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+        <I18nProvider>
+          <WatchlistProvider>
+            <BrowserRouter>
+              <QueryProvider>
+                {/* Quản lý quảng cáo popup và interstitial */}
+                <div
+                  style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    zIndex: 9999,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <div style={{ pointerEvents: 'auto' }}>
+                    <AdManager />
                   </div>
-                }
+                </div>
+                <Routes>
+                  {/* Landing Page Route */}
+                  <Route
+                    path="/"
+                    element={
+                      <div className="text-foreground flex min-h-screen flex-col">
+                        <LandingPage />
+                      </div>
+                    }
+                  />
+
+                  {/* Auth Routes */}
+                  <Route element={<AuthLayout />}>
+                    <Route path="/login" element={<LoginForm />} />
+                    <Route path="/register" element={<RegisterForm />} />
+                    <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+                    <Route path="/reset-password" element={<ResetPasswordForm />} />
+                  </Route>
+
+                  {/* Main App Routes */}
+                  <Route
+                    path="/*"
+                    element={
+                      <div className="text-foreground flex min-h-screen flex-col transition-colors duration-200">
+                        <Header />
+                        <main className="bg-background flex-1 transition-colors duration-200">
+                          <Routes>
+                            <Route path="/home" element={<HomePage />} />
+                            <Route path="/movies" element={<MoviesPage />} />
+                            <Route path="/movies/:movieId" element={<MovieDetailsPage />} />
+                            <Route path="/recommendation" element={<Recommendation />} />
+                            <Route path="/verify-email" element={<VerifyEmail />} />
+                            <Route path="/pricing" element={<PricingPage />} />
+                            <Route
+                              path="/checkout"
+                              element={
+                                <PrivateRoute>
+                                  <CheckoutPage />
+                                </PrivateRoute>
+                              }
+                            />
+                            <Route
+                              path="/profile/:userId"
+                              element={
+                                <PrivateRoute>
+                                  <Profile />
+                                </PrivateRoute>
+                              }
+                            />
+                            <Route path="*" element={<ErrorPage />} />
+                          </Routes>
+                        </main>
+                        <Footer />
+                      </div>
+                    }
+                  />
+                </Routes>
+
+                {/* <PerformanceMonitor /> */}
+
+                {/* Ad Display Test - chỉ hiển thị trong development */}
+                {/* <AdDisplayTest /> */}
+
+                {/* Ad Frequency Status - hiển thị cho eligible users */}
+                {/* <AdFrequencyStatus /> */}
+
+                {/* Ad Wait Message - hiển thị countdown cho eligible users */}
+                {/* <AdWaitMessage /> */}
+              </QueryProvider>
+              <ToastContainer
+                position="bottom-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="dark"
               />
-
-              {/* Auth Routes */}
-              <Route element={<AuthLayout />}>
-                <Route path="/login" element={<LoginForm />} />
-                <Route path="/register" element={<RegisterForm />} />
-                <Route path="/forgot-password" element={<ForgotPasswordForm />} />
-                <Route path="/reset-password" element={<ResetPasswordForm />} />
-              </Route>
-
-              {/* Main App Routes */}
-              <Route
-                path="/*"
-                element={
-                  <div className="text-foreground flex min-h-screen flex-col transition-colors duration-200">
-                    <Header />
-                    <main className="bg-background flex-1 transition-colors duration-200">
-                      <Routes>
-                        <Route path="/home" element={<HomePage />} />
-                        <Route path="/movies" element={<MoviesPage />} />
-                        <Route path="/movies/:movieId" element={<MovieDetailsPage />} />
-                        <Route path="/recommendation" element={<Recommendation />} />
-                        <Route path="/verify-email" element={<VerifyEmail />} />
-                        <Route path="/pricing" element={<PricingPage />} />
-                        <Route
-                          path="/checkout"
-                          element={
-                            <PrivateRoute>
-                              <CheckoutPage />
-                            </PrivateRoute>
-                          }
-                        />
-                        <Route
-                          path="/profile/:userId"
-                          element={
-                            <PrivateRoute>
-                              <Profile />
-                            </PrivateRoute>
-                          }
-                        />
-                        <Route path="*" element={<ErrorPage />} />
-                      </Routes>
-                    </main>
-                    <Footer />
-                  </div>
-                }
-              />
-            </Routes>
-
-            {/* <PerformanceMonitor /> */}
-
-            {/* Ad Display Test - chỉ hiển thị trong development */}
-            {/* <AdDisplayTest /> */}
-
-            {/* Ad Frequency Status - hiển thị cho eligible users */}
-            {/* <AdFrequencyStatus /> */}
-
-            {/* Ad Wait Message - hiển thị countdown cho eligible users */}
-            {/* <AdWaitMessage /> */}
-          </QueryProvider>
-        </BrowserRouter>
-      </I18nProvider>
-    </GoogleOAuthProvider>
+            </BrowserRouter>
+          </WatchlistProvider>
+        </I18nProvider>
+      </GoogleOAuthProvider>
+    </Provider>
   );
 }
 

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Heart, Share, Play } from 'lucide-react';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { useFavorites } from '../../../hooks/useFavorites';
-import { useWatchlist } from '../../../hooks/useWatchlist';
+import { useWatchlistContext } from '../../../context/WatchlistContext';
 
 const ActionPanel = ({ movie, onTrailerClick }) => {
   const { t } = useTranslation('movies');
@@ -17,12 +17,12 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
   } = useFavorites();
 
   const {
+    openExistingModal,
     isInWatchlist,
-    toggleWatchlist,
+    handleRemoveFromWatchlist,
     loading: watchlistLoading,
-    error: watchlistError,
-    clearError: clearWatchlistError,
-  } = useWatchlist();
+    watchlists,
+  } = useWatchlistContext();
 
   // Local state for UI feedback
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
@@ -38,15 +38,27 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
 
     setIsTogglingWatchlist(true);
     setActionError(null);
-    clearWatchlistError();
 
-    const result = await toggleWatchlist(movie.id, movie);
+    try {
+      const movieId = parseInt(movie.id);
+      if (isInWatchlist(movieId)) {
+        // Find the watchlist that contains this movie
+        const watchlistWithMovie = watchlists.find(list =>
+          list.items.some(item => (item.movie_data?.id || item.movie?.id) === movieId)
+        );
 
-    if (!result.success) {
-      setActionError(`Watchlist: ${result.error}`);
+        if (watchlistWithMovie) {
+          await handleRemoveFromWatchlist(watchlistWithMovie.id, movieId);
+        }
+      } else {
+        // Show modal with existing watchlists
+        openExistingModal(movieId, movie, window.location.pathname);
+      }
+    } catch (error) {
+      setActionError('Failed to manage watchlist');
+    } finally {
+      setIsTogglingWatchlist(false);
     }
-
-    setIsTogglingWatchlist(false);
   };
 
   const handleToggleFavorite = async () => {
@@ -56,25 +68,15 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
     setActionError(null);
     clearFavoritesError();
 
-    console.log('🎬 ActionPanel: Toggle favorite clicked', {
-      movieId: movie.id,
-      movieIdType: typeof movie.id,
-      movieTitle: movie.title,
-      isCurrentlyFavorited: isFavorited(movie.id),
-    });
-
     // Ensure movieId is a number
     const movieId = parseInt(movie.id);
     if (isNaN(movieId)) {
-      console.error('❌ Invalid movie ID:', movie.id);
       setActionError('Invalid movie ID');
       setIsTogglingFavorite(false);
       return;
     }
 
     const result = await toggleFavorite(movieId, movie);
-    console.log('🎬 ActionPanel: Toggle favorite result', result);
-
     if (!result.success) {
       setActionError(`Favorites: ${result.error}`);
     }
@@ -94,17 +96,6 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
       navigator.clipboard.writeText(window.location.href);
       alert('Link copied to clipboard!');
     }
-  };
-
-  const getTrailerUrl = () => {
-    if (!trailers || trailers.length === 0) return null;
-
-    // Tìm trailer có type là 'TRAILER' hoặc lấy trailer đầu tiên
-    const trailer = trailers.find(t => t.type === 'TRAILER') || trailers[0];
-
-    if (!trailer?.youtube_key) return null;
-
-    return `https://www.youtube.com/watch?v=${trailer.youtube_key}`;
   };
 
   const handleWatchNow = () => {
@@ -190,32 +181,12 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
           <Share size={16} className="transition-transform duration-200 group-hover:scale-110" />
           <span>{t('details.share')}</span>
         </button>
-
-        {/* Comment Button */}
-        <button className="group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:text-red-500">
-          <svg
-            className="size-4 transition-transform duration-200 group-hover:scale-110"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-          <span>{t('details.comment')}</span>
-        </button>
       </div>
 
-      {/* Error Messages */}
-      {(actionError || favoritesError || watchlistError) && (
-        <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
-          {actionError && <div>{actionError}</div>}
-          {favoritesError && <div>Favorites Error: {favoritesError}</div>}
-          {watchlistError && <div>Watchlist Error: {watchlistError}</div>}
+      {/* Error Message */}
+      {(actionError || favoritesError) && (
+        <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
+          {actionError || favoritesError}
         </div>
       )}
     </div>

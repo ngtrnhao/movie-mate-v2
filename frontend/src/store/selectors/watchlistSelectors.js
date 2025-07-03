@@ -7,6 +7,7 @@ export const selectWatchlistMovieIds = state => state.watchlist.movieIds;
 export const selectWatchlistLoading = state => state.watchlist.loading;
 export const selectWatchlistError = state => state.watchlist.error;
 export const selectWatchlistInitialized = state => state.watchlist.initialized;
+export const selectAllWatchlists = state => state.watchlist.watchlists;
 
 // Memoized selectors
 export const selectWatchlistMovieIdsSet = createSelector(
@@ -34,6 +35,24 @@ export const selectWatchlistItemByMovieId = createSelector(
 export const selectWatchlistStatus = createSelector(
   [selectWatchlistItemByMovieId],
   item => item?.status || null
+);
+
+// Watchlist-specific selectors
+export const selectWatchlistById = createSelector(
+  [selectAllWatchlists, (_, id) => id],
+  (watchlists, id) => watchlists.find(list => list.id === id)
+);
+
+export const selectWatchlistsByMovieId = createSelector(
+  [selectAllWatchlists, selectWatchlistItems, (_, movieId) => movieId],
+  (watchlists, items, movieId) => {
+    const watchlistIds = new Set(
+      items
+        .filter(item => (item.movie?.id || item.movie_id) === movieId)
+        .map(item => item.watchlist_id)
+    );
+    return watchlists.filter(list => watchlistIds.has(list.id));
+  }
 );
 
 // Status-specific selectors

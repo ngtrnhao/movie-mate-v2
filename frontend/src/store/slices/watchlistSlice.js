@@ -1,89 +1,78 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import {
-  getWatchlistAPI,
+  getWatchlistsAPI,
   addToWatchlistAPI,
-  updateWatchlistStatusAPI,
+  addMovieToWatchlistAPI,
   removeFromWatchlistAPI,
+  updateWatchlistStatusAPI,
 } from '../../api/profileService';
 
 // Async thunks
-export const loadWatchlist = createAsyncThunk(
-  'watchlist/loadWatchlist',
+export const loadWatchlists = createAsyncThunk(
+  'watchlist/loadWatchlists',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await getWatchlistAPI();
+      const response = await getWatchlistsAPI();
       return response.results || response;
     } catch (error) {
-      return rejectWithValue(error.error || 'Failed to load watchlist');
+      return rejectWithValue(error.error || 'Failed to load watchlists');
     }
   }
 );
 
-export const addToWatchlist = createAsyncThunk(
-  'watchlist/addToWatchlist',
-  async ({ movieId, status = 'PLANNED', movieData }, { rejectWithValue }) => {
+export const createWatchlist = createAsyncThunk(
+  'watchlist/createWatchlist',
+  async ({ name, movieId = null, status = 'PLANNED' }, { rejectWithValue }) => {
     try {
-      const response = await addToWatchlistAPI(movieId, status);
-      return {
-        ...response,
-        movie: movieData || { id: movieId },
-        status,
-        created_at: new Date().toISOString(),
-      };
+      // Create the watchlist with the movie if provided
+      const watchlist = await addToWatchlistAPI(movieId, status, name);
+      return watchlist;
     } catch (error) {
-      return rejectWithValue(error.error || 'Failed to add to watchlist');
+      return rejectWithValue(error.error || 'Failed to create watchlist');
     }
   }
 );
 
-export const updateWatchlistStatus = createAsyncThunk(
-  'watchlist/updateStatus',
-  async ({ movieId, newStatus }, { getState, rejectWithValue }) => {
+export const addMovieToWatchlist = createAsyncThunk(
+  'watchlist/addMovieToWatchlist',
+  async ({ watchlistId, movieId, status = 'PLANNED' }, { rejectWithValue }) => {
     try {
-      const { watchlist } = getState().watchlist;
-      const watchlistRecord = watchlist.items.find(
-        item => (item.movie?.id || item.movie_id) === movieId
-      );
-
-      if (!watchlistRecord) {
-        return rejectWithValue('Movie not found in watchlist');
-      }
-
-      await updateWatchlistStatusAPI(watchlistRecord.id, newStatus);
-      return { movieId, newStatus, watchlistId: watchlistRecord.id };
+      const response = await addMovieToWatchlistAPI(watchlistId, movieId, status);
+      return response;
     } catch (error) {
-      return rejectWithValue(error.error || 'Failed to update watchlist status');
+      return rejectWithValue(error.error || 'Failed to add movie to watchlist');
     }
   }
 );
 
 export const removeFromWatchlist = createAsyncThunk(
   'watchlist/removeFromWatchlist',
-  async ({ movieId, watchlistId }, { getState, rejectWithValue }) => {
+  async ({ watchlistId, movieId }, { rejectWithValue }) => {
     try {
-      // If watchlistId is not provided, find it from state
-      if (!watchlistId) {
-        const { watchlist } = getState().watchlist;
-        const watchlistRecord = watchlist.items.find(
-          item => (item.movie?.id || item.movie_id) === movieId
-        );
-        watchlistId = watchlistRecord?.id;
-      }
-
-      if (!watchlistId) {
-        return rejectWithValue('Watchlist record not found');
-      }
-
-      await removeFromWatchlistAPI(watchlistId);
-      return { movieId, watchlistId };
+      await removeFromWatchlistAPI(watchlistId, movieId);
+      return { watchlistId, movieId };
     } catch (error) {
       return rejectWithValue(error.error || 'Failed to remove from watchlist');
     }
   }
 );
 
+export const updateWatchlistStatus = createAsyncThunk(
+  'watchlist/updateStatus',
+  async ({ watchlistId, movieId, status }, { rejectWithValue }) => {
+    try {
+      const response = await updateWatchlistStatusAPI(watchlistId, movieId, status);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.error || 'Failed to update status');
+    }
+  }
+);
+
 const initialState = {
-  lists: [],
+  watchlists: [],
+  items: [],
+  movieIds: new Set(),
   loading: false,
   error: null,
   initialized: false,
@@ -97,135 +86,87 @@ const watchlistSlice = createSlice({
       state.error = null;
     },
     clearWatchlist: state => {
+      state.watchlists = [];
       state.items = [];
       state.movieIds = new Set();
       state.initialized = false;
     },
-    // Optimistic updates
-    optimisticAddToWatchlist: (state, action) => {
-      const { movieId, status, movieData } = action.payload;
-      if (!state.movieIds.has(movieId)) {
-        state.movieIds.add(movieId);
-        state.items.push({
-          id: `temp-${movieId}`,
-          movie: movieData || { id: movieId },
-          movie_id: movieId,
-          status,
-          created_at: new Date().toISOString(),
-          _isOptimistic: true,
-        });
-      }
-    },
-    optimisticRemoveFromWatchlist: (state, action) => {
-      const { movieId } = action.payload;
-      state.movieIds.delete(movieId);
-      state.items = state.items.filter(item => (item.movie?.id || item.movie_id) !== movieId);
-    },
-    optimisticUpdateStatus: (state, action) => {
-      const { movieId, newStatus } = action.payload;
-      const item = state.items.find(item => (item.movie?.id || item.movie_id) === movieId);
-      if (item) {
-        item.status = newStatus;
-        item._statusUpdating = true;
-      }
-    },
-    // Manual add/remove/update for external updates
-    addWatchlistItem: (state, action) => {
-      const item = action.payload;
-      const movieId = item.movie?.id || item.movie_id;
-      if (movieId && !state.movieIds.has(movieId)) {
-        state.movieIds.add(movieId);
-        state.items.push(item);
-      }
-    },
-    removeWatchlistItem: (state, action) => {
-      const { movieId } = action.payload;
-      state.movieIds.delete(movieId);
-      state.items = state.items.filter(item => (item.movie?.id || item.movie_id) !== movieId);
-    },
-    updateWatchlistItemStatus: (state, action) => {
-      const { movieId, status } = action.payload;
-      const item = state.items.find(item => (item.movie?.id || item.movie_id) === movieId);
-      if (item) {
-        item.status = status;
-      }
-    },
   },
   extraReducers: builder => {
     builder
-      // Load watchlist
-      .addCase(loadWatchlist.pending, state => {
+      // Load watchlists
+      .addCase(loadWatchlists.pending, state => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(loadWatchlist.fulfilled, (state, action) => {
+      .addCase(loadWatchlists.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload;
-        state.movieIds = new Set(action.payload.map(item => item.movie?.id || item.movie_id));
+        state.watchlists = action.payload;
         state.initialized = true;
+
+        // Update items and movieIds
+        state.items = action.payload.flatMap(list =>
+          list.items.map(item => ({
+            ...item,
+            watchlist_id: list.id,
+          }))
+        );
+        state.movieIds = new Set(state.items.map(item => item.movie?.id || item.movie_id));
       })
-      .addCase(loadWatchlist.rejected, (state, action) => {
+      .addCase(loadWatchlists.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
-      // Add to watchlist
-      .addCase(addToWatchlist.pending, state => {
+      // Create watchlist
+      .addCase(createWatchlist.pending, state => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(addToWatchlist.fulfilled, (state, action) => {
+      .addCase(createWatchlist.fulfilled, (state, action) => {
         state.loading = false;
-        const item = action.payload;
-        const movieId = item.movie?.id || item.movie_id;
-
-        // Remove optimistic entry if exists
-        state.items = state.items.filter(
-          item => !item._isOptimistic || (item.movie?.id || item.movie_id) !== movieId
-        );
-
-        // Add real entry
-        if (!state.movieIds.has(movieId)) {
-          state.movieIds.add(movieId);
-          state.items.push(item);
-        }
+        state.watchlists.push(action.payload);
       })
-      .addCase(addToWatchlist.rejected, (state, action) => {
+      .addCase(createWatchlist.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-
-        // Revert optimistic update
-        const movieId = action.meta.arg.movieId;
-        state.movieIds.delete(movieId);
-        state.items = state.items.filter(
-          item => !item._isOptimistic || (item.movie?.id || item.movie_id) !== movieId
-        );
       })
 
-      // Update status
-      .addCase(updateWatchlistStatus.pending, state => {
+      // Add movie to watchlist
+      .addCase(addMovieToWatchlist.pending, state => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(updateWatchlistStatus.fulfilled, (state, action) => {
+      .addCase(addMovieToWatchlist.fulfilled, (state, action) => {
         state.loading = false;
-        const { movieId, newStatus } = action.payload;
-        const item = state.items.find(item => (item.movie?.id || item.movie_id) === movieId);
-        if (item) {
-          item.status = newStatus;
-          delete item._statusUpdating;
+        const { watchlist_id, movie_id, status } = action.payload;
+
+        // Add to items if not already present
+        if (
+          !state.items.some(
+            item =>
+              item.watchlist_id === watchlist_id &&
+              (item.movie?.id === movie_id || item.movie_id === movie_id)
+          )
+        ) {
+          state.items.push({
+            watchlist_id,
+            movie_id,
+            status,
+            created_at: new Date().toISOString(),
+          });
+          state.movieIds.add(movie_id);
+        }
+
+        // Update movie count in watchlist
+        const watchlist = state.watchlists.find(w => w.id === watchlist_id);
+        if (watchlist) {
+          watchlist.movie_count = (watchlist.movie_count || 0) + 1;
         }
       })
-      .addCase(updateWatchlistStatus.rejected, (state, action) => {
+      .addCase(addMovieToWatchlist.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-
-        // Revert optimistic update - you might want to reload here
-        const movieId = action.meta.arg.movieId;
-        const item = state.items.find(item => (item.movie?.id || item.movie_id) === movieId);
-        if (item) {
-          delete item._statusUpdating;
-        }
       })
 
       // Remove from watchlist
@@ -235,26 +176,59 @@ const watchlistSlice = createSlice({
       })
       .addCase(removeFromWatchlist.fulfilled, (state, action) => {
         state.loading = false;
-        const { movieId } = action.payload;
-        state.movieIds.delete(movieId);
-        state.items = state.items.filter(item => (item.movie?.id || item.movie_id) !== movieId);
+        const { watchlistId, movieId } = action.payload;
+
+        // Remove from items
+        state.items = state.items.filter(
+          item =>
+            !(
+              item.watchlist_id === watchlistId &&
+              (item.movie?.id === movieId || item.movie_id === movieId)
+            )
+        );
+
+        // Update movieIds
+        if (!state.items.some(item => item.movie?.id === movieId || item.movie_id === movieId)) {
+          state.movieIds.delete(movieId);
+        }
+
+        // Update movie count in watchlist
+        const watchlist = state.watchlists.find(w => w.id === watchlistId);
+        if (watchlist) {
+          watchlist.movie_count = Math.max(0, (watchlist.movie_count || 1) - 1);
+        }
       })
       .addCase(removeFromWatchlist.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Update status
+      .addCase(updateWatchlistStatus.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateWatchlistStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        const { watchlist_id, movie_id, status } = action.payload;
+
+        // Update status in items
+        const item = state.items.find(
+          item =>
+            item.watchlist_id === watchlist_id &&
+            (item.movie?.id === movie_id || item.movie_id === movie_id)
+        );
+        if (item) {
+          item.status = status;
+        }
+      })
+      .addCase(updateWatchlistStatus.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
   },
 });
 
-export const {
-  clearError,
-  clearWatchlist,
-  optimisticAddToWatchlist,
-  optimisticRemoveFromWatchlist,
-  optimisticUpdateStatus,
-  addWatchlistItem,
-  removeWatchlistItem,
-  updateWatchlistItemStatus,
-} = watchlistSlice.actions;
+export const { clearError, clearWatchlist } = watchlistSlice.actions;
 
 export default watchlistSlice.reducer;

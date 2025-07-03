@@ -277,13 +277,38 @@ class GoogleAuthSerializer(serializers.Serializer):
 
 class UserWatchlistItemSerializer(serializers.ModelSerializer):
     movie_data = serializers.SerializerMethodField(read_only=True)
+    movie = serializers.IntegerField(write_only=True)  # Accept movie ID for creation
+    status = serializers.CharField(required=False, default='PLANNED')
+    watchlist = serializers.PrimaryKeyRelatedField(
+        queryset=Watchlist.objects.all(),
+        required=True
+    )
 
     class Meta:
         model = WatchlistItem
         fields = ['id', 'watchlist', 'movie', 'status', 'created_at', 'updated_at', 'movie_data']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_movie_data(self, obj):
         return MovieSerializer(obj.movie).data
+
+    def validate_watchlist(self, value):
+        request = self.context.get('request')
+        if request and value.user != request.user:
+            raise serializers.ValidationError("You can only add items to your own watchlist")
+        return value
+
+    def create(self, validated_data):
+        from apps.movies.models import Movie
+        movie_id = validated_data.pop('movie')
+        try:
+            movie = Movie.objects.get(id=movie_id)
+            # Check if movie is already in the watchlist
+            if WatchlistItem.objects.filter(watchlist=validated_data['watchlist'], movie=movie).exists():
+                raise serializers.ValidationError({'movie': 'Movie is already in this watchlist'})
+            return WatchlistItem.objects.create(movie=movie, **validated_data)
+        except Movie.DoesNotExist:
+            raise serializers.ValidationError({'movie': 'Movie not found'})
 
 class UserWatchlistSerializer(serializers.ModelSerializer):
     items = UserWatchlistItemSerializer(many=True, read_only=True)

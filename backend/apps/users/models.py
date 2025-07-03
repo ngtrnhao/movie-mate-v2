@@ -92,6 +92,12 @@ class UserFavoriteGenre(models.Model):
     class Meta:
         db_table = 'users_users_favorite_genres'
         unique_together = ('user', 'genre')
+        ordering = ['-created_at']  # Add default ordering by creation date
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['genre']),
+            models.Index(fields=['created_at']),
+        ]
 
 class UserFavoriteMovie(models.Model):
     """Model to track user's favorite movies"""
@@ -103,6 +109,7 @@ class UserFavoriteMovie(models.Model):
     class Meta:
         db_table = 'users_users_favorite_movies'
         unique_together = ('user', 'movie')
+        ordering = ['-created_at']  # Add default ordering
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['movie']),
@@ -146,32 +153,42 @@ class Watchlist(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
     def __str__(self):
         return f"{self.name} ({self.user.username})"
+
     class Meta:
-        db_table='users_watchlist'
+        db_table = 'users_watchlist'
+        ordering = ['-created_at']  # Add default ordering
         indexes = [
             models.Index(fields=['user']),
-            models.Index(fields=['name']),
+            models.Index(fields=['created_at']),
         ]
         unique_together =['user','name']
 
 class WatchlistItem(models.Model):
+    STATUS_CHOICES = [
+        ('PLANNED', 'Planned'),
+        ('WATCHING', 'Watching'),
+        ('COMPLETED', 'Completed'),
+        ('ON_HOLD', 'On Hold'),
+        ('DROPPED', 'Dropped')
+    ]
+
     watchlist = models.ForeignKey(Watchlist, on_delete=models.CASCADE, related_name='items')
     movie = models.ForeignKey('movies.Movie', on_delete=models.CASCADE)
-    status = models.CharField(max_length=20, choices=[('PLANNED','Planned to Watch'),('WATCHING','Currently Watching'),('WATCHED','Watched')],default='PLANNED')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PLANNED')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-      db_table = 'users_watchlistitem'
-      unique_together =['watchlist','movie']
-      indexes = [
-          models.Index(fields=['watchlist']),
-          models.Index(fields=['movie']),
-          models.Index(fields=['status']),
-      ]
+        db_table = 'users_watchlistitem'
+        unique_together = ('watchlist', 'movie')
+        ordering = ['-created_at']  # Add default ordering
+        indexes = [
+            models.Index(fields=['watchlist', 'movie']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
 
 class SearchHistory(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

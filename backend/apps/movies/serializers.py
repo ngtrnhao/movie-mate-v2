@@ -377,9 +377,10 @@ class MovieSerializer(serializers.ModelSerializer):
     class Meta:
         model = Movie
         fields = [
-            'id', 'title', 'original_title', 'overview', 'release_date',
-            'poster_url', 'backdrop_url', 'imdb_rating', 'tmdb_id',
-            'runtime', 'status'
+            'id', 'title', 'title_en', 'title_vi', 'original_title',
+            'overview_en', 'overview_vi', 'release_date', 'poster_url',
+            'backdrop_url', 'runtime', 'status', 'genres', 'created_at',
+            'updated_at', 'is_popular', 'is_top_rated', 'is_upcoming'
         ]
 
 class MovieRatingSerializer(serializers.ModelSerializer):

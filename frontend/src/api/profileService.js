@@ -199,12 +199,35 @@ export const getWatchlistAPI = async (page = 1) => {
   }
 };
 
-// Add movie to watchlist
-export const addToWatchlistAPI = async (movieId, status = 'PLANNED') => {
+// Get all watchlists
+export const getWatchlistsAPI = async () => {
+  try {
+    const response = await axiosInstance.get('/api/auth/watchlist/');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to add movie to watchlist' };
+  }
+};
+
+// Add movie to existing watchlist
+export const addMovieToWatchlistAPI = async (watchlistId, movieId) => {
+  try {
+    const response = await axiosInstance.post(`/api/auth/watchlist/${watchlistId}/movies/`, {
+      movie: movieId,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to add movie to watchlist' };
+  }
+};
+
+// Create new watchlist
+export const addToWatchlistAPI = async (movieId, status = 'PLANNED', name = null) => {
   try {
     const response = await axiosInstance.post('/api/auth/watchlist/', {
-      movie: movieId,
-      status: status,
+      movie_id: movieId,
+      status,
+      name,
     });
     return response.data;
   } catch (error) {

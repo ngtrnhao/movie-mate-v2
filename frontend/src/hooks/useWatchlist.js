@@ -1,14 +1,13 @@
 import { useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
-  loadWatchlist,
-  addToWatchlist as addToWatchlistAction,
-  removeFromWatchlist as removeFromWatchlistAction,
-  updateWatchlistStatus as updateWatchlistStatusAction,
-  optimisticAddToWatchlist,
-  optimisticRemoveFromWatchlist,
-  optimisticUpdateStatus,
+  loadWatchlists,
+  createWatchlist,
+  addMovieToWatchlist,
+  removeFromWatchlist,
+  updateWatchlistStatus,
   clearError,
+  clearWatchlist,
 } from '../store/slices/watchlistSlice';
 import {
   selectWatchlistItems,
@@ -19,6 +18,7 @@ import {
   selectWatchlistByStatus,
   selectWatchlistItemByMovieId,
   selectWatchlistCount,
+  selectAllWatchlists,
 } from '../store/selectors/watchlistSelectors';
 
 export const useWatchlist = () => {
@@ -32,33 +32,33 @@ export const useWatchlist = () => {
   const initialized = useSelector(selectWatchlistInitialized);
   const watchlistMovieIds = useSelector(selectWatchlistMovieIdsSet);
   const watchlistCount = useSelector(selectWatchlistCount);
+  const watchlists = useSelector(selectAllWatchlists);
 
   // Load user's watchlist on mount
   useEffect(() => {
     if (isAuthenticated && user?.id && !initialized) {
-      dispatch(loadWatchlist());
+      dispatch(loadWatchlists());
     }
   }, [dispatch, isAuthenticated, user?.id, initialized]);
 
   const loadWatchlistData = useCallback(() => {
     if (!isAuthenticated) return;
-    dispatch(loadWatchlist());
+    dispatch(loadWatchlists());
   }, [dispatch, isAuthenticated]);
 
   const addToWatchlist = useCallback(
-    async (movieId, status = 'PLANNED', movieData = null) => {
+    async ({ movieId, status = 'PLANNED', movieData = null, name = null }) => {
       if (!isAuthenticated) {
         return { success: false, error: 'Please login to add to watchlist' };
       }
 
       try {
-        // Optimistic update
-        dispatch(optimisticAddToWatchlist({ movieId, status, movieData }));
+        // Create a new watchlist if name is provided, otherwise use default
+        const result = await dispatch(
+          createWatchlist({ name: name || 'My Watchlist', movieId, status })
+        );
 
-        // Dispatch async action
-        const result = await dispatch(addToWatchlistAction({ movieId, status, movieData }));
-
-        if (addToWatchlistAction.fulfilled.match(result)) {
+        if (createWatchlist.fulfilled.match(result)) {
           return { success: true };
         } else {
           return { success: false, error: result.payload };
@@ -70,20 +70,37 @@ export const useWatchlist = () => {
     [dispatch, isAuthenticated]
   );
 
-  const removeFromWatchlist = useCallback(
-    async movieId => {
+  const addMovieToExistingWatchlist = useCallback(
+    async (watchlistId, movieId) => {
       if (!isAuthenticated) {
         return { success: false, error: 'Please login to manage watchlist' };
       }
 
       try {
-        // Optimistic update
-        dispatch(optimisticRemoveFromWatchlist({ movieId }));
+        const result = await dispatch(addMovieToWatchlist({ watchlistId, movieId }));
 
-        // Dispatch async action
-        const result = await dispatch(removeFromWatchlistAction({ movieId }));
+        if (addMovieToWatchlist.fulfilled.match(result)) {
+          return { success: true };
+        } else {
+          return { success: false, error: result.payload };
+        }
+      } catch (err) {
+        return { success: false, error: 'Failed to add movie to watchlist' };
+      }
+    },
+    [dispatch, isAuthenticated]
+  );
 
-        if (removeFromWatchlistAction.fulfilled.match(result)) {
+  const removeFromWatchlistById = useCallback(
+    async (watchlistId, movieId) => {
+      if (!isAuthenticated) {
+        return { success: false, error: 'Please login to manage watchlist' };
+      }
+
+      try {
+        const result = await dispatch(removeFromWatchlist({ watchlistId, movieId }));
+
+        if (removeFromWatchlist.fulfilled.match(result)) {
           return { success: true };
         } else {
           // Revert optimistic update by reloading
@@ -99,20 +116,18 @@ export const useWatchlist = () => {
     [dispatch, isAuthenticated, loadWatchlistData]
   );
 
-  const updateWatchlistStatus = useCallback(
-    async (movieId, newStatus) => {
+  const updateStatus = useCallback(
+    async (watchlistId, movieId, newStatus) => {
       if (!isAuthenticated) {
         return { success: false, error: 'Please login to update watchlist' };
       }
 
       try {
-        // Optimistic update
-        dispatch(optimisticUpdateStatus({ movieId, newStatus }));
+        const result = await dispatch(
+          updateWatchlistStatus({ watchlistId, movieId, status: newStatus })
+        );
 
-        // Dispatch async action
-        const result = await dispatch(updateWatchlistStatusAction({ movieId, newStatus }));
-
-        if (updateWatchlistStatusAction.fulfilled.match(result)) {
+        if (updateWatchlistStatus.fulfilled.match(result)) {
           return { success: true };
         } else {
           // Revert optimistic update by reloading
@@ -137,12 +152,17 @@ export const useWatchlist = () => {
       const isInWatchlist = watchlistMovieIds.has(movieId);
 
       if (isInWatchlist) {
-        return await removeFromWatchlist(movieId);
+        // Find the watchlist that contains this movie
+        const watchlistItem = watchlist.find(item => (item.movie?.id || item.movie_id) === movieId);
+        if (watchlistItem) {
+          return await removeFromWatchlistById(watchlistItem.watchlist_id, movieId);
+        }
+        return { success: false, error: 'Movie not found in watchlist' };
       } else {
-        return await addToWatchlist(movieId, 'PLANNED', movieData);
+        return await addToWatchlist({ movieId, status: 'PLANNED', movieData });
       }
     },
-    [isAuthenticated, watchlistMovieIds, addToWatchlist, removeFromWatchlist]
+    [isAuthenticated, watchlistMovieIds, watchlist, addToWatchlist, removeFromWatchlistById]
   );
 
   const isInWatchlist = useCallback(
@@ -173,19 +193,20 @@ export const useWatchlist = () => {
 
   return {
     watchlist,
+    watchlists,
     loading,
     error,
     initialized,
     watchlistCount,
+    addToWatchlist,
+    addMovieToExistingWatchlist,
+    removeFromWatchlist: removeFromWatchlistById,
+    updateWatchlistStatus: updateStatus,
+    toggleWatchlist,
     isInWatchlist,
     getWatchlistStatus,
     getWatchlistByStatus,
-    addToWatchlist,
-    removeFromWatchlist,
-    updateWatchlistStatus,
-    toggleWatchlist,
-    loadWatchlist: loadWatchlistData,
-    clearError: clearWatchlistError,
-    isAuthenticated,
+    clearWatchlistError,
+    loadWatchlistData,
   };
 };

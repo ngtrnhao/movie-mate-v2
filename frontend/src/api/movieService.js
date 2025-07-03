@@ -291,33 +291,7 @@ export const submitMovieRating = async (movieId, rating, review = '') => {
   });
 };
 
-// Add to watchlist (simplified - may not exist yet)
-export const addToWatchlist = async movieId => {
-  try {
-    console.log(`Would add movie ${movieId} to watchlist`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error adding to watchlist:', error);
-    throw {
-      error: 'Watchlist functionality not implemented yet',
-      details: error.response?.data,
-    };
-  }
-};
-
-// Remove from watchlist (simplified - may not exist yet)
-export const removeFromWatchlist = async movieId => {
-  try {
-    console.log(`Would remove movie ${movieId} from watchlist`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error removing from watchlist:', error);
-    throw {
-      error: 'Watchlist functionality not implemented yet',
-      details: error.response?.data,
-    };
-  }
-};
+// Watchlist functionality has been moved to profileService.js
 
 // Enhanced search movies with caching and request cancellation
 let searchController = null; // Store AbortController for request cancellation

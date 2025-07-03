@@ -4,12 +4,20 @@ from .models import Movie
 
 @registry.register_document
 class MovieDocument(Document):
-    # Text fields
+    # Text fields with proper analyzers
+    title = fields.TextField(
+        analyzer='standard',
+        fields={'raw': fields.KeywordField()}
+    )
     title_en = fields.TextField(
         analyzer='english',
         fields={'raw': fields.KeywordField()}
     )
     title_vi = fields.TextField(
+        analyzer='standard',
+        fields={'raw': fields.KeywordField()}
+    )
+    original_title = fields.TextField(
         analyzer='standard',
         fields={'raw': fields.KeywordField()}
     )
@@ -25,14 +33,34 @@ class MovieDocument(Document):
     # Metadata fields
     release_date = fields.DateField()
     runtime = fields.IntegerField()
+    status = fields.KeywordField()
+
+    # Rating fields - using FloatField to match existing mapping
     vote_average = fields.FloatField()
     vote_count = fields.IntegerField()
-    popularity = fields.FloatField()  # Sửa từ popularity_score
+    popularity = fields.FloatField()
+    cached_imdb_rating = fields.FloatField()
+    cached_tmdb_rating = fields.FloatField()
+    cached_imdb_votes = fields.IntegerField()
+    cached_tmdb_votes = fields.IntegerField()
+    combined_rating_score = fields.FloatField()
 
-    # Filter fields
-    genres = fields.KeywordField(multi=True)
+    # Boolean flags
     is_adult = fields.BooleanField()
-    status = fields.KeywordField()
+    is_popular = fields.BooleanField()
+    is_top_rated = fields.BooleanField()
+    is_upcoming = fields.BooleanField()
+
+    # URLs
+    poster_url = fields.TextField()
+    backdrop_url = fields.TextField()
+
+    # Relationship fields
+    genres = fields.NestedField(properties={
+        'id': fields.IntegerField(),
+        'name': fields.KeywordField(),
+        'language': fields.KeywordField()
+    })
     production_countries = fields.KeywordField(multi=True)
 
     class Index:
@@ -55,20 +83,16 @@ class MovieDocument(Document):
         model = Movie
         fields = [
             'id',
-            'cached_imdb_rating',
-            'cached_tmdb_rating',
-            'is_popular',
-            'is_top_rated',
-            'poster_url',
-            'backdrop_url',
+            'slug',  # Add slug field
         ]
 
     def prepare_genres(self, instance):
-        """Chuẩn bị data cho genres field"""
-        return [genre.name for genre in instance.genres.all()]
+        """Prepare data for genres field"""
+        return [{'id': genre.id, 'name': genre.name, 'language': genre.language}
+                for genre in instance.genres.all()]
 
     def prepare_production_countries(self, instance):
-        """Chuẩn bị data cho production_countries field"""
+        """Prepare data for production_countries field"""
         if hasattr(instance, 'moviemetadata') and instance.moviemetadata:
             countries = instance.moviemetadata.production_countries
             if countries and isinstance(countries, list):
@@ -76,9 +100,9 @@ class MovieDocument(Document):
         return []
 
     def prepare_vote_count(self, instance):
-        """Chuẩn bị data cho vote_count field"""
+        """Prepare data for vote_count field"""
         return instance.cached_imdb_votes or instance.cached_tmdb_votes or 0
 
     def prepare_popularity(self, instance):
-        """Chuẩn bị data cho popularity field"""
+        """Prepare data for popularity field"""
         return instance.combined_rating_score or 0

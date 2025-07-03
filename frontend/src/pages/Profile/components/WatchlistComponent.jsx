@@ -12,15 +12,15 @@ const WatchlistComponent = () => {
     removeFromWatchlist,
     updateWatchlistStatus,
     getWatchlistByStatus,
-    loadWatchlist,
+    loadWatchlistData,
   } = useWatchlist();
 
   const [activeTab, setActiveTab] = useState('PLANNED');
   const [updatingIds, setUpdatingIds] = useState(new Set());
 
   useEffect(() => {
-    loadWatchlist();
-  }, [loadWatchlist]);
+    loadWatchlistData();
+  }, [loadWatchlistData]);
 
   const tabs = [
     { id: 'PLANNED', label: 'Plan to Watch', icon: Clock, color: 'blue' },
@@ -28,12 +28,12 @@ const WatchlistComponent = () => {
     { id: 'WATCHED', label: 'Watched', icon: CheckCircle, color: 'green' },
   ];
 
-  const handleStatusChange = async (movieId, newStatus) => {
+  const handleStatusChange = async (watchlistId, movieId, newStatus) => {
     const updateId = `${movieId}-${newStatus}`;
     if (updatingIds.has(updateId)) return;
 
     setUpdatingIds(prev => new Set([...prev, updateId]));
-    const success = await updateWatchlistStatus(movieId, newStatus);
+    const success = await updateWatchlistStatus(watchlistId, movieId, newStatus);
 
     setUpdatingIds(prev => {
       const newSet = new Set(prev);
@@ -42,12 +42,12 @@ const WatchlistComponent = () => {
     });
   };
 
-  const handleRemove = async movieId => {
+  const handleRemove = async (watchlistId, movieId) => {
     const removeId = `${movieId}-remove`;
     if (updatingIds.has(removeId)) return;
 
     setUpdatingIds(prev => new Set([...prev, removeId]));
-    const success = await removeFromWatchlist(movieId);
+    const success = await removeFromWatchlist(watchlistId, movieId);
 
     setUpdatingIds(prev => {
       const newSet = new Set(prev);
@@ -92,7 +92,7 @@ const WatchlistComponent = () => {
         <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400">
           <p>Error loading watchlist: {error}</p>
           <button
-            onClick={loadWatchlist}
+            onClick={loadWatchlistData}
             className="mt-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
           >
             Retry
@@ -161,8 +161,9 @@ const WatchlistComponent = () => {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {currentTabData.map(item => {
-            const movie = item.movie || {};
-            const movieId = item.movie?.id || item.movie_id;
+            const movie = item.movie_data || {};
+            const movieId = movie.id;
+            const watchlistId = item.watchlist;
 
             return (
               <div key={item.id} className="group relative">
@@ -196,69 +197,40 @@ const WatchlistComponent = () => {
                   {/* Overlay with actions */}
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <div className="absolute top-2 right-2 space-y-2">
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleMovieClick(movieId);
-                        }}
-                        className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
-                        title="View Details"
-                      >
-                        <Info size={16} className="text-white" />
-                      </button>
-                    </div>
-
-                    {/* Status change buttons */}
-                    <div className="absolute bottom-2 left-2 right-2 space-y-1">
+                      {/* Status change buttons */}
                       {tabs
                         .filter(tab => tab.id !== item.status)
-                        .map(tab => {
-                          const updateId = `${movieId}-${tab.id}`;
-                          const isUpdating = updatingIds.has(updateId);
-
-                          return (
-                            <button
-                              key={tab.id}
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleStatusChange(movieId, tab.id);
-                              }}
-                              disabled={isUpdating}
-                              className="w-full p-2 bg-gray-800/80 hover:bg-gray-700/80 text-white text-xs rounded transition-colors disabled:opacity-50"
-                            >
-                              {isUpdating ? 'Updating...' : `Mark as ${tab.label}`}
-                            </button>
-                          );
-                        })}
+                        .map(tab => (
+                          <button
+                            key={tab.id}
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleStatusChange(watchlistId, movieId, tab.id);
+                            }}
+                            className={`p-2 rounded-full bg-${tab.color}-500 hover:bg-${tab.color}-600 transition-colors`}
+                            disabled={updatingIds.has(`${movieId}-${tab.id}`)}
+                          >
+                            <tab.icon size={16} className="text-white" />
+                          </button>
+                        ))}
 
                       {/* Remove button */}
                       <button
                         onClick={e => {
                           e.stopPropagation();
-                          handleRemove(movieId);
+                          handleRemove(watchlistId, movieId);
                         }}
+                        className="p-2 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
                         disabled={updatingIds.has(`${movieId}-remove`)}
-                        className="w-full p-2 bg-red-500/80 hover:bg-red-600/80 text-white text-xs rounded transition-colors disabled:opacity-50"
                       >
-                        {updatingIds.has(`${movieId}-remove`) ? 'Removing...' : 'Remove'}
+                        <MoreHorizontal size={16} className="text-white" />
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Movie Info */}
-                <div className="mt-2">
-                  <h4
-                    className="text-white text-sm font-medium line-clamp-2 cursor-pointer hover:text-red-400 transition-colors"
-                    onClick={() => handleMovieClick(movieId)}
-                    title={movie.title}
-                  >
-                    {movie.title}
-                  </h4>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Added {new Date(item.created_at).toLocaleDateString()}
-                  </p>
-                </div>
+                {/* Movie Title */}
+                <h4 className="mt-2 text-sm font-medium text-gray-200 truncate">{movie.title}</h4>
               </div>
             );
           })}

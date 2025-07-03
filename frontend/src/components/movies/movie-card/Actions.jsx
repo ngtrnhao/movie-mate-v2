@@ -1,8 +1,10 @@
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
-import { Bookmark, Play } from 'lucide-react';
+import { Bookmark, Play, Plus, Check } from 'lucide-react';
+import { useWatchlistContext } from '../../../context/WatchlistContext';
 
 const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {
   const { t } = useTranslation('movies');
+  const { watchlists, openCreateModal, openExistingModal } = useWatchlistContext();
 
   const handleTrailerClick = e => {
     if (e && e.preventDefault) {
@@ -10,6 +12,16 @@ const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {
     }
     if (onTrailerClick && movie) {
       onTrailerClick(movie);
+    }
+  };
+
+  const handleAddToWatchlist = () => {
+    // If user has no watchlists, show create modal
+    if (watchlists.length === 0) {
+      openCreateModal(movie.id, movie, window.location.pathname);
+    } else {
+      // If user has watchlists, show existing lists modal
+      openExistingModal(movie.id, movie, window.location.pathname);
     }
   };
 
@@ -30,6 +42,7 @@ const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {
       {/* Add to Watchlist Button */}
       {!onlyMainButton && (
         <button
+          onClick={handleAddToWatchlist}
           className="flex items-center justify-center rounded border border-gray-600 p-2 text-gray-400 transition-colors hover:border-red-600 hover:text-red-600"
           title={t('details.addToWatchlist')}
         >

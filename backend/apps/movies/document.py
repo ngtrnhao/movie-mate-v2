@@ -105,7 +105,7 @@ class MovieDocument(Document):
         """Prepare data for genres field"""
         try:
             genres = instance.genres.all()
-        return [{'id': genre.id, 'name': genre.name, 'language': genre.language}
+            return [{'id': genre.id, 'name': genre.name, 'language': genre.language}
                     for genre in genres]
         except Exception as e:
             logger.warning(f"Error preparing genres for movie {instance.id}: {e}")
@@ -124,18 +124,19 @@ class MovieDocument(Document):
     def prepare_production_countries(self, instance):
         """Prepare data for production_countries field"""
         try:
-        if hasattr(instance, 'moviemetadata') and instance.moviemetadata:
-            countries = instance.moviemetadata.production_countries
-            if countries and isinstance(countries, list):
-                return [country.get('iso_3166_1', '') for country in countries]
+            if hasattr(instance, 'moviemetadata') and instance.moviemetadata:
+                countries = instance.moviemetadata.production_countries
+                if countries and isinstance(countries, list):
+                    return [country.get('iso_3166_1', '') for country in countries]
+            return []
         except Exception as e:
             logger.warning(f"Error preparing production countries for movie {instance.id}: {e}")
-        return []
+            return []
 
     def prepare_vote_count(self, instance):
         """Prepare data for vote_count field"""
         try:
-        return instance.cached_imdb_votes or instance.cached_tmdb_votes or 0
+            return instance.cached_imdb_votes or instance.cached_tmdb_votes or 0
         except Exception as e:
             logger.warning(f"Error preparing vote_count for movie {instance.id}: {e}")
             return 0
@@ -143,7 +144,7 @@ class MovieDocument(Document):
     def prepare_popularity(self, instance):
         """Prepare data for popularity field"""
         try:
-        return instance.combined_rating_score or 0
+            return instance.combined_rating_score or 0
         except Exception as e:
             logger.warning(f"Error preparing popularity for movie {instance.id}: {e}")
             return 0

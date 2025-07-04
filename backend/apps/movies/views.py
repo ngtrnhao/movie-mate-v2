@@ -703,7 +703,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             use_django = request.GET.get('use_django','false').lower() == 'true'
 
 
-            # Create cache key from filters
+            # Create separate cache keys for ES and Django results to prevent conflicts
             cache_params = {
                 'genres': ','.join(sorted(genres)),
                 'year_from': year_from,
@@ -717,17 +717,30 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'order': order,
                 'page': page,
                 'page_size': page_size,
-                'engine': 'django' if use_django else 'elasticsearch'
             }
 
-            # Create a more stable cache key
+            # Create separate cache keys for different engines
             cache_string = '&'.join([f"{k}={v}" for k, v in sorted(cache_params.items()) if v])
-            cache_key = f"movies_search_v3_{hashlib.md5(cache_string.encode()).hexdigest()}"
+            cache_hash = hashlib.md5(cache_string.encode()).hexdigest()
 
-            # Check cache first
+            # Use different cache keys and timeouts for different engines
+            if use_django:
+                cache_key = f"movies_search_django_v4_{cache_hash}"
+                cache_timeout = 300  # 5 minutes for Django fallback
+            else:
+                cache_key = f"movies_search_es_v4_{cache_hash}"
+                cache_timeout = 600  # 10 minutes for Elasticsearch
+
+            # Check cache first - only for same engine
             cached_data = cache.get(cache_key)
             if cached_data:
                 logger.info(f"Returning cached search results for key: {cache_key}")
+                # Add cache metadata for debugging
+                cached_data['cache_info'] = {
+                    'cached': True,
+                    'engine': 'django' if use_django else 'elasticsearch',
+                    'cache_key': cache_key
+                }
                 return Response(cached_data)
             #Try Elasticsearch first
             if not use_django:
@@ -826,12 +839,13 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                         'page_size': page_size,
                         'has_next': page * page_size < es_results.hits.total.value,
                         'data': movies,
-                        'search_engine': 'elasticsearch'
+                        'search_engine': 'elasticsearch',
+                        'data_source': 'elasticsearch_index'
                     }
 
-                    #Cache for 10 minutes for search results
-                    cache.set(cache_key, response_data, timeout=600)
-                    logger.info(f"Cached search results for key: {cache_key}")
+                    # Cache with engine-specific timeout
+                    cache.set(cache_key, response_data, timeout=cache_timeout)
+                    logger.info(f"Cached Elasticsearch results for key: {cache_key} (timeout: {cache_timeout}s)")
 
                     return Response(response_data)
 
@@ -971,12 +985,13 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                     'has_previous': page_obj.has_previous(),
                     'data': serializer.data,
                     'total_results_limited': paginator.count >= max_results,
-                    'search_engine': 'django_orm'
+                    'search_engine': 'django_orm',
+                    'data_source': 'database_fallback'
                 }
 
-                # Cache for 10 minutes for search results
-                cache.set(cache_key, response_data, timeout=600)
-                logger.info(f"Cached Django ORM search results for key: {cache_key}")
+                # Cache with engine-specific timeout
+                cache.set(cache_key, response_data, timeout=cache_timeout)
+                logger.info(f"Cached Django ORM results for key: {cache_key} (timeout: {cache_timeout}s)")
 
                 return Response(response_data)
 

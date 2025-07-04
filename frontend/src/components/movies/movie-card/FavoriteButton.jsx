@@ -12,7 +12,7 @@ const FavoriteButton = ({
   const {
     isFavorited,
     toggleFavorite,
-    loading,
+    loading: globalLoading,
     error,
     isAuthenticated
   } = useFavorites();
@@ -37,6 +37,7 @@ const FavoriteButton = ({
   };
 
   const isLiked = isFavorited(movie.id);
+  const loading = isToggling || globalLoading;
 
   // Size configurations
   const sizeConfig = {
@@ -70,12 +71,13 @@ const FavoriteButton = ({
   return (
     <button
       onClick={handleToggle}
-      disabled={isToggling || loading}
+      disabled={loading}
       className={`
         group flex items-center gap-2
-        disabled:opacity-50 disabled:cursor-not-allowed
+        disabled:opacity-70 disabled:cursor-not-allowed
         ${variantStyles[variant]}
         ${className}
+        ${loading ? 'animate-pulse' : ''}
       `}
       title={isLiked ? 'Remove from favorites' : 'Add to favorites'}
     >
@@ -83,14 +85,15 @@ const FavoriteButton = ({
         size={config.icon}
         fill={isLiked ? 'currentColor' : 'none'}
         className={`
-          transition-transform duration-200
+          transition-all duration-200
           group-hover:scale-110
-          ${isToggling ? 'animate-pulse' : ''}
+          ${loading ? 'animate-bounce' : ''}
+          ${error ? 'text-red-500' : ''}
         `}
       />
       {showText && (
-        <span className={`${config.text} font-medium`}>
-          {isToggling
+        <span className={`${config.text} font-medium whitespace-nowrap`}>
+          {loading
             ? (isLiked ? 'Removing...' : 'Adding...')
             : (isLiked ? 'Favorited' : 'Favorite')
           }

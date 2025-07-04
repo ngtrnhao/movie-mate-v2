@@ -102,10 +102,10 @@ export const getUserReviewsAPI = async (userId, page = 1) => {
 };
 
 //Get rating
-export const getUserRatings = async (userId, page = 1) => {
+export const getUserRatings = async (userId, page = 1, language = 'vi') => {
   try {
     const response = await axiosInstance.get(`/api/auth/profile/${userId}/ratings/`, {
-      params: { page },
+      params: { page, language },
     });
     return response.data;
   } catch (error) {

@@ -31,6 +31,7 @@ import store from './store';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Toaster } from 'react-hot-toast';
 // import PerformanceMonitor from './components/common/PerformanceMonitor';
 // import AdDisplayTest from './components/ads/AdDisplayTest';
 // import AdFrequencyStatus from './components/common/AdFrequencyStatus';
@@ -219,6 +220,30 @@ function App() {
           </WatchlistProvider>
         </I18nProvider>
       </GoogleOAuthProvider>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 2000,
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+          success: {
+            duration: 2000,
+            iconTheme: {
+              primary: '#4ade80',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </Provider>
   );
 }

@@ -10,11 +10,25 @@ logger = logging.getLogger(__name__)
 class MovieSearchService:
     def __init__(self):
         try:
-            # Initialize Elasticsearch client directly
-            self.client = Elasticsearch(
-                cloud_id=settings.ELASTICSEARCH_CLOUD_ID,
-                basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
-            )
+            # Check if cloud configuration is available
+            if (hasattr(settings, 'ELASTICSEARCH_CLOUD_ID') and
+                hasattr(settings, 'ELASTICSEARCH_USERNAME') and
+                hasattr(settings, 'ELASTICSEARCH_PASSWORD') and
+                settings.ELASTICSEARCH_CLOUD_ID and
+                settings.ELASTICSEARCH_USERNAME and
+                settings.ELASTICSEARCH_PASSWORD):
+
+                # Initialize Elasticsearch client with cloud configuration
+                self.client = Elasticsearch(
+                    cloud_id=settings.ELASTICSEARCH_CLOUD_ID,
+                    basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
+                )
+                logger.info("Using Elasticsearch Cloud configuration")
+            else:
+                # Fall back to local Elasticsearch configuration
+                hosts = [settings.ELASTICSEARCH_DSL['default']['hosts'][0]] if hasattr(settings, 'ELASTICSEARCH_DSL') else ['localhost:9200']
+                self.client = Elasticsearch(hosts=hosts)
+                logger.info(f"Using local Elasticsearch configuration: {hosts}")
 
             # Test connection
             info = self.client.info()
@@ -316,22 +330,25 @@ class MovieSearchService:
     def test_connection(self):
         """Test Elasticsearch connection and configuration"""
         try:
-            # Check if settings are available
-            if not hasattr(settings, 'ELASTICSEARCH_CLOUD_ID'):
-                logger.error("ELASTICSEARCH_CLOUD_ID not found in settings")
-                return False
-            if not hasattr(settings, 'ELASTICSEARCH_USERNAME'):
-                logger.error("ELASTICSEARCH_USERNAME not found in settings")
-                return False
-            if not hasattr(settings, 'ELASTICSEARCH_PASSWORD'):
-                logger.error("ELASTICSEARCH_PASSWORD not found in settings")
-                return False
+            # Check if cloud configuration is available
+            if (hasattr(settings, 'ELASTICSEARCH_CLOUD_ID') and
+                hasattr(settings, 'ELASTICSEARCH_USERNAME') and
+                hasattr(settings, 'ELASTICSEARCH_PASSWORD') and
+                settings.ELASTICSEARCH_CLOUD_ID and
+                settings.ELASTICSEARCH_USERNAME and
+                settings.ELASTICSEARCH_PASSWORD):
 
-            # Try to connect
-            client = Elasticsearch(
-                cloud_id=settings.ELASTICSEARCH_CLOUD_ID,
-                basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
-            )
+                # Try to connect with cloud configuration
+                client = Elasticsearch(
+                    cloud_id=settings.ELASTICSEARCH_CLOUD_ID,
+                    basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
+                )
+                logger.info("Testing Elasticsearch Cloud configuration")
+            else:
+                # Try to connect with local configuration
+                hosts = [settings.ELASTICSEARCH_DSL['default']['hosts'][0]] if hasattr(settings, 'ELASTICSEARCH_DSL') else ['localhost:9200']
+                client = Elasticsearch(hosts=hosts)
+                logger.info(f"Testing local Elasticsearch configuration: {hosts}")
 
             # Get cluster info
             info = client.info()

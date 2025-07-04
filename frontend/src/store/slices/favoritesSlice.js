@@ -50,12 +50,11 @@ export const removeFromFavorites = createAsyncThunk(
 
       // If favoriteId is not provided, find it from state
       if (!favoriteId) {
-        const { favorites } = getState().favorites;
-        const favoriteRecord = favorites.items.find(
-          fav => (fav.movie_id || fav.movie?.id) === movieId
-        );
+        const state = getState().favorites;
+        const favoriteRecord = state.items.find(fav => (fav.movie_id || fav.movie?.id) === movieId);
         favoriteId = favoriteRecord?.id;
-        console.log('🔍 Found favoriteId from state:', favoriteId);
+        console.log('🔍 Found favoriteId from state:', favoriteId, 'for movieId:', movieId);
+        console.log('Current state items:', state.items);
       }
 
       if (!favoriteId) {
@@ -76,6 +75,7 @@ export const removeFromFavorites = createAsyncThunk(
 const initialState = {
   items: [],
   favoriteIds: new Set(),
+  favoriteRecordIds: new Map(), // Map of movieId -> favoriteId
   loading: false,
   error: null,
   initialized: false,
@@ -91,6 +91,7 @@ const favoritesSlice = createSlice({
     clearFavorites: state => {
       state.items = [];
       state.favoriteIds = new Set();
+      state.favoriteRecordIds = new Map();
       state.initialized = false;
     },
     // Optimistic updates
@@ -99,8 +100,10 @@ const favoritesSlice = createSlice({
       console.log('🔄 Optimistic add favorite:', { movieId, movieData });
       if (!state.favoriteIds.has(movieId)) {
         state.favoriteIds.add(movieId);
+        const tempId = `temp-${movieId}`;
+        state.favoriteRecordIds.set(movieId, tempId);
         state.items.push({
-          id: `temp-${movieId}`,
+          id: tempId,
           movie_id: movieId,
           movie_title: movieData?.title,
           movie_poster: movieData?.poster_url,
@@ -113,20 +116,7 @@ const favoritesSlice = createSlice({
       const { movieId } = action.payload;
       console.log('🔄 Optimistic remove favorite:', { movieId });
       state.favoriteIds.delete(movieId);
-      state.items = state.items.filter(item => (item.movie_id || item.movie?.id) !== movieId);
-    },
-    // Manual add/remove for external updates
-    addFavoriteItem: (state, action) => {
-      const favorite = action.payload;
-      const movieId = favorite.movie_id || favorite.movie?.id;
-      if (movieId && !state.favoriteIds.has(movieId)) {
-        state.favoriteIds.add(movieId);
-        state.items.push(favorite);
-      }
-    },
-    removeFavoriteItem: (state, action) => {
-      const { movieId } = action.payload;
-      state.favoriteIds.delete(movieId);
+      state.favoriteRecordIds.delete(movieId);
       state.items = state.items.filter(item => (item.movie_id || item.movie?.id) !== movieId);
     },
   },
@@ -143,6 +133,9 @@ const favoritesSlice = createSlice({
         state.loading = false;
         state.items = action.payload;
         state.favoriteIds = new Set(action.payload.map(fav => fav.movie_id || fav.movie?.id));
+        state.favoriteRecordIds = new Map(
+          action.payload.map(fav => [fav.movie_id || fav.movie?.id, fav.id])
+        );
         state.initialized = true;
       })
       .addCase(loadFavorites.rejected, (state, action) => {
@@ -169,6 +162,7 @@ const favoritesSlice = createSlice({
         // Add real entry
         if (!state.favoriteIds.has(movieId)) {
           state.favoriteIds.add(movieId);
+          state.favoriteRecordIds.set(movieId, favorite.id);
           state.items.push(favorite);
         }
       })
@@ -180,6 +174,7 @@ const favoritesSlice = createSlice({
         // Revert optimistic update
         const movieId = action.meta.arg.movieId;
         state.favoriteIds.delete(movieId);
+        state.favoriteRecordIds.delete(movieId);
         state.items = state.items.filter(item => !item._isOptimistic || item.movie_id !== movieId);
       })
 
@@ -194,6 +189,7 @@ const favoritesSlice = createSlice({
         state.loading = false;
         const { movieId } = action.payload;
         state.favoriteIds.delete(movieId);
+        state.favoriteRecordIds.delete(movieId);
         state.items = state.items.filter(item => (item.movie_id || item.movie?.id) !== movieId);
       })
       .addCase(removeFromFavorites.rejected, (state, action) => {
@@ -201,19 +197,27 @@ const favoritesSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
 
-        // Revert optimistic update by reloading if needed
-        // You might want to add the item back here
+        // Get the movieId from the action meta
+        const movieId = action.meta.arg.movieId;
+
+        // If the movie was optimistically removed, add it back
+        if (!state.favoriteIds.has(movieId)) {
+          // Find the movie in the original items array (before optimistic update)
+          const originalItem = state.items.find(
+            item => (item.movie_id || item.movie?.id) === movieId
+          );
+
+          if (originalItem) {
+            state.favoriteIds.add(movieId);
+            state.favoriteRecordIds.set(movieId, originalItem.id);
+            state.items.push(originalItem);
+          }
+        }
       });
   },
 });
 
-export const {
-  clearError,
-  clearFavorites,
-  optimisticAddFavorite,
-  optimisticRemoveFavorite,
-  addFavoriteItem,
-  removeFavoriteItem,
-} = favoritesSlice.actions;
+export const { clearError, clearFavorites, optimisticAddFavorite, optimisticRemoveFavorite } =
+  favoritesSlice.actions;
 
 export default favoritesSlice.reducer;

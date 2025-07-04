@@ -733,15 +733,23 @@ class UnifiedMovieReviewWithDetailsSerializer(serializers.ModelSerializer):
         return {
             'id': movie.id,
             'title': movie.title,
+            'title_en': movie.title_en,
+            'title_vi': movie.title_vi,
             'original_title': movie.original_title,
             'release_date': movie.release_date,
             'poster_path': movie.poster_url,
             'backdrop_path': movie.backdrop_url,
-            'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()],
+            'genres': [{'id': g.id, 'name': g.name} for g in (
+                movie.genres.filter(language=self.context.get('language', 'vi')).exists() and
+                movie.genres.filter(language=self.context.get('language', 'vi')) or
+                movie.genres.filter(language='en').exists() and movie.genres.filter(language='en') or
+                movie.genres.all()
+            )],
             'runtime': movie.runtime,
             'vote_average': movie.cached_tmdb_rating,
             'vote_count': movie.cached_tmdb_votes,
-            'overview': movie.overview_en or movie.overview_vi or '',
+            'overview_en': movie.overview_en,
+            'overview_vi': movie.overview_vi,
             'cast': cast_details
         }
 

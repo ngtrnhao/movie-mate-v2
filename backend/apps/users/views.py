@@ -563,7 +563,8 @@ class UserReviewsView(generics.ListAPIView):
         user_id = self.kwargs.get('userId')
         return MovieReview.objects.filter(
             user_id=user_id,
-            review_type='USER'
+            review_type='USER',
+            parent_review__isnull=True  # Only main reviews, exclude replies
         ).select_related('user', 'movie')
 
     def get_serializer_class(self):
@@ -577,9 +578,12 @@ class UserRatingsView(generics.ListAPIView):
     def get_queryset(self):
         from apps.movies.models import MovieReview
         user_id = self.kwargs.get('userId')
+        language = self.request.query_params.get('language', 'vi')  # Default to Vietnamese
+
         return MovieReview.objects.filter(
             user_id=user_id,
-            review_type='USER'
+            review_type='USER',
+            parent_review__isnull=True  # Only main reviews, exclude replies
         ).select_related(
             'user',
             'movie'
@@ -587,6 +591,11 @@ class UserRatingsView(generics.ListAPIView):
             'movie__genres',
             'movie__cast'
         ).order_by('-created_at')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['language'] = self.request.query_params.get('language', 'vi')
+        return context
 
     def get_serializer_class(self):
         from apps.movies.serializers import UnifiedMovieReviewWithDetailsSerializer

@@ -306,6 +306,23 @@ ELASTICSEARCH_DSL = {
     }
 }
 
+# Elasticsearch Cloud Configuration (for production)
+ELASTICSEARCH_CLOUD_ID = env('ELASTICSEARCH_CLOUD_ID', default=None)
+ELASTICSEARCH_USERNAME = env('ELASTICSEARCH_USERNAME', default=None)
+ELASTICSEARCH_PASSWORD = env('ELASTICSEARCH_PASSWORD', default=None)
+
+# If cloud configuration is available, use it instead of local config
+if ELASTICSEARCH_CLOUD_ID and ELASTICSEARCH_USERNAME and ELASTICSEARCH_PASSWORD:
+    ELASTICSEARCH_DSL = {
+        'default': {
+            'cloud_id': ELASTICSEARCH_CLOUD_ID,
+            'basic_auth': (ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD),
+            'timeout': 30,
+            'retry_on_timeout': True,
+            'max_retries': 3,
+        }
+    }
+
 # Migration settings
 MIGRATION_SECRET_KEY = env('MIGRATION_SECRET_KEY', default='your-secret-key-here')
 

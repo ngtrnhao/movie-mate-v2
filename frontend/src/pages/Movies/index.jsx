@@ -14,65 +14,39 @@ import { useThrottledScroll } from '../../hooks/useThrottledScroll';
 import { useScrollPosition } from '../../hooks/useScrollPosition';
 import animationCache from '../../utils/animationCache';
 import ImagePreloader from '../../components/common/ImagePreloader';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const MoviesPage = () => {
   const { t } = useTranslation('movies');
   const navigate = useNavigate();
+  const location = useLocation();
   const [showFilters, setShowFilters] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [genres, setGenres] = useState([]);
 
-  // Define default filters
-  const defaultFilters = {
-    genres: [],
-    yearFrom: '',
-    yearTo: '',
-    country: '',
-    status: '',
-    adult: false,
-    language: 'en',
-    query: '',
-    sortBy: 'popularity',
-    order: 'desc',
-  };
+  // Define default filters with useMemo to prevent recreating on each render
+  const defaultFilters = useMemo(
+    () => ({
+      genres: [],
+      yearFrom: '',
+      yearTo: '',
+      country: '',
+      status: '',
+      adult: false,
+      language: 'en',
+      query: '',
+      sortBy: 'popularity',
+      order: 'desc',
+    }),
+    []
+  );
 
   const [filters, setFilters] = useState(defaultFilters);
   const [pendingFilters, setPendingFilters] = useState(defaultFilters);
 
-  // Handle reset filters
-  const handleResetFilters = useCallback(() => {
-    setFilters(defaultFilters);
-    setPendingFilters(defaultFilters);
-    // Clear URL parameters
-    navigate('/movies', { replace: true });
-  }, [navigate]);
-
-  // Reset filters when leaving page or on reload
+  // Listen for URL parameter changes (including from header search) - simplified approach
   useEffect(() => {
-    const resetFilters = () => {
-      setFilters(defaultFilters);
-      setPendingFilters(defaultFilters);
-    };
-
-    // Reset on page unload
-    window.addEventListener('beforeunload', resetFilters);
-
-    // Reset on component mount if no search params
-    const searchParams = new URLSearchParams(window.location.search);
-    if (!searchParams.toString()) {
-      resetFilters();
-    }
-
-    return () => {
-      window.removeEventListener('beforeunload', resetFilters);
-      resetFilters(); // Reset when leaving page
-    };
-  }, []);
-
-  // Listen for URL parameters
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
+    const searchParams = new URLSearchParams(location.search);
     const newFilters = { ...defaultFilters };
 
     // Get all filter values from URL
@@ -108,10 +82,56 @@ const MoviesPage = () => {
       newFilters.order = searchParams.get('order');
     }
 
-    // Update both filters and pendingFilters
-    setFilters(newFilters);
-    setPendingFilters(newFilters);
-  }, []);
+    // Only update if filters actually changed to prevent unnecessary re-renders
+    setFilters(prevFilters => {
+      const hasChanged = JSON.stringify(prevFilters) !== JSON.stringify(newFilters);
+      return hasChanged ? newFilters : prevFilters;
+    });
+
+    setPendingFilters(prevPendingFilters => {
+      const hasChanged = JSON.stringify(prevPendingFilters) !== JSON.stringify(newFilters);
+      return hasChanged ? newFilters : prevPendingFilters;
+    });
+  }, [location.search]); // Only depend on location.search
+
+  // Handle reset filters
+  const handleResetFilters = useCallback(() => {
+    setFilters(defaultFilters);
+    setPendingFilters(defaultFilters);
+
+    // Preserve search query but clear other filter parameters
+    const searchParams = new URLSearchParams(location.search);
+    const query = searchParams.get('q');
+
+    // Clear all parameters except query
+    const newParams = new URLSearchParams();
+    if (query) {
+      newParams.set('q', query);
+    }
+
+    navigate(`/movies${newParams.toString() ? `?${newParams.toString()}` : ''}`, { replace: true });
+  }, [navigate, defaultFilters, location.search]);
+
+  // Reset filters when leaving page or on reload
+  useEffect(() => {
+    const resetFilters = () => {
+      setFilters(defaultFilters);
+      setPendingFilters(defaultFilters);
+    };
+
+    // Reset on page unload
+    window.addEventListener('beforeunload', resetFilters);
+
+    // Reset on component mount if no search params
+    if (!location.search) {
+      resetFilters();
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', resetFilters);
+      resetFilters(); // Reset when leaving page
+    };
+  }, [defaultFilters, location.search]);
 
   // Fetch genres using hook
   const { data: genresData, isLoading: genresLoading } = useCategories();
@@ -416,6 +436,7 @@ const MoviesPage = () => {
   }, []);
 
   const resetFilters = useCallback(() => {
+    // Preserve current query from header search but reset other filters
     const defaultFilters = {
       genres: [],
       yearFrom: '',
@@ -424,7 +445,7 @@ const MoviesPage = () => {
       status: '',
       adult: false,
       language: 'en',
-      query: '',
+      query: filters.query, // Preserve current search query from header
       sortBy: 'popularity',
       order: 'desc',
     };
@@ -434,7 +455,7 @@ const MoviesPage = () => {
 
     // Clear animation cache khi reset filters
     animationCache.clearMovies();
-  }, []);
+  }, [filters.query]);
 
   // Apply pending filters
   const applyFilters = useCallback(() => {
@@ -633,18 +654,6 @@ const MoviesPage = () => {
                   className="mb-8 overflow-hidden"
                 >
                   <div className="space-y-6 rounded-lg bg-gray-800 p-6">
-                    {/* Search Bar */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder={t('filters.searchPlaceholder')}
-                        value={pendingFilters.query}
-                        onChange={e => handleFilterChange('query', e.target.value)}
-                        className="w-full rounded-md bg-gray-700 py-3 pl-10 pr-4 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      />
-                    </div>
-
                     {/* Genres */}
                     <div>
                       <label className="mb-3 flex items-center gap-2 text-sm font-medium text-white">

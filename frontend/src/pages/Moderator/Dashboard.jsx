@@ -54,12 +54,14 @@ import {
 import DashboardOverview from './components/DashboardOverview';
 import KanbanBoard from './components/KanbanBoard';
 import QueueList from './components/QueueList';
+import ReportsList from './components/ReportsList';
 import BulkActions from './components/BulkActions';
 import SpoilerDetectionPanel from './components/SpoilerDetectionPanel';
 import UserManagement from './components/UserManagement';
 import SystemSettings from './components/SystemSettings';
 import Analytics from './components/Analytics';
 import ContentManagement from './components/ContentManagement';
+import ContentModerationDashboard from './components/ContentModerationDashboard';
 
 const ModeratorDashboard = () => {
   const [activeView, setActiveView] = useState('overview');
@@ -142,6 +144,18 @@ const ModeratorDashboard = () => {
         priority: 'medium',
         badge: '12',
         badgeColor: 'blue',
+      },
+      {
+        id: 'content-moderation',
+        label: 'Kiểm duyệt nội dung',
+        icon: ShieldCheckIcon,
+        iconSolid: ShieldCheckIcon,
+        color: 'purple',
+        viewMode: 'dashboard',
+        description: 'Kiểm duyệt với spoiler detection',
+        priority: 'high',
+        badge: '25',
+        badgeColor: 'red',
       },
       {
         id: 'user-management',
@@ -478,17 +492,18 @@ const ModeratorDashboard = () => {
         );
       case 'reports':
         return (
-          <QueueList
+          <ReportsList
             selectedItems={selectedItems}
             onSelectItem={handleSelectItem}
             onSelectAll={handleSelectAll}
             onClearSelection={handleClearSelection}
             isAdmin={isAdmin}
-            filterType="reports"
           />
         );
       case 'content-review':
         return <ContentManagement />;
+      case 'content-moderation':
+        return <ContentModerationDashboard />;
       case 'user-management':
         return <UserManagement />;
       case 'analytics':

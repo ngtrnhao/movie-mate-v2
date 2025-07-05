@@ -4,7 +4,8 @@ from django.contrib.auth import get_user_model
 from .models import (
     Movie, MovieRating, MovieAward, MovieCast,
     MovieReview, MovieBoxOffice, MovieMetadata,
-    MovieGenre, MovieTrailer, MovieImage, MovieNews
+    MovieGenre, MovieTrailer, MovieImage, MovieNews,
+    ReviewReport
 )
 import logging
 
@@ -468,6 +469,8 @@ class MovieReviewSerializer(serializers.ModelSerializer):
     reply_count = serializers.SerializerMethodField()
     is_reply = serializers.ReadOnlyField()
     replies = serializers.SerializerMethodField()
+    moderation_analysis = serializers.SerializerMethodField()
+    report_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = MovieReview
@@ -478,12 +481,13 @@ class MovieReviewSerializer(serializers.ModelSerializer):
             'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
             'can_edit', 'can_vote', 'user_vote', 'can_reply', 'reply_count',
             'is_reply', 'parent_review', 'replies',
-            'created_at', 'updated_at'
+            'is_approved', 'moderated_by', 'moderated_at', 'moderation_reason',
+            'moderation_analysis', 'created_at', 'updated_at', 'report_summary'
         ]
         read_only_fields = [
             'id', 'user', 'helpful_votes', 'total_votes', 'helpfulness_ratio',
             'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
-            'can_edit', 'can_vote', 'user_vote', 'created_at', 'updated_at'
+            'can_edit', 'can_vote', 'user_vote', 'moderation_analysis', 'created_at', 'updated_at'
         ]
 
     def validate_rating(self, value):
@@ -554,6 +558,20 @@ class MovieReviewSerializer(serializers.ModelSerializer):
 
         replies = obj.get_top_level_replies()
         return MovieReplySerializer(replies, many=True, context=self.context).data
+
+    def get_moderation_analysis(self, obj):
+        """Get moderation analysis for this review"""
+        # Only return moderation analysis if it exists (added by moderation_queue)
+        if hasattr(obj, 'moderation_analysis'):
+            return obj.moderation_analysis
+        return None
+
+    def get_report_summary(self, obj):
+        """Get report summary for this review"""
+        # Only return report summary if it exists (added by reports_for_moderation)
+        if hasattr(obj, 'report_summary'):
+            return obj.report_summary
+        return None
 
     def create(self, validated_data):
         """Set the user automatically from request"""
@@ -646,6 +664,7 @@ class UnifiedMovieReviewWithDetailsSerializer(serializers.ModelSerializer):
     helpfulness_ratio = serializers.FloatField(default=0)
     time_ago = serializers.SerializerMethodField()
     movie_details = serializers.SerializerMethodField()
+    moderated_by = UserSerializer(read_only=True)
 
     class Meta:
         model = MovieReview
@@ -666,6 +685,10 @@ class UnifiedMovieReviewWithDetailsSerializer(serializers.ModelSerializer):
             'is_public',
             'source',
             'source_url',
+            'is_approved',
+            'moderated_by',
+            'moderated_at',
+            'moderation_reason',
             'created_at',
             'time_ago',
             'movie_details'
@@ -856,3 +879,11 @@ class MovieReplyCreateSerializer(serializers.ModelSerializer):
         validated_data['rating'] = None  # Replies cannot have ratings
         validated_data['title'] = None   # Replies don't need titles
         return super().create(validated_data)
+
+class ReviewReportSerializer(serializers.ModelSerializer):
+    reported_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = ReviewReport
+        fields = ['id', 'review', 'reported_by', 'reason', 'description', 'created_at']
+        read_only_fields = ['id', 'reported_by', 'created_at']

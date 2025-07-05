@@ -647,6 +647,17 @@ class MovieReview(models.Model):
                                   help_text="Privacy setting for user reviews")
     is_spoiler = models.BooleanField(default=False)
 
+    # Moderation fields
+    is_approved = models.BooleanField(null=True, blank=True,
+                                     help_text="Moderation status: True=approved, False=rejected, None=pending")
+    moderated_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='moderated_reviews',
+                                    help_text="User who moderated this review")
+    moderated_at = models.DateTimeField(null=True, blank=True,
+                                       help_text="When this review was moderated")
+    moderation_reason = models.TextField(blank=True, null=True,
+                                        help_text="Reason for moderation decision")
+
     # Voting system
     helpful_votes = models.IntegerField(default=0)
     total_votes = models.IntegerField(default=0)
@@ -853,6 +864,41 @@ class ReviewVote(models.Model):
 
     def __str__(self):
         return f"{self.user.username} voted {self.vote_type} on review {self.review.id}"
+
+
+class ReviewReport(models.Model):
+    """
+    Model for user reports on reviews (e.g., offensive, spam, abuse, etc.)
+    """
+    REPORT_REASONS = [
+        ("offensive", "Offensive Language"),
+        ("spam", "Spam or Advertising"),
+        ("abuse", "Abusive or Harassment"),
+        ("irrelevant", "Irrelevant Content"),
+        ("spoiler", "Contains Spoiler"),
+        ("other", "Other"),
+    ]
+
+    review = models.ForeignKey(MovieReview, on_delete=models.CASCADE, related_name="reports")
+    reported_by = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name="review_reports")
+    reason = models.CharField(max_length=32, choices=REPORT_REASONS)
+    description = models.TextField(blank=True, null=True, help_text="Optional additional details from reporter")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "movies_review_report"
+        indexes = [
+            models.Index(fields=["review"]),
+            models.Index(fields=["reported_by"]),
+            models.Index(fields=["reason"]),
+            models.Index(fields=["created_at"]),
+        ]
+        unique_together = ("review", "reported_by", "reason")  # Prevent duplicate reports for same reason
+        verbose_name = "Review Report"
+        verbose_name_plural = "Review Reports"
+
+    def __str__(self):
+        return f"Report by {self.reported_by} on review {self.review_id} ({self.reason})"
 
 
 # Doanh thu của bộ phim

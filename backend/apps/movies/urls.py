@@ -3,12 +3,14 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views import (
     MovieViewSet,
-    MovieReviewViewSet
+    MovieReviewViewSet,
+    ReviewReportViewSet
 )
 
 router = DefaultRouter()
 router.register(r'movies', views.MovieViewSet, basename='movie')
 router.register(r'reviews', MovieReviewViewSet, basename='review')
+router.register(r'review-reports', ReviewReportViewSet, basename='review-report')
 
 urlpatterns = [
     path('', include(router.urls)),

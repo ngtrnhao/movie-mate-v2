@@ -611,9 +611,10 @@ export const detectSpoilers = async (content, language = 'en', movieTitle = '') 
   }
 };
 
+// Analyze spoiler for a specific review (updated endpoint)
 export const analyzeReviewSpoiler = async reviewId => {
   try {
-    const response = await axiosInstance.post(`/reviews/${reviewId}/analyze_spoiler/`);
+    const response = await axiosInstance.post(`/api/reviews/${reviewId}/analyze_spoiler/`);
     return response.data;
   } catch (error) {
     console.error('Error analyzing review spoiler:', error);
@@ -621,9 +622,10 @@ export const analyzeReviewSpoiler = async reviewId => {
   }
 };
 
+// Get spoiler statistics (updated endpoint)
 export const getSpoilerStatistics = async () => {
   try {
-    const response = await axiosInstance.get('/reviews/spoiler_statistics/');
+    const response = await axiosInstance.get('/api/reviews/spoiler_statistics/');
     return response.data;
   } catch (error) {
     console.error('Error getting spoiler statistics:', error);
@@ -658,5 +660,106 @@ export const submitMovieReviewWithSpoilerDetection = async (movieId, reviewData)
   } catch (error) {
     console.error('Error submitting review with spoiler detection:', error);
     throw error;
+  }
+};
+
+// Moderation Queue API
+export const getModerationQueue = async (page = 1, pageSize = 20, filters = {}) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('page_size', pageSize);
+
+    // Add filters
+    if (filters.status) params.append('status', filters.status);
+    if (filters.language) params.append('language', filters.language);
+    if (filters.has_spoiler !== undefined) params.append('has_spoiler', filters.has_spoiler);
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+
+    const response = await axiosInstance.get(`/api/reviews/moderation_queue/?${params}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching moderation queue:', error);
+    throw error;
+  }
+};
+
+// Moderate a review
+export const moderateReview = async (reviewId, action, reason = '') => {
+  try {
+    const response = await axiosInstance.post(`/api/reviews/${reviewId}/moderate/`, {
+      action,
+      reason,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error moderating review:', error);
+    throw error;
+  }
+};
+
+// Bulk moderate reviews
+export const bulkModerateReviews = async (reviewIds, action, reason = '') => {
+  try {
+    const response = await axiosInstance.post('/api/reviews/bulk_moderate/', {
+      review_ids: reviewIds,
+      action,
+      reason,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error bulk moderating reviews:', error);
+    throw error;
+  }
+};
+
+// Get reviews pending spoiler detection
+export const getReviewsPendingSpoilerDetection = async (page = 1, pageSize = 20) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('page_size', pageSize);
+    params.append('pending_spoiler_detection', 'true');
+
+    const response = await axiosInstance.get(`/api/reviews/?${params}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching reviews pending spoiler detection:', error);
+    throw error;
+  }
+};
+
+// Report a review
+export const reportReview = async (reviewId, reason, description = '') => {
+  try {
+    const response = await axiosInstance.post('/api/review-reports/', {
+      review: reviewId,
+      reason,
+      description,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error reporting review:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to report review',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Get review reports (admin/moderator only)
+export const getReviewReports = async (page = 1, pageSize = 20) => {
+  try {
+    const response = await axiosInstance.get(
+      `/api/review-reports/reports_for_moderation/?page=${page}&page_size=${pageSize}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching review reports:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch review reports',
+      details: error.response?.data,
+    };
   }
 };

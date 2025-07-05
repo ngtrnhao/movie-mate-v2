@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, Filter, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Star, Filter, AlertTriangle, Eye, EyeOff, XCircle, CheckCircle } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -112,6 +112,7 @@ const RatingTab = ({ movieId }) => {
   const [editingReview, setEditingReview] = useState(null);
   const [userReview, setUserReview] = useState(null);
   const [isSpoiler, setIsSpoiler] = useState(false);
+  const [showRejectedReviews, setShowRejectedReviews] = useState(false); // Toggle hiển thị review bị từ chối
 
   // Spoiler detection hook
   const {
@@ -227,13 +228,14 @@ const RatingTab = ({ movieId }) => {
           is_public: true,
           is_spoiler: isSpoiler || shouldAutoMark,
         };
-
+        if (isSpoiler || shouldAutoMark) {
+          reviewData.is_approved = false;
+        }
         if (userReview && userReview.id) {
           await updateReview(userReview.id, reviewData);
         } else {
           await submitMovieReview(movieId, reviewData);
         }
-
         setUserRating(0);
         setRatingComment('');
         fetchReviews();
@@ -325,6 +327,14 @@ const RatingTab = ({ movieId }) => {
   const getPercentage = count => {
     return stats.totalRatings ? ((count / stats.totalRatings) * 100).toFixed(1) : 0;
   };
+
+  // Filter reviews based on moderation status
+  const filteredReviews = showRejectedReviews
+    ? reviews // Show all reviews including rejected ones
+    : reviews.filter(review => review.is_approved !== false); // Hide rejected reviews
+
+  // Check if there are rejected reviews
+  const rejectedReviewsCount = reviews.filter(review => review.is_approved === false).length;
 
   if (loading) return <div className="text-center text-gray-400">Đang tải đánh giá...</div>;
   if (error) return <div className="text-center text-red-400">{error}</div>;
@@ -452,18 +462,30 @@ const RatingTab = ({ movieId }) => {
                 )}
               </div>
 
-              {/* Spoiler Checkbox */}
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="spoiler-checkbox"
-                  checked={isSpoiler}
-                  onChange={e => setIsSpoiler(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800"
-                />
-                <label htmlFor="spoiler-checkbox" className="text-sm text-gray-300">
-                  Chứa spoiler
+              {/* Spoiler Toggle */}
+              <div className="flex items-center gap-x-2">
+                <button
+                  type="button"
+                  aria-pressed={isSpoiler}
+                  onClick={() => setIsSpoiler(v => !v)}
+                  className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none ${
+                    isSpoiler ? 'bg-orange-500' : 'bg-gray-400'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      isSpoiler ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <label
+                  htmlFor="spoiler-toggle"
+                  className="text-sm font-semibold text-orange-500 flex items-center cursor-pointer"
+                  onClick={() => setIsSpoiler(v => !v)}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-1" /> Chứa spoiler
                 </label>
+                <span className="text-xs text-orange-400">(Review sẽ bị ẩn khỏi công khai)</span>
               </div>
               <button
                 onClick={handleSubmitRating}
@@ -491,7 +513,15 @@ const RatingTab = ({ movieId }) => {
       {/* Review Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <h3 className="font-medium text-white">Đánh giá từ người dùng</h3>
+          <h3 className="font-medium text-white">
+            Đánh giá từ người dùng
+            <span className="ml-2 text-sm text-gray-400">
+              ({filteredReviews.length}/{reviews.length})
+              {rejectedReviewsCount > 0 && (
+                <span className="text-red-400 ml-2">({rejectedReviewsCount} bị từ chối)</span>
+              )}
+            </span>
+          </h3>
 
           {/* Sort Options */}
           <div className="flex items-center gap-2">
@@ -508,29 +538,49 @@ const RatingTab = ({ movieId }) => {
           </div>
         </div>
 
-        {/* Spoiler Toggle */}
-        <button
-          onClick={() => setShowSpoilers(!showSpoilers)}
-          className={`flex items-center gap-2 rounded-lg px-3 py-1 text-sm transition-colors ${
-            showSpoilers
-              ? 'bg-orange-500/20 text-orange-400'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          {showSpoilers ? <EyeOff size={16} /> : <Eye size={16} />}
-          {showSpoilers ? 'Ẩn spoiler' : 'Hiện spoiler'}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Show/Hide Rejected Reviews Toggle */}
+          {rejectedReviewsCount > 0 && (
+            <button
+              onClick={() => setShowRejectedReviews(!showRejectedReviews)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1 text-sm transition-colors ${
+                showRejectedReviews
+                  ? 'bg-red-500/20 text-red-400'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {showRejectedReviews ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showRejectedReviews ? 'Ẩn' : 'Hiện'} Review bị từ chối ({rejectedReviewsCount})
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Review List */}
       <div className="space-y-4">
-        {reviews.length > 0 ? (
-          reviews.map(review => {
+        {filteredReviews.length > 0 ? (
+          filteredReviews.map(review => {
             const isSpoiler = review.is_spoiler;
             const shouldBlur = isSpoiler && !showSpoilers;
 
+            // Check moderation status
+            const isRejected = review.is_approved === false;
+            const isApproved = review.is_approved === true;
+            const isPending = review.is_approved === null || review.is_approved === undefined;
+
             return (
-              <div key={review.id} className="rounded-lg bg-gray-800/30 p-4">
+              <div
+                key={review.id}
+                className={`rounded-lg p-4 border-l-4 ${
+                  isRejected
+                    ? 'bg-red-900/20 border-red-500'
+                    : isApproved
+                      ? 'bg-green-900/20 border-green-500'
+                      : isPending
+                        ? 'bg-yellow-900/20 border-yellow-500'
+                        : 'bg-gray-800/30 border-gray-600'
+                }`}
+              >
                 <div className="flex items-start gap-3">
                   <div className="relative">
                     <img
@@ -588,6 +638,15 @@ const RatingTab = ({ movieId }) => {
                       </div>
                     )}
 
+                    {/* Moderation Reason for Rejected Reviews */}
+                    {isRejected && review.moderation_reason && (
+                      <div className="mb-3 bg-red-500/20 border border-red-500/30 rounded-lg p-3">
+                        <p className="text-red-300 text-sm">
+                          <strong>Lý do từ chối:</strong> {review.moderation_reason}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Review Actions */}
                     <ReviewActions
                       review={review}
@@ -633,7 +692,21 @@ const RatingTab = ({ movieId }) => {
             );
           })
         ) : (
-          <div className="text-center text-gray-400">Chưa có đánh giá nào cho phim này.</div>
+          <div className="text-center text-gray-400">
+            {showRejectedReviews
+              ? 'Chưa có đánh giá nào cho phim này.'
+              : 'Chưa có đánh giá được phê duyệt nào cho phim này.'}
+            {rejectedReviewsCount > 0 && !showRejectedReviews && (
+              <div className="mt-2">
+                <button
+                  onClick={() => setShowRejectedReviews(true)}
+                  className="text-xs text-red-400 hover:text-red-300 underline"
+                >
+                  Hiện {rejectedReviewsCount} review bị từ chối
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Pagination */}

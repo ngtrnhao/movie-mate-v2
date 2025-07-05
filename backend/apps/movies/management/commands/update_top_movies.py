@@ -74,6 +74,16 @@ class Command(BaseCommand):
             action='store_true',
             help='Only update poster (skip title/genre/overview/trailer/backdrop)'
         )
+        parser.add_argument(
+            '--check-missing-poster',
+            action='store_true',
+            help='Chỉ kiểm tra/thống kê các phim thiếu poster, không cập nhật'
+        )
+        parser.add_argument(
+            '--update-missing-poster',
+            action='store_true',
+            help='Cập nhật poster cho toàn bộ movies thiếu poster (không chỉ top movies)'
+        )
 
     def needs_update(self, movie):
         """Check if movie needs title/genre update"""
@@ -403,6 +413,46 @@ class Command(BaseCommand):
         backdrop_only = options['backdrop_only']
         skip_poster = options['skip_poster']
         poster_only = options['poster_only']
+        check_missing_poster = options.get('check_missing_poster', False)
+        update_missing_poster = options.get('update_missing_poster', False)
+
+        if check_missing_poster:
+            total = Movie.objects.count()
+            missing_qs = Movie.objects.filter(poster_url__isnull=True) | Movie.objects.filter(poster_url__exact='')
+            missing_count = missing_qs.count()
+            percent = (missing_count / total) * 100 if total > 0 else 0
+            self.stdout.write(f"\n❌ Movies missing poster: {missing_count:,} / {total:,} ({percent:.1f}%)")
+            self.stdout.write(f"🔍 Sample movies without poster:")
+            for movie in missing_qs[:5]:
+                self.stdout.write(f"   - ID: {movie.id}, Title: {movie.title}")
+            return
+
+        if update_missing_poster:
+            total = Movie.objects.count()
+            missing_qs = Movie.objects.filter(poster_url__isnull=True) | Movie.objects.filter(poster_url__exact='')
+            missing_count = missing_qs.count()
+            percent = (missing_count / total) * 100 if total > 0 else 0
+            self.stdout.write(f"\n🚀 Updating poster for {missing_count:,} movies missing poster out of {total:,} ({percent:.1f}%)")
+            success_count = 0
+            error_count = 0
+            for i, movie in enumerate(missing_qs.iterator(), 1):
+                try:
+                    success, message = self.update_movie_poster(movie, dry_run=False)
+                    if success:
+                        success_count += 1
+                    else:
+                        error_count += 1
+                    if i % 100 == 0 or i == missing_count:
+                        self.stdout.write(f"   Progress: {i}/{missing_count} ({i/missing_count*100:.1f}%)")
+                except Exception as e:
+                    self.stdout.write(f"   💥 Error updating poster for movie {movie.id}: {str(e)}")
+                    error_count += 1
+            self.stdout.write(f"\n✅ Poster update completed!")
+            self.stdout.write(f"   Successful: {success_count}")
+            self.stdout.write(f"   Errors: {error_count}")
+            if missing_count > 0:
+                self.stdout.write(f"   Success rate: {success_count/missing_count*100:.1f}%")
+            return
 
         self.stdout.write("🎯 Updating top movies from movies page...")
         self.stdout.write(f"📊 Processing top {limit} movies per category")

@@ -595,3 +595,68 @@ export const getReviewReplies = async (reviewId, page = 1, pageSize = 10) => {
     throw error;
   }
 };
+
+// Spoiler Detection API
+export const detectSpoilers = async (content, language = 'en', movieTitle = '') => {
+  try {
+    const response = await axiosInstance.post('/api/reviews/detect_spoilers/', {
+      content,
+      language,
+      movie_title: movieTitle,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error detecting spoilers:', error);
+    throw error;
+  }
+};
+
+export const analyzeReviewSpoiler = async reviewId => {
+  try {
+    const response = await axiosInstance.post(`/reviews/${reviewId}/analyze_spoiler/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error analyzing review spoiler:', error);
+    throw error;
+  }
+};
+
+export const getSpoilerStatistics = async () => {
+  try {
+    const response = await axiosInstance.get('/reviews/spoiler_statistics/');
+    return response.data;
+  } catch (error) {
+    console.error('Error getting spoiler statistics:', error);
+    throw error;
+  }
+};
+
+// Enhanced review submission with spoiler detection
+export const submitMovieReviewWithSpoilerDetection = async (movieId, reviewData) => {
+  try {
+    // First, detect spoilers
+    const spoilerDetection = await detectSpoilers(
+      reviewData.content,
+      reviewData.language || 'en',
+      reviewData.movieTitle || ''
+    );
+
+    // Prepare review data with spoiler detection result
+    const enhancedReviewData = {
+      ...reviewData,
+      is_spoiler: spoilerDetection.is_spoiler || reviewData.is_spoiler || false,
+    };
+
+    // Submit the review
+    const response = await submitMovieReview(movieId, enhancedReviewData);
+
+    // Add spoiler detection info to response
+    return {
+      ...response,
+      spoiler_detection: spoilerDetection,
+    };
+  } catch (error) {
+    console.error('Error submitting review with spoiler detection:', error);
+    throw error;
+  }
+};

@@ -26,6 +26,11 @@ urlpatterns = [
     path('reviews/<int:pk>/reply/', views.MovieReviewViewSet.as_view({'post': 'reply'}), name='review-reply'),
     path('reviews/<int:pk>/replies/', views.MovieReviewViewSet.as_view({'get': 'replies'}), name='review-replies'),
 
+    # Spoiler detection endpoints
+    path('reviews/detect_spoilers/', views.MovieReviewViewSet.as_view({'post': 'detect_spoilers'}), name='detect-spoilers'),
+    path('reviews/<int:pk>/analyze_spoiler/', views.MovieReviewViewSet.as_view({'post': 'analyze_spoiler'}), name='analyze-spoiler'),
+    path('reviews/spoiler_statistics/', views.MovieReviewViewSet.as_view({'get': 'spoiler_statistics'}), name='spoiler-statistics'),
+
     # Movie detail by slug
     re_path(r'^movies/(?P<slug>[\w-]+)/$', views.MovieViewSet.as_view({'get': 'retrieve'}), name='movie-detail'),
     re_path(r'^movies/(?P<slug>[\w-]+)/cast/$', views.MovieViewSet.as_view({'get': 'cast'}), name='movie-cast'),

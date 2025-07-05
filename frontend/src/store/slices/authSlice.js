@@ -25,6 +25,7 @@ const initialState = {
     createdAt: null,
     updatedAt: null,
     user_type: null,
+    groups: [], // Thêm groups để lưu thông tin quyền
   },
   isAuthenticated: false,
   isRehydrated: false,
@@ -204,6 +205,7 @@ const authSlice = createSlice({
         createdAt: null,
         updatedAt: null,
         user_type: null,
+        groups: [],
       };
       state.isAuthenticated = false;
       state.token = null;
@@ -420,5 +422,20 @@ export const selectIsRehydrated = state => state.auth.isRehydrated;
 export const selectToken = state => state.auth.token;
 export const selectAuthLoading = state => state.auth.loading;
 export const selectError = state => state.auth.error;
+
+// Permission selectors
+export const selectUserGroups = state => state.auth.user?.groups || [];
+export const selectIsAdmin = state => {
+  const groups = state.auth.user?.groups || [];
+  return groups.some(group => group.name === 'Administrators');
+};
+export const selectIsModerator = state => {
+  const groups = state.auth.user?.groups || [];
+  return groups.some(group => group.name === 'Moderators');
+};
+export const selectHasAdminAccess = state => {
+  const groups = state.auth.user?.groups || [];
+  return groups.some(group => group.name === 'Administrators' || group.name === 'Moderators');
+};
 
 export default authSlice.reducer;

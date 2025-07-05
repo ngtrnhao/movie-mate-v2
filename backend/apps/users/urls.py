@@ -20,7 +20,9 @@ from .views import (
     UserFavoriteGenreViewSet,
     UserFavoriteMovieViewSet,
     GoogleAuthView,
-    CustomTokenRefreshView
+    CustomTokenRefreshView,
+    AdminDashboardViewSet,
+    ModeratorDashboardViewSet
 )
 
 router = DefaultRouter()
@@ -30,6 +32,8 @@ router.register(r'watchlist', UserWatchlistViewSet, basename='user-watchlist')
 router.register(r'watchlist-items', UserWatchlistItemViewSet, basename='user-watchlist-item')
 router.register(r'favorite-genres', UserFavoriteGenreViewSet, basename='user-favorite-genre')
 router.register(r'favorite-movies', UserFavoriteMovieViewSet, basename='user-favorite-movie')
+router.register(r'admin-dashboard', AdminDashboardViewSet, basename='admin-dashboard')
+router.register(r'moderator-dashboard', ModeratorDashboardViewSet, basename='moderator-dashboard')
 
 urlpatterns = [
     path('', include(router.urls)),

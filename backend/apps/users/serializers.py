@@ -107,23 +107,49 @@ class UserSerializer(serializers.ModelSerializer):
     """
     Serializer for the User model, used for general user data responses.
     """
+    groups = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
             'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
+            'groups',
+        ]
+
+    def get_groups(self, obj):
+        """Get user groups for permission checking"""
+        return [
+            {
+                'id': group.id,
+                'name': group.name,
+                'permissions': list(group.permissions.values_list('codename', flat=True))
+            }
+            for group in obj.groups.all()
         ]
 
 class UserProfileSerializer(serializers.ModelSerializer):
     subscription_start_date = serializers.SerializerMethodField()
     subscription_end_date = serializers.SerializerMethodField()
+    groups = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
             'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
-            'subscription_start_date', 'subscription_end_date'
+            'subscription_start_date', 'subscription_end_date', 'groups'
+        ]
+
+    def get_groups(self, obj):
+        """Get user groups for permission checking"""
+        return [
+            {
+                'id': group.id,
+                'name': group.name,
+                'permissions': list(group.permissions.values_list('codename', flat=True))
+            }
+            for group in obj.groups.all()
         ]
         read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at', 'user_type', 'subscription_start_date', 'subscription_end_date']
 

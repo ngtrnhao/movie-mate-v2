@@ -20,12 +20,21 @@ from .serializers import (
     UserFavoriteGenreSerializer,
     UserFavoriteMovieSerializer,
     GoogleAuthSerializer
+
 )
 from .services import send_verification_email, send_password_reset_email
 from rest_framework.views import APIView
 import logging
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
+from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
+from apps.users.permissions import IsAdmin, IsModerator, IsModeratorOrAdmin, is_admin, is_moderator
+from apps.movies.models import MovieReview, Movie
+from apps.users.models import UserActivityLog, SearchHistory
+from apps.movies.serializers import MovieReviewSerializer
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +119,9 @@ class LoginView(generics.CreateAPIView):
                         status=status.HTTP_401_UNAUTHORIZED
                     )
 
-            if not user.is_email_verified:
+            # Bypass email verification for admin users
+            is_admin = user.groups.filter(name='Administrators').exists() or user.is_superuser
+            if not user.is_email_verified and not is_admin:
                 return Response(
                     {
                         "error": "Email not verified",
@@ -733,3 +744,206 @@ class CustomTokenRefreshView(TokenRefreshView):
                 },
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+class AdminDashboardViewSet(viewsets.ViewSet):
+    """
+    Admin dashboard views for system management
+    """
+    permission_classes = [IsAdmin]
+
+    @action(detail=False, methods=['get'])
+    def system_overview(self, request):
+        """Get system overview statistics"""
+        now = timezone.now()
+        last_30_days = now - timedelta(days=30)
+        last_7_days = now - timedelta(days=7)
+
+        # User statistics
+        total_users = User.objects.count()
+        new_users_30d = User.objects.filter(created_at__gte=last_30_days).count()
+        new_users_7d = User.objects.filter(created_at__gte=last_7_days).count()
+
+        # Content statistics
+        total_reviews = MovieReview.objects.filter(review_type='USER').count()
+        new_reviews_30d = MovieReview.objects.filter(
+            review_type='USER',
+            created_at__gte=last_30_days
+        ).count()
+        new_reviews_7d = MovieReview.objects.filter(
+            review_type='USER',
+            created_at__gte=last_7_days
+        ).count()
+
+        # Movie statistics
+        total_movies = Movie.objects.count()
+
+        # User type distribution
+        user_types = User.objects.values('user_type').annotate(
+            count=Count('id')
+        ).order_by('-count')
+
+        # Group statistics
+        admin_count = User.objects.filter(groups__name='Administrators').count()
+        moderator_count = User.objects.filter(groups__name='Moderators').count()
+
+        return Response({
+            'users': {
+                'total': total_users,
+                'new_30d': new_users_30d,
+                'new_7d': new_users_7d,
+                'types': user_types,
+                'admins': admin_count,
+                'moderators': moderator_count
+            },
+            'content': {
+                'total_reviews': total_reviews,
+                'new_reviews_30d': new_reviews_30d,
+                'new_reviews_7d': new_reviews_7d,
+                'total_movies': total_movies
+            }
+        })
+
+    @action(detail=False, methods=['get'])
+    def user_analytics(self, request):
+        """Get detailed user analytics"""
+        now = timezone.now()
+        last_30_days = now - timedelta(days=30)
+
+        # User growth over time
+        daily_signups = User.objects.filter(
+            created_at__gte=last_30_days
+        ).extra(
+            select={'date': 'DATE(created_at)'}
+        ).values('date').annotate(
+            count=Count('id')
+        ).order_by('date')
+
+        # User activity
+        active_users_30d = UserActivityLog.objects.filter(
+            created_at__gte=last_30_days
+        ).values('user').distinct().count()
+
+        # Top users by activity
+        top_active_users = UserActivityLog.objects.filter(
+            created_at__gte=last_30_days
+        ).values('user__username').annotate(
+            activity_count=Count('id')
+        ).order_by('-activity_count')[:10]
+
+        # Group distribution
+        group_stats = User.objects.values('groups__name').annotate(
+            count=Count('id')
+        ).filter(groups__name__isnull=False).order_by('-count')
+
+        return Response({
+            'daily_signups': daily_signups,
+            'active_users_30d': active_users_30d,
+            'top_active_users': top_active_users,
+            'group_stats': group_stats
+        })
+
+    @action(detail=False, methods=['get'])
+    def content_analytics(self, request):
+        """Get content analytics"""
+        now = timezone.now()
+        last_30_days = now - timedelta(days=30)
+
+        # Review statistics
+        reviews_by_rating = MovieReview.objects.filter(
+            review_type='USER'
+        ).values('rating').annotate(
+            count=Count('id')
+        ).order_by('rating')
+
+        # Reviews over time
+        daily_reviews = MovieReview.objects.filter(
+            review_type='USER',
+            created_at__gte=last_30_days
+        ).extra(
+            select={'date': 'DATE(created_at)'}
+        ).values('date').annotate(
+            count=Count('id')
+        ).order_by('date')
+
+        # Top reviewed movies
+        top_reviewed_movies = MovieReview.objects.filter(
+            review_type='USER'
+        ).values('movie__title').annotate(
+            review_count=Count('id')
+        ).order_by('-review_count')[:10]
+
+        # Language distribution
+        language_stats = MovieReview.objects.filter(
+            review_type='USER'
+        ).values('language').annotate(
+            count=Count('id')
+        ).order_by('-count')
+
+        return Response({
+            'reviews_by_rating': reviews_by_rating,
+            'daily_reviews': daily_reviews,
+            'top_reviewed_movies': top_reviewed_movies,
+            'language_stats': language_stats
+        })
+
+class ModeratorDashboardViewSet(viewsets.ViewSet):
+    """
+    Moderator dashboard views for content moderation
+    """
+    permission_classes = [IsModeratorOrAdmin]
+
+    @action(detail=False, methods=['get'])
+    def moderation_queue(self, request):
+        """Get reviews pending moderation"""
+        # Get recent reviews that might need attention
+        recent_reviews = MovieReview.objects.filter(
+            review_type='USER',
+            created_at__gte=timezone.now() - timedelta(days=7)
+        ).select_related('user', 'movie').order_by('-created_at')[:50]
+
+        return Response({
+            'reviews': MovieReviewSerializer(recent_reviews, many=True).data
+        })
+
+    @action(detail=False, methods=['get'])
+    def reported_content(self, request):
+        """Get reported content (placeholder for future implementation)"""
+        # This would integrate with a reporting system
+        return Response({
+            'reports': [],
+            'message': 'Reporting system not yet implemented'
+        })
+
+    @action(detail=False, methods=['get'])
+    def moderation_stats(self, request):
+        """Get moderation statistics"""
+        now = timezone.now()
+        last_30_days = now - timedelta(days=30)
+
+        # Reviews created in last 30 days
+        new_reviews = MovieReview.objects.filter(
+            review_type='USER',
+            created_at__gte=last_30_days
+        ).count()
+
+        # Reviews with low helpfulness (potential spam)
+        low_helpful_reviews = MovieReview.objects.filter(
+            review_type='USER',
+            total_votes__gte=5,  # At least 5 votes
+            helpful_votes__lt=models.F('total_votes') * 0.3  # Less than 30% helpful
+        ).count()
+
+        # Reviews by language
+        reviews_by_language = MovieReview.objects.filter(
+            review_type='USER',
+            created_at__gte=last_30_days
+        ).values('language').annotate(
+            count=Count('id')
+        ).order_by('-count')
+
+        return Response({
+            'new_reviews_30d': new_reviews,
+            'low_helpful_reviews': low_helpful_reviews,
+            'reviews_by_language': reviews_by_language,
+            'moderation_actions': 0  # Placeholder for future implementation
+        })

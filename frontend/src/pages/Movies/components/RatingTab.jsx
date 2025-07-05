@@ -12,6 +12,10 @@ import {
 } from '../../../api/movieService';
 import ReviewActions from '../../../components/common/ReviewActions';
 import ReplySection from '../../../components/common/ReplySection';
+import { useSpoilerDetection } from '../../../hooks/useSpoilerDetection';
+import SpoilerDetectionAlert from '../../../components/common/SpoilerDetectionAlert';
+import ModerationNotification from '../../../components/common/ModerationNotification';
+import SpoilerBadge from '../../../components/common/SpoilerBadge';
 
 const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showLabel = false }) => {
   const [hoverRating, setHoverRating] = useState(0);
@@ -107,6 +111,36 @@ const RatingTab = ({ movieId }) => {
   const [showSpoilers, setShowSpoilers] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
   const [userReview, setUserReview] = useState(null);
+  const [isSpoiler, setIsSpoiler] = useState(false);
+
+  // Spoiler detection hook
+  const {
+    isAnalyzing,
+    detectionResult,
+    error: spoilerError,
+    analyzeContentDebounced,
+    clearAnalysis,
+    shouldAutoMark,
+    shouldShowWarning,
+    getAdvancedClassification,
+  } = useSpoilerDetection('vi', ''); // Default to Vietnamese
+
+  // Get current classification for background processing
+  const currentResult = detectionResult || null;
+  const reviewClassification = getAdvancedClassification(currentResult, ratingComment);
+
+  // Auto-hide moderation notification after 5 seconds
+  const [showModerationNotification, setShowModerationNotification] = useState(false);
+
+  useEffect(() => {
+    if (reviewClassification?.action === 'moderation_required' && detectionResult) {
+      setShowModerationNotification(true);
+      const timer = setTimeout(() => {
+        setShowModerationNotification(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [reviewClassification?.action, detectionResult]);
 
   useEffect(() => {
     fetchReviews();
@@ -191,7 +225,7 @@ const RatingTab = ({ movieId }) => {
           content: ratingComment.trim(),
           rating: userRating,
           is_public: true,
-          is_spoiler: false,
+          is_spoiler: isSpoiler || shouldAutoMark,
         };
 
         if (userReview && userReview.id) {
@@ -370,18 +404,66 @@ const RatingTab = ({ movieId }) => {
             />
             <textarea
               value={ratingComment}
-              onChange={e => setRatingComment(e.target.value)}
+              onChange={e => {
+                const newContent = e.target.value;
+                setRatingComment(newContent);
+
+                // Trigger spoiler detection on content change
+                if (newContent.trim().length >= 10) {
+                  analyzeContentDebounced(newContent);
+                } else {
+                  clearAnalysis();
+                }
+              }}
               placeholder={getPlaceholderText(userRating)}
               className="w-full resize-none rounded-lg bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
               rows="3"
               maxLength={500}
             />
+
+            {/* Spoiler Detection Alert - Only show for user confirmation */}
+            {reviewClassification?.action === 'user_confirmation' && detectionResult && (
+              <SpoilerDetectionAlert
+                detectionResult={detectionResult}
+                isAnalyzing={isAnalyzing}
+                onMarkAsSpoiler={() => setIsSpoiler(true)}
+                onDismiss={clearAnalysis}
+                onReviewContent={() => {
+                  // Focus back to textarea for review
+                  const textarea = document.querySelector('textarea');
+                  if (textarea) textarea.focus();
+                }}
+              />
+            )}
+
+            {/* Moderation Notification - Show briefly when review is sent to moderation */}
+            {showModerationNotification &&
+              reviewClassification?.action === 'moderation_required' && (
+                <ModerationNotification
+                  classification={reviewClassification}
+                  onDismiss={() => setShowModerationNotification(false)}
+                />
+              )}
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="text-xs text-gray-400">{ratingComment.length} / 500</span>
                 {ratingComment.length > 0 && ratingComment.length < 10 && (
                   <span className="text-xs text-red-400">Đánh giá phải có ít nhất 10 ký tự</span>
                 )}
+              </div>
+
+              {/* Spoiler Checkbox */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="spoiler-checkbox"
+                  checked={isSpoiler}
+                  onChange={e => setIsSpoiler(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800"
+                />
+                <label htmlFor="spoiler-checkbox" className="text-sm text-gray-300">
+                  Chứa spoiler
+                </label>
               </div>
               <button
                 onClick={handleSubmitRating}
@@ -479,12 +561,7 @@ const RatingTab = ({ movieId }) => {
                           year: 'numeric',
                         })}
                       </span>
-                      {isSpoiler && (
-                        <span className="flex items-center gap-1 rounded bg-orange-500/20 px-2 py-1 text-xs text-orange-400">
-                          <AlertTriangle size={12} />
-                          Spoiler
-                        </span>
-                      )}
+                      <SpoilerBadge isSpoiler={isSpoiler} size="sm" />
                     </div>
 
                     {/* Show rating if available */}

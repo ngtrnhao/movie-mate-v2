@@ -7,6 +7,9 @@ import {
   getMyReviews,
 } from '../../../api/movieService';
 import ReviewActions from '../../../components/common/ReviewActions';
+import { useSpoilerDetection } from '../../../hooks/useSpoilerDetection';
+import SpoilerDetectionAlert from '../../../components/common/SpoilerDetectionAlert';
+import SpoilerBadge from '../../../components/common/SpoilerBadge';
 import { useSelector } from 'react-redux';
 
 const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showLabel = false }) => {
@@ -67,9 +70,21 @@ const CommentTab = ({ movieId }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [showSpoilers, setShowSpoilers] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [isSpoiler, setIsSpoiler] = useState(false);
 
   // Get auth state from Redux store
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+
+  // Spoiler detection hook
+  const {
+    isAnalyzing,
+    detectionResult,
+    error: spoilerError,
+    analyzeContentDebounced,
+    clearAnalysis,
+    shouldAutoMark,
+    shouldShowWarning,
+  } = useSpoilerDetection('vi', ''); // Default to Vietnamese
 
   useEffect(() => {
     fetchReviews();
@@ -176,7 +191,7 @@ const CommentTab = ({ movieId }) => {
           content: newComment.trim(),
           rating: null,
           is_public: true,
-          is_spoiler: false,
+          is_spoiler: isSpoiler || shouldAutoMark,
         };
 
         await submitMovieReview(movieId, reviewData);
@@ -200,11 +215,34 @@ const CommentTab = ({ movieId }) => {
         <div className="space-y-3">
           <textarea
             value={newComment}
-            onChange={e => setNewComment(e.target.value)}
+            onChange={e => {
+              const newContent = e.target.value;
+              setNewComment(newContent);
+
+              // Trigger spoiler detection on content change
+              if (newContent.trim().length >= 10) {
+                analyzeContentDebounced(newContent);
+              } else {
+                clearAnalysis();
+              }
+            }}
             placeholder="Chia sẻ suy nghĩ chi tiết của bạn về bộ phim (ít nhất 10 ký tự)..."
             className="w-full resize-none rounded-lg bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
             rows="3"
             maxLength={500}
+          />
+
+          {/* Spoiler Detection Alert */}
+          <SpoilerDetectionAlert
+            detectionResult={detectionResult}
+            isAnalyzing={isAnalyzing}
+            onMarkAsSpoiler={() => setIsSpoiler(true)}
+            onDismiss={clearAnalysis}
+            onReviewContent={() => {
+              // Focus back to textarea for review
+              const textarea = document.querySelector('textarea');
+              if (textarea) textarea.focus();
+            }}
           />
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -212,6 +250,20 @@ const CommentTab = ({ movieId }) => {
               {newComment.length > 0 && newComment.length < 10 && (
                 <span className="text-xs text-red-400">Bình luận phải có ít nhất 10 ký tự</span>
               )}
+            </div>
+
+            {/* Spoiler Checkbox */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="spoiler-checkbox-comment"
+                checked={isSpoiler}
+                onChange={e => setIsSpoiler(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800"
+              />
+              <label htmlFor="spoiler-checkbox-comment" className="text-sm text-gray-300">
+                Chứa spoiler
+              </label>
             </div>
             <button
               onClick={handleSubmitComment}
@@ -282,12 +334,7 @@ const CommentTab = ({ movieId }) => {
                           year: 'numeric',
                         })}
                       </span>
-                      {isSpoiler && (
-                        <span className="flex items-center gap-1 rounded bg-orange-500/20 px-2 py-1 text-xs text-orange-400">
-                          <AlertTriangle size={12} />
-                          Spoiler
-                        </span>
-                      )}
+                      <SpoilerBadge isSpoiler={isSpoiler} size="sm" />
                     </div>
 
                     {/* Show rating if available */}

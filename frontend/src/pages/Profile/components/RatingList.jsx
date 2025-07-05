@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Clock, ThumbsUp, MessageCircle, Filter, SortAsc, Grid, List } from 'lucide-react';
+import {
+  Star,
+  Clock,
+  ThumbsUp,
+  MessageCircle,
+  Filter,
+  SortAsc,
+  Grid,
+  List,
+  AlertTriangle,
+} from 'lucide-react';
+import SpoilerBadge from '../../../components/common/SpoilerBadge';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getUserRatings } from '../../../api/profileService';
 import { useInView } from 'react-intersection-observer';
@@ -63,6 +74,7 @@ const RatingCard = ({ rating, viewMode = 'list' }) => {
           {rating.content && (
             <p className="text-gray-300 text-sm line-clamp-2 mt-2">{rating.content}</p>
           )}
+          <SpoilerBadge isSpoiler={rating.is_spoiler} size="xs" />
         </div>
       </div>
     );
@@ -139,6 +151,11 @@ const RatingCard = ({ rating, viewMode = 'list' }) => {
           {rating.content && (
             <>
               <p className="text-gray-300 line-clamp-3">{rating.content}</p>
+
+              {/* Spoiler Badge */}
+              <div className="mt-3">
+                <SpoilerBadge isSpoiler={rating.is_spoiler} size="sm" />
+              </div>
 
               {/* Review Stats */}
               <div className="flex items-center gap-6 mt-4 text-sm text-gray-400">

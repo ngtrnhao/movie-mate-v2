@@ -25,6 +25,9 @@ import { rehydrateAuth } from './store/slices/authSlice';
 import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
+import AdminDashboard from './pages/Admin/Dashboard';
+import ModeratorDashboard from './pages/Moderator/Dashboard';
+import AdminAccessGuard from './components/auth/AdminAccessGuard';
 import './utils/testFavorites'; // Import for browser console access
 import { Provider } from 'react-redux';
 import store from './store';
@@ -154,6 +157,30 @@ function App() {
                     <Route path="/reset-password" element={<ResetPasswordForm />} />
                   </Route>
 
+                  {/* Admin Routes - Separate from main layout */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <PrivateRoute>
+                        <AdminAccessGuard requiredRole="admin">
+                          <AdminDashboard />
+                        </AdminAccessGuard>
+                      </PrivateRoute>
+                    }
+                  />
+
+                  {/* Moderator Routes - Separate from main layout */}
+                  <Route
+                    path="/moderator"
+                    element={
+                      <PrivateRoute>
+                        <AdminAccessGuard requiredRole="moderator">
+                          <ModeratorDashboard />
+                        </AdminAccessGuard>
+                      </PrivateRoute>
+                    }
+                  />
+
                   {/* Main App Routes */}
                   <Route
                     path="/*"
@@ -184,6 +211,7 @@ function App() {
                                 </PrivateRoute>
                               }
                             />
+
                             <Route path="*" element={<ErrorPage />} />
                           </Routes>
                         </main>

@@ -19,6 +19,7 @@ import hashlib
 from django.utils import timezone
 from datetime import timedelta
 from .services.search_service import MovieSearchService
+from .services.spoiler_detection_service import spoiler_detector
 logger = logging.getLogger(__name__)
 
 class OptimizedMovieViewSet(viewsets.ModelViewSet):
@@ -1189,16 +1190,16 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
         # Sort options
         sort_by = self.request.query_params.get('sort_by', 'created_at')
-        if sort_by == 'rating':
+        if sort_by == 'helpful':
+            queryset = queryset.order_by('-helpful_votes', '-total_votes')
+        elif sort_by == 'rating':
             queryset = queryset.order_by('-rating', '-created_at')
-        elif sort_by == 'helpful':
-            queryset = queryset.order_by('-helpful_votes', '-created_at')
         elif sort_by == 'recent':
             queryset = queryset.order_by('-created_at')
         else:
             queryset = queryset.order_by('-created_at')
 
-        return queryset.select_related('user', 'movie')
+        return queryset
 
     def get_serializer_class(self):
         """Use different serializers for different actions"""
@@ -1424,4 +1425,243 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             'count': len(replies),
             'data': serializer.data
         })
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def detect_spoilers(self, request):
+        """
+        Detect spoilers in review content before submission
+        """
+        content = request.data.get('content', '')
+        language = request.data.get('language', 'en')
+        movie_title = request.data.get('movie_title', '')
+
+        if not content:
+            return Response({
+                'error': 'Content is required'
+            }, status=400)
+
+        try:
+            # Run spoiler detection
+            result = spoiler_detector.detect_spoilers(content, language, movie_title)
+
+            return Response({
+                'is_spoiler': result.is_spoiler,
+                'confidence': result.confidence,
+                'detected_patterns': result.detected_patterns,
+                'spoiler_indicators': result.spoiler_indicators,
+                'explanation': result.explanation,
+                'suggested_action': result.suggested_action,
+                'recommendation': self._get_spoiler_recommendation(result)
+            })
+
+        except Exception as e:
+            logger.error(f"Error in spoiler detection: {str(e)}")
+            return Response({
+                'error': 'Error during spoiler detection'
+            }, status=500)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def analyze_spoiler(self, request, pk=None):
+        """
+        Analyze existing review for spoiler detection
+        """
+        try:
+            review = self.get_object()
+
+            # Run spoiler detection on existing review
+            result = spoiler_detector.detect_spoilers(
+                review.content,
+                review.language,
+                review.movie.title if review.movie else None
+            )
+
+            # Update review if detection suggests it should be marked as spoiler
+            if result.is_spoiler and not review.is_spoiler:
+                review.is_spoiler = True
+                review.save()
+
+            return Response({
+                'review_id': review.id,
+                'current_is_spoiler': review.is_spoiler,
+                'detection_result': {
+                    'is_spoiler': result.is_spoiler,
+                    'confidence': result.confidence,
+                    'detected_patterns': result.detected_patterns,
+                    'spoiler_indicators': result.spoiler_indicators,
+                    'explanation': result.explanation,
+                    'suggested_action': result.suggested_action
+                },
+                'was_updated': result.is_spoiler and not review.is_spoiler
+            })
+
+        except Exception as e:
+            logger.error(f"Error analyzing spoiler for review {pk}: {str(e)}")
+            return Response({
+                'error': 'Error analyzing review for spoilers'
+            }, status=500)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def spoiler_statistics(self, request):
+        """
+        Get spoiler detection statistics for reviews
+        """
+        try:
+            # Get user's reviews or all reviews if admin
+            if request.user.is_staff:
+                reviews = MovieReview.objects.filter(review_type='USER')
+            else:
+                reviews = MovieReview.objects.filter(user=request.user, review_type='USER')
+
+            # Convert to list for statistics
+            review_list = []
+            for review in reviews:
+                review_data = {
+                    'id': review.id,
+                    'is_spoiler': review.is_spoiler,
+                    'content': review.content,
+                    'language': review.language,
+                    'movie_title': review.movie.title if review.movie else None
+                }
+
+                # Add detection result if available
+                try:
+                    result = spoiler_detector.detect_spoilers(
+                        review.content,
+                        review.language,
+                        review.movie.title if review.movie else None
+                    )
+                    review_data['detection_result'] = {
+                        'confidence': result.confidence,
+                        'detected_patterns': result.detected_patterns,
+                        'spoiler_indicators': result.spoiler_indicators
+                    }
+                except:
+                    review_data['detection_result'] = None
+
+                review_list.append(review_data)
+
+            # Generate statistics
+            stats = spoiler_detector.get_spoiler_statistics(review_list)
+
+            return Response({
+                'statistics': stats,
+                'total_reviews_analyzed': len(review_list)
+            })
+
+        except Exception as e:
+            logger.error(f"Error generating spoiler statistics: {str(e)}")
+            return Response({
+                'error': 'Error generating spoiler statistics'
+            }, status=500)
+
+    def _get_spoiler_recommendation(self, result):
+        """Get user-friendly recommendation based on detection result"""
+        if result.confidence > 0.8:
+            return {
+                'action': 'mark_spoiler',
+                'message': 'Nội dung này có khả năng cao chứa spoiler. Bạn nên đánh dấu là spoiler.',
+                'severity': 'high'
+            }
+        elif result.confidence > 0.6:
+            return {
+                'action': 'suggest_spoiler',
+                'message': 'Nội dung này có thể chứa spoiler. Bạn có muốn đánh dấu là spoiler không?',
+                'severity': 'medium'
+            }
+        elif result.confidence > 0.4:
+            return {
+                'action': 'review_content',
+                'message': 'Nội dung này có một số dấu hiệu spoiler. Hãy kiểm tra lại.',
+                'severity': 'low'
+            }
+        else:
+            return {
+                'action': 'proceed',
+                'message': 'Nội dung này không có dấu hiệu spoiler rõ ràng.',
+                'severity': 'none'
+            }
+
+    def create(self, request, *args, **kwargs):
+        """
+        Create a new review with automatic spoiler detection
+        """
+        # Get the content for spoiler detection
+        content = request.data.get('content', '')
+        language = request.data.get('language', 'en')
+        movie_id = request.data.get('movie')
+
+        # Get movie title for context
+        movie_title = ''
+        if movie_id:
+            try:
+                movie = Movie.objects.get(id=movie_id)
+                movie_title = movie.title
+            except Movie.DoesNotExist:
+                pass
+
+        # Run spoiler detection
+        spoiler_result = None
+        if content:
+            try:
+                spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
+
+                # Auto-mark as spoiler if high confidence
+                if spoiler_result.confidence > 0.8:
+                    request.data['is_spoiler'] = True
+
+            except Exception as e:
+                logger.error(f"Error in spoiler detection during review creation: {str(e)}")
+
+        # Create the review
+        response = super().create(request, *args, **kwargs)
+
+        # Add spoiler detection info to response
+        if spoiler_result:
+            response.data['spoiler_detection'] = {
+                'was_detected': spoiler_result.is_spoiler,
+                'confidence': spoiler_result.confidence,
+                'explanation': spoiler_result.explanation,
+                'auto_marked': spoiler_result.confidence > 0.8
+            }
+
+        return response
+
+    def update(self, request, *args, **kwargs):
+        """
+        Update review with automatic spoiler detection
+        """
+        # Get the content for spoiler detection
+        content = request.data.get('content', '')
+        language = request.data.get('language', 'en')
+
+        # Get existing review for movie title
+        review = self.get_object()
+        movie_title = review.movie.title if review.movie else ''
+
+        # Run spoiler detection
+        spoiler_result = None
+        if content:
+            try:
+                spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
+
+                # Auto-mark as spoiler if high confidence
+                if spoiler_result.confidence > 0.8:
+                    request.data['is_spoiler'] = True
+
+            except Exception as e:
+                logger.error(f"Error in spoiler detection during review update: {str(e)}")
+
+        # Update the review
+        response = super().update(request, *args, **kwargs)
+
+        # Add spoiler detection info to response
+        if spoiler_result:
+            response.data['spoiler_detection'] = {
+                'was_detected': spoiler_result.is_spoiler,
+                'confidence': spoiler_result.confidence,
+                'explanation': spoiler_result.explanation,
+                'auto_marked': spoiler_result.confidence > 0.8
+            }
+
+        return response
 

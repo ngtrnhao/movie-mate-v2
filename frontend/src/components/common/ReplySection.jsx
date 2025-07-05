@@ -3,6 +3,8 @@ import { Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { replyToReview, getReviewReplies } from '../../api/movieService';
 import ReviewActions from './ReviewActions';
+import { useSpoilerDetection } from '../../hooks/useSpoilerDetection';
+import SpoilerDetectionAlert from './SpoilerDetectionAlert';
 
 const ReplySection = ({ review, onReplySuccess }) => {
   const [showReplies, setShowReplies] = useState(false);
@@ -12,9 +14,21 @@ const ReplySection = ({ review, onReplySuccess }) => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [isSpoiler, setIsSpoiler] = useState(false);
 
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   const user = useSelector(state => state.auth.user);
+
+  // Spoiler detection hook
+  const {
+    isAnalyzing,
+    detectionResult,
+    error: spoilerError,
+    analyzeContentDebounced,
+    clearAnalysis,
+    shouldAutoMark,
+    shouldShowWarning,
+  } = useSpoilerDetection('vi', '');
 
   const fetchReplies = async () => {
     if (loading) return;
@@ -69,7 +83,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
         content: replyText.trim(),
         language: 'vi',
         is_public: true,
-        is_spoiler: false,
+        is_spoiler: isSpoiler || shouldAutoMark,
       };
 
       const response = await replyToReview(review.id, replyData);
@@ -146,12 +160,36 @@ const ReplySection = ({ review, onReplySuccess }) => {
           <div className="mb-3">
             <textarea
               value={replyText}
-              onChange={e => setReplyText(e.target.value)}
+              onChange={e => {
+                const newContent = e.target.value;
+                setReplyText(newContent);
+
+                // Trigger spoiler detection on content change
+                if (newContent.trim().length >= 5) {
+                  analyzeContentDebounced(newContent);
+                } else {
+                  clearAnalysis();
+                }
+              }}
               placeholder="Viết phản hồi của bạn (ít nhất 5 ký tự)..."
               className="w-full p-3 bg-gray-700 text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows="3"
               maxLength={500}
             />
+
+            {/* Spoiler Detection Alert */}
+            <SpoilerDetectionAlert
+              detectionResult={detectionResult}
+              isAnalyzing={isAnalyzing}
+              onMarkAsSpoiler={() => setIsSpoiler(true)}
+              onDismiss={clearAnalysis}
+              onReviewContent={() => {
+                // Focus back to textarea for review
+                const textarea = document.querySelector('textarea');
+                if (textarea) textarea.focus();
+              }}
+            />
+
             <div className="flex items-center justify-between mt-2">
               <span className="text-xs text-gray-400">{replyText.length}/500</span>
               {error && <span className="text-xs text-red-400">{error}</span>}
@@ -159,6 +197,20 @@ const ReplySection = ({ review, onReplySuccess }) => {
           </div>
 
           <div className="flex items-center gap-2 justify-end">
+            {/* Spoiler Checkbox */}
+            <div className="flex items-center space-x-2 mr-auto">
+              <input
+                type="checkbox"
+                id="spoiler-checkbox-reply"
+                checked={isSpoiler}
+                onChange={e => setIsSpoiler(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800"
+              />
+              <label htmlFor="spoiler-checkbox-reply" className="text-sm text-gray-300">
+                Chứa spoiler
+              </label>
+            </div>
+
             <button
               onClick={handleToggleReplyForm}
               disabled={submitting}

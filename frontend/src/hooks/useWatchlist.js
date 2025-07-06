@@ -7,7 +7,6 @@ import {
   removeFromWatchlist,
   updateWatchlistStatus,
   clearError,
-  clearWatchlist,
 } from '../store/slices/watchlistSlice';
 import {
   selectWatchlistItems,
@@ -15,8 +14,6 @@ import {
   selectWatchlistError,
   selectWatchlistInitialized,
   selectWatchlistMovieIdsSet,
-  selectWatchlistByStatus,
-  selectWatchlistItemByMovieId,
   selectWatchlistCount,
   selectAllWatchlists,
 } from '../store/selectors/watchlistSelectors';

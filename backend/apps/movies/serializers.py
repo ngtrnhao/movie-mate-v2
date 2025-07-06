@@ -458,6 +458,7 @@ class MovieReviewSerializer(serializers.ModelSerializer):
     Serializer for MovieReview model
     """
     user = UserSerializer(read_only=True)
+    movie = MovieSerializer(read_only=True)  # Include full movie details
     reviewer_name = serializers.CharField(read_only=True)
     reviewer_avatar = serializers.CharField(read_only=True)
     is_verified_reviewer = serializers.BooleanField(read_only=True)
@@ -887,3 +888,50 @@ class ReviewReportSerializer(serializers.ModelSerializer):
         model = ReviewReport
         fields = ['id', 'review', 'reported_by', 'reason', 'description', 'created_at']
         read_only_fields = ['id', 'reported_by', 'created_at']
+
+class ModerationQueueReviewSerializer(serializers.ModelSerializer):
+    """
+    Serializer for moderation queue with full movie details
+    """
+    user = UserSerializer(read_only=True)
+    movie = MovieSerializer(read_only=True)  # Include full movie details
+    reviewer_name = serializers.CharField(read_only=True)
+    reviewer_avatar = serializers.CharField(read_only=True)
+    is_verified_reviewer = serializers.BooleanField(read_only=True)
+    helpfulness_ratio = serializers.SerializerMethodField()
+    moderation_analysis = serializers.SerializerMethodField()
+    report_summary = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MovieReview
+        fields = [
+            'id', 'movie', 'user', 'title', 'content', 'rating',
+            'review_type', 'language', 'is_public', 'is_spoiler',
+            'helpful_votes', 'total_votes', 'helpfulness_ratio',
+            'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
+            'is_approved', 'moderated_by', 'moderated_at', 'moderation_reason',
+            'moderation_analysis', 'created_at', 'updated_at', 'report_summary'
+        ]
+        read_only_fields = [
+            'id', 'user', 'movie', 'helpful_votes', 'total_votes', 'helpfulness_ratio',
+            'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
+            'moderation_analysis', 'created_at', 'updated_at'
+        ]
+
+    def get_helpfulness_ratio(self, obj):
+        """Calculate helpfulness ratio"""
+        return obj.get_helpfulness_ratio()
+
+    def get_moderation_analysis(self, obj):
+        """Get moderation analysis for this review"""
+        # Only return moderation analysis if it exists (added by moderation_queue)
+        if hasattr(obj, 'moderation_analysis'):
+            return obj.moderation_analysis
+        return None
+
+    def get_report_summary(self, obj):
+        """Get report summary for this review"""
+        # Only return report summary if it exists (added by reports_for_moderation)
+        if hasattr(obj, 'report_summary'):
+            return obj.report_summary
+        return None

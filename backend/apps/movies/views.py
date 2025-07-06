@@ -13,7 +13,7 @@ from django.db.models.functions import Greatest, Coalesce, Cast
 from django.core.paginator import Paginator
 from django.db import models
 from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer, ReviewReport
-from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer, ReviewReportSerializer
+from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer, ReviewReportSerializer, ModerationQueueReviewSerializer
 import logging
 import hashlib
 from django.utils import timezone
@@ -1718,7 +1718,7 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             end = start + page_size
             paginated_reviews = reviews_with_analysis[start:end]
 
-            serializer = MovieReviewSerializer(paginated_reviews, many=True, context={'request': request})
+            serializer = ModerationQueueReviewSerializer(paginated_reviews, many=True, context={'request': request})
 
             # Calculate stats
             priority_stats = {
@@ -1746,6 +1746,428 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             logger.error(f"Error in moderation queue: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def unified_moderation_queue(self, request):
+        """
+        OPTIMIZED: Get unified moderation queue with performance improvements
+        Returns data suitable for both QueueList and KanbanBoard views
+
+        PERFORMANCE OPTIMIZATIONS:
+        1. Limited to last 30 days by default to reduce dataset size
+        2. Reduced max page size from 100 to 50 items per page
+        3. Uses database aggregation instead of individual queries
+        4. Only processes already-marked spoilers (no expensive detection)
+        5. Limited spoiler reviews to max 100 most recent items
+        6. Uses select_related for efficient joins
+        7. Only adds full review_data for paginated items
+        8. Simplified kanban status determination
+        """
+        try:
+            # Check if user is moderator or admin
+            if not request.user.is_staff and not request.user.groups.filter(name__in=['Moderators', 'Administrators']).exists():
+                return Response({
+                    'status': 'error',
+                    'message': 'Permission denied'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Get filter parameters
+            priority = request.query_params.get('priority', 'all')
+            type_filter = request.query_params.get('type', 'all')
+            status_filter = request.query_params.get('status', 'all')
+            language = request.query_params.get('language', '')
+            date_from = request.query_params.get('date_from', '')
+            date_to = request.query_params.get('date_to', '')
+            page = int(request.query_params.get('page', 1))
+            page_size = min(int(request.query_params.get('page_size', 20)), 50)  # Reduced max page size
+
+            # OPTIMIZATION 1: Limit time range to recent items (last 30 days if no date filter)
+            from datetime import timedelta
+            if not date_from and not date_to:
+                date_from = timezone.now() - timedelta(days=30)
+
+            moderation_tasks = []
+
+            # OPTIMIZATION 2: Get reported reviews first (they have higher priority)
+            reported_reviews_query = ReviewReport.objects.select_related(
+                'review__user', 'review__movie', 'reported_by'
+            ).filter(
+                review__is_approved__isnull=True,
+                review__review_type='USER',
+                review__is_public=True
+            )
+
+            # Apply date filters
+            if date_from:
+                reported_reviews_query = reported_reviews_query.filter(created_at__gte=date_from)
+            if date_to:
+                reported_reviews_query = reported_reviews_query.filter(created_at__lte=date_to)
+
+            # OPTIMIZATION 3: Use aggregation to get report stats
+            from django.db.models import Count, Q
+            reported_reviews_data = reported_reviews_query.values(
+                'review_id',
+                'review__user__username',
+                'review__movie__title',
+                'review__content',
+                'review__created_at',
+                'review__language',
+                'review__is_spoiler',
+                'review__is_approved',
+                'review__moderated_by'
+            ).annotate(
+                report_count=Count('id'),
+                abuse_count=Count('id', filter=Q(reason='abuse')),
+                offensive_count=Count('id', filter=Q(reason='offensive')),
+                spam_count=Count('id', filter=Q(reason='spam'))
+            )
+
+            # Convert reported reviews to tasks
+            for item in reported_reviews_data:
+                # Calculate priority based on report count and reasons
+                priority_level = 'low'
+                if (item['report_count'] >= 3 or
+                    item['abuse_count'] > 0 or
+                    item['offensive_count'] > 0):
+                    priority_level = 'high'
+                elif item['report_count'] >= 2 or item['spam_count'] > 0:
+                    priority_level = 'medium'
+
+                # Determine if also has spoiler issues
+                task_type = 'report'
+                moderation_reasons = ['user_reported']
+
+                if item['review__is_spoiler']:
+                    task_type = 'both'
+                    moderation_reasons.append('marked_spoiler')
+                    priority_level = 'high'  # Reported + spoiler = highest priority
+
+                # Determine actual status based on moderation state
+                kanban_status = 'backlog'
+                if item.get('review__is_approved') is True:
+                    kanban_status = 'completed'
+                elif item.get('review__is_approved') is False:
+                    kanban_status = 'completed'  # Rejected is also completed
+                elif item.get('review__moderated_by'):
+                    kanban_status = 'in_progress'
+
+                task = {
+                    'id': f'report_{item["review_id"]}',
+                    'type': task_type,
+                    'priority': priority_level,
+                    'status': kanban_status,
+                    'title': f'Reported: {item["review__movie__title"] or "Unknown Movie"}',
+                    'content': (item['review__content'][:200] + '...') if len(item['review__content'] or '') > 200 else (item['review__content'] or ''),
+                    'user': item['review__user__username'],
+                    'movie_title': item['review__movie__title'],
+                    'created_at': item['review__created_at'].isoformat(),
+                    'language': item['review__language'],
+                    'report_count': item['report_count'],
+                    'moderation_reasons': moderation_reasons,
+                }
+                moderation_tasks.append(task)
+
+            # OPTIMIZATION 4: Only get spoiler reviews that aren't already reported
+            reported_review_ids = {item['review_id'] for item in reported_reviews_data}
+
+            spoiler_reviews = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=True,
+                is_spoiler=True  # Only get already marked spoilers to avoid expensive detection
+            ).exclude(
+                id__in=reported_review_ids  # Exclude already processed reported reviews
+            ).select_related('user', 'movie')
+
+            # Apply filters
+            if date_from:
+                spoiler_reviews = spoiler_reviews.filter(created_at__gte=date_from)
+            if date_to:
+                spoiler_reviews = spoiler_reviews.filter(created_at__lte=date_to)
+            if language:
+                spoiler_reviews = spoiler_reviews.filter(language=language)
+
+            # OPTIMIZATION 5: Limit to most recent 100 spoiler reviews
+            spoiler_reviews = spoiler_reviews.order_by('-created_at')[:100]
+
+            # Process spoiler reviews (no expensive detection needed)
+            for review in spoiler_reviews:
+                # Determine actual status based on moderation state
+                kanban_status = 'backlog'
+                if review.is_approved is True:
+                    kanban_status = 'completed'
+                elif review.is_approved is False:
+                    kanban_status = 'completed'  # Rejected is also completed
+                elif review.moderated_by:
+                    kanban_status = 'in_progress'
+
+                task = {
+                    'id': f'review_{review.id}',
+                    'type': 'spoiler',
+                    'priority': 'high',  # Marked spoilers are high priority
+                    'status': kanban_status,
+                    'title': f'Spoiler: {review.movie.title if review.movie else "Unknown Movie"}',
+                    'content': review.content[:200] + '...' if len(review.content) > 200 else review.content,
+                    'user': review.user.username,
+                    'movie_title': review.movie.title if review.movie else None,
+                    'created_at': review.created_at.isoformat(),
+                    'language': review.language,
+                    'moderation_reasons': ['marked_spoiler'],
+                }
+                moderation_tasks.append(task)
+
+            # --- NEW LOGIC: Add reviews with spoiler confidence > 0.6 (not marked, not reported) ---
+            unmarked_reviews = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=True,
+                is_spoiler=False
+            ).exclude(
+                id__in=reported_review_ids
+            ).exclude(
+                id__in=spoiler_reviews.values_list('id', flat=True)
+            ).select_related('user', 'movie')
+
+            # Apply filters
+            if date_from:
+                unmarked_reviews = unmarked_reviews.filter(created_at__gte=date_from)
+            if date_to:
+                unmarked_reviews = unmarked_reviews.filter(created_at__lte=date_to)
+            if language:
+                unmarked_reviews = unmarked_reviews.filter(language=language)
+
+            # Limit to 200 for performance
+            unmarked_reviews = unmarked_reviews.order_by('-created_at')[:200]
+
+            for review in unmarked_reviews:
+                try:
+                    spoiler_result = spoiler_detector.detect_spoilers(
+                        review.content,
+                        review.language,
+                        review.movie.title if review.movie else None
+                    )
+                    if spoiler_result.confidence > 0.6:
+                        # Determine priority
+                        if spoiler_result.confidence > 0.8:
+                            priority_level = 'high'
+                        else:
+                            priority_level = 'medium'
+                        kanban_status = 'backlog'
+                        if review.is_approved is True:
+                            kanban_status = 'completed'
+                        elif review.is_approved is False:
+                            kanban_status = 'completed'
+                        elif review.moderated_by:
+                            kanban_status = 'in_progress'
+                        task = {
+                            'id': f'review_{review.id}',
+                            'type': 'spoiler',
+                            'priority': priority_level,
+                            'status': kanban_status,
+                            'title': f'Spoiler: {review.movie.title if review.movie else "Unknown Movie"}',
+                            'content': review.content[:200] + '...' if len(review.content) > 200 else review.content,
+                            'user': review.user.username,
+                            'movie_title': review.movie.title if review.movie else None,
+                            'created_at': review.created_at.isoformat(),
+                            'language': review.language,
+                            'moderation_reasons': ['auto_detected_spoiler'],
+                            'spoiler_confidence': spoiler_result.confidence,
+                        }
+                        moderation_tasks.append(task)
+                except Exception as e:
+                    logger.error(f"Error running spoiler detection for review {review.id}: {str(e)}")
+
+            # --- EXISTING CODE: Get reported reviews and marked spoilers ---
+            # ... existing code ...
+            # OPTIMIZATION 4: Only get spoiler reviews that aren't already reported
+            reported_review_ids = {item['review_id'] for item in reported_reviews_data}
+
+            spoiler_reviews = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=True,
+                is_spoiler=True  # Only get already marked spoilers to avoid expensive detection
+            ).exclude(
+                id__in=reported_review_ids  # Exclude already processed reported reviews
+            ).select_related('user', 'movie')
+
+            # Apply filters
+            if date_from:
+                spoiler_reviews = spoiler_reviews.filter(created_at__gte=date_from)
+            if date_to:
+                spoiler_reviews = spoiler_reviews.filter(created_at__lte=date_to)
+            if language:
+                spoiler_reviews = spoiler_reviews.filter(language=language)
+
+            # OPTIMIZATION 5: Limit to most recent 100 spoiler reviews
+            spoiler_reviews = spoiler_reviews.order_by('-created_at')[:100]
+
+            # Process spoiler reviews (no expensive detection needed)
+            for review in spoiler_reviews:
+                # Determine actual status based on moderation state
+                kanban_status = 'backlog'
+                if review.is_approved is True:
+                    kanban_status = 'completed'
+                elif review.is_approved is False:
+                    kanban_status = 'completed'  # Rejected is also completed
+                elif review.moderated_by:
+                    kanban_status = 'in_progress'
+
+                task = {
+                    'id': f'review_{review.id}',
+                    'type': 'spoiler',
+                    'priority': 'high',  # Marked spoilers are high priority
+                    'status': kanban_status,
+                    'title': f'Spoiler: {review.movie.title if review.movie else "Unknown Movie"}',
+                    'content': review.content[:200] + '...' if len(review.content) > 200 else review.content,
+                    'user': review.user.username,
+                    'movie_title': review.movie.title if review.movie else None,
+                    'created_at': review.created_at.isoformat(),
+                    'language': review.language,
+                    'moderation_reasons': ['marked_spoiler'],
+                }
+                moderation_tasks.append(task)
+
+            # --- NEW LOGIC: Add reviews with spoiler confidence > 0.6 (not marked, not reported) ---
+            unmarked_reviews = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=True,
+                is_spoiler=False
+            ).exclude(
+                id__in=reported_review_ids
+            ).exclude(
+                id__in=spoiler_reviews.values_list('id', flat=True)
+            ).select_related('user', 'movie')
+
+            # Apply filters
+            if date_from:
+                unmarked_reviews = unmarked_reviews.filter(created_at__gte=date_from)
+            if date_to:
+                unmarked_reviews = unmarked_reviews.filter(created_at__lte=date_to)
+            if language:
+                unmarked_reviews = unmarked_reviews.filter(language=language)
+
+            # Limit to 200 for performance
+            unmarked_reviews = unmarked_reviews.order_by('-created_at')[:200]
+
+            for review in unmarked_reviews:
+                try:
+                    spoiler_result = spoiler_detector.detect_spoilers(
+                        review.content,
+                        review.language,
+                        review.movie.title if review.movie else None
+                    )
+                    if spoiler_result.confidence > 0.6:
+                        # Determine priority
+                        if spoiler_result.confidence > 0.8:
+                            priority_level = 'high'
+                        else:
+                            priority_level = 'medium'
+                        kanban_status = 'backlog'
+                        if review.is_approved is True:
+                            kanban_status = 'completed'
+                        elif review.is_approved is False:
+                            kanban_status = 'completed'
+                        elif review.moderated_by:
+                            kanban_status = 'in_progress'
+                        task = {
+                            'id': f'review_{review.id}',
+                            'type': 'spoiler',
+                            'priority': priority_level,
+                            'status': kanban_status,
+                            'title': f'Spoiler: {review.movie.title if review.movie else "Unknown Movie"}',
+                            'content': review.content[:200] + '...' if len(review.content) > 200 else review.content,
+                            'user': review.user.username,
+                            'movie_title': review.movie.title if review.movie else None,
+                            'created_at': review.created_at.isoformat(),
+                            'language': review.language,
+                            'moderation_reasons': ['auto_detected_spoiler'],
+                            'spoiler_confidence': spoiler_result.confidence,
+                        }
+                        moderation_tasks.append(task)
+                except Exception as e:
+                    logger.error(f"Error running spoiler detection for review {review.id}: {str(e)}")
+
+            # --- existing code ...
+
+            # OPTIMIZATION 6: Apply filters before expensive operations
+            if type_filter != 'all':
+                if type_filter == 'spoiler':
+                    moderation_tasks = [t for t in moderation_tasks if t['type'] in ['spoiler', 'both']]
+                elif type_filter == 'reported':
+                    moderation_tasks = [t for t in moderation_tasks if t['type'] in ['report', 'both']]
+
+            if priority != 'all':
+                moderation_tasks = [t for t in moderation_tasks if t['priority'] == priority]
+
+            # OPTIMIZATION 7: Early pagination
+            priority_order = {'high': 3, 'medium': 2, 'low': 1}
+            moderation_tasks.sort(
+                key=lambda x: (
+                    priority_order.get(x['priority'], 0),
+                    x['created_at']
+                ),
+                reverse=True
+            )
+
+            # Pagination
+            total_tasks = len(moderation_tasks)
+            start = (page - 1) * page_size
+            end = start + page_size
+            paginated_tasks = moderation_tasks[start:end]
+
+            # OPTIMIZATION 8: Only add review_data for paginated tasks to reduce serialization overhead
+            for task in paginated_tasks:
+                try:
+                    review_id = int(task['id'].split('_')[1])
+                    review = MovieReview.objects.select_related('user', 'movie').get(id=review_id)
+                    # Use the new serializer for full movie details
+                    serializer = ModerationQueueReviewSerializer(review, context={'request': request})
+                    task['review_data'] = serializer.data
+                except (MovieReview.DoesNotExist, ValueError):
+                    task['review_data'] = None
+
+            # Calculate stats (simplified)
+            stats = {
+                'total_tasks': total_tasks,
+                'priority_stats': {
+                    'high': len([t for t in moderation_tasks if t['priority'] == 'high']),
+                    'medium': len([t for t in moderation_tasks if t['priority'] == 'medium']),
+                    'low': len([t for t in moderation_tasks if t['priority'] == 'low'])
+                },
+                'type_stats': {
+                    'spoiler': len([t for t in moderation_tasks if t['type'] == 'spoiler']),
+                    'report': len([t for t in moderation_tasks if t['type'] == 'report']),
+                    'both': len([t for t in moderation_tasks if t['type'] == 'both'])
+                }
+            }
+
+            # Group by status for kanban board
+            kanban_data = {
+                'backlog': [t for t in paginated_tasks if t['status'] == 'backlog'],
+                'in_progress': [t for t in paginated_tasks if t['status'] == 'in_progress'],
+                'review': [t for t in paginated_tasks if t['status'] == 'review'],
+                'completed': [t for t in paginated_tasks if t['status'] == 'completed']
+            }
+
+            return Response({
+                'status': 'success',
+                'count': total_tasks,
+                'total_pages': (total_tasks + page_size - 1) // page_size,
+                'current_page': page,
+                'page_size': page_size,
+                'tasks': paginated_tasks,
+                'kanban_data': kanban_data,
+                'stats': stats
+            })
+
+        except Exception as e:
+            logger.error(f"Error in unified moderation queue: {str(e)}")
             return Response({
                 'status': 'error',
                 'message': str(e)
@@ -1967,6 +2389,250 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
         return response
 
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def update_task_status(self, request):
+        """
+        Update task status for kanban board drag and drop
+        """
+        try:
+            # Check if user is moderator or admin
+            if not request.user.is_staff and not request.user.groups.filter(name__in=['Moderators', 'Administrators']).exists():
+                return Response({
+                    'status': 'error',
+                    'message': 'Permission denied'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            task_id = request.data.get('task_id')
+            new_status = request.data.get('status')
+
+            if not task_id or not new_status:
+                return Response({
+                    'status': 'error',
+                    'message': 'task_id and status are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Extract review ID from task ID
+            try:
+                review_id = int(task_id.split('_')[1])
+            except (ValueError, IndexError):
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid task_id format'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Get the review
+            try:
+                review = MovieReview.objects.get(id=review_id)
+            except MovieReview.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': 'Review not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Update review status based on kanban status
+            if new_status == 'completed':
+                review.is_approved = True
+                review.moderated_by = request.user
+                review.moderated_at = timezone.now()
+            elif new_status == 'in_progress':
+                review.moderated_by = request.user
+                review.moderated_at = timezone.now()
+            elif new_status == 'backlog':
+                review.moderated_by = None
+                review.moderated_at = None
+
+            review.save()
+
+            return Response({
+                'status': 'success',
+                'message': 'Task status updated successfully',
+                'task_id': task_id,
+                'new_status': new_status
+            })
+
+        except Exception as e:
+            logger.error(f"Error updating task status: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def moderation_stats(self, request):
+        """
+        Get real-time moderation statistics for dashboard
+        """
+        try:
+            # Check if user is moderator or admin
+            if not request.user.is_staff and not request.user.groups.filter(name__in=['Moderators', 'Administrators']).exists():
+                return Response({
+                    'status': 'error',
+                    'message': 'Permission denied'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            from datetime import timedelta
+            now = timezone.now()
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            yesterday_start = today_start - timedelta(days=1)
+            last_7_days = now - timedelta(days=7)
+
+            # Get all reviews that need moderation (not yet moderated)
+            pending_reviews = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=True
+            )
+
+            # Get in-progress reviews (moderated_by set but not yet approved/rejected)
+            in_progress_reviews = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=True,
+                moderated_by__isnull=False
+            )
+
+            # Get completed reviews (approved or rejected)
+            completed_reviews = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=False
+            )
+
+            # Get today's completed reviews
+            today_completed = completed_reviews.filter(
+                moderated_at__gte=today_start
+            )
+
+            # Get yesterday's completed reviews for comparison
+            yesterday_completed = completed_reviews.filter(
+                moderated_at__gte=yesterday_start,
+                moderated_at__lt=today_start
+            )
+
+            # Get reported reviews count
+            reported_reviews = ReviewReport.objects.filter(
+                review__is_approved__isnull=True,
+                review__review_type='USER',
+                review__is_public=True
+            ).values('review_id').distinct().count()
+
+            # Get spoiler reviews count
+            spoiler_reviews = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=True,
+                is_spoiler=True
+            ).count()
+
+            # Calculate average processing time (last 7 days)
+            recent_completed = completed_reviews.filter(
+                moderated_at__gte=last_7_days
+            ).exclude(
+                created_at__isnull=True,
+                moderated_at__isnull=True
+            )
+
+            avg_processing_time = 0
+            if recent_completed.exists():
+                total_time = timedelta()
+                count = 0
+                for review in recent_completed:
+                    if review.created_at and review.moderated_at:
+                        processing_time = review.moderated_at - review.created_at
+                        total_time += processing_time
+                        count += 1
+
+                if count > 0:
+                    avg_processing_time = total_time.total_seconds() / count / 3600  # hours
+
+            # Calculate change percentages
+            today_count = today_completed.count()
+            yesterday_count = yesterday_completed.count()
+
+            change_percentage = 0
+            if yesterday_count > 0:
+                change_percentage = ((today_count - yesterday_count) / yesterday_count) * 100
+
+            stats = {
+                'pending': pending_reviews.count(),
+                'in_progress': in_progress_reviews.count(),
+                'completed': completed_reviews.count(),
+                'today_completed': today_count,
+                'yesterday_completed': yesterday_count,
+                'change_percentage': round(change_percentage, 1),
+                'reported': reported_reviews,
+                'spoiler': spoiler_reviews,
+                'avg_processing_time': round(avg_processing_time, 1),
+                'total_reviews': MovieReview.objects.filter(
+                    review_type='USER',
+                    is_public=True
+                ).count()
+            }
+
+            return Response({
+                'status': 'success',
+                'data': stats
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting moderation stats: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def moderate(self, request, pk=None):
+        """
+        Moderate a review (approve/reject)
+        """
+        try:
+            # Check if user is moderator or admin
+            if not request.user.is_staff and not request.user.groups.filter(name__in=['Moderators', 'Administrators']).exists():
+                return Response({
+                    'status': 'error',
+                    'message': 'Permission denied'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            review = self.get_object()
+            action = request.data.get('action')
+            reason = request.data.get('reason', '')
+
+            if action == 'approve':
+                review.is_approved = True
+                review.moderated_by = request.user
+                review.moderated_at = timezone.now()
+                review.moderation_reason = reason
+                review.save()
+                message = 'Review approved successfully'
+            elif action == 'reject':
+                review.is_approved = False
+                review.moderated_by = request.user
+                review.moderated_at = timezone.now()
+                review.moderation_reason = reason
+                review.save()
+                message = 'Review rejected successfully'
+            else:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid action'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                'status': 'success',
+                'message': message,
+                'review_id': review.id,
+                'action': action
+            })
+
+        except Exception as e:
+            logger.error(f"Error moderating review {pk}: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class ReviewReportViewSet(viewsets.ModelViewSet):
     """
     API for reporting reviews and listing review reports
@@ -2022,6 +2688,8 @@ class ReviewReportViewSet(viewsets.ModelViewSet):
             # Base queryset
             queryset = ReviewReport.objects.select_related(
                 'review', 'reported_by', 'review__user', 'review__movie'
+            ).prefetch_related(
+                'review__movie__genres'
             ).order_by('-created_at')
 
             # Apply filters

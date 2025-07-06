@@ -763,3 +763,37 @@ export const getReviewReports = async (page = 1, pageSize = 20) => {
     };
   }
 };
+
+// Get unified moderation queue (spoiler detection + reports)
+export const getUnifiedModerationQueue = async (page = 1, pageSize = 50, filters = {}) => {
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+      ...filters,
+    });
+
+    const response = await axiosInstance.get(`/api/reviews/unified_moderation_queue/?${params}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching unified moderation queue:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch moderation queue',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Update task status for kanban board
+export const updateTaskStatus = async (taskId, status) => {
+  try {
+    const response = await axiosInstance.post('/api/movies/reviews/update_task_status/', {
+      task_id: taskId,
+      status: status,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating task status:', error);
+    throw error;
+  }
+};

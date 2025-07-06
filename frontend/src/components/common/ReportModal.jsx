@@ -106,18 +106,18 @@ const ReportModal = ({ isOpen, onClose, review, onReportSuccess }) => {
 
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-lg bg-gray-800 p-6 shadow-xl mx-4">
+      <div className="mx-4 w-full max-w-md rounded-lg bg-gray-800 p-6 shadow-xl">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Flag className="h-5 w-5 text-red-400" />
+            <Flag className="size-5 text-red-400" />
             <h3 className="text-lg font-semibold text-white">Báo cáo review</h3>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 transition-colors hover:text-white"
           >
-            <X className="h-5 w-5" />
+            <X className="size-5" />
           </button>
         </div>
 
@@ -126,14 +126,14 @@ const ReportModal = ({ isOpen, onClose, review, onReportSuccess }) => {
           <p className="text-sm text-gray-300">
             <strong>Review của {review.reviewer_name}:</strong>
           </p>
-          <p className="mt-1 text-sm text-gray-400 line-clamp-2">{review.content}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-gray-400">{review.content}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Reason Selection */}
           <div>
             <label className="mb-2 block text-sm font-medium text-white">Lý do báo cáo *</label>
-            <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-hide">
+            <div className="scrollbar-hide max-h-60 space-y-2 overflow-y-auto">
               {reportReasons.map(reportReason => (
                 <label
                   key={reportReason.value}
@@ -149,7 +149,7 @@ const ReportModal = ({ isOpen, onClose, review, onReportSuccess }) => {
                     value={reportReason.value}
                     checked={reason === reportReason.value}
                     onChange={e => setReason(e.target.value)}
-                    className="mt-1 h-4 w-4 text-red-500 focus:ring-red-500"
+                    className="mt-1 size-4 text-red-500 focus:ring-red-500"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -172,7 +172,7 @@ const ReportModal = ({ isOpen, onClose, review, onReportSuccess }) => {
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Cung cấp thêm chi tiết về lý do báo cáo..."
-              className="w-full rounded-lg bg-gray-700 p-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full rounded-lg bg-gray-700 p-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
               rows="3"
               maxLength="500"
             />
@@ -181,8 +181,8 @@ const ReportModal = ({ isOpen, onClose, review, onReportSuccess }) => {
 
           {/* Error Message */}
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-red-500/20 border border-red-500/30 p-3">
-              <AlertTriangle className="h-4 w-4 text-red-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/20 p-3">
+              <AlertTriangle className="size-4 text-red-400" />
               <p className="text-sm text-red-300">{error}</p>
             </div>
           )}

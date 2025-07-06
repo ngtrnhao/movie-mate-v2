@@ -15,13 +15,13 @@ const ReportTest = () => {
   });
 
   return (
-    <div className="p-6 bg-gray-900 min-h-screen">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-white mb-6">Test Report Functionality</h1>
+    <div className="min-h-screen bg-gray-900 p-6">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="mb-6 text-2xl font-bold text-white">Test Report Functionality</h1>
 
-        <div className="bg-gray-800 rounded-lg p-4 mb-4">
-          <h3 className="text-white font-medium mb-2">Review Test</h3>
-          <p className="text-gray-300 mb-4">{mockReview.content}</p>
+        <div className="mb-4 rounded-lg bg-gray-800 p-4">
+          <h3 className="mb-2 font-medium text-white">Review Test</h3>
+          <p className="mb-4 text-gray-300">{mockReview.content}</p>
 
           <ReviewActions
             review={mockReview}
@@ -31,9 +31,9 @@ const ReportTest = () => {
           />
         </div>
 
-        <div className="text-gray-400 text-sm">
+        <div className="text-sm text-gray-400">
           <p>Hướng dẫn test:</p>
-          <ul className="list-disc list-inside mt-2 space-y-1">
+          <ul className="mt-2 list-inside list-disc space-y-1">
             <li>Click vào icon 3 chấm (⋮) bên cạnh review</li>
             <li>Chọn "Báo cáo"</li>
             <li>Chọn lý do báo cáo và nhập mô tả (tùy chọn)</li>

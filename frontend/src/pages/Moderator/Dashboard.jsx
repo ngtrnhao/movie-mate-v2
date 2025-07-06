@@ -68,6 +68,7 @@ const ModeratorDashboard = () => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [viewMode, setViewMode] = useState('dashboard'); // dashboard, kanban, queue
   const [kanbanViewMode, setKanbanViewMode] = useState('kanban'); // kanban, queue
@@ -379,10 +380,13 @@ const ModeratorDashboard = () => {
 
   // Sidebar toggle handler
   const handleSidebarToggle = () => {
-    if (window.innerWidth < 768) {
-      setSidebarMobileOpen(open => !open);
+    if (sidebarHidden) {
+      setSidebarHidden(false);
+      setSidebarCollapsed(false);
+    } else if (sidebarCollapsed) {
+      setSidebarHidden(true);
     } else {
-      setSidebarCollapsed(prev => !prev);
+      setSidebarCollapsed(true);
     }
   };
 
@@ -620,19 +624,19 @@ const ModeratorDashboard = () => {
             >
               <Bars3Icon className="w-6 h-6 text-blue-600" />
             </button>
-            {/* Stats */}
-            <div className="mb-6 flex flex-col gap-2">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center justify-center md:justify-start">
+            {/* Stats - Compact */}
+            <div className="mb-4 flex flex-col gap-1">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center justify-center md:justify-start">
                 <ChartBarIcon className="w-4 h-4 mr-0 md:mr-2" />
                 {!sidebarCollapsed && <span className="truncate">Thống kê hôm nay</span>}
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {dashboardStats.slice(0, 3).map((stat, index) => {
                   const StatIcon = stat.icon;
                   return (
                     <div
                       key={index}
-                      className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} p-2 rounded-lg ${
+                      className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} ${sidebarCollapsed ? 'p-3' : 'p-2'} rounded-lg ${
                         stat.color === 'yellow'
                           ? 'bg-yellow-50 border border-yellow-200'
                           : stat.color === 'green'
@@ -643,7 +647,7 @@ const ModeratorDashboard = () => {
                       }`}
                     >
                       <StatIcon
-                        className={`w-5 h-5 ${
+                        className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-4 h-4'} ${
                           stat.color === 'yellow'
                             ? 'text-yellow-600'
                             : stat.color === 'green'
@@ -654,24 +658,24 @@ const ModeratorDashboard = () => {
                         }`}
                       />
                       {!sidebarCollapsed && (
-                        <span className="ml-2 text-sm font-medium text-gray-700 truncate">
-                          {stat.title}
-                        </span>
-                      )}
-                      {!sidebarCollapsed && (
-                        <span
-                          className={`ml-auto text-lg font-bold ${
-                            stat.color === 'yellow'
-                              ? 'text-yellow-600'
-                              : stat.color === 'green'
-                                ? 'text-green-600'
-                                : stat.color === 'red'
-                                  ? 'text-red-600'
-                                  : 'text-blue-600'
-                          }`}
-                        >
-                          {stat.value}
-                        </span>
+                        <div className="ml-2 flex-1 min-w-0">
+                          <div className="text-xs font-medium text-gray-700 truncate">
+                            {stat.title}
+                          </div>
+                          <div
+                            className={`text-sm font-bold ${
+                              stat.color === 'yellow'
+                                ? 'text-yellow-600'
+                                : stat.color === 'green'
+                                  ? 'text-green-600'
+                                  : stat.color === 'red'
+                                    ? 'text-red-600'
+                                    : 'text-blue-600'
+                            }`}
+                          >
+                            {stat.value}
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
@@ -686,15 +690,18 @@ const ModeratorDashboard = () => {
                   <button
                     key={item.id}
                     onClick={() => handleNavigationClick(item.id)}
-                    className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition-all duration-200 group
+                    className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} ${sidebarCollapsed ? 'p-4' : 'p-3'} rounded-lg transition-all duration-200 group ${sidebarCollapsed ? 'border-2 border-red-200' : ''}
                       ${
                         activeView === item.id
                           ? 'bg-gradient-to-r from-amber-100 to-pink-100 text-pink-700 border border-amber-200'
                           : 'text-purple-900 hover:bg-pink-50 hover:text-pink-700'
                       }`}
                   >
-                    <IconComponent className="w-5 h-5 text-pink-400" />
-                    {/* Ẩn label, badge khi thu nỏ */}
+                    <IconComponent
+                      className={`${sidebarCollapsed ? 'w-8 h-8 text-blue-600' : 'w-5 h-5 text-pink-400'} flex-shrink-0`}
+                      style={sidebarCollapsed ? { color: '#2563eb !important' } : {}}
+                    />
+                    {/* Ẩn label, badge khi thu nhỏ */}
                     {!sidebarCollapsed && (
                       <div className="ml-2 flex-1 min-w-0">
                         <div className="font-medium text-sm truncate">{item.label}</div>
@@ -710,38 +717,73 @@ const ModeratorDashboard = () => {
                 );
               })}
             </div>
-            {/* Quick Actions */}
-            <div className="mb-6 flex flex-col gap-2">
-              {quickActions.map(action => {
-                const ActionIcon = action.icon;
-                return (
-                  <button
-                    key={action.id}
-                    onClick={() => handleBulkAction(action.id, selectedItems)}
-                    className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} p-3 rounded-lg text-left hover:bg-gray-50 transition-colors group`}
-                  >
-                    <ActionIcon className="w-5 h-5" />
-                    {/* Ẩn label khi thu nỏ */}
-                    {!sidebarCollapsed && (
-                      <span className="ml-2 font-medium text-sm truncate">{action.label}</span>
-                    )}
-                  </button>
-                );
-              })}
+            {/* Quick Actions - Compact Layout */}
+            <div className="mb-4 flex flex-col gap-1">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center justify-center md:justify-start">
+                <BoltIcon className="w-4 h-4 mr-0 md:mr-2" />
+                {!sidebarCollapsed && <span className="truncate">Hành động nhanh</span>}
+              </h3>
+              <div className="space-y-1">
+                {quickActions.map(action => {
+                  const ActionIcon = action.icon;
+                  return (
+                    <button
+                      key={action.id}
+                      onClick={() => handleBulkAction(action.id, selectedItems)}
+                      className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} ${sidebarCollapsed ? 'p-3' : 'p-2'} rounded-lg text-left transition-all duration-200 group ${sidebarCollapsed ? 'border border-gray-200' : ''}
+                        hover:bg-gradient-to-r hover:from-${action.color}-50 hover:to-${action.color}-100 hover:border-${action.color}-200`}
+                    >
+                      <ActionIcon
+                        className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-4 h-4'} flex-shrink-0 ${
+                          action.color === 'green'
+                            ? 'text-green-600'
+                            : action.color === 'red'
+                              ? 'text-red-600'
+                              : action.color === 'orange'
+                                ? 'text-orange-600'
+                                : action.color === 'blue'
+                                  ? 'text-blue-600'
+                                  : 'text-gray-600'
+                        }`}
+                      />
+                      {!sidebarCollapsed && (
+                        <div className="ml-2 flex-1 min-w-0">
+                          <div
+                            className={`font-medium text-xs truncate ${
+                              action.color === 'green'
+                                ? 'text-green-700'
+                                : action.color === 'red'
+                                  ? 'text-red-700'
+                                  : action.color === 'orange'
+                                    ? 'text-orange-700'
+                                    : action.color === 'blue'
+                                      ? 'text-blue-700'
+                                      : 'text-gray-700'
+                            }`}
+                          >
+                            {action.label}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate mt-0.5">
+                            {action.shortcut}
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            {/* Moderator Info */}
+            {/* Moderator Info - Compact */}
             {!sidebarCollapsed && (
-              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 mt-auto">
-                <h4 className="text-sm font-semibold text-blue-800 mb-2 flex items-center">
-                  <InformationCircleIcon className="w-4 h-4 mr-1" />
+              <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 mt-auto">
+                <h4 className="text-xs font-semibold text-blue-800 mb-1 flex items-center">
+                  <InformationCircleIcon className="w-3 h-3 mr-1" />
                   Quyền Moderator
                 </h4>
-                <div className="text-xs text-blue-700 space-y-1">
+                <div className="text-xs text-blue-700 space-y-0.5">
                   <div>• Kiểm duyệt nội dung</div>
                   <div>• Xử lý báo cáo vi phạm</div>
                   <div>• Cảnh báo người dùng</div>
-                  <div>• Tạm khóa tài khoản</div>
-                  <div>• Quản lý cộng đồng</div>
                 </div>
               </div>
             )}
@@ -756,50 +798,66 @@ const ModeratorDashboard = () => {
                 <h2 className="text-base md:text-xl font-bold text-gray-900 flex items-center truncate">
                   {activeView === 'overview' && (
                     <>
-                      <ChartBarIcon className="w-5 h-5 mr-2 text-blue-600" />
+                      <ChartBarIcon
+                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-blue-600`}
+                      />
                       Tổng quan kiểm duyệt
                     </>
                   )}
                   {activeView === 'moderation-queue' && (
                     <>
-                      <ClipboardDocumentListIcon className="w-5 h-5 mr-2 text-orange-600" />
+                      <ClipboardDocumentListIcon
+                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-orange-600`}
+                      />
                       Queue kiểm duyệt -{' '}
                       {kanbanViewMode === 'kanban' ? 'Kanban Board' : 'Queue List'}
                     </>
                   )}
                   {activeView === 'reports' && (
                     <>
-                      <ExclamationTriangleIcon className="w-5 h-5 mr-2 text-red-600" />
+                      <ExclamationTriangleIcon
+                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-red-600`}
+                      />
                       Báo cáo vi phạm
                     </>
                   )}
                   {activeView === 'content-review' && (
                     <>
-                      <DocumentTextIcon className="w-5 h-5 mr-2 text-green-600" />
+                      <DocumentTextIcon
+                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-green-600`}
+                      />
                       Review nội dung
                     </>
                   )}
                   {activeView === 'user-management' && (
                     <>
-                      <UsersIcon className="w-5 h-5 mr-2 text-purple-600" />
+                      <UsersIcon
+                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-purple-600`}
+                      />
                       Quản lý người dùng
                     </>
                   )}
                   {activeView === 'analytics' && (
                     <>
-                      <ChartPieIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                      <ChartPieIcon
+                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-indigo-600`}
+                      />
                       Phân tích
                     </>
                   )}
                   {activeView === 'settings' && (
                     <>
-                      <Cog6ToothIcon className="w-5 h-5 mr-2 text-gray-600" />
+                      <Cog6ToothIcon
+                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-gray-600`}
+                      />
                       Cài đặt
                     </>
                   )}
                   {activeView === 'system-users' && (
                     <>
-                      <WrenchScrewdriverIcon className="w-5 h-5 mr-2 text-yellow-600" />
+                      <WrenchScrewdriverIcon
+                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-yellow-600`}
+                      />
                       Quản lý hệ thống
                     </>
                   )}

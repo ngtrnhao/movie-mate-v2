@@ -33,6 +33,14 @@ urlpatterns = [
     path('reviews/<int:pk>/analyze_spoiler/', views.MovieReviewViewSet.as_view({'post': 'analyze_spoiler'}), name='analyze-spoiler'),
     path('reviews/spoiler_statistics/', views.MovieReviewViewSet.as_view({'get': 'spoiler_statistics'}), name='spoiler-statistics'),
 
+    # Moderation endpoints
+    path('reviews/moderation_stats/', views.MovieReviewViewSet.as_view({'get': 'moderation_stats'}), name='moderation-stats'),
+    path('reviews/moderation_queue/', views.MovieReviewViewSet.as_view({'get': 'moderation_queue'}), name='moderation-queue'),
+    path('reviews/unified_moderation_queue/', views.MovieReviewViewSet.as_view({'get': 'unified_moderation_queue'}), name='unified-moderation-queue'),
+    path('reviews/<int:pk>/moderate/', views.MovieReviewViewSet.as_view({'post': 'moderate'}), name='moderate-review'),
+    path('reviews/bulk_moderate/', views.MovieReviewViewSet.as_view({'post': 'bulk_moderate'}), name='bulk-moderate'),
+    path('reviews/update_task_status/', views.MovieReviewViewSet.as_view({'post': 'update_task_status'}), name='update-task-status'),
+
     # Movie detail by slug
     re_path(r'^movies/(?P<slug>[\w-]+)/$', views.MovieViewSet.as_view({'get': 'retrieve'}), name='movie-detail'),
     re_path(r'^movies/(?P<slug>[\w-]+)/cast/$', views.MovieViewSet.as_view({'get': 'cast'}), name='movie-cast'),

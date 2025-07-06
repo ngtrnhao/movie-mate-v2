@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   CheckCircle,
@@ -6,22 +6,15 @@ import {
   Eye,
   Shield,
   RefreshCw,
-  Filter,
-  Search,
-  Clock,
-  Flag,
   Star,
   MessageSquare,
   User,
-  Calendar,
-  TrendingUp,
   TrendingDown,
 } from 'lucide-react';
 import {
   getModerationQueue,
   moderateReview,
   bulkModerateReviews,
-  getReviewsPendingSpoilerDetection,
   analyzeReviewSpoiler,
   detectSpoilers,
   getSpoilerStatistics,
@@ -46,6 +39,7 @@ const ContentModerationDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [notification, setNotification] = useState(null);
+  // Removed viewMode state - only list view is supported
 
   useEffect(() => {
     fetchModerationQueue();
@@ -178,10 +172,10 @@ const ContentModerationDashboard = () => {
   };
 
   const getConfidenceIcon = confidence => {
-    if (confidence > 0.8) return <AlertTriangle className="h-4 w-4" />;
-    if (confidence > 0.6) return <AlertTriangle className="h-4 w-4" />;
-    if (confidence > 0.4) return <AlertTriangle className="h-4 w-4" />;
-    return <CheckCircle className="h-4 w-4" />;
+    if (confidence > 0.8) return <AlertTriangle className="size-4" />;
+    if (confidence > 0.6) return <AlertTriangle className="size-4" />;
+    if (confidence > 0.4) return <AlertTriangle className="size-4" />;
+    return <CheckCircle className="size-4" />;
   };
 
   const handleSelectReview = reviewId => {
@@ -198,14 +192,21 @@ const ContentModerationDashboard = () => {
     }
   };
 
+  // Calculate priority counts for statistics
+  const priorityCounts = {
+    high: reviews.filter(r => r.moderation_analysis?.priority_level === 'high').length,
+    medium: reviews.filter(r => r.moderation_analysis?.priority_level === 'medium').length,
+    low: reviews.filter(r => r.moderation_analysis?.priority_level === 'low').length,
+  };
+
   if (loading && reviews.length === 0) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="mb-6 h-4 w-1/4 rounded bg-gray-200"></div>
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-gray-200 h-32 rounded-lg"></div>
+              <div key={i} className="h-32 rounded-lg bg-gray-200"></div>
             ))}
           </div>
         </div>
@@ -218,15 +219,15 @@ const ContentModerationDashboard = () => {
       {/* Notification */}
       {notification && (
         <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
+          className={`fixed right-4 top-4 z-50 rounded-md p-4 shadow-lg ${
             notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
           }`}
         >
           <div className="flex items-center">
             {notification.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 mr-2" />
+              <CheckCircle className="mr-2 size-5" />
             ) : (
-              <XCircle className="h-5 w-5 mr-2" />
+              <XCircle className="mr-2 size-5" />
             )}
             <span>{notification.message}</span>
           </div>
@@ -237,25 +238,27 @@ const ContentModerationDashboard = () => {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Kiểm duyệt nội dung</h2>
+            <h2 className="mb-2 text-2xl font-bold text-gray-900">Kiểm duyệt nội dung</h2>
             <p className="text-gray-600">Quản lý và kiểm duyệt reviews với spoiler detection</p>
           </div>
-          <button
-            onClick={fetchModerationQueue}
-            className="flex items-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>Làm mới</span>
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={fetchModerationQueue}
+              className="flex items-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <RefreshCw className="size-4" />
+              <span>Làm mới</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Priority Statistics */}
-      <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-4">
-        <div className="bg-white rounded-lg shadow p-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="rounded-lg bg-white p-4 shadow">
           <div className="flex items-center">
-            <div className="bg-blue-100 rounded-full p-3">
-              <Shield className="h-6 w-6 text-blue-600" />
+            <div className="rounded-full bg-blue-100 p-3">
+              <Shield className="size-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Tổng cần kiểm duyệt</p>
@@ -264,99 +267,119 @@ const ContentModerationDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="rounded-lg bg-white p-4 shadow">
           <div className="flex items-center">
-            <div className="bg-red-100 rounded-full p-3">
-              <AlertTriangle className="h-6 w-6 text-red-600" />
+            <div className="rounded-full bg-red-100 p-3">
+              <AlertTriangle className="size-6 text-red-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-red-600">Ưu tiên cao</p>
-              <p className="text-2xl font-bold text-red-900">
-                {reviews.filter(r => r.spoiler_analysis?.priority_level === 'high').length}
-              </p>
+              <p className="text-2xl font-bold text-red-900">{priorityCounts.high}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="rounded-lg bg-white p-4 shadow">
           <div className="flex items-center">
-            <div className="bg-orange-100 rounded-full p-3">
-              <TrendingDown className="h-6 w-6 text-orange-600" />
+            <div className="rounded-full bg-orange-100 p-3">
+              <TrendingDown className="size-6 text-orange-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-orange-600">Ưu tiên trung bình</p>
-              <p className="text-2xl font-bold text-orange-900">
-                {reviews.filter(r => r.spoiler_analysis?.priority_level === 'medium').length}
-              </p>
+              <p className="text-2xl font-bold text-orange-900">{priorityCounts.medium}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="rounded-lg bg-white p-4 shadow">
           <div className="flex items-center">
-            <div className="bg-green-100 rounded-full p-3">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+            <div className="rounded-full bg-green-100 p-3">
+              <CheckCircle className="size-6 text-green-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-green-600">Ưu tiên thấp</p>
-              <p className="text-2xl font-bold text-green-900">
-                {reviews.filter(r => r.spoiler_analysis?.priority_level === 'low').length}
-              </p>
+              <p className="text-2xl font-bold text-green-900">{priorityCounts.low}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Bộ lọc</h3>
+      <div className="mb-6 rounded-lg bg-white shadow">
+        <div className="border-b border-gray-200 p-4">
+          <h3 className="text-lg font-medium text-blue-900">Bộ lọc</h3>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <select
-              value={filters.priority}
-              onChange={e => setFilters(prev => ({ ...prev, priority: e.target.value }))}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="all">Tất cả ưu tiên</option>
-              <option value="high">Ưu tiên cao (Spoiler đã đánh dấu)</option>
-              <option value="medium">Ưu tiên trung bình (Cần kiểm tra)</option>
-              <option value="low">Ưu tiên thấp (Từ khóa nghi ngờ)</option>
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">Mức độ ưu tiên</label>
+              <select
+                value={filters.priority}
+                onChange={e => setFilters(prev => ({ ...prev, priority: e.target.value }))}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
+              >
+                <option value="all" className="text-gray-900">
+                  Tất cả ưu tiên
+                </option>
+                <option value="high" className="text-red-700">
+                  Ưu tiên cao (Spoiler đã đánh dấu)
+                </option>
+                <option value="medium" className="text-orange-700">
+                  Ưu tiên trung bình (Cần kiểm tra)
+                </option>
+                <option value="low" className="text-green-700">
+                  Ưu tiên thấp (Từ khóa nghi ngờ)
+                </option>
+              </select>
+            </div>
 
-            <select
-              value={filters.language}
-              onChange={e => setFilters(prev => ({ ...prev, language: e.target.value }))}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Tất cả ngôn ngữ</option>
-              <option value="vi">Tiếng Việt</option>
-              <option value="en">Tiếng Anh</option>
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">Ngôn ngữ</label>
+              <select
+                value={filters.language}
+                onChange={e => setFilters(prev => ({ ...prev, language: e.target.value }))}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
+              >
+                <option value="" className="text-gray-900">
+                  Tất cả ngôn ngữ
+                </option>
+                <option value="vi" className="text-blue-700">
+                  Tiếng Việt
+                </option>
+                <option value="en" className="text-purple-700">
+                  Tiếng Anh
+                </option>
+              </select>
+            </div>
 
-            <input
-              type="date"
-              value={filters.date_from}
-              onChange={e => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Từ ngày"
-            />
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">Từ ngày</label>
+              <input
+                type="date"
+                value={filters.date_from}
+                onChange={e => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
+                placeholder="Từ ngày"
+              />
+            </div>
 
-            <input
-              type="date"
-              value={filters.date_to}
-              onChange={e => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Đến ngày"
-            />
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">Đến ngày</label>
+              <input
+                type="date"
+                value={filters.date_to}
+                onChange={e => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
+                placeholder="Đến ngày"
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Bulk Actions */}
       {selectedReviews.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <span className="text-sm font-medium text-blue-900">
@@ -374,14 +397,14 @@ const ContentModerationDashboard = () => {
                 onClick={() => handleBulkModeration('approve')}
                 className="flex items-center space-x-1 rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
               >
-                <CheckCircle className="h-4 w-4" />
+                <CheckCircle className="size-4" />
                 <span>Phê duyệt ({selectedReviews.length})</span>
               </button>
               <button
                 onClick={() => handleBulkModeration('reject')}
                 className="flex items-center space-x-1 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
-                <XCircle className="h-4 w-4" />
+                <XCircle className="size-4" />
                 <span>Từ chối ({selectedReviews.length})</span>
               </button>
             </div>
@@ -389,12 +412,12 @@ const ContentModerationDashboard = () => {
         </div>
       )}
 
-      {/* Reviews List */}
+      {/* Content */}
       {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4">
           <div className="flex">
-            <div className="flex-shrink-0">
-              <XCircle className="h-5 w-5 text-red-400" />
+            <div className="shrink-0">
+              <XCircle className="size-5 text-red-400" />
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">Lỗi</h3>
@@ -403,9 +426,9 @@ const ContentModerationDashboard = () => {
           </div>
         </div>
       ) : reviews.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="mx-auto h-12 w-12 text-gray-400">
-            <Shield className="h-12 w-12" />
+        <div className="py-12 text-center">
+          <div className="mx-auto size-12 text-gray-400">
+            <Shield className="size-12" />
           </div>
           <h3 className="mt-2 text-sm font-medium text-gray-900">
             Không có review nào chờ kiểm duyệt
@@ -413,23 +436,24 @@ const ContentModerationDashboard = () => {
           <p className="mt-1 text-sm text-gray-500">Tất cả review đã được xử lý.</p>
         </div>
       ) : (
+        // List View
         <div className="space-y-4">
           {reviews.map(review => (
-            <div key={review.id} className="bg-white border border-gray-200 rounded-lg p-6">
+            <div key={review.id} className="rounded-lg border border-gray-200 bg-white p-6">
               <div className="flex items-start space-x-4">
                 {/* Checkbox */}
                 <input
                   type="checkbox"
                   checked={selectedReviews.includes(review.id)}
                   onChange={() => handleSelectReview(review.id)}
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
 
                 {/* Review Content */}
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-4">
+                  <div className="mb-4 flex items-center space-x-3">
                     <img
-                      className="h-10 w-10 rounded-full"
+                      className="size-10 rounded-full"
                       src={review.user?.avatar_url || '/images/avatar_default.jpg'}
                       alt=""
                     />
@@ -443,13 +467,13 @@ const ContentModerationDashboard = () => {
                     </div>
                     {review.rating && (
                       <div className="flex items-center">
-                        <span className="text-sm text-gray-500 mr-1">Rating:</span>
+                        <span className="mr-1 text-sm text-gray-500">Rating:</span>
                         <div className="flex items-center">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`h-4 w-4 ${
-                                i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                              className={`size-4 ${
+                                i < review.rating ? 'fill-current text-yellow-400' : 'text-gray-300'
                               }`}
                             />
                           ))}
@@ -459,10 +483,10 @@ const ContentModerationDashboard = () => {
                   </div>
 
                   <div className="mb-4">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    <h3 className="mb-2 text-lg font-medium text-gray-900">
                       {review.title || `Review cho ${review.movie?.title}`}
                     </h3>
-                    <p className="text-gray-700 whitespace-pre-wrap">
+                    <p className="whitespace-pre-wrap text-gray-700">
                       {review.content.length > 300
                         ? `${review.content.substring(0, 300)}...`
                         : review.content}
@@ -471,35 +495,43 @@ const ContentModerationDashboard = () => {
 
                   <div className="flex items-center space-x-4 text-sm text-gray-500">
                     <span className="flex items-center">
-                      <MessageSquare className="h-4 w-4 mr-1" />
+                      <MessageSquare className="mr-1 size-4" />
                       Phim: {review.movie?.title}
                     </span>
                     <span className="flex items-center">
-                      <User className="h-4 w-4 mr-1" />
+                      <User className="mr-1 size-4" />
                       Ngôn ngữ: {review.language}
                     </span>
-                    {review.spoiler_analysis && (
+                    {review.moderation_analysis && (
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          review.spoiler_analysis.priority_level === 'high'
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          review.moderation_analysis.priority_level === 'high'
                             ? 'bg-red-100 text-red-800'
-                            : review.spoiler_analysis.priority_level === 'medium'
+                            : review.moderation_analysis.priority_level === 'medium'
                               ? 'bg-orange-100 text-orange-800'
                               : 'bg-yellow-100 text-yellow-800'
                         }`}
                       >
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        {review.spoiler_analysis.priority_level === 'high'
+                        <AlertTriangle className="mr-1 size-3" />
+                        {review.moderation_analysis.priority_level === 'high'
                           ? 'Ưu tiên cao'
-                          : review.spoiler_analysis.priority_level === 'medium'
+                          : review.moderation_analysis.priority_level === 'medium'
                             ? 'Ưu tiên TB'
                             : 'Ưu tiên thấp'}
-                        ({Math.round(review.spoiler_analysis.confidence * 100)}%)
+                        (
+                        {review.moderation_analysis.spoiler_analysis
+                          ? Math.round(review.moderation_analysis.spoiler_analysis.confidence * 100)
+                          : review.moderation_analysis.priority_level === 'high'
+                            ? 'Cao'
+                            : review.moderation_analysis.priority_level === 'medium'
+                              ? 'TB'
+                              : 'Thấp'}
+                        %)
                       </span>
                     )}
                     {review.is_spoiler && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                        <AlertTriangle className="mr-1 size-3" />
                         Đã đánh dấu Spoiler
                       </span>
                     )}
@@ -510,27 +542,27 @@ const ContentModerationDashboard = () => {
                 <div className="flex flex-col space-y-2">
                   <button
                     onClick={() => handleAnalyzeSpoiler(review)}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-700 hover:bg-gray-50"
                   >
                     {analyzingSpoiler && selectedReview?.id === review.id ? (
-                      <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                      <RefreshCw className="mr-1 size-4 animate-spin" />
                     ) : (
-                      <Eye className="h-4 w-4 mr-1" />
+                      <Eye className="mr-1 size-4" />
                     )}
                     Phân tích Spoiler
                   </button>
                   <button
                     onClick={() => handleModerationAction(review.id, 'approve')}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                    className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-sm font-medium leading-4 text-white hover:bg-green-700"
                   >
-                    <CheckCircle className="h-4 w-4 mr-1" />
+                    <CheckCircle className="mr-1 size-4" />
                     Phê duyệt
                   </button>
                   <button
                     onClick={() => handleModerationAction(review.id, 'reject')}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                    className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-3 py-2 text-sm font-medium leading-4 text-white hover:bg-red-700"
                   >
-                    <XCircle className="h-4 w-4 mr-1" />
+                    <XCircle className="mr-1 size-4" />
                     Từ chối
                   </button>
                 </div>
@@ -547,7 +579,7 @@ const ContentModerationDashboard = () => {
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
             >
               Trước
             </button>
@@ -557,7 +589,7 @@ const ContentModerationDashboard = () => {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
             >
               Sau
             </button>
@@ -567,10 +599,10 @@ const ContentModerationDashboard = () => {
 
       {/* Spoiler Analysis Modal */}
       {showModal && selectedReview && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 z-50 size-full overflow-y-auto bg-gray-600 bg-opacity-50">
+          <div className="relative top-20 mx-auto w-11/12 rounded-md border bg-white p-5 shadow-lg md:w-3/4 lg:w-1/2">
             <div className="mt-3">
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
                   Phân tích Spoiler - {selectedReview.movie?.title}
                 </h3>
@@ -578,32 +610,36 @@ const ContentModerationDashboard = () => {
                   onClick={() => setShowModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <XCircle className="h-6 w-6" />
+                  <XCircle className="size-6" />
                 </button>
               </div>
 
-              {(spoilerResult || selectedReview?.spoiler_analysis) && (
+              {(spoilerResult || selectedReview?.moderation_analysis?.spoiler_analysis) && (
                 <div className="space-y-4">
                   {/* Spoiler Detection Result */}
                   <div
-                    className={`p-4 rounded-lg border ${
-                      spoilerResult?.is_spoiler || selectedReview?.spoiler_analysis?.is_spoiler
+                    className={`rounded-lg border p-4 ${
+                      spoilerResult?.is_spoiler ||
+                      selectedReview?.moderation_analysis?.spoiler_analysis?.is_spoiler
                         ? 'border-red-200 bg-red-50'
                         : 'border-green-200 bg-green-50'
                     }`}
                   >
                     <div className="flex items-center space-x-2">
                       {getConfidenceIcon(
-                        spoilerResult?.confidence || selectedReview?.spoiler_analysis?.confidence
+                        spoilerResult?.confidence ||
+                          selectedReview?.moderation_analysis?.spoiler_analysis?.confidence
                       )}
                       <span
                         className={`font-medium ${
-                          spoilerResult?.is_spoiler || selectedReview?.spoiler_analysis?.is_spoiler
+                          spoilerResult?.is_spoiler ||
+                          selectedReview?.moderation_analysis?.spoiler_analysis?.is_spoiler
                             ? 'text-red-800'
                             : 'text-green-800'
                         }`}
                       >
-                        {spoilerResult?.is_spoiler || selectedReview?.spoiler_analysis?.is_spoiler
+                        {spoilerResult?.is_spoiler ||
+                        selectedReview?.moderation_analysis?.spoiler_analysis?.is_spoiler
                           ? 'Có phát hiện spoiler'
                           : 'Không có spoiler'}
                       </span>
@@ -612,7 +648,7 @@ const ContentModerationDashboard = () => {
                       Độ tin cậy:{' '}
                       {(
                         (spoilerResult?.confidence ||
-                          selectedReview?.spoiler_analysis?.confidence) * 100
+                          selectedReview?.moderation_analysis?.spoiler_analysis?.confidence) * 100
                       ).toFixed(1)}
                       %
                     </p>
@@ -620,8 +656,8 @@ const ContentModerationDashboard = () => {
 
                   {/* Explanation */}
                   {spoilerResult.explanation && (
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Giải thích</h4>
+                    <div className="rounded-lg bg-gray-50 p-4">
+                      <h4 className="mb-2 text-sm font-medium text-gray-900">Giải thích</h4>
                       <p className="text-sm text-gray-700">{spoilerResult.explanation}</p>
                     </div>
                   )}
@@ -629,8 +665,8 @@ const ContentModerationDashboard = () => {
                   {/* Detected Patterns */}
                   {spoilerResult.detected_patterns &&
                     spoilerResult.detected_patterns.length > 0 && (
-                      <div className="bg-yellow-50 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-yellow-900 mb-2">Mẫu phát hiện</h4>
+                      <div className="rounded-lg bg-yellow-50 p-4">
+                        <h4 className="mb-2 text-sm font-medium text-yellow-900">Mẫu phát hiện</h4>
                         <div className="space-y-1">
                           {spoilerResult.detected_patterns.map((pattern, index) => (
                             <div key={index} className="text-sm text-yellow-800">
@@ -644,8 +680,8 @@ const ContentModerationDashboard = () => {
                   {/* Spoiler Indicators */}
                   {spoilerResult.spoiler_indicators &&
                     spoilerResult.spoiler_indicators.length > 0 && (
-                      <div className="bg-orange-50 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-orange-900 mb-2">
+                      <div className="rounded-lg bg-orange-50 p-4">
+                        <h4 className="mb-2 text-sm font-medium text-orange-900">
                           Chỉ báo spoiler
                         </h4>
                         <div className="space-y-1">
@@ -660,8 +696,8 @@ const ContentModerationDashboard = () => {
 
                   {/* Suggested Action */}
                   {spoilerResult.suggested_action && (
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-blue-900 mb-2">Hành động đề xuất</h4>
+                    <div className="rounded-lg bg-blue-50 p-4">
+                      <h4 className="mb-2 text-sm font-medium text-blue-900">Hành động đề xuất</h4>
                       <p className="text-sm text-blue-800">{spoilerResult.suggested_action}</p>
                     </div>
                   )}
@@ -672,7 +708,7 @@ const ContentModerationDashboard = () => {
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   Đóng
                 </button>
@@ -681,7 +717,7 @@ const ContentModerationDashboard = () => {
                     handleModerationAction(selectedReview.id, 'approve');
                     setShowModal(false);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                  className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                 >
                   Phê duyệt
                 </button>
@@ -690,7 +726,7 @@ const ContentModerationDashboard = () => {
                     handleModerationAction(selectedReview.id, 'reject');
                     setShowModal(false);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
                 >
                   Từ chối
                 </button>

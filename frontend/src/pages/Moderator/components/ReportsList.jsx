@@ -30,6 +30,7 @@ const ReportsList = ({ isAdmin }) => {
     low_priority: 0,
     reason_stats: {},
   });
+  const [expandedContent, setExpandedContent] = useState(new Set());
 
   // Fetch reports from API
   const fetchReports = async () => {
@@ -111,6 +112,60 @@ const ReportsList = ({ isAdmin }) => {
     }
   };
 
+  const generateReportTitle = report => {
+    // Luôn sinh title động, không dùng title gốc nữa
+    // Lấy thông tin báo cáo
+    const reasons = report.report_summary?.unique_reasons || [];
+    const priority = report.report_summary?.priority || 'low';
+    const movieTitle = report.movie?.title || 'Phim không xác định';
+    const totalReports = report.report_summary?.total_reports || 0;
+    const username = report.user?.username || 'Người dùng không xác định';
+
+    // Tạo title dựa trên lý do báo cáo chính
+    let reasonText = '';
+    let prefix = '';
+
+    if (reasons.includes('offensive')) {
+      reasonText = 'Ngôn ngữ xúc phạm';
+      prefix = '🚨';
+    } else if (reasons.includes('abuse')) {
+      reasonText = 'Lạm dụng/Quấy rối';
+      prefix = '⚠️';
+    } else if (reasons.includes('spam')) {
+      reasonText = 'Spam/Quảng cáo';
+      prefix = '📢';
+    } else if (reasons.includes('spoiler')) {
+      reasonText = 'Chứa spoiler';
+      prefix = '🎬';
+    } else if (reasons.includes('irrelevant')) {
+      reasonText = 'Nội dung không liên quan';
+      prefix = '❓';
+    } else {
+      reasonText = 'Vi phạm khác';
+      prefix = '🚫';
+    }
+
+    // Tạo title với format phù hợp
+    let title = `${prefix} ${reasonText}`;
+
+    // Thêm thông tin về review
+    title += ` - Review của ${username} cho "${movieTitle}"`;
+
+    // Thêm thông tin về số lượng báo cáo nếu có nhiều
+    if (totalReports > 1) {
+      title += ` (${totalReports} người báo cáo)`;
+    }
+
+    // Thêm mức độ ưu tiên nếu cao
+    if (priority === 'high') {
+      title += ' 🔥';
+    } else if (priority === 'medium') {
+      title += ' ⚡';
+    }
+
+    return title;
+  };
+
   const handleModerate = async (reviewId, action) => {
     try {
       const reason = action === 'approve' ? 'Approved by moderator' : 'Rejected due to violations';
@@ -131,6 +186,22 @@ const ReportsList = ({ isAdmin }) => {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const toggleContentExpansion = reportId => {
+    setExpandedContent(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(reportId)) {
+        newSet.delete(reportId);
+      } else {
+        newSet.add(reportId);
+      }
+      return newSet;
+    });
+  };
+
+  const isContentExpanded = reportId => {
+    return expandedContent.has(reportId);
   };
 
   if (loading) {
@@ -187,49 +258,85 @@ const ReportsList = ({ isAdmin }) => {
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
+            <label className="block text-sm font-medium text-blue-700 mb-1">Tìm kiếm</label>
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-400" />
               <input
                 type="text"
                 placeholder="Tìm kiếm báo cáo..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
               />
             </div>
           </div>
           <div className="flex gap-2">
-            <select
-              value={filters.reason}
-              onChange={e => setFilters({ ...filters, reason: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Tất cả lý do</option>
-              <option value="offensive">Ngôn ngữ xúc phạm</option>
-              <option value="abuse">Lạm dụng</option>
-              <option value="spam">Spam</option>
-              <option value="spoiler">Spoiler</option>
-              <option value="irrelevant">Không liên quan</option>
-            </select>
-            <select
-              value={filters.priority}
-              onChange={e => setFilters({ ...filters, priority: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Tất cả ưu tiên</option>
-              <option value="high">Cao</option>
-              <option value="medium">Trung bình</option>
-              <option value="low">Thấp</option>
-            </select>
-            <select
-              value={filters.status}
-              onChange={e => setFilters({ ...filters, status: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="pending">Chờ xử lý</option>
-              <option value="resolved">Đã xử lý</option>
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">Lý do</label>
+              <select
+                value={filters.reason}
+                onChange={e => setFilters({ ...filters, reason: e.target.value })}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+              >
+                <option value="all" className="text-gray-900">
+                  Tất cả lý do
+                </option>
+                <option value="offensive" className="text-red-700">
+                  Ngôn ngữ xúc phạm
+                </option>
+                <option value="abuse" className="text-red-700">
+                  Lạm dụng
+                </option>
+                <option value="spam" className="text-yellow-700">
+                  Spam
+                </option>
+                <option value="spoiler" className="text-purple-700">
+                  Spoiler
+                </option>
+                <option value="irrelevant" className="text-blue-700">
+                  Không liên quan
+                </option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">Ưu tiên</label>
+              <select
+                value={filters.priority}
+                onChange={e => setFilters({ ...filters, priority: e.target.value })}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+              >
+                <option value="all" className="text-gray-900">
+                  Tất cả ưu tiên
+                </option>
+                <option value="high" className="text-red-700">
+                  Cao
+                </option>
+                <option value="medium" className="text-orange-700">
+                  Trung bình
+                </option>
+                <option value="low" className="text-green-700">
+                  Thấp
+                </option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">Trạng thái</label>
+              <select
+                value={filters.status}
+                onChange={e => setFilters({ ...filters, status: e.target.value })}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+              >
+                <option value="all" className="text-gray-900">
+                  Tất cả trạng thái
+                </option>
+                <option value="pending" className="text-yellow-700">
+                  Chờ xử lý
+                </option>
+                <option value="resolved" className="text-green-700">
+                  Đã xử lý
+                </option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -254,7 +361,7 @@ const ReportsList = ({ isAdmin }) => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h4 className="text-lg font-medium text-gray-900">
-                        Review: {report.title || 'Không có tiêu đề'}
+                        {generateReportTitle(report)}
                       </h4>
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(report.report_summary?.priority)}`}
@@ -268,9 +375,24 @@ const ReportsList = ({ isAdmin }) => {
                     </div>
 
                     <div className="text-sm text-gray-600 mb-3">
-                      <p className="mb-1">
-                        <strong>Nội dung:</strong> {report.content?.substring(0, 200)}...
-                      </p>
+                      <div className="mb-2">
+                        <strong>Nội dung:</strong>
+                        <div className="mt-1 p-3 bg-gray-50 rounded-lg whitespace-pre-wrap text-gray-700">
+                          {isContentExpanded(report.id)
+                            ? report.content || 'Không có nội dung'
+                            : report.content?.length > 300
+                              ? `${report.content.substring(0, 300)}...`
+                              : report.content || 'Không có nội dung'}
+                        </div>
+                        {report.content && report.content.length > 300 && (
+                          <button
+                            onClick={() => toggleContentExpansion(report.id)}
+                            className="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                          >
+                            {isContentExpanded(report.id) ? 'Thu gọn' : 'Xem thêm'}
+                          </button>
+                        )}
+                      </div>
                       <p className="mb-1">
                         <strong>Tác giả:</strong> {report.user?.username}
                       </p>

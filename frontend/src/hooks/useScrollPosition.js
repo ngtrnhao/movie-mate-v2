@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
 // Singleton scroll position manager

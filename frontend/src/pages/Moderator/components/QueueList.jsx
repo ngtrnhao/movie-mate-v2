@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { getModerationQueue, moderateReview } from '../../../api/movieService';
+import {
+  getModerationQueue,
+  moderateReview,
+  getUnifiedModerationQueue,
+} from '../../../api/movieService';
 
 const QueueList = ({
   selectedItems,
@@ -41,11 +45,24 @@ const QueueList = ({
       if (filters.status !== 'all') {
         apiFilters.status = filters.status;
       }
+      if (filters.type !== 'all') {
+        apiFilters.type = filters.type;
+      }
 
-      const data = await getModerationQueue(currentPage, 20, apiFilters);
-      setItems(data.data || []);
+      // Use unified moderation queue API
+      const data = await getUnifiedModerationQueue(currentPage, 50, apiFilters);
+
+      // Remove duplicate items based on id and created_at
+      const uniqueItems = (data.tasks || []).filter((item, index, self) => {
+        const firstIndex = self.findIndex(
+          otherItem => otherItem.id === item.id && otherItem.created_at === item.created_at
+        );
+        return firstIndex === index;
+      });
+
+      setItems(uniqueItems);
       setTotalPages(data.total_pages || 1);
-      setStats(data.priority_stats || {});
+      setStats(data.stats?.priority_stats || {});
     } catch (error) {
       console.error('Error fetching moderation queue:', error);
     } finally {
@@ -61,34 +78,6 @@ const QueueList = ({
   useEffect(() => {
     let filtered = [...items];
 
-    // Lọc theo loại
-    if (filters.type === 'reported') {
-      filtered = filtered.filter(item => item.moderation_analysis?.report_count > 0);
-    } else if (filters.type === 'spoiler') {
-      filtered = filtered.filter(
-        item =>
-          item.is_spoiler ||
-          item.moderation_analysis?.moderation_reasons?.includes('auto_detected_spoiler') ||
-          item.moderation_analysis?.moderation_reasons?.includes('marked_spoiler')
-      );
-    }
-
-    // Lọc theo ưu tiên
-    if (filters.priority !== 'all') {
-      filtered = filtered.filter(
-        item => (item.moderation_analysis?.priority_level || 'low') === filters.priority
-      );
-    }
-
-    // Lọc theo trạng thái
-    if (filters.status !== 'all') {
-      if (filters.status === 'pending') {
-        filtered = filtered.filter(item => item.is_approved === null);
-      } else if (filters.status === 'resolved') {
-        filtered = filtered.filter(item => item.is_approved !== null);
-      }
-    }
-
     // Apply search
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -96,32 +85,30 @@ const QueueList = ({
         item =>
           item.title?.toLowerCase().includes(searchLower) ||
           item.content?.toLowerCase().includes(searchLower) ||
-          item.user?.username?.toLowerCase().includes(searchLower)
+          item.user?.toLowerCase().includes(searchLower) ||
+          item.movie_title?.toLowerCase().includes(searchLower)
       );
     }
 
-    // Apply sorting (ưu tiên report, priority, thời gian)
+    // Sort by priority and date (server already sorts, but we can re-sort client-side)
     filtered.sort((a, b) => {
-      if (
-        (a.moderation_analysis?.report_count || 0) !== (b.moderation_analysis?.report_count || 0)
-      ) {
-        return (
-          (b.moderation_analysis?.report_count || 0) - (a.moderation_analysis?.report_count || 0)
-        );
-      }
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      const aPriority = priorityOrder[a.moderation_analysis?.priority_level] ?? 3;
-      const bPriority = priorityOrder[b.moderation_analysis?.priority_level] ?? 3;
+      // Priority order: high > medium > low
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      const aPriority = priorityOrder[a.priority] ?? 0;
+      const bPriority = priorityOrder[b.priority] ?? 0;
+
       if (aPriority !== bPriority) {
-        return aPriority - bPriority;
+        return bPriority - aPriority;
       }
+
+      // Then sort by creation date
       const aDate = new Date(a.created_at);
       const bDate = new Date(b.created_at);
       return bDate - aDate;
     });
 
     setFilteredItems(filtered);
-  }, [items, filters, searchTerm]);
+  }, [items, searchTerm]);
 
   const getTypeColor = type => {
     switch (type) {
@@ -153,10 +140,16 @@ const QueueList = ({
 
   const getStatusColor = status => {
     switch (status) {
+      case 'backlog':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-700';
+      case 'review':
+        return 'bg-purple-100 text-purple-700';
+      case 'completed':
+        return 'bg-green-100 text-green-700';
       case 'pending':
         return 'bg-yellow-100 text-yellow-700';
-      case 'reviewing':
-        return 'bg-blue-100 text-blue-700';
       case 'approved':
         return 'bg-green-100 text-green-700';
       case 'rejected':
@@ -166,8 +159,10 @@ const QueueList = ({
     }
   };
 
-  const handleModerate = async (reviewId, action) => {
+  const handleModerate = async (taskId, action) => {
     try {
+      // Extract review ID from task ID
+      const reviewId = taskId.split('_')[1];
       const reason = action === 'approve' ? 'Approved by moderator' : 'Rejected due to violations';
       await moderateReview(reviewId, action, reason);
 
@@ -188,11 +183,11 @@ const QueueList = ({
     });
   };
 
-  const getModerationReasons = review => {
+  const getModerationReasons = task => {
     const reasons = [];
 
-    if (review.moderation_analysis?.moderation_reasons) {
-      review.moderation_analysis.moderation_reasons.forEach(reason => {
+    if (task.moderation_reasons) {
+      task.moderation_reasons.forEach(reason => {
         switch (reason) {
           case 'user_reported':
             reasons.push({ text: 'Báo cáo từ người dùng', color: 'bg-red-100 text-red-700' });
@@ -213,9 +208,9 @@ const QueueList = ({
       });
     }
 
-    if (review.moderation_analysis?.report_count > 0) {
+    if (task.report_count > 0) {
       reasons.push({
-        text: `${review.moderation_analysis.report_count} báo cáo`,
+        text: `${task.report_count} báo cáo`,
         color: 'bg-red-100 text-red-700',
       });
     }
@@ -398,14 +393,14 @@ const QueueList = ({
               <p className="text-gray-600">Thử thay đổi bộ lọc hoặc tìm kiếm khác</p>
             </div>
           ) : (
-            filteredItems.map(item => (
+            filteredItems.map((item, index) => (
               <div
-                key={item.id}
+                key={`${item.id}_${item.created_at}_${index}`}
                 className={`px-6 py-4 hover:bg-gray-50 transition-colors ${
                   selectedItems.includes(item.id) ? 'bg-indigo-50' : ''
                 }`}
               >
-                <div className="grid grid-cols-12 gap-4 items-center">
+                <div className="grid grid-cols-12 items-center gap-4">
                   {/* Checkbox */}
                   <div className="col-span-1">
                     <input
@@ -420,18 +415,20 @@ const QueueList = ({
                   <div className="col-span-1">
                     <div className="flex flex-col items-center">
                       <span className="text-2xl mb-1">
-                        {item.moderation_analysis?.report_count > 0
+                        {item.type === 'report' || item.type === 'both'
                           ? '🚨'
-                          : item.is_spoiler
+                          : item.type === 'spoiler'
                             ? '⚠️'
                             : '📝'}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {item.moderation_analysis?.report_count > 0
+                        {item.type === 'report'
                           ? 'Báo cáo'
-                          : item.is_spoiler
+                          : item.type === 'spoiler'
                             ? 'Spoiler'
-                            : 'Review'}
+                            : item.type === 'both'
+                              ? 'Cả hai'
+                              : 'Review'}
                       </span>
                     </div>
                   </div>
@@ -446,9 +443,9 @@ const QueueList = ({
                     </div>
                     {/* Moderation reasons */}
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {getModerationReasons(item).map((reason, index) => (
+                      {getModerationReasons(item).map((reason, reasonIndex) => (
                         <span
-                          key={index}
+                          key={`${item.id}_reason_${reasonIndex}_${reason.text}`}
                           className={`px-2 py-1 text-xs rounded-full ${reason.color}`}
                         >
                           {reason.text}
@@ -461,7 +458,7 @@ const QueueList = ({
                   <div className="col-span-2">
                     <div className="flex items-center">
                       <span className="text-sm font-medium text-gray-900">
-                        {item.user?.username || 'Unknown'}
+                        {item.user || 'Unknown'}
                       </span>
                     </div>
                   </div>
@@ -470,12 +467,12 @@ const QueueList = ({
                   <div className="col-span-1">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                        item.moderation_analysis?.priority_level || 'low'
+                        item.priority || 'low'
                       )}`}
                     >
-                      {item.moderation_analysis?.priority_level === 'high'
+                      {item.priority === 'high'
                         ? 'Cao'
-                        : item.moderation_analysis?.priority_level === 'medium'
+                        : item.priority === 'medium'
                           ? 'TB'
                           : 'Thấp'}
                     </span>
@@ -484,15 +481,19 @@ const QueueList = ({
                   {/* Status */}
                   <div className="col-span-1">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        item.is_approved === null
-                          ? 'pending'
-                          : item.is_approved
-                            ? 'approved'
-                            : 'rejected'
+                      className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(
+                        item.status || 'backlog'
                       )}`}
                     >
-                      {item.is_approved === null ? 'Chờ' : item.is_approved ? 'Duyệt' : 'Từ chối'}
+                      {item.status === 'backlog'
+                        ? 'Chờ'
+                        : item.status === 'in_progress'
+                          ? 'Đang xử lý'
+                          : item.status === 'review'
+                            ? 'Xem xét'
+                            : item.status === 'completed'
+                              ? 'Hoàn thành'
+                              : 'Chờ'}
                     </span>
                   </div>
 
@@ -521,7 +522,11 @@ const QueueList = ({
                       <button
                         className="p-1 text-blue-600 hover:text-blue-800"
                         title="Xem chi tiết"
-                        onClick={() => window.open(`/movies/${item.movie?.id}`, '_blank')}
+                        onClick={() => {
+                          if (item.review_data?.movie?.id) {
+                            window.open(`/movies/${item.review_data.movie.id}`, '_blank');
+                          }
+                        }}
                       >
                         👁️
                       </button>

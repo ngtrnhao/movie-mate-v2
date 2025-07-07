@@ -113,6 +113,7 @@ const RatingTab = ({ movieId }) => {
   const [userReview, setUserReview] = useState(null);
   const [isSpoiler, setIsSpoiler] = useState(false);
   const [showRejectedReviews, setShowRejectedReviews] = useState(false); // Toggle hiển thị review bị từ chối
+  const [showSpoilerReviews, setShowSpoilerReviews] = useState(false); // Toggle hiển thị review spoiler
 
   // Spoiler detection hook
   const {
@@ -148,7 +149,7 @@ const RatingTab = ({ movieId }) => {
     if (isAuthenticated) {
       fetchUserReview();
     }
-  }, [movieId, currentPage, sortBy, isAuthenticated]);
+  }, [movieId, currentPage, sortBy, isAuthenticated, showSpoilerReviews]);
 
   const handleAuthRequired = () => {
     const returnPath = {
@@ -162,7 +163,7 @@ const RatingTab = ({ movieId }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getMovieReviews(movieId, currentPage, 10, sortBy);
+      const data = await getMovieReviews(movieId, currentPage, 10, sortBy, showSpoilerReviews);
 
       setReviews(data.data || []);
       setTotalPages(data.total_pages || 1);
@@ -549,6 +550,19 @@ const RatingTab = ({ movieId }) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Show/Hide Spoiler Reviews Toggle */}
+          <button
+            onClick={() => setShowSpoilerReviews(!showSpoilerReviews)}
+            className={`flex items-center gap-2 rounded-lg px-3 py-1 text-sm transition-colors ${
+              showSpoilerReviews
+                ? 'bg-orange-500/20 text-orange-400'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            {showSpoilerReviews ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showSpoilerReviews ? 'Ẩn' : 'Hiện'} Review spoiler
+          </button>
+
           {/* Show/Hide Rejected Reviews Toggle */}
           {rejectedReviewsCount > 0 && (
             <button
@@ -595,15 +609,15 @@ const RatingTab = ({ movieId }) => {
                   <div className="relative">
                     <img
                       src={review.reviewer_avatar || '/api/placeholder/40/40'}
-                      alt={review.reviewer_name || 'User'}
+                      alt={review.reviewer_username || 'User'}
                       className="size-10 rounded-full object-cover"
                       onError={e => {
                         e.target.src = `https://ui-avatars.com/api/?name=${review.reviewer_name || 'User'}&background=random&color=fff&size=40`;
                       }}
                     />
-                    {review.is_verified_reviewer && (
+                    {/* {review.is_verified_reviewer && (
                       <span className="absolute -right-1 -top-1 text-xs text-yellow-400">⚡</span>
-                    )}
+                    )} */}
                   </div>
 
                   <div className="flex-1">
@@ -611,9 +625,9 @@ const RatingTab = ({ movieId }) => {
                       <span className="font-medium text-white">
                         {review.reviewer_name || 'User'}
                       </span>
-                      {review.is_verified_reviewer && (
+                      {/* {review.is_verified_reviewer && (
                         <span className="text-xs text-yellow-400">⚡</span>
-                      )}
+                      )} */}
                       <span className="text-xs text-gray-400">
                         {new Date(review.created_at).toLocaleDateString('vi-VN', {
                           day: '2-digit',

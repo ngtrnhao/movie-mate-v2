@@ -59,9 +59,11 @@ import BulkActions from './components/BulkActions';
 import SpoilerDetectionPanel from './components/SpoilerDetectionPanel';
 import UserManagement from './components/UserManagement';
 import SystemSettings from './components/SystemSettings';
+import AdminSettings from './components/AdminSettings';
 import Analytics from './components/Analytics';
 import ContentManagement from './components/ContentManagement';
 import ContentModerationDashboard from './components/ContentModerationDashboard';
+import AutoMarkedReviews from './components/AutoMarkedReviews';
 
 const ModeratorDashboard = () => {
   const [activeView, setActiveView] = useState('overview');
@@ -157,6 +159,18 @@ const ModeratorDashboard = () => {
         priority: 'high',
         badge: '25',
         badgeColor: 'red',
+      },
+      {
+        id: 'auto-marked',
+        label: 'Auto-marked Reviews',
+        icon: BoltIcon,
+        iconSolid: BoltIcon,
+        color: 'yellow',
+        viewMode: 'dashboard',
+        description: 'Reviews được đánh dấu tự động bởi AI',
+        priority: 'high',
+        badge: '18',
+        badgeColor: 'yellow',
       },
       {
         id: 'user-management',
@@ -508,12 +522,14 @@ const ModeratorDashboard = () => {
         return <ContentManagement />;
       case 'content-moderation':
         return <ContentModerationDashboard />;
+      case 'auto-marked':
+        return <AutoMarkedReviews />;
       case 'user-management':
         return <UserManagement />;
       case 'analytics':
         return <Analytics />;
       case 'settings':
-        return <SystemSettings />;
+        return isAdmin ? <AdminSettings /> : <SystemSettings />;
       case 'system-users':
         return isAdmin ? <UserManagement /> : null;
       default:

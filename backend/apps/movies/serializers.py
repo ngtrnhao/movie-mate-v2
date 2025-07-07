@@ -472,6 +472,7 @@ class MovieReviewSerializer(serializers.ModelSerializer):
     replies = serializers.SerializerMethodField()
     moderation_analysis = serializers.SerializerMethodField()
     report_summary = serializers.SerializerMethodField()
+    spoiler_confidence = serializers.FloatField(read_only=True)
 
     class Meta:
         model = MovieReview
@@ -483,12 +484,13 @@ class MovieReviewSerializer(serializers.ModelSerializer):
             'can_edit', 'can_vote', 'user_vote', 'can_reply', 'reply_count',
             'is_reply', 'parent_review', 'replies',
             'is_approved', 'moderated_by', 'moderated_at', 'moderation_reason',
-            'moderation_analysis', 'created_at', 'updated_at', 'report_summary'
+            'moderation_analysis', 'created_at', 'updated_at', 'report_summary',
+            'spoiler_confidence'
         ]
         read_only_fields = [
             'id', 'user', 'helpful_votes', 'total_votes', 'helpfulness_ratio',
             'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
-            'can_edit', 'can_vote', 'user_vote', 'moderation_analysis', 'created_at', 'updated_at'
+            'can_edit', 'can_vote', 'user_vote', 'moderation_analysis', 'created_at', 'updated_at', 'spoiler_confidence'
         ]
 
     def validate_rating(self, value):

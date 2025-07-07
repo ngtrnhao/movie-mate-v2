@@ -362,7 +362,7 @@ class SpoilerDetectionService:
             'style', 'phong cách', 'tone', 'giọng điệu'
         ]
 
-    def detect_spoilers(self, content: str, language: str = 'en', movie_title: str = None) -> SpoilerDetectionResult:
+    def detect_spoilers(self, content: str, language: str = 'en', movie_title: str = None, thresholds: Dict = None) -> SpoilerDetectionResult:
         """
         Main method to detect spoilers in review content
 
@@ -402,12 +402,18 @@ class SpoilerDetectionService:
         })
 
         # Determine result
-        is_spoiler = final_score['total'] > 0.6
         confidence = final_score['total']
+
+        # Use dynamic thresholds to determine is_spoiler
+        if thresholds is None:
+            thresholds = {'auto_mark': 0.8, 'flag_review': 0.6, 'suggest_warning': 0.4}
+
+        # is_spoiler should be true if confidence meets the suggest_warning threshold
+        is_spoiler = confidence >= thresholds['suggest_warning']
 
         # Generate explanation
         explanation = self._generate_explanation(final_score, language)
-        suggested_action = self._suggest_action(confidence, final_score)
+        suggested_action = self._suggest_action(confidence, final_score, thresholds)
 
         return SpoilerDetectionResult(
             is_spoiler=is_spoiler,
@@ -585,13 +591,17 @@ class SpoilerDetectionService:
             else:
                 return "Content shows no clear spoiler indicators."
 
-    def _suggest_action(self, confidence: float, final_score: Dict) -> str:
+    def _suggest_action(self, confidence: float, final_score: Dict, thresholds: Dict = None) -> str:
         """Suggest action based on detection confidence"""
-        if confidence > 0.8:
+        if thresholds is None:
+            # Fallback to default thresholds
+            thresholds = {'auto_mark': 0.8, 'flag_review': 0.6, 'suggest_warning': 0.4}
+
+        if confidence >= thresholds['auto_mark']:
             return "auto_mark_spoiler"
-        elif confidence > 0.6:
+        elif confidence >= thresholds['flag_review']:
             return "flag_for_review"
-        elif confidence > 0.4:
+        elif confidence >= thresholds['suggest_warning']:
             return "suggest_spoiler_warning"
         else:
             return "no_action"

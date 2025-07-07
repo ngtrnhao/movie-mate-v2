@@ -207,10 +207,16 @@ export const getSimilarMovies = async (movieId, genres = [], limit = 6) => {
 };
 
 // Get movie reviews (updated for unified review system)
-export const getMovieReviews = async (movieId, page = 1, limit = 20, sortBy = 'recent') => {
+export const getMovieReviews = async (
+  movieId,
+  page = 1,
+  limit = 20,
+  sortBy = 'recent',
+  showSpoilers = false
+) => {
   try {
     const response = await axiosInstance.get(`/api/movies/${movieId}/reviews/`, {
-      params: { page, page_size: limit, sort_by: sortBy },
+      params: { page, page_size: limit, sort_by: sortBy, show_spoilers: showSpoilers },
     });
 
     // Standardize response format
@@ -807,7 +813,7 @@ export const getUnifiedModerationQueue = async (page = 1, pageSize = 50, filters
 // Update task status for kanban board
 export const updateTaskStatus = async (taskId, status) => {
   try {
-    const response = await axiosInstance.post('/api/movies/reviews/update_task_status/', {
+    const response = await axiosInstance.post('/api/reviews/update_task_status/', {
       task_id: taskId,
       status: status,
     });
@@ -815,5 +821,150 @@ export const updateTaskStatus = async (taskId, status) => {
   } catch (error) {
     console.error('Error updating task status:', error);
     throw error;
+  }
+};
+
+// ====== ENHANCED MODERATION API CALLS ======
+
+// Get auto-marked reviews for moderator review
+export const getAutoMarkedReviews = async (page = 1, pageSize = 20, filters = {}) => {
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+      confidence_min: filters.confidenceMin || '0.8',
+      confidence_max: filters.confidenceMax || '1.0',
+      reviewed_status: filters.reviewedStatus || 'pending',
+    });
+
+    if (filters.dateFrom) params.append('date_from', filters.dateFrom);
+    if (filters.dateTo) params.append('date_to', filters.dateTo);
+
+    const response = await axiosInstance.get(`/api/reviews/auto_marked_reviews/?${params}`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching auto-marked reviews:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch auto-marked reviews',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Submit moderator feedback for learning system
+export const submitModerationFeedback = async (reviewId, feedbackData) => {
+  try {
+    const response = await axiosInstance.post(`/api/reviews/${reviewId}/submit_feedback/`, {
+      feedback_type: feedbackData.feedbackType,
+      moderator_decision: feedbackData.moderatorDecision,
+      is_spoiler_correct: feedbackData.isSpoilerCorrect,
+      difficulty_level: feedbackData.difficultyLevel || 'medium',
+      notes: feedbackData.notes || '',
+      time_spent_seconds: feedbackData.timeSpentSeconds || 0,
+    });
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error submitting moderation feedback:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to submit feedback',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Get moderation analytics and performance metrics
+export const getModerationAnalytics = async (days = 30) => {
+  try {
+    const response = await axiosInstance.get(`/api/reviews/moderation_analytics/?days=${days}`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching moderation analytics:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch moderation analytics',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Get active moderation configuration
+export const getModerationConfig = async () => {
+  try {
+    const response = await axiosInstance.get('/api/moderation-config/active_config/');
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching moderation config:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch moderation config',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Update moderation thresholds
+export const updateModerationThresholds = async thresholds => {
+  try {
+    const response = await axiosInstance.post('/api/moderation-config/update_thresholds/', {
+      auto_mark_threshold: thresholds.autoMarkThreshold,
+      flag_for_review_threshold: thresholds.flagForReviewThreshold,
+      suggest_warning_threshold: thresholds.suggestWarningThreshold,
+    });
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error updating moderation thresholds:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to update thresholds',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Toggle learning system
+export const toggleLearningSystem = async enabled => {
+  try {
+    const response = await axiosInstance.post('/api/moderation-config/toggle_learning/', {
+      enabled: enabled,
+    });
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error toggling learning system:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to toggle learning system',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Get moderation feedback data
+export const getModerationFeedback = async (page = 1, pageSize = 20, filters = {}) => {
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+
+    if (filters.feedbackType) params.append('feedback_type', filters.feedbackType);
+
+    const response = await axiosInstance.get(`/api/moderation-feedback/?${params}`);
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching moderation feedback:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch moderation feedback',
+      details: error.response?.data,
+    };
+  }
+};
+
+// Get accuracy summary for different time periods
+export const getAccuracySummary = async () => {
+  try {
+    const response = await axiosInstance.get('/api/moderation-feedback/accuracy_summary/');
+    return handleResponse(response.data);
+  } catch (error) {
+    console.error('Error fetching accuracy summary:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to fetch accuracy summary',
+      details: error.response?.data,
+    };
   }
 };

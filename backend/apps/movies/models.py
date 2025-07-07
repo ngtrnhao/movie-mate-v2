@@ -924,3 +924,382 @@ class MovieBoxOffice(models.Model):
             models.Index(fields=["budget"]),
             models.Index(fields=["domestic_gross"]),
         ]
+
+
+class ModerationConfig(models.Model):
+    """
+    Configuration model for dynamic spoiler detection thresholds and moderation settings
+    """
+    # Dynamic thresholds for spoiler detection
+    auto_mark_threshold = models.FloatField(
+        default=0.8,
+        help_text="Confidence threshold for auto-marking reviews as spoiler"
+    )
+    flag_for_review_threshold = models.FloatField(
+        default=0.6,
+        help_text="Confidence threshold for flagging reviews for manual review"
+    )
+    suggest_warning_threshold = models.FloatField(
+        default=0.4,
+        help_text="Confidence threshold for suggesting spoiler warning"
+    )
+
+    # Learning algorithm parameters
+    learning_enabled = models.BooleanField(
+        default=True,
+        help_text="Enable machine learning from moderator feedback"
+    )
+    learning_rate = models.FloatField(
+        default=0.1,
+        help_text="Learning rate for threshold adjustments (0.0-1.0)"
+    )
+    min_feedback_count = models.IntegerField(
+        default=10,
+        help_text="Minimum feedback count before applying threshold adjustments"
+    )
+
+    # System settings
+    auto_moderate_enabled = models.BooleanField(
+        default=True,
+        help_text="Enable automatic moderation based on thresholds"
+    )
+    require_approval_for_auto_marked = models.BooleanField(
+        default=False,
+        help_text="Require moderator approval for auto-marked spoiler reviews"
+    )
+    send_to_moderation_queue_threshold = models.FloatField(
+        default=0.6,
+        help_text="Confidence threshold for sending reviews to moderation queue"
+    )
+
+    # Notification settings
+    notify_moderators_on_auto_mark = models.BooleanField(
+        default=True,
+        help_text="Send notifications when reviews are auto-marked"
+    )
+    daily_report_enabled = models.BooleanField(
+        default=True,
+        help_text="Send daily performance reports to administrators"
+    )
+
+    # Performance tracking
+    accuracy_target = models.FloatField(
+        default=0.85,
+        help_text="Target accuracy rate for the spoiler detection system"
+    )
+    false_positive_limit = models.FloatField(
+        default=0.1,
+        help_text="Maximum acceptable false positive rate"
+    )
+
+    # Metadata
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Administrator who created this configuration"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this configuration is currently active"
+    )
+
+    class Meta:
+        db_table = "movies_moderation_config"
+        indexes = [
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["updated_at"]),
+        ]
+        ordering = ['-created_at']
+        verbose_name = "Moderation Configuration"
+        verbose_name_plural = "Moderation Configurations"
+
+    def __str__(self):
+        return f"Moderation Config (Active: {self.is_active}) - {self.created_at.strftime('%Y-%m-%d')}"
+
+    def clean(self):
+        """Validate threshold values"""
+        from django.core.exceptions import ValidationError
+
+        # Validate threshold ranges
+        if not (0.0 <= self.auto_mark_threshold <= 1.0):
+            raise ValidationError("Auto mark threshold must be between 0.0 and 1.0")
+        if not (0.0 <= self.flag_for_review_threshold <= 1.0):
+            raise ValidationError("Flag for review threshold must be between 0.0 and 1.0")
+        if not (0.0 <= self.suggest_warning_threshold <= 1.0):
+            raise ValidationError("Suggest warning threshold must be between 0.0 and 1.0")
+
+        # Validate threshold order
+        if self.auto_mark_threshold <= self.flag_for_review_threshold:
+            raise ValidationError("Auto mark threshold must be higher than flag for review threshold")
+        if self.flag_for_review_threshold <= self.suggest_warning_threshold:
+            raise ValidationError("Flag for review threshold must be higher than suggest warning threshold")
+
+        # Validate learning rate
+        if not (0.0 <= self.learning_rate <= 1.0):
+            raise ValidationError("Learning rate must be between 0.0 and 1.0")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+
+        # Ensure only one active configuration
+        if self.is_active:
+            ModerationConfig.objects.filter(is_active=True).update(is_active=False)
+
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_active_config(cls):
+        """Get the currently active configuration"""
+        try:
+            return cls.objects.filter(is_active=True).first()
+        except cls.DoesNotExist:
+            # Create default configuration if none exists
+            return cls.objects.create(is_active=True)
+
+
+class ModerationFeedback(models.Model):
+    """
+    Model for tracking moderator feedback on spoiler detection decisions
+    Used for machine learning and improving detection accuracy
+    """
+    FEEDBACK_TYPES = [
+        ('correct_spoiler', 'Correctly Marked as Spoiler'),
+        ('false_positive', 'False Positive - Not a Spoiler'),
+        ('missed_spoiler', 'False Negative - Missed Spoiler'),
+        ('correct_non_spoiler', 'Correctly Marked as Non-Spoiler'),
+    ]
+
+    MODERATOR_DECISIONS = [
+        ('approve_as_spoiler', 'Approve as Spoiler'),
+        ('approve_as_non_spoiler', 'Approve as Non-Spoiler'),
+        ('reject_review', 'Reject Review'),
+        ('request_revision', 'Request Revision'),
+    ]
+
+    # Core relationships
+    review = models.ForeignKey(
+        MovieReview,
+        on_delete=models.CASCADE,
+        related_name='moderation_feedback',
+        help_text="The review that was moderated"
+    )
+    moderator = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='spoiler_feedback',
+        help_text="The moderator who provided feedback"
+    )
+
+    # Original detection results
+    original_confidence = models.FloatField(
+        help_text="Original spoiler detection confidence score"
+    )
+    original_suggested_action = models.CharField(
+        max_length=32,
+        help_text="Original suggested action from spoiler detection"
+    )
+    original_is_spoiler = models.BooleanField(
+        help_text="Original spoiler detection result"
+    )
+
+    # Moderator feedback
+    feedback_type = models.CharField(
+        max_length=32,
+        choices=FEEDBACK_TYPES,
+        help_text="Type of feedback provided by moderator"
+    )
+    moderator_decision = models.CharField(
+        max_length=32,
+        choices=MODERATOR_DECISIONS,
+        help_text="Final decision made by moderator"
+    )
+    is_spoiler_correct = models.BooleanField(
+        help_text="Whether the spoiler detection was correct according to moderator"
+    )
+
+    # Additional feedback details
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Optional notes from moderator explaining the decision"
+    )
+    difficulty_level = models.CharField(
+        max_length=20,
+        choices=[
+            ('easy', 'Easy to Detect'),
+            ('medium', 'Medium Difficulty'),
+            ('hard', 'Hard to Detect'),
+            ('ambiguous', 'Ambiguous Case'),
+        ],
+        default='medium',
+        help_text="Subjective difficulty of spoiler detection for this review"
+    )
+
+    # Performance impact tracking
+    time_spent_seconds = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Time spent by moderator reviewing this item (in seconds)"
+    )
+
+    # Learning system usage
+    used_for_learning = models.BooleanField(
+        default=False,
+        help_text="Whether this feedback has been used to update the learning algorithm"
+    )
+    learning_impact_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Calculated impact score of this feedback on system learning"
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "movies_moderation_feedback"
+        indexes = [
+            models.Index(fields=["review"]),
+            models.Index(fields=["moderator"]),
+            models.Index(fields=["feedback_type"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["used_for_learning"]),
+            models.Index(fields=["is_spoiler_correct"]),
+            models.Index(fields=["original_confidence"]),
+            # Composite indexes for analytics
+            models.Index(fields=["feedback_type", "created_at"]),
+            models.Index(fields=["moderator", "created_at"]),
+            models.Index(fields=["original_confidence", "is_spoiler_correct"]),
+        ]
+        ordering = ['-created_at']
+        verbose_name = "Moderation Feedback"
+        verbose_name_plural = "Moderation Feedback"
+        # Prevent duplicate feedback for same review by same moderator
+        constraints = [
+            models.UniqueConstraint(
+                fields=['review', 'moderator'],
+                name='unique_review_moderator_feedback'
+            )
+        ]
+
+    def __str__(self):
+        return (f"Feedback by {self.moderator.username} on review {self.review.id} "
+                f"({self.feedback_type})")
+
+    @property
+    def accuracy_contribution(self):
+        """Calculate how this feedback contributes to overall accuracy"""
+        if self.feedback_type in ['correct_spoiler', 'correct_non_spoiler']:
+            return 1.0  # Correct detection
+        else:
+            return 0.0  # Incorrect detection
+
+    @property
+    def confidence_range(self):
+        """Get the confidence range this feedback falls into"""
+        if self.original_confidence >= 0.8:
+            return "high"
+        elif self.original_confidence >= 0.6:
+            return "medium-high"
+        elif self.original_confidence >= 0.4:
+            return "medium"
+        else:
+            return "low"
+
+    def calculate_learning_impact(self):
+        """Calculate and update the learning impact score"""
+        # Higher impact for:
+        # 1. Incorrect detections (need to learn from mistakes)
+        # 2. Edge cases near threshold boundaries
+        # 3. Ambiguous cases that are hard to detect
+
+        base_impact = 1.0
+
+        # Increase impact for incorrect detections
+        if not self.is_spoiler_correct:
+            base_impact *= 2.0
+
+        # Increase impact for cases near thresholds (harder to classify)
+        config = ModerationConfig.get_active_config()
+        if config:
+            threshold_distances = [
+                abs(self.original_confidence - config.auto_mark_threshold),
+                abs(self.original_confidence - config.flag_for_review_threshold),
+                abs(self.original_confidence - config.suggest_warning_threshold),
+            ]
+            min_distance = min(threshold_distances)
+            if min_distance < 0.1:  # Very close to threshold
+                base_impact *= 1.5
+
+        # Increase impact for difficult cases
+        difficulty_multipliers = {
+            'easy': 0.5,
+            'medium': 1.0,
+            'hard': 1.5,
+            'ambiguous': 2.0,
+        }
+        base_impact *= difficulty_multipliers.get(self.difficulty_level, 1.0)
+
+        self.learning_impact_score = base_impact
+        return base_impact
+
+    @classmethod
+    def get_accuracy_metrics(cls, days=30):
+        """Calculate accuracy metrics for the last N days"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        start_date = timezone.now() - timedelta(days=days)
+
+        feedback_queryset = cls.objects.filter(created_at__gte=start_date)
+
+        total_feedback = feedback_queryset.count()
+        if total_feedback == 0:
+            return {
+                'precision': 0.0,
+                'recall': 0.0,
+                'f1_score': 0.0,
+                'accuracy': 0.0,
+                'total_feedback': 0
+            }
+
+        # Calculate confusion matrix components
+        true_positives = feedback_queryset.filter(
+            feedback_type='correct_spoiler'
+        ).count()
+
+        false_positives = feedback_queryset.filter(
+            feedback_type='false_positive'
+        ).count()
+
+        false_negatives = feedback_queryset.filter(
+            feedback_type='missed_spoiler'
+        ).count()
+
+        true_negatives = feedback_queryset.filter(
+            feedback_type='correct_non_spoiler'
+        ).count()
+
+        # Calculate metrics
+        precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
+        recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        accuracy = (true_positives + true_negatives) / total_feedback
+
+        return {
+            'precision': round(precision, 3),
+            'recall': round(recall, 3),
+            'f1_score': round(f1_score, 3),
+            'accuracy': round(accuracy, 3),
+            'total_feedback': total_feedback,
+            'true_positives': true_positives,
+            'false_positives': false_positives,
+            'false_negatives': false_negatives,
+            'true_negatives': true_negatives,
+        }

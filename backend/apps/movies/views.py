@@ -8,11 +8,12 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Prefetch, Q, F, Avg, Case, When, Value, IntegerField, DecimalField
 from django.db.models.functions import Greatest, Coalesce, Cast
 from django.core.paginator import Paginator
 from django.db import models
-from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer, ReviewReport
+from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer, ReviewReport,ModerationConfig,ModerationFeedback
 from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer, ReviewReportSerializer, ModerationQueueReviewSerializer
 import logging
 import hashlib
@@ -27,6 +28,23 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
     queryset = Movie.objects.all()
     serializer_class = OptimizedMovieListSerializer
     permission_classes = [AllowAny]
+
+    def _get_current_thresholds(self):
+        """Get current moderation thresholds from active config"""
+        from .models import ModerationConfig
+        config = ModerationConfig.get_active_config()
+        if config:
+            return {
+                'auto_mark': config.auto_mark_threshold,
+                'flag_review': config.flag_for_review_threshold,
+                'suggest_warning': config.suggest_warning_threshold
+            }
+        # Fallback to defaults if no config
+        return {
+            'auto_mark': 0.8,
+            'flag_review': 0.6,
+            'suggest_warning': 0.4
+        }
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -433,12 +451,21 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                     # --- SPOILER DETECTION LOGIC BẮT ĐẦU ---
                     content = request.data.get('content', '')
                     language = request.data.get('language', 'en')
+
+                    # Auto-detect Vietnamese content
+                    import re
+                    vietnamese_chars = re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', content, re.IGNORECASE)
+                    if vietnamese_chars:
+                        language = 'vi'
+                        logger.info(f"[REVIEWS ACTION UPDATE] Auto-detected Vietnamese content, switching language to 'vi'")
+
                     spoiler_result = None
                     movie_title = movie.title if movie else ''
                     if content:
                         try:
-                            spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
-                            if spoiler_result.confidence > 0.8:
+                            thresholds = self._get_current_thresholds()
+                            spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title, thresholds)
+                            if spoiler_result.confidence >= thresholds['auto_mark']:
                                 request.data['is_spoiler'] = True
                                 request.data['auto_marked'] = True
                         except Exception as e:
@@ -451,12 +478,14 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                         # --- LƯU KẾT QUẢ PHÂN TÍCH SPOILER ---
                         if spoiler_result:
                             try:
-                                logger.info(f"[REVIEWS ACTION][AUTO-UPDATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
+                                thresholds = self._get_current_thresholds()
+                                auto_marked = spoiler_result.confidence >= thresholds['auto_mark']
+                                logger.info(f"[REVIEWS ACTION][AUTO-UPDATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={auto_marked}")
                                 review.spoiler_confidence = spoiler_result.confidence
                                 review.spoiler_detected_patterns = spoiler_result.detected_patterns
                                 review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
                                 review.spoiler_explanation = spoiler_result.explanation
-                                review.auto_marked = spoiler_result.confidence > 0.8
+                                review.auto_marked = auto_marked
                                 review.save(update_fields=[
                                     'spoiler_confidence', 'spoiler_detected_patterns',
                                     'spoiler_suggested_action','spoiler_explanation','auto_marked'
@@ -481,14 +510,30 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 # --- SPOILER DETECTION LOGIC BẮT ĐẦU ---
                 content = request.data.get('content', '')
                 language = request.data.get('language', 'en')
+
+                # Auto-detect Vietnamese content
+                import re
+                vietnamese_chars = re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', content, re.IGNORECASE)
+                if vietnamese_chars:
+                    language = 'vi'
+                    logger.info(f"[REVIEWS ACTION CREATE] Auto-detected Vietnamese content, switching language to 'vi'")
+
                 spoiler_result = None
                 movie_title = movie.title if movie else ''
                 if content:
                     try:
-                        spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
-                        if spoiler_result.confidence > 0.8:
+                        thresholds = self._get_current_thresholds()
+                        logger.info(f"[REVIEWS ACTION CREATE] Content: '{content}', Language: '{language}', Movie: '{movie_title}', Thresholds: {thresholds}")
+                        spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title, thresholds)
+                        logger.info(f"[REVIEWS ACTION CREATE] Spoiler result: confidence={spoiler_result.confidence}, is_spoiler={spoiler_result.is_spoiler}, suggested_action={getattr(spoiler_result, 'suggested_action', 'N/A')}")
+
+                        should_auto_mark = spoiler_result.confidence >= thresholds['auto_mark']
+                        logger.info(f"[REVIEWS ACTION CREATE] Should auto mark? {should_auto_mark} (confidence {spoiler_result.confidence} >= threshold {thresholds['auto_mark']})")
+
+                        if should_auto_mark:
                             request.data['is_spoiler'] = True
                             request.data['auto_marked'] = True
+                            logger.info(f"[REVIEWS ACTION CREATE] Auto-marking review as spoiler")
                     except Exception as e:
                         logger.error(f"Error in spoiler detection during review creation: {str(e)}")
                 # --- SPOILER DETECTION LOGIC KẾT THÚC ---
@@ -501,17 +546,22 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                     # --- LƯU KẾT QUẢ PHÂN TÍCH SPOILER ---
                     if spoiler_result:
                         try:
-                            logger.info(f"[REVIEWS ACTION] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
+                            thresholds = self._get_current_thresholds()
+                            auto_marked = spoiler_result.confidence >= thresholds['auto_mark']
+                            logger.info(f"[REVIEWS ACTION] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={auto_marked}")
+                            logger.info(f"[REVIEWS ACTION] Review is_spoiler before save: {review.is_spoiler}")
+
                             review.spoiler_confidence = spoiler_result.confidence
                             review.spoiler_detected_patterns = spoiler_result.detected_patterns
                             review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
                             review.spoiler_explanation = spoiler_result.explanation
-                            review.auto_marked = spoiler_result.confidence > 0.8
+                            review.auto_marked = auto_marked
+
                             review.save(update_fields=[
                                 'spoiler_confidence', 'spoiler_detected_patterns',
                                 'spoiler_suggested_action','spoiler_explanation','auto_marked'
                             ])
-                            logger.info(f"[REVIEWS ACTION] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
+                            logger.info(f"[REVIEWS ACTION] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}, is_spoiler={review.is_spoiler}")
                         except Exception as e:
                             logger.error(f"[REVIEWS ACTION] Error saving spoiler analysis for review: {str(e)}")
                     # --- KẾT THÚC LƯU SPOILER ---
@@ -547,12 +597,21 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 # --- SPOILER DETECTION LOGIC BẮT ĐẦU ---
                 content = request.data.get('content', '')
                 language = request.data.get('language', 'en')
+
+                # Auto-detect Vietnamese content
+                import re
+                vietnamese_chars = re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', content, re.IGNORECASE)
+                if vietnamese_chars:
+                    language = 'vi'
+                    logger.info(f"[REVIEWS ACTION PATCH/PUT] Auto-detected Vietnamese content, switching language to 'vi'")
+
                 spoiler_result = None
                 movie_title = movie.title if movie else ''
                 if content:
                     try:
-                        spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
-                        if spoiler_result.confidence > 0.8:
+                        thresholds = self._get_current_thresholds()
+                        spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title, thresholds)
+                        if spoiler_result.confidence >= thresholds['auto_mark']:
                             request.data['is_spoiler'] = True
                             request.data['auto_marked'] = True
                     except Exception as e:
@@ -566,12 +625,14 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                     # --- LƯU KẾT QUẢ PHÂN TÍCH SPOILER ---
                     if spoiler_result:
                         try:
-                            logger.info(f"[REVIEWS ACTION][UPDATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
+                            thresholds = self._get_current_thresholds()
+                            auto_marked = spoiler_result.confidence >= thresholds['auto_mark']
+                            logger.info(f"[REVIEWS ACTION][UPDATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={auto_marked}")
                             review.spoiler_confidence = spoiler_result.confidence
                             review.spoiler_detected_patterns = spoiler_result.detected_patterns
                             review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
                             review.spoiler_explanation = spoiler_result.explanation
-                            review.auto_marked = spoiler_result.confidence > 0.8
+                            review.auto_marked = auto_marked
                             review.save(update_fields=[
                                 'spoiler_confidence', 'spoiler_detected_patterns',
                                 'spoiler_suggested_action','spoiler_explanation','auto_marked'
@@ -1309,13 +1370,27 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         """Filter reviews based on query parameters"""
         # For authenticated users, show all their reviews (including private)
         # For unauthenticated users, show only public reviews
+        # By default, hide spoiler reviews unless explicitly requested
+        show_spoilers = self.request.query_params.get('show_spoilers', 'false').lower() == 'true'
+
         if self.request.user.is_authenticated:
-            queryset = MovieReview.objects.filter(
-                Q(review_type='USER', is_public=True) |  # Public reviews
-                Q(review_type='USER', user=self.request.user)  # User's own reviews (including private)
-            )
+            if show_spoilers:
+                # Show all reviews including spoilers
+                queryset = MovieReview.objects.filter(
+                    Q(review_type='USER', is_public=True) |  # Public reviews
+                    Q(review_type='USER', user=self.request.user)  # User's own reviews (including private)
+                )
+            else:
+                # Hide spoiler reviews by default
+                queryset = MovieReview.objects.filter(
+                    Q(review_type='USER', is_public=True, is_spoiler=False) |  # Public non-spoiler reviews
+                    Q(review_type='USER', user=self.request.user)  # User's own reviews (including spoilers)
+                )
         else:
-            queryset = MovieReview.objects.filter(review_type='USER', is_public=True)
+            if show_spoilers:
+                queryset = MovieReview.objects.filter(review_type='USER', is_public=True)
+            else:
+                queryset = MovieReview.objects.filter(review_type='USER', is_public=True, is_spoiler=False)
 
         # Filter by movie
         movie_id = self.request.query_params.get('movie_id')
@@ -1368,7 +1443,8 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         return MovieReviewSerializer
 
     def perform_create(self, serializer):
-        """Create review with additional validation"""
+        """Create review with additional validation and spoiler detection"""
+        logger.info(f"[PERFORM_CREATE] Starting review creation")
         user = self.request.user
         movie = serializer.validated_data['movie']
 
@@ -1376,14 +1452,93 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         if MovieReview.objects.filter(user=user, movie=movie, review_type='USER', parent_review__isnull=True).exists():
             raise serializers.ValidationError("Bạn đã có review cho phim này rồi.")
 
-        serializer.save()
+        # Run spoiler detection on content
+        content = serializer.validated_data.get('content', '')
+        logger.info(f"[PERFORM_CREATE] Content: '{content}', Language: {serializer.validated_data.get('language', 'vi')}")
+
+        if content:
+            try:
+                thresholds = self._get_current_thresholds()
+                logger.info(f"[PERFORM_CREATE] Thresholds: {thresholds}")
+
+                spoiler_result = spoiler_detector.detect_spoilers(
+                    content=content,
+                    language=serializer.validated_data.get('language', 'vi'),
+                    movie_title=movie.title,
+                    thresholds=thresholds
+                )
+
+                logger.info(f"[PERFORM_CREATE] Spoiler detection result: confidence={spoiler_result.confidence}, is_spoiler={spoiler_result.is_spoiler}, suggested_action={getattr(spoiler_result, 'suggested_action', 'N/A')}")
+
+                # Auto-mark as spoiler if confidence meets threshold
+                should_auto_mark = spoiler_result.confidence >= thresholds['auto_mark']
+                logger.info(f"[PERFORM_CREATE] Should auto mark? {should_auto_mark} (confidence {spoiler_result.confidence} >= threshold {thresholds['auto_mark']})")
+
+                if should_auto_mark:
+                    logger.info(f"[PERFORM_CREATE] Auto-marking review as spoiler: confidence={spoiler_result.confidence}, threshold={thresholds['auto_mark']}")
+                    serializer.validated_data['is_spoiler'] = True
+
+                # Save the review with spoiler detection data
+                review = serializer.save(
+                    spoiler_confidence=spoiler_result.confidence,
+                    spoiler_detected_patterns=spoiler_result.detected_patterns,
+                    spoiler_suggested_action=getattr(spoiler_result, 'suggested_action', None),
+                    spoiler_explanation=spoiler_result.explanation,
+                    auto_marked=should_auto_mark
+                )
+
+                logger.info(f"[PERFORM_CREATE] Saved review {review.id}: is_spoiler={review.is_spoiler}, confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
+
+            except Exception as e:
+                logger.error(f"[PERFORM_CREATE] Error in spoiler detection: {str(e)}", exc_info=True)
+                # Still save the review even if spoiler detection fails
+                review = serializer.save()
+                logger.info(f"[PERFORM_CREATE] Saved review {review.id} without spoiler detection due to error")
+        else:
+            logger.info(f"[PERFORM_CREATE] No content provided, saving without spoiler detection")
+            review = serializer.save()
+            logger.info(f"[PERFORM_CREATE] Saved review {review.id} without spoiler detection")
 
     def perform_update(self, serializer):
-        """Update review with permission check"""
+        """Update review with permission check and spoiler detection"""
         review = self.get_object()
         if not review.can_be_edited_by(self.request.user):
             raise PermissionDenied("Bạn không có quyền chỉnh sửa review này.")
-        serializer.save()
+
+        # Run spoiler detection on updated content
+        content = serializer.validated_data.get('content', '')
+        if content:
+            try:
+                thresholds = self._get_current_thresholds()
+                spoiler_result = spoiler_detector.detect_spoilers(
+                    content=content,
+                    language=serializer.validated_data.get('language', 'vi'),
+                    movie_title=review.movie.title if review.movie else '',
+                    thresholds=thresholds
+                )
+
+                # Auto-mark as spoiler if confidence meets threshold
+                if spoiler_result.confidence >= thresholds['auto_mark']:
+                    logger.info(f"[PERFORM_UPDATE] Auto-marking review as spoiler: confidence={spoiler_result.confidence}, threshold={thresholds['auto_mark']}")
+                    serializer.validated_data['is_spoiler'] = True
+
+                # Save the review with spoiler detection data
+                updated_review = serializer.save(
+                    spoiler_confidence=spoiler_result.confidence,
+                    spoiler_detected_patterns=spoiler_result.detected_patterns,
+                    spoiler_suggested_action=getattr(spoiler_result, 'suggested_action', None),
+                    spoiler_explanation=spoiler_result.explanation,
+                    auto_marked=spoiler_result.confidence >= thresholds['auto_mark']
+                )
+
+                logger.info(f"[PERFORM_UPDATE] Updated review {updated_review.id}: is_spoiler={updated_review.is_spoiler}, confidence={updated_review.spoiler_confidence}, auto_marked={getattr(updated_review, 'auto_marked', 'N/A')}")
+
+            except Exception as e:
+                logger.error(f"Error in spoiler detection during perform_update: {str(e)}")
+                # Still save the review even if spoiler detection fails
+                serializer.save()
+        else:
+            serializer.save()
 
     def perform_destroy(self, instance):
         """Delete review with permission check"""
@@ -1599,8 +1754,16 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             }, status=400)
 
         try:
+            # Auto-detect Vietnamese content
+            import re
+            vietnamese_chars = re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', content, re.IGNORECASE)
+            if vietnamese_chars:
+                language = 'vi'
+                logger.info(f"[DETECT_SPOILERS] Auto-detected Vietnamese content, switching language to 'vi'")
+
             # Run spoiler detection
-            result = spoiler_detector.detect_spoilers(content, language, movie_title)
+            thresholds = self._get_current_thresholds()
+            result = spoiler_detector.detect_spoilers(content, language, movie_title, thresholds)
 
             return Response({
                 'is_spoiler': result.is_spoiler,
@@ -1626,11 +1789,22 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         try:
             review = self.get_object()
 
+            # Auto-detect Vietnamese content if language is 'en' but content is Vietnamese
+            language = review.language
+            if language == 'en':
+                import re
+                vietnamese_chars = re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', review.content, re.IGNORECASE)
+                if vietnamese_chars:
+                    language = 'vi'
+                    logger.info(f"[ANALYZE_SPOILER] Auto-detected Vietnamese content for review {pk}, switching language to 'vi'")
+
             # Run spoiler detection on existing review
+            thresholds = self._get_current_thresholds()
             result = spoiler_detector.detect_spoilers(
                 review.content,
-                review.language,
-                review.movie.title if review.movie else None
+                language,
+                review.movie.title if review.movie else None,
+                thresholds
             )
 
             # Update review if detection suggests it should be marked as spoiler
@@ -1683,10 +1857,20 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
                 # Add detection result if available
                 try:
+                    # Auto-detect Vietnamese content if language is 'en' but content is Vietnamese
+                    language = review.language
+                    if language == 'en':
+                        import re
+                        vietnamese_chars = re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', review.content, re.IGNORECASE)
+                        if vietnamese_chars:
+                            language = 'vi'
+
+                    thresholds = self._get_current_thresholds()
                     result = spoiler_detector.detect_spoilers(
                         review.content,
-                        review.language,
-                        review.movie.title if review.movie else None
+                        language,
+                        review.movie.title if review.movie else None,
+                        thresholds
                     )
                     review_data['detection_result'] = {
                         'confidence': result.confidence,
@@ -1804,10 +1988,12 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
                     else:
                         # Run spoiler detection analysis
                         try:
+                            thresholds = self._get_current_thresholds()
                             spoiler_result = spoiler_detector.detect_spoilers(
                                 review.content,
                                 review.language,
-                                review.movie.title if review.movie else None
+                                review.movie.title if review.movie else None,
+                                thresholds
                             )
 
                             review.moderation_analysis['spoiler_analysis'] = {
@@ -1818,11 +2004,11 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
                                 'explanation': spoiler_result.explanation
                             }
 
-                            if spoiler_result.is_spoiler and spoiler_result.confidence > 0.6:
+                            if spoiler_result.is_spoiler and spoiler_result.confidence >= thresholds['flag_review']:
                                 review.moderation_analysis['moderation_reasons'].append('auto_detected_spoiler')
                                 if review.moderation_analysis['priority_level'] != 'high':
                                     review.moderation_analysis['priority_level'] = 'high'
-                            elif spoiler_result.confidence > 0.4:
+                            elif spoiler_result.confidence >= thresholds['suggest_warning']:
                                 review.moderation_analysis['moderation_reasons'].append('potential_spoiler')
                                 if review.moderation_analysis['priority_level'] == 'low':
                                     review.moderation_analysis['priority_level'] = 'medium'
@@ -2078,67 +2264,6 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
                 }
                 moderation_tasks.append(task)
 
-            # --- NEW LOGIC: Add reviews with spoiler confidence > 0.6 (not marked, not reported) ---
-            unmarked_reviews = MovieReview.objects.filter(
-                review_type='USER',
-                is_public=True,
-                is_approved__isnull=True,
-                is_spoiler=False
-            ).exclude(
-                id__in=reported_review_ids
-            ).exclude(
-                id__in=spoiler_reviews.values_list('id', flat=True)
-            ).select_related('user', 'movie')
-
-            # Apply filters
-            if date_from:
-                unmarked_reviews = unmarked_reviews.filter(created_at__gte=date_from)
-            if date_to:
-                unmarked_reviews = unmarked_reviews.filter(created_at__lte=date_to)
-            if language:
-                unmarked_reviews = unmarked_reviews.filter(language=language)
-
-            # Limit to 200 for performance
-            unmarked_reviews = unmarked_reviews.order_by('-created_at')[:200]
-
-            for review in unmarked_reviews:
-                try:
-                    spoiler_result = spoiler_detector.detect_spoilers(
-                        review.content,
-                        review.language,
-                        review.movie.title if review.movie else None
-                    )
-                    if spoiler_result.confidence > 0.6:
-                        # Determine priority
-                        if spoiler_result.confidence > 0.8:
-                            priority_level = 'high'
-                        else:
-                            priority_level = 'medium'
-                        kanban_status = 'backlog'
-                        if review.is_approved is True:
-                            kanban_status = 'completed'
-                        elif review.is_approved is False:
-                            kanban_status = 'completed'
-                        elif review.moderated_by:
-                            kanban_status = 'in_progress'
-                        task = {
-                            'id': f'review_{review.id}',
-                            'type': 'spoiler',
-                            'priority': priority_level,
-                            'status': kanban_status,
-                            'title': f'Spoiler: {review.movie.title if review.movie else "Unknown Movie"}',
-                            'content': review.content[:200] + '...' if len(review.content) > 200 else review.content,
-                            'user': review.user.username,
-                            'movie_title': review.movie.title if review.movie else None,
-                            'created_at': review.created_at.isoformat(),
-                            'language': review.language,
-                            'moderation_reasons': ['auto_detected_spoiler'],
-                            'spoiler_confidence': spoiler_result.confidence,
-                        }
-                        moderation_tasks.append(task)
-                except Exception as e:
-                    logger.error(f"Error running spoiler detection for review {review.id}: {str(e)}")
-
             # --- EXISTING CODE: Get reported reviews and marked spoilers ---
             # ... existing code ...
             # OPTIMIZATION 4: Only get spoiler reviews that aren't already reported
@@ -2190,7 +2315,7 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
                 }
                 moderation_tasks.append(task)
 
-            # --- NEW LOGIC: Add reviews with spoiler confidence > 0.6 (not marked, not reported) ---
+            # --- NEW LOGIC: Add reviews with spoiler confidence > flag_review threshold (not marked, not reported) ---
             unmarked_reviews = MovieReview.objects.filter(
                 review_type='USER',
                 is_public=True,
@@ -2213,16 +2338,18 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             # Limit to 200 for performance
             unmarked_reviews = unmarked_reviews.order_by('-created_at')[:200]
 
+            thresholds = self._get_current_thresholds()
             for review in unmarked_reviews:
                 try:
                     spoiler_result = spoiler_detector.detect_spoilers(
                         review.content,
                         review.language,
-                        review.movie.title if review.movie else None
+                        review.movie.title if review.movie else None,
+                        thresholds
                     )
-                    if spoiler_result.confidence > 0.6:
+                    if spoiler_result.confidence >= thresholds['flag_review']:
                         # Determine priority
-                        if spoiler_result.confidence > 0.8:
+                        if spoiler_result.confidence >= thresholds['auto_mark']:
                             priority_level = 'high'
                         else:
                             priority_level = 'medium'
@@ -2438,19 +2565,21 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
     def _get_spoiler_recommendation(self, result):
         """Get user-friendly recommendation based on detection result"""
-        if result.confidence > 0.8:
+        thresholds = self._get_current_thresholds()
+
+        if result.confidence >= thresholds['auto_mark']:
             return {
                 'action': 'mark_spoiler',
                 'message': 'Nội dung này có khả năng cao chứa spoiler. Bạn nên đánh dấu là spoiler.',
                 'severity': 'high'
             }
-        elif result.confidence > 0.6:
+        elif result.confidence >= thresholds['flag_review']:
             return {
                 'action': 'suggest_spoiler',
                 'message': 'Nội dung này có thể chứa spoiler. Bạn có muốn đánh dấu là spoiler không?',
                 'severity': 'medium'
             }
-        elif result.confidence > 0.4:
+        elif result.confidence >= thresholds['suggest_warning']:
             return {
                 'action': 'review_content',
                 'message': 'Nội dung này có một số dấu hiệu spoiler. Hãy kiểm tra lại.',
@@ -2463,106 +2592,9 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
                 'severity': 'none'
             }
 
-    def create(self, request, *args, **kwargs):
-        """
-        Create a new review with automatic spoiler detection
-        """
-        # Get the content for spoiler detection
-        content = request.data.get('content', '')
-        language = request.data.get('language', 'en')
-        movie_id = request.data.get('movie')
 
-        # Get movie title for context
-        movie_title = ''
-        if movie_id:
-            try:
-                movie = Movie.objects.get(id=movie_id)
-                movie_title = movie.title
-            except Movie.DoesNotExist:
-                pass
 
-        # Run spoiler detection
-        spoiler_result = None
-        if content:
-            try:
-                spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
 
-                # Auto-mark as spoiler if high confidence
-                if spoiler_result.confidence > 0.8:
-                    request.data['is_spoiler'] = True
-                    request.data['auto_marked'] = True
-
-            except Exception as e:
-                logger.error(f"Error in spoiler detection during review creation: {str(e)}")
-
-        # Create the review
-        response = super().create(request, *args, **kwargs)
-
-        # Add spoiler detection info to response
-        if spoiler_result:
-            try:
-                review = MovieReview.objects.get(pk=response.data['id'])
-                logger.info(f"[CREATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence}, patterns={spoiler_result.detected_patterns}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
-                review.spoiler_confidence = spoiler_result.confidence
-                review.spoiler_detected_patterns = spoiler_result.detected_patterns
-                review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
-                review.spoiler_explanation = spoiler_result.explanation
-                review.auto_marked = spoiler_result.confidence > 0.8
-                review.save(update_fields=[
-                    'spoiler_confidence', 'spoiler_detected_patterns',
-                    'spoiler_suggested_action','spoiler_explanation','auto_marked'
-                ])
-                logger.info(f"[CREATE] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
-            except Exception as e:
-                logger.error(f"[CREATE] Error saving spoiler analysis for review: {str(e)}")
-        return response
-
-    def update(self, request, *args, **kwargs):
-        """
-        Update review with automatic spoiler detection
-        """
-        # Get the content for spoiler detection
-        content = request.data.get('content', '')
-        language = request.data.get('language', 'en')
-
-        # Get existing review for movie title
-        review = self.get_object()
-        movie_title = review.movie.title if review.movie else ''
-
-        # Run spoiler detection
-        spoiler_result = None
-        if content:
-            try:
-                spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
-                # Auto-mark as spoiler if high confidence
-                if spoiler_result.confidence > 0.8:
-                    request.data['is_spoiler'] = True
-                    request.data['auto_marked'] = True
-
-            except Exception as e:
-                logger.error(f"Error in spoiler detection during review update: {str(e)}")
-
-        # Update the review
-        response = super().update(request, *args, **kwargs)
-
-        # Add spoiler detection info to response
-        if spoiler_result:
-            try:
-                review = self.get_object()
-                logger.info(f"[UPDATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence}, patterns={spoiler_result.detected_patterns}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
-                review.spoiler_confidence = spoiler_result.confidence
-                review.spoiler_detected_patterns = spoiler_result.detected_patterns
-                review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
-                review.spoiler_explanation = spoiler_result.explanation
-                review.auto_marked = spoiler_result.confidence > 0.8
-                review.save(update_fields=[
-                    'spoiler_confidence', 'spoiler_detected_patterns',
-                    'spoiler_suggested_action','spoiler_explanation','auto_marked'
-                ])
-                logger.info(f"[UPDATE] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
-            except Exception as e:
-                logger.error(f"[UPDATE] Error saving spoiler analysis for review: {str(e)}")
-        return response
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def update_task_status(self, request):
@@ -2756,10 +2788,108 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def moderate(self, request, pk=None):
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def auto_marked_reviews(self, request):
         """
-        Moderate a review (approve/reject)
+        Get reviews that were auto-marked as spoiler for moderator review
+        """
+        try:
+            # Check if user is moderator or admin
+            if not request.user.is_staff and not request.user.groups.filter(name__in=['Moderators', 'Administrators']).exists():
+                return Response({
+                    'status': 'error',
+                    'message': 'Permission denied'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Get filter parameters
+            confidence_min = float(request.query_params.get('confidence_min', 0.8))
+            confidence_max = float(request.query_params.get('confidence_max', 1.0))
+            date_from = request.query_params.get('date_from', '')
+            date_to = request.query_params.get('date_to', '')
+            reviewed_status = request.query_params.get('reviewed_status', 'pending')  # pending, reviewed, all
+            page = int(request.query_params.get('page', 1))
+            page_size = min(int(request.query_params.get('page_size', 20)), 100)
+
+            # Base queryset for auto-marked reviews
+            queryset = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                auto_marked=True,
+                spoiler_confidence__gte=confidence_min,
+                spoiler_confidence__lte=confidence_max
+            ).select_related(
+                'user', 'movie', 'moderated_by'
+            ).prefetch_related(
+                'moderation_feedback'
+            ).order_by('-created_at')
+
+            # Apply date filters
+            if date_from:
+                queryset = queryset.filter(created_at__date__gte=date_from)
+            if date_to:
+                queryset = queryset.filter(created_at__date__lte=date_to)
+
+            # Filter by review status
+            if reviewed_status == 'pending':
+                queryset = queryset.filter(moderation_feedback__isnull=True)
+            elif reviewed_status == 'reviewed':
+                queryset = queryset.filter(moderation_feedback__isnull=False)
+
+            # Pagination
+            start = (page - 1) * page_size
+            end = start + page_size
+            total_count = queryset.count()
+            paginated_reviews = queryset[start:end]
+
+            # Serialize data
+            serializer = MovieReviewSerializer(paginated_reviews, many=True, context={'request': request})
+
+            # Calculate accuracy rate for auto-marked reviews
+            reviewed_auto_marked = MovieReview.objects.filter(
+                auto_marked=True,
+                moderation_feedback__isnull=False
+            )
+
+            total_reviewed = reviewed_auto_marked.count()
+            correct_auto_marked = reviewed_auto_marked.filter(
+                moderation_feedback__is_spoiler_correct=True
+            ).count()
+
+            accuracy_rate = correct_auto_marked / total_reviewed if total_reviewed > 0 else 0.0
+
+            # Count pending reviews
+            pending_review_count = MovieReview.objects.filter(
+                auto_marked=True,
+                moderation_feedback__isnull=True
+            ).count()
+
+            return Response({
+                'status': 'success',
+                'count': total_count,
+                'total_pages': (total_count + page_size - 1) // page_size,
+                'current_page': page,
+                'page_size': page_size,
+                'accuracy_rate': round(accuracy_rate, 3),
+                'pending_review_count': pending_review_count,
+                'data': serializer.data,
+                'filters': {
+                    'confidence_range': [confidence_min, confidence_max],
+                    'date_range': [date_from, date_to],
+                    'reviewed_status': reviewed_status
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting auto-marked reviews: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def submit_feedback(self, request, pk=None):
+        """
+        Submit moderator feedback for learning system improvement
         """
         try:
             # Check if user is moderator or admin
@@ -2770,42 +2900,291 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_403_FORBIDDEN)
 
             review = self.get_object()
-            action = request.data.get('action')
-            reason = request.data.get('reason', '')
 
-            if action == 'approve':
-                review.is_approved = True
-                review.moderated_by = request.user
-                review.moderated_at = timezone.now()
-                review.moderation_reason = reason
-                review.save()
-                message = 'Review approved successfully'
-            elif action == 'reject':
-                review.is_approved = False
-                review.moderated_by = request.user
-                review.moderated_at = timezone.now()
-                review.moderation_reason = reason
-                review.save()
-                message = 'Review rejected successfully'
-            else:
+            # Get feedback data
+            feedback_type = request.data.get('feedback_type')  # correct_spoiler, false_positive, etc.
+            moderator_decision = request.data.get('moderator_decision')  # approve_as_spoiler, etc.
+            is_spoiler_correct = request.data.get('is_spoiler_correct', False)
+            difficulty_level = request.data.get('difficulty_level', 'medium')
+            notes = request.data.get('notes', '')
+            time_spent_seconds = request.data.get('time_spent_seconds', 0)
+
+            # Validate required fields
+            if not feedback_type or not moderator_decision:
                 return Response({
                     'status': 'error',
-                    'message': 'Invalid action'
+                    'message': 'feedback_type and moderator_decision are required'
                 }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if feedback already exists
+            existing_feedback = ModerationFeedback.objects.filter(
+                review=review,
+                moderator=request.user
+            ).first()
+
+            if existing_feedback:
+                return Response({
+                    'status': 'error',
+                    'message': 'Feedback already submitted for this review'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Create feedback record
+            feedback = ModerationFeedback.objects.create(
+                review=review,
+                moderator=request.user,
+                feedback_type=feedback_type,
+                moderator_decision=moderator_decision,
+                is_spoiler_correct=is_spoiler_correct,
+                difficulty_level=difficulty_level,
+                notes=notes,
+                time_spent_seconds=time_spent_seconds,
+                original_confidence=review.spoiler_confidence or 0.0,
+                original_suggested_action=review.spoiler_suggested_action or '',
+                original_is_spoiler=review.is_spoiler
+            )
+
+            # Calculate learning impact
+            feedback.calculate_learning_impact()
+            feedback.save()
+
+            # Process feedback through learning service
+            try:
+                from .services.moderation_learning_service import learning_service
+                learning_result = learning_service.process_feedback(feedback)
+            except ImportError:
+                learning_result = {'message': 'Learning service not available'}
+
+            # Update review moderation status based on moderator decision
+            if moderator_decision in ['approve_as_spoiler', 'approve_as_non_spoiler']:
+                review.is_approved = True
+                review.is_spoiler = (moderator_decision == 'approve_as_spoiler')
+            elif moderator_decision == 'reject_review':
+                review.is_approved = False
+
+            review.moderated_by = request.user
+            review.moderated_at = timezone.now()
+            review.save()
 
             return Response({
                 'status': 'success',
-                'message': message,
-                'review_id': review.id,
-                'action': action
+                'message': 'Feedback submitted successfully',
+                'feedback_id': feedback.id,
+                'learning_result': learning_result,
+                'review_updated': True
             })
 
         except Exception as e:
-            logger.error(f"Error moderating review {pk}: {str(e)}")
+            logger.error(f"Error submitting feedback for review {pk}: {str(e)}")
             return Response({
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def moderation_analytics(self, request):
+        """
+        Get detailed moderation analytics and performance metrics
+        """
+        try:
+            # Check if user is moderator or admin
+            if not request.user.is_staff and not request.user.groups.filter(name__in=['Moderators', 'Administrators']).exists():
+                return Response({
+                    'status': 'error',
+                    'message': 'Permission denied'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Get parameters
+            days = int(request.query_params.get('days', 30))
+
+            # Get current configuration
+            config = ModerationConfig.get_active_config()
+            config_data = {
+                'auto_mark_threshold': config.auto_mark_threshold if config else 0.8,
+                'flag_for_review_threshold': config.flag_for_review_threshold if config else 0.6,
+                'suggest_warning_threshold': config.suggest_warning_threshold if config else 0.4,
+                'learning_enabled': config.learning_enabled if config else False,
+                'accuracy_target': config.accuracy_target if config else 0.85
+            }
+
+            # Calculate basic accuracy metrics
+            start_date = timezone.now() - timedelta(days=days)
+
+            # Get feedback data for accuracy calculation
+            feedback_queryset = ModerationFeedback.objects.filter(created_at__gte=start_date)
+            total_feedback = feedback_queryset.count()
+
+            if total_feedback > 0:
+                correct_feedback = feedback_queryset.filter(is_spoiler_correct=True).count()
+                accuracy = correct_feedback / total_feedback
+            else:
+                accuracy = 0.0
+
+            # Calculate volume metrics
+            volume_metrics = {
+                'total_reviews': MovieReview.objects.filter(
+                    review_type='USER',
+                    created_at__gte=start_date
+                ).count(),
+                'auto_marked_reviews': MovieReview.objects.filter(
+                    review_type='USER',
+                    auto_marked=True,
+                    created_at__gte=start_date
+                ).count(),
+                'manually_moderated': MovieReview.objects.filter(
+                    review_type='USER',
+                    moderated_by__isnull=False,
+                    created_at__gte=start_date
+                ).count(),
+                'pending_moderation': MovieReview.objects.filter(
+                    review_type='USER',
+                    is_approved__isnull=True,
+                    created_at__gte=start_date
+                ).count()
+            }
+
+            # Try to get enhanced metrics from learning service
+            try:
+                from .services.moderation_learning_service import learning_service
+                accuracy_metrics = learning_service.calculate_accuracy_metrics(days)
+                learning_status = learning_service.get_learning_status()
+                threshold_analysis = learning_service.suggest_threshold_adjustments()
+            except ImportError:
+                accuracy_metrics = {
+                    'accuracy': accuracy,
+                    'total_feedback': total_feedback,
+                    'precision': 0.0,
+                    'recall': 0.0,
+                    'f1_score': 0.0
+                }
+                learning_status = {'learning_enabled': config_data['learning_enabled']}
+                threshold_analysis = {'suggestions': {}, 'confidence': 0.0}
+
+            # Calculate detection categories
+            detection_categories = self._calculate_detection_categories(start_date)
+
+            analytics_data = {
+                'summary': {
+                    'period_days': days,
+                    'overall_accuracy': accuracy_metrics.get('accuracy', 0.0),
+                    'total_feedback': accuracy_metrics.get('total_feedback', 0),
+                    'learning_enabled': config_data['learning_enabled'],
+                    'accuracy_vs_target': accuracy_metrics.get('accuracy', 0.0) - config_data['accuracy_target']
+                },
+                'accuracy_metrics': accuracy_metrics,
+                'volume_metrics': volume_metrics,
+                'configuration': config_data,
+                'learning_status': learning_status,
+                'threshold_analysis': threshold_analysis,
+                'detection_categories': detection_categories
+            }
+
+            return Response({
+                'status': 'success',
+                'data': analytics_data,
+                'generated_at': timezone.now().isoformat()
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting moderation analytics: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _calculate_detection_categories(self, start_date):
+        """
+        Calculate common spoiler detection patterns/categories from recent reviews
+        """
+        try:
+            # Get reviews with spoiler patterns from the specified period
+            reviews_with_patterns = MovieReview.objects.filter(
+                review_type='USER',
+                created_at__gte=start_date,
+                spoiler_detected_patterns__isnull=False
+            ).exclude(spoiler_detected_patterns=[])
+
+            # Count patterns
+            pattern_counts = {}
+            total_detections = 0
+
+            for review in reviews_with_patterns:
+                if review.spoiler_detected_patterns:
+                    for pattern in review.spoiler_detected_patterns:
+                        if pattern:  # Skip empty patterns
+                            pattern_counts[pattern] = pattern_counts.get(pattern, 0) + 1
+                            total_detections += 1
+
+            # Calculate percentages and format for frontend
+            detection_categories = []
+
+            if total_detections > 0:
+                # Sort by count and take top patterns
+                sorted_patterns = sorted(pattern_counts.items(), key=lambda x: x[1], reverse=True)
+
+                for pattern, count in sorted_patterns[:10]:  # Top 10 patterns
+                    percentage = (count / total_detections) * 100
+                    detection_categories.append({
+                        'type': self._format_pattern_name(pattern),
+                        'count': count,
+                        'percentage': round(percentage, 1)
+                    })
+
+            return detection_categories
+
+        except Exception as e:
+            logger.error(f"Error calculating detection categories: {str(e)}")
+            return []
+
+    def _format_pattern_name(self, pattern):
+        """
+        Format pattern names for better display in pure Vietnamese
+        """
+        # Map technical pattern names to pure Vietnamese names
+        pattern_mapping = {
+            'plot_spoiler': 'Spoil cốt truyện',
+            'ending_spoiler': 'Spoil kết thúc',
+            'character_death': 'Tiết lộ cái chết nhân vật',
+            'plot_twist': 'Spoil tình tiết bất ngờ',
+            'romance_spoiler': 'Spoil chuyện tình cảm',
+            'villain_reveal': 'Tiết lộ kẻ phản diện',
+            'surprise_element': 'Spoil yếu tố bất ngờ',
+            'outcome_spoiler': 'Spoil kết quả',
+            'major_event': 'Tiết lộ sự kiện quan trọng',
+            'character_development': 'Spoil diễn biến nhân vật',
+            'secret_reveal': 'Tiết lộ bí mật',
+            'betrayal': 'Spoil hành vi phản bội',
+            'sacrifice': 'Tiết lộ cảnh hy sinh',
+            'relationship_status': 'Spoil mối quan hệ',
+            'final_battle': 'Spoil trận chiến cuối',
+            'death_scene': 'Tiết lộ cảnh chết',
+            'love_confession': 'Spoil lời tỏ tình',
+            'family_secret': 'Tiết lộ bí mật gia đình',
+            'transformation': 'Spoil sự biến đổi',
+            'rescue_scene': 'Tiết lộ cảnh giải cứu',
+            'revenge_plot': 'Spoil âm mưu trả thù',
+            'identity_reveal': 'Tiết lộ danh tính',
+            'power_awakening': 'Spoil thức tỉnh sức mạnh',
+            'time_travel': 'Spoil du hành thời gian',
+            'prophecy_fulfillment': 'Tiết lộ lời tiên tri',
+        }
+
+        return pattern_mapping.get(pattern, pattern.replace('_', ' ').title())
+
+    def _get_current_thresholds(self):
+        """Get current moderation thresholds from active config"""
+        config = ModerationConfig.get_active_config()
+        if config:
+            return {
+                'auto_mark': config.auto_mark_threshold,
+                'flag_review': config.flag_for_review_threshold,
+                'suggest_warning': config.suggest_warning_threshold
+            }
+        # Fallback to defaults if no config
+        return {
+            'auto_mark': 0.8,
+            'flag_review': 0.6,
+            'suggest_warning': 0.4
+        }
 
 
 class ReviewReportViewSet(viewsets.ModelViewSet):
@@ -2990,4 +3369,228 @@ def format_patterns_for_log(patterns):
         else:
             formatted.append(p)
     return ' | '.join(formatted)
+
+
+class ModerationConfigViewSet(viewsets.ModelViewSet):
+    """
+    API for managing moderation configuration and thresholds
+    """
+    queryset = ModerationConfig.objects.all()
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        # Only show active configuration by default
+        if self.request.query_params.get('all') == 'true':
+            return ModerationConfig.objects.all().order_by('-created_at')
+        return ModerationConfig.objects.filter(is_active=True)
+
+    @action(detail=False, methods=['get'])
+    def active_config(self, request):
+        """Get the currently active configuration"""
+        config = ModerationConfig.get_active_config()
+        if config:
+            config_data = {
+                'id': config.id,
+                'auto_mark_threshold': config.auto_mark_threshold,
+                'flag_for_review_threshold': config.flag_for_review_threshold,
+                'suggest_warning_threshold': config.suggest_warning_threshold,
+                'learning_enabled': config.learning_enabled,
+                'learning_rate': config.learning_rate,
+                'min_feedback_count': config.min_feedback_count,
+                'auto_moderate_enabled': config.auto_moderate_enabled,
+                'accuracy_target': config.accuracy_target,
+                'false_positive_limit': config.false_positive_limit,
+                'created_at': config.created_at,
+                'updated_at': config.updated_at,
+                'is_active': config.is_active
+            }
+            return Response({
+                'status': 'success',
+                'data': config_data
+            })
+        else:
+            return Response({
+                'status': 'error',
+                'message': 'No active configuration found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'])
+    def update_thresholds(self, request):
+        """Update threshold values"""
+        try:
+            config = ModerationConfig.get_active_config()
+
+            # Get new threshold values
+            auto_mark = request.data.get('auto_mark_threshold')
+            flag_review = request.data.get('flag_for_review_threshold')
+            suggest_warning = request.data.get('suggest_warning_threshold')
+
+            # Validate thresholds
+            if auto_mark is not None:
+                if not (0.0 <= auto_mark <= 1.0):
+                    return Response({
+                        'status': 'error',
+                        'message': 'auto_mark_threshold must be between 0.0 and 1.0'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                config.auto_mark_threshold = auto_mark
+
+            if flag_review is not None:
+                if not (0.0 <= flag_review <= 1.0):
+                    return Response({
+                        'status': 'error',
+                        'message': 'flag_for_review_threshold must be between 0.0 and 1.0'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                config.flag_for_review_threshold = flag_review
+
+            if suggest_warning is not None:
+                if not (0.0 <= suggest_warning <= 1.0):
+                    return Response({
+                        'status': 'error',
+                        'message': 'suggest_warning_threshold must be between 0.0 and 1.0'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                config.suggest_warning_threshold = suggest_warning
+
+            # Validate threshold order
+            try:
+                config.clean()
+                config.save()
+            except ValidationError as e:
+                return Response({
+                    'status': 'error',
+                    'message': str(e)
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Log the change
+            logger.info(f"Thresholds updated by {request.user.username}: "
+                       f"auto_mark={config.auto_mark_threshold}, "
+                       f"flag_review={config.flag_for_review_threshold}, "
+                       f"suggest_warning={config.suggest_warning_threshold}")
+
+            config_data = {
+                'id': config.id,
+                'auto_mark_threshold': config.auto_mark_threshold,
+                'flag_for_review_threshold': config.flag_for_review_threshold,
+                'suggest_warning_threshold': config.suggest_warning_threshold,
+                'learning_enabled': config.learning_enabled,
+                'updated_at': config.updated_at
+            }
+
+            return Response({
+                'status': 'success',
+                'message': 'Thresholds updated successfully',
+                'data': config_data
+            })
+
+        except Exception as e:
+            logger.error(f"Error updating thresholds: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def toggle_learning(self, request):
+        """Enable/disable learning system"""
+        try:
+            config = ModerationConfig.get_active_config()
+            enabled = request.data.get('enabled', False)
+
+            config.learning_enabled = enabled
+            config.save()
+
+            status_text = "enabled" if enabled else "disabled"
+            logger.info(f"Learning system {status_text} by {request.user.username}")
+
+            return Response({
+                'status': 'success',
+                'message': f'Learning system {status_text}',
+                'learning_enabled': enabled
+            })
+
+        except Exception as e:
+            logger.error(f"Error toggling learning system: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ModerationFeedbackViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only API for viewing moderation feedback data
+    """
+    queryset = ModerationFeedback.objects.all()
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Check if user is moderator or admin
+        if not self.request.user.is_staff and not self.request.user.groups.filter(name__in=['Moderators', 'Administrators']).exists():
+            return ModerationFeedback.objects.none()
+
+        return ModerationFeedback.objects.select_related(
+            'review', 'moderator', 'review__movie'
+        ).order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        """List feedback with basic serialization"""
+        queryset = self.get_queryset()
+
+        # Apply basic filters
+        feedback_type = request.query_params.get('feedback_type')
+        if feedback_type:
+            queryset = queryset.filter(feedback_type=feedback_type)
+
+        # Pagination
+        page = int(request.query_params.get('page', 1))
+        page_size = min(int(request.query_params.get('page_size', 20)), 100)
+        start = (page - 1) * page_size
+        end = start + page_size
+        total_count = queryset.count()
+        paginated_feedback = queryset[start:end]
+
+        # Basic serialization
+        data = []
+        for feedback in paginated_feedback:
+            data.append({
+                'id': feedback.id,
+                'review_id': feedback.review.id,
+                'moderator': feedback.moderator.username,
+                'feedback_type': feedback.feedback_type,
+                'is_spoiler_correct': feedback.is_spoiler_correct,
+                'original_confidence': feedback.original_confidence,
+                'difficulty_level': feedback.difficulty_level,
+                'created_at': feedback.created_at,
+                'learning_impact_score': feedback.learning_impact_score
+            })
+
+        return Response({
+            'status': 'success',
+            'count': total_count,
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'current_page': page,
+            'data': data
+        })
+
+    @action(detail=False, methods=['get'])
+    def accuracy_summary(self, request):
+        """Get accuracy summary for different time periods"""
+        try:
+            periods = [7, 30, 90]  # days
+            summary = {}
+
+            for days in periods:
+                metrics = ModerationFeedback.get_accuracy_metrics(days)
+                summary[f'{days}d'] = metrics
+
+            return Response({
+                'status': 'success',
+                'data': summary
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting accuracy summary: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

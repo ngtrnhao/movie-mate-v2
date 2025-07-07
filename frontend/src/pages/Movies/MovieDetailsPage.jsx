@@ -408,10 +408,10 @@ const MovieDetailsPage = () => {
         trailerUrl={currentTrailerUrl}
       />
 
-      {/* Debug Panel - Development Only */}
+      {/* Debug Panel - Development Only
       {process.env.NODE_ENV === 'development' && (
         <FavoritesDebugPanel movieId={parseInt(movieId)} movieData={movie} />
-      )}
+      )} */}
     </div>
   );
 };

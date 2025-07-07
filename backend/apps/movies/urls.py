@@ -4,13 +4,18 @@ from . import views
 from .views import (
     MovieViewSet,
     MovieReviewViewSet,
-    ReviewReportViewSet
+    ReviewReportViewSet,
+    ModerationConfigViewSet,
+    ModerationFeedbackViewSet
 )
 
 router = DefaultRouter()
 router.register(r'movies', views.MovieViewSet, basename='movie')
 router.register(r'reviews', MovieReviewViewSet, basename='review')
 router.register(r'review-reports', ReviewReportViewSet, basename='review-report')
+
+router.register(r'moderation-config', ModerationConfigViewSet, basename='moderation-config')
+router.register(r'moderation-feedback', ModerationFeedbackViewSet, basename='moderation-feedback')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -40,6 +45,11 @@ urlpatterns = [
     path('reviews/<int:pk>/moderate/', views.MovieReviewViewSet.as_view({'post': 'moderate'}), name='moderate-review'),
     path('reviews/bulk_moderate/', views.MovieReviewViewSet.as_view({'post': 'bulk_moderate'}), name='bulk-moderate'),
     path('reviews/update_task_status/', views.MovieReviewViewSet.as_view({'post': 'update_task_status'}), name='update-task-status'),
+
+    # Enhanced moderation endpoints
+    path('reviews/auto_marked_reviews/', views.MovieReviewViewSet.as_view({'get': 'auto_marked_reviews'}), name='auto-marked-reviews'),
+    path('reviews/<int:pk>/submit_feedback/', views.MovieReviewViewSet.as_view({'post': 'submit_feedback'}), name='submit-feedback'),
+    path('reviews/moderation_analytics/', views.MovieReviewViewSet.as_view({'get': 'moderation_analytics'}), name='moderation-analytics'),
 
     # Movie detail by slug
     re_path(r'^movies/(?P<slug>[\w-]+)/$', views.MovieViewSet.as_view({'get': 'retrieve'}), name='movie-detail'),

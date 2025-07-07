@@ -107,7 +107,17 @@ export const getUserRatings = async (userId, page = 1, language = 'vi') => {
     const response = await axiosInstance.get(`/api/auth/profile/${userId}/ratings/`, {
       params: { page, language },
     });
-    return response.data;
+
+    // Standardize response format
+    const responseData = response.data;
+    return {
+      results: responseData.results || responseData.data || [],
+      data: responseData.results || responseData.data || [],
+      count: responseData.count || 0,
+      next: responseData.next || null,
+      previous: responseData.previous || null,
+      status: responseData.status || 'success',
+    };
   } catch (error) {
     throw new Error('Failed to fetch user ratings');
   }

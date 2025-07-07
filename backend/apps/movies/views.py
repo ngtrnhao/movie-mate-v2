@@ -1122,10 +1122,19 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             is_public=True
         )
 
+        # Calculate rating distribution in format expected by frontend
+        rating_distribution = {}
+        for i in range(1, 6):  # 1 to 5 stars
+            count = reviews.filter(
+                rating__gte=i,
+                rating__lt=i + 1
+            ).count()
+            rating_distribution[i] = count
+
         stats = {
             'total_reviews': reviews.count(),
-            'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'] or 0,
-            'rating_distribution': reviews.values('rating').annotate(count=Count('id')).order_by('rating'),
+            'average_rating': float(reviews.aggregate(Avg('rating'))['rating__avg'] or 0),
+            'rating_distribution': rating_distribution,  # Format: {1: count, 2: count, ...}
             'language_distribution': reviews.values('language').annotate(count=Count('id')).order_by('language'),
             'recent_reviews': reviews.filter(
                 created_at__gte=timezone.now() - timedelta(days=7)
@@ -1352,8 +1361,8 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
         stats = {
             'total_reviews': reviews.count(),
-            'average_rating': reviews.aggregate(Avg('rating'))['rating__avg'] or 0,
-            'rating_distribution': reviews.values('rating').annotate(count=Count('id')).order_by('rating'),
+            'average_rating': float(reviews.aggregate(Avg('rating'))['rating__avg'] or 0),
+            'rating_distribution': rating_distribution,  # Format: {1: count, 2: count, ...}
             'language_distribution': reviews.values('language').annotate(count=Count('id')).order_by('language'),
             'recent_reviews': reviews.filter(
                 created_at__gte=timezone.now() - timedelta(days=7)

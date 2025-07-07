@@ -212,7 +212,19 @@ export const getMovieReviews = async (movieId, page = 1, limit = 20, sortBy = 'r
     const response = await axiosInstance.get(`/api/movies/${movieId}/reviews/`, {
       params: { page, page_size: limit, sort_by: sortBy },
     });
-    return response.data;
+
+    // Standardize response format
+    const responseData = response.data;
+    return {
+      data: responseData.data || [],
+      total_pages: responseData.total_pages || 1,
+      current_page: responseData.current_page || page,
+      count: responseData.count || 0,
+      // Add rating distribution if available
+      rating_distribution: responseData.rating_distribution || {},
+      average_rating: responseData.average_rating || 0,
+      total_ratings: responseData.total_ratings || 0,
+    };
   } catch (error) {
     console.error('Error fetching movie reviews:', error);
     throw error;
@@ -274,7 +286,15 @@ export const getUserReview = async movieId => {
     const response = await axiosInstance.get(`/api/reviews/my_reviews/`, {
       params: { movie_id: movieId },
     });
-    return response.data;
+
+    // Standardize response format
+    const responseData = response.data;
+    return {
+      data: responseData.data || [],
+      results: responseData.data || [], // Keep backward compatibility
+      count: responseData.count || 0,
+      status: responseData.status || 'success',
+    };
   } catch (error) {
     console.error('Error fetching user review:', error);
     throw error;

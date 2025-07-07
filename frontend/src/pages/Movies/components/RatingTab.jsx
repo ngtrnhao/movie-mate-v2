@@ -167,22 +167,32 @@ const RatingTab = ({ movieId }) => {
       setReviews(data.data || []);
       setTotalPages(data.total_pages || 1);
 
-      // Calculate stats
-      const distribution = {};
+      // Use rating distribution from backend if available, otherwise calculate from reviews
+      let distribution = {};
       let total = 0;
       let sum = 0;
-      (data.data || []).forEach(r => {
-        const ratingValue = parseFloat(r.rating) || 0;
-        const stars = Math.round(ratingValue);
-        if (stars > 0) {
-          distribution[stars] = (distribution[stars] || 0) + 1;
-          total += 1;
-          sum += ratingValue;
-        }
-      });
+
+      if (data.rating_distribution && Object.keys(data.rating_distribution).length > 0) {
+        // Use backend rating distribution
+        distribution = data.rating_distribution;
+        total = data.total_ratings || 0;
+        sum = (data.average_rating || 0) * total;
+      } else {
+        // Calculate from reviews (fallback)
+        (data.data || []).forEach(r => {
+          const ratingValue = parseFloat(r.rating) || 0;
+          const stars = Math.round(ratingValue);
+          if (stars > 0) {
+            distribution[stars] = (distribution[stars] || 0) + 1;
+            total += 1;
+            sum += ratingValue;
+          }
+        });
+      }
+
       setStats({
-        averageRating: total ? (sum / total).toFixed(1) : 0,
-        totalRatings: total,
+        averageRating: data.average_rating || (total ? (sum / total).toFixed(1) : 0),
+        totalRatings: data.total_ratings || total,
         distribution,
       });
     } catch (err) {

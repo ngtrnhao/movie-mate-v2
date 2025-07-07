@@ -426,17 +426,166 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                         'message': 'Bạn cần đăng nhập để viết review'
                     }, status=status.HTTP_401_UNAUTHORIZED)
 
+                # Kiểm tra user đã có review chưa
+                existing_review = movie.reviews.filter(user=request.user, parent_review__isnull=True).first()
+                if existing_review:
+                    # Nếu đã có review, tự động chuyển sang update
+                    # --- SPOILER DETECTION LOGIC BẮT ĐẦU ---
+                    content = request.data.get('content', '')
+                    language = request.data.get('language', 'en')
+                    spoiler_result = None
+                    movie_title = movie.title if movie else ''
+                    if content:
+                        try:
+                            spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
+                            if spoiler_result.confidence > 0.8:
+                                request.data['is_spoiler'] = True
+                                request.data['auto_marked'] = True
+                        except Exception as e:
+                            logger.error(f"Error in spoiler detection during review update: {str(e)}")
+                    # --- SPOILER DETECTION LOGIC KẾT THÚC ---
+
+                    serializer = MovieReviewUpdateSerializer(existing_review, data=request.data, partial=True, context={'request': request})
+                    if serializer.is_valid():
+                        review = serializer.save()
+                        # --- LƯU KẾT QUẢ PHÂN TÍCH SPOILER ---
+                        if spoiler_result:
+                            try:
+                                logger.info(f"[REVIEWS ACTION][AUTO-UPDATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
+                                review.spoiler_confidence = spoiler_result.confidence
+                                review.spoiler_detected_patterns = spoiler_result.detected_patterns
+                                review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
+                                review.spoiler_explanation = spoiler_result.explanation
+                                review.auto_marked = spoiler_result.confidence > 0.8
+                                review.save(update_fields=[
+                                    'spoiler_confidence', 'spoiler_detected_patterns',
+                                    'spoiler_suggested_action','spoiler_explanation','auto_marked'
+                                ])
+                                logger.info(f"[REVIEWS ACTION][AUTO-UPDATE] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
+                            except Exception as e:
+                                logger.error(f"[REVIEWS ACTION][AUTO-UPDATE] Error saving spoiler analysis for review: {str(e)}")
+                        # --- KẾT THÚC LƯU SPOILER ---
+                        response_serializer = MovieReviewSerializer(review, context={'request': request})
+                        return Response({
+                            'status': 'success',
+                            'message': 'Bạn đã có review cho phim này. Review đã được cập nhật.',
+                            'data': response_serializer.data
+                        }, status=status.HTTP_200_OK)
+                    return Response({
+                        'status': 'error',
+                        'message': 'Invalid data',
+                        'errors': serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Nếu chưa có review, tạo mới như cũ
+                # --- SPOILER DETECTION LOGIC BẮT ĐẦU ---
+                content = request.data.get('content', '')
+                language = request.data.get('language', 'en')
+                spoiler_result = None
+                movie_title = movie.title if movie else ''
+                if content:
+                    try:
+                        spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
+                        if spoiler_result.confidence > 0.8:
+                            request.data['is_spoiler'] = True
+                            request.data['auto_marked'] = True
+                    except Exception as e:
+                        logger.error(f"Error in spoiler detection during review creation: {str(e)}")
+                # --- SPOILER DETECTION LOGIC KẾT THÚC ---
+
                 # Create new user review
                 serializer = MovieReviewCreateSerializer(data=request.data, context={'request': request})
 
                 if serializer.is_valid():
                     review = serializer.save()
+                    # --- LƯU KẾT QUẢ PHÂN TÍCH SPOILER ---
+                    if spoiler_result:
+                        try:
+                            logger.info(f"[REVIEWS ACTION] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
+                            review.spoiler_confidence = spoiler_result.confidence
+                            review.spoiler_detected_patterns = spoiler_result.detected_patterns
+                            review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
+                            review.spoiler_explanation = spoiler_result.explanation
+                            review.auto_marked = spoiler_result.confidence > 0.8
+                            review.save(update_fields=[
+                                'spoiler_confidence', 'spoiler_detected_patterns',
+                                'spoiler_suggested_action','spoiler_explanation','auto_marked'
+                            ])
+                            logger.info(f"[REVIEWS ACTION] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
+                        except Exception as e:
+                            logger.error(f"[REVIEWS ACTION] Error saving spoiler analysis for review: {str(e)}")
+                    # --- KẾT THÚC LƯU SPOILER ---
                     response_serializer = MovieReviewSerializer(review, context={'request': request})
                     return Response({
                         'status': 'success',
                         'message': 'Review created successfully',
                         'data': response_serializer.data
                     }, status=status.HTTP_201_CREATED)
+
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid data',
+                    'errors': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            elif request.method in ['PATCH', 'PUT']:
+                # Check if user is authenticated for PATCH/PUT
+                if not request.user.is_authenticated:
+                    return Response({
+                        'status': 'error',
+                        'message': 'Bạn cần đăng nhập để chỉnh sửa review'
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+
+                # Tìm review của user cho movie này
+                review = movie.reviews.filter(user=request.user, parent_review__isnull=True).first()
+                if not review:
+                    return Response({
+                        'status': 'error',
+                        'message': 'Không tìm thấy review để cập nhật'
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                # --- SPOILER DETECTION LOGIC BẮT ĐẦU ---
+                content = request.data.get('content', '')
+                language = request.data.get('language', 'en')
+                spoiler_result = None
+                movie_title = movie.title if movie else ''
+                if content:
+                    try:
+                        spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
+                        if spoiler_result.confidence > 0.8:
+                            request.data['is_spoiler'] = True
+                            request.data['auto_marked'] = True
+                    except Exception as e:
+                        logger.error(f"Error in spoiler detection during review update: {str(e)}")
+                # --- SPOILER DETECTION LOGIC KẾT THÚC ---
+
+                # Update review
+                serializer = MovieReviewUpdateSerializer(review, data=request.data, partial=True, context={'request': request})
+                if serializer.is_valid():
+                    review = serializer.save()
+                    # --- LƯU KẾT QUẢ PHÂN TÍCH SPOILER ---
+                    if spoiler_result:
+                        try:
+                            logger.info(f"[REVIEWS ACTION][UPDATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence:.2f}, patterns={format_patterns_for_log(spoiler_result.detected_patterns)}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
+                            review.spoiler_confidence = spoiler_result.confidence
+                            review.spoiler_detected_patterns = spoiler_result.detected_patterns
+                            review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
+                            review.spoiler_explanation = spoiler_result.explanation
+                            review.auto_marked = spoiler_result.confidence > 0.8
+                            review.save(update_fields=[
+                                'spoiler_confidence', 'spoiler_detected_patterns',
+                                'spoiler_suggested_action','spoiler_explanation','auto_marked'
+                            ])
+                            logger.info(f"[REVIEWS ACTION][UPDATE] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
+                        except Exception as e:
+                            logger.error(f"[REVIEWS ACTION][UPDATE] Error saving spoiler analysis for review: {str(e)}")
+                    # --- KẾT THÚC LƯU SPOILER ---
+                    response_serializer = MovieReviewSerializer(review, context={'request': request})
+                    return Response({
+                        'status': 'success',
+                        'message': 'Review updated successfully',
+                        'data': response_serializer.data
+                    }, status=status.HTTP_200_OK)
 
                 return Response({
                     'status': 'error',
@@ -451,100 +600,100 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=False, methods=['get'])
-    def movie_buzz_data(self, request):
-        """Get comprehensive data for Movie Buzz Section"""
-        try:
-            from django.utils import timezone
-            from datetime import timedelta
-            from django.db.models import Count, Q
+    # @action(detail=False, methods=['get'])
+    # def movie_buzz_data(self, request):
+    #     """Get comprehensive data for Movie Buzz Section"""
+    #     try:
+    #         from django.utils import timezone
+    #         from datetime import timedelta
+    #         from django.db.models import Count, Q
 
-            # Hot Movies (based on recent activity)
-            hot_movies = Movie.objects.annotate(
-                recent_review_count=Count('reviews', filter=Q(
-                    reviews__created_at__gte=timezone.now() - timedelta(days=7),
-                    reviews__review_type='USER'
-                ))
-            ).filter(
-                recent_review_count__gte=2,
-                poster_url__isnull=False
-            ).select_related().prefetch_related('genres')[:10]
+    #         # Hot Movies (based on recent activity)
+    #         hot_movies = Movie.objects.annotate(
+    #             recent_review_count=Count('reviews', filter=Q(
+    #                 reviews__created_at__gte=timezone.now() - timedelta(days=7),
+    #                 reviews__review_type='USER'
+    #             ))
+    #         ).filter(
+    #             recent_review_count__gte=2,
+    #             poster_url__isnull=False
+    #         ).select_related().prefetch_related('genres')[:10]
 
-            # Featured Comments (most helpful)
-            featured_comments = MovieReview.get_featured_reviews(limit=5)
+    #         # Featured Comments (most helpful)
+    #         featured_comments = MovieReview.get_featured_reviews(limit=5)
 
-            # Live Comments (recent user activity)
-            live_comments = MovieReview.get_recent_user_activity(hours=24, limit=20)
+    #         # Live Comments (recent user activity)
+    #         live_comments = MovieReview.get_recent_user_activity(hours=24, limit=20)
 
-            # Community Stats
-            stats = {
-                'total_comments': MovieReview.objects.filter(review_type='USER').count(),
-                'active_users': MovieReview.objects.filter(
-                    review_type='USER',
-                    created_at__gte=timezone.now() - timedelta(days=7)
-                ).values('user').distinct().count(),
-                'new_reviews': MovieReview.objects.filter(
-                    review_type='USER',
-                    created_at__gte=timezone.now() - timedelta(days=1)
-                ).count()
-            }
+    #         # Community Stats
+    #         stats = {
+    #             'total_comments': MovieReview.objects.filter(review_type='USER').count(),
+    #             'active_users': MovieReview.objects.filter(
+    #                 review_type='USER',
+    #                 created_at__gte=timezone.now() - timedelta(days=7)
+    #             ).values('user').distinct().count(),
+    #             'new_reviews': MovieReview.objects.filter(
+    #                 review_type='USER',
+    #                 created_at__gte=timezone.now() - timedelta(days=1)
+    #             ).count()
+    #         }
 
-            # Serialize data
-            hot_movies_serializer = self.get_serializer(hot_movies, many=True)
-            featured_serializer = UnifiedMovieReviewSerializer(featured_comments, many=True)
-            live_serializer = UnifiedMovieReviewSerializer(live_comments, many=True)
+    #         # Serialize data
+    #         hot_movies_serializer = self.get_serializer(hot_movies, many=True)
+    #         featured_serializer = UnifiedMovieReviewSerializer(featured_comments, many=True)
+    #         live_serializer = UnifiedMovieReviewSerializer(live_comments, many=True)
 
-            return Response({
-                'status': 'success',
-                'data': {
-                    'hot_movies': hot_movies_serializer.data,
-                    'featured_comments': featured_serializer.data,
-                    'live_comments': live_serializer.data,
-                    'community_stats': stats
-                }
-            })
+    #         return Response({
+    #             'status': 'success',
+    #             'data': {
+    #                 'hot_movies': hot_movies_serializer.data,
+    #                 'featured_comments': featured_serializer.data,
+    #                 'live_comments': live_serializer.data,
+    #                 'community_stats': stats
+    #             }
+    #         })
 
-        except Exception as e:
-            logger.error(f"Error in movie_buzz_data endpoint: {str(e)}")
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #     except Exception as e:
+    #         logger.error(f"Error in movie_buzz_data endpoint: {str(e)}")
+    #         return Response({
+    #             'status': 'error',
+    #             'message': str(e)
+    #         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=False, methods=['get'])
-    def hot_movies(self, request):
-        """Get hot movies based on recent activity"""
-        try:
-            from django.utils import timezone
-            from datetime import timedelta
-            from django.db.models import Count, Q
+    # @action(detail=False, methods=['get'])
+    # def hot_movies(self, request):
+    #     """Get hot movies based on recent activity"""
+    #     try:
+    #         from django.utils import timezone
+    #         from datetime import timedelta
+    #         from django.db.models import Count, Q
 
-            limit = int(request.query_params.get('limit', 10))
-            days = int(request.query_params.get('days', 7))
+    #         limit = int(request.query_params.get('limit', 10))
+    #         days = int(request.query_params.get('days', 7))
 
-            hot_movies = Movie.objects.annotate(
-                activity_score=Count('reviews', filter=Q(
-                    reviews__created_at__gte=timezone.now() - timedelta(days=days),
-                    reviews__review_type='USER'
-                ))
-            ).filter(
-                activity_score__gte=1,
-                poster_url__isnull=False
-            ).order_by('-activity_score', '-cached_imdb_rating')[:limit]
+    #         hot_movies = Movie.objects.annotate(
+    #             activity_score=Count('reviews', filter=Q(
+    #                 reviews__created_at__gte=timezone.now() - timedelta(days=days),
+    #                 reviews__review_type='USER'
+    #             ))
+    #         ).filter(
+    #             activity_score__gte=1,
+    #             poster_url__isnull=False
+    #         ).order_by('-activity_score', '-cached_imdb_rating')[:limit]
 
-            serializer = self.get_serializer(hot_movies, many=True)
-            return Response({
-                'status': 'success',
-                'count': len(hot_movies),
-                'data': serializer.data
-            })
+    #         serializer = self.get_serializer(hot_movies, many=True)
+    #         return Response({
+    #             'status': 'success',
+    #             'count': len(hot_movies),
+    #             'data': serializer.data
+    #         })
 
-        except Exception as e:
-            logger.error(f"Error in hot_movies endpoint: {str(e)}")
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #     except Exception as e:
+    #         logger.error(f"Error in hot_movies endpoint: {str(e)}")
+    #         return Response({
+    #             'status': 'error',
+    #             'message': str(e)
+    #         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['get'])
     def details_complete(self, request, pk=None):
@@ -1346,30 +1495,30 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(recent_reviews, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
-    def stats(self, request):
-        """Get review statistics"""
-        movie_id = request.query_params.get('movie_id')
-        if not movie_id:
-            return Response({'error': 'movie_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    # @action(detail=False, methods=['get'])
+    # def stats(self, request):
+    #     """Get review statistics"""
+    #     movie_id = request.query_params.get('movie_id')
+    #     if not movie_id:
+    #         return Response({'error': 'movie_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        reviews = MovieReview.objects.filter(
-            movie_id=movie_id,
-            review_type='USER',
-            is_public=True
-        )
+    #     reviews = MovieReview.objects.filter(
+    #         movie_id=movie_id,
+    #         review_type='USER',
+    #         is_public=True
+    #     )
 
-        stats = {
-            'total_reviews': reviews.count(),
-            'average_rating': float(reviews.aggregate(Avg('rating'))['rating__avg'] or 0),
-            'rating_distribution': rating_distribution,  # Format: {1: count, 2: count, ...}
-            'language_distribution': reviews.values('language').annotate(count=Count('id')).order_by('language'),
-            'recent_reviews': reviews.filter(
-                created_at__gte=timezone.now() - timedelta(days=7)
-            ).count()
-        }
+    #     stats = {
+    #         'total_reviews': reviews.count(),
+    #         'average_rating': float(reviews.aggregate(Avg('rating'))['rating__avg'] or 0),
+    #         'rating_distribution': rating_distribution,  # Format: {1: count, 2: count, ...}
+    #         'language_distribution': reviews.values('language').annotate(count=Count('id')).order_by('language'),
+    #         'recent_reviews': reviews.filter(
+    #             created_at__gte=timezone.now() - timedelta(days=7)
+    #         ).count()
+    #     }
 
-        return Response(stats)
+    #     return Response(stats)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def reply(self, request, pk=None):
@@ -2341,6 +2490,7 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
                 # Auto-mark as spoiler if high confidence
                 if spoiler_result.confidence > 0.8:
                     request.data['is_spoiler'] = True
+                    request.data['auto_marked'] = True
 
             except Exception as e:
                 logger.error(f"Error in spoiler detection during review creation: {str(e)}")
@@ -2350,13 +2500,21 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
         # Add spoiler detection info to response
         if spoiler_result:
-            response.data['spoiler_detection'] = {
-                'was_detected': spoiler_result.is_spoiler,
-                'confidence': spoiler_result.confidence,
-                'explanation': spoiler_result.explanation,
-                'auto_marked': spoiler_result.confidence > 0.8
-            }
-
+            try:
+                review = MovieReview.objects.get(pk=response.data['id'])
+                logger.info(f"[CREATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence}, patterns={spoiler_result.detected_patterns}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
+                review.spoiler_confidence = spoiler_result.confidence
+                review.spoiler_detected_patterns = spoiler_result.detected_patterns
+                review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
+                review.spoiler_explanation = spoiler_result.explanation
+                review.auto_marked = spoiler_result.confidence > 0.8
+                review.save(update_fields=[
+                    'spoiler_confidence', 'spoiler_detected_patterns',
+                    'spoiler_suggested_action','spoiler_explanation','auto_marked'
+                ])
+                logger.info(f"[CREATE] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
+            except Exception as e:
+                logger.error(f"[CREATE] Error saving spoiler analysis for review: {str(e)}")
         return response
 
     def update(self, request, *args, **kwargs):
@@ -2376,10 +2534,10 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         if content:
             try:
                 spoiler_result = spoiler_detector.detect_spoilers(content, language, movie_title)
-
                 # Auto-mark as spoiler if high confidence
                 if spoiler_result.confidence > 0.8:
                     request.data['is_spoiler'] = True
+                    request.data['auto_marked'] = True
 
             except Exception as e:
                 logger.error(f"Error in spoiler detection during review update: {str(e)}")
@@ -2389,13 +2547,21 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
 
         # Add spoiler detection info to response
         if spoiler_result:
-            response.data['spoiler_detection'] = {
-                'was_detected': spoiler_result.is_spoiler,
-                'confidence': spoiler_result.confidence,
-                'explanation': spoiler_result.explanation,
-                'auto_marked': spoiler_result.confidence > 0.8
-            }
-
+            try:
+                review = self.get_object()
+                logger.info(f"[UPDATE] Saving spoiler analysis for review {review.id}: confidence={spoiler_result.confidence}, patterns={spoiler_result.detected_patterns}, suggested_action={getattr(spoiler_result,'suggested_action', None)}, explanation={spoiler_result.explanation}, auto_marked={spoiler_result.confidence > 0.8}")
+                review.spoiler_confidence = spoiler_result.confidence
+                review.spoiler_detected_patterns = spoiler_result.detected_patterns
+                review.spoiler_suggested_action = getattr(spoiler_result,'suggested_action', None)
+                review.spoiler_explanation = spoiler_result.explanation
+                review.auto_marked = spoiler_result.confidence > 0.8
+                review.save(update_fields=[
+                    'spoiler_confidence', 'spoiler_detected_patterns',
+                    'spoiler_suggested_action','spoiler_explanation','auto_marked'
+                ])
+                logger.info(f"[UPDATE] Saved spoiler analysis for review {review.id}: spoiler_confidence={review.spoiler_confidence}, auto_marked={review.auto_marked}")
+            except Exception as e:
+                logger.error(f"[UPDATE] Error saving spoiler analysis for review: {str(e)}")
         return response
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
@@ -2804,4 +2970,24 @@ class ReviewReportViewSet(viewsets.ModelViewSet):
             return 'medium'
         else:
             return 'low'
+
+# Thêm hàm chuẩn hóa patterns cho log
+import re
+
+def format_patterns_for_log(patterns):
+    if not patterns:
+        return ""
+    formatted = []
+    for p in patterns:
+        if ':' in p:
+            type_, rest = p.split(':', 1)
+            keywords = re.findall(r'\\b\\((.*?)\\)\\b', rest)
+            if keywords:
+                keywords_str = ', '.join(keywords[0].split('|'))
+                formatted.append(f"{type_.strip()}: {keywords_str}")
+            else:
+                formatted.append(p)
+        else:
+            formatted.append(p)
+    return ' | '.join(formatted)
 

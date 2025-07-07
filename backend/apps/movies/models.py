@@ -646,7 +646,11 @@ class MovieReview(models.Model):
     is_public = models.BooleanField(default=True,
                                   help_text="Privacy setting for user reviews")
     is_spoiler = models.BooleanField(default=False)
-
+    spoiler_confidence = models.FloatField(null=True, blank=True)
+    spoiler_detected_patterns = models.JSONField(null=True, blank=True)
+    spoiler_suggested_action = models.CharField(max_length=32,null=True, blank=True)
+    spoiler_explanation = models.TextField(null=True, blank=True)
+    auto_marked = models.BooleanField(default=False)
     # Moderation fields
     is_approved = models.BooleanField(null=True, blank=True,
                                      help_text="Moderation status: True=approved, False=rejected, None=pending")

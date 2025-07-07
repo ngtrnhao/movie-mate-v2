@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, MessageSquare, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { replyToReview, getReviewReplies } from '../../api/movieService';
 import ReviewActions from './ReviewActions';
@@ -127,6 +127,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
   };
 
   const canReply = review.can_reply !== false && isAuthenticated && user?.id !== review.user?.id;
+  const isExternal = review.review_type === 'EXTERNAL';
 
   return (
     <div className="mt-4 border-l-2 border-gray-700 pl-4">
@@ -143,7 +144,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
           </button>
         )}
 
-        {canReply && (
+        {canReply && !isExternal && (
           <button
             onClick={handleToggleReplyForm}
             className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
@@ -151,6 +152,13 @@ const ReplySection = ({ review, onReplySuccess }) => {
             <Send size={14} />
             Trả lời
           </button>
+        )}
+        {/* Show log if cannot reply to external review */}
+        {isExternal && (
+          <span className="text-xs text-orange-400 flex items-center gap-1">
+            <AlertTriangle size={14} className="inline-block" />
+            Không thể trả lời review từ nguồn ngoài (external review)
+          </span>
         )}
       </div>
 

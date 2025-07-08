@@ -38,9 +38,16 @@ urlpatterns = [
     path('reviews/<int:pk>/analyze_spoiler/', views.MovieReviewViewSet.as_view({'post': 'analyze_spoiler'}), name='analyze-spoiler'),
     path('reviews/spoiler_statistics/', views.MovieReviewViewSet.as_view({'get': 'spoiler_statistics'}), name='spoiler-statistics'),
 
+    # OPTIMIZED Spoiler detection endpoints
+    path('reviews/spoiler_statistics_optimized/', views.MovieReviewViewSet.as_view({'get': 'spoiler_statistics_optimized'}), name='spoiler-statistics-optimized'),
+
     # Moderation endpoints
     path('reviews/moderation_stats/', views.MovieReviewViewSet.as_view({'get': 'moderation_stats'}), name='moderation-stats'),
     path('reviews/moderation_queue/', views.MovieReviewViewSet.as_view({'get': 'moderation_queue'}), name='moderation-queue'),
+
+    # OPTIMIZED Moderation endpoints
+    path('reviews/moderation_queue_optimized/', views.MovieReviewViewSet.as_view({'get': 'moderation_queue_optimized'}), name='moderation-queue-optimized'),
+
     path('reviews/unified_moderation_queue/', views.MovieReviewViewSet.as_view({'get': 'unified_moderation_queue'}), name='unified-moderation-queue'),
     path('reviews/<int:pk>/moderate/', views.MovieReviewViewSet.as_view({'post': 'moderate'}), name='moderate-review'),
     path('reviews/bulk_moderate/', views.MovieReviewViewSet.as_view({'post': 'bulk_moderate'}), name='bulk-moderate'),

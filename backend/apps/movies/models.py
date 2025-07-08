@@ -692,6 +692,47 @@ class MovieReview(models.Model):
             models.Index(fields=["created_at"]),
             models.Index(fields=["source"]),
             models.Index(fields=["parent_review"]),  # Index for reply queries
+
+            # MODERATION PERFORMANCE INDEXES
+            # Primary moderation queue lookup
+            models.Index(
+                fields=["review_type", "is_public", "is_approved", "created_at"],
+                name="idx_moderation_queue_lookup"
+            ),
+            # Spoiler detection optimization
+            models.Index(
+                fields=["is_spoiler", "created_at", "language"],
+                name="idx_spoiler_detection_lookup"
+            ),
+            # Reports-based moderation
+            models.Index(
+                fields=["review_type", "is_public", "created_at"],
+                name="idx_reports_moderation_lookup"
+            ),
+            # Moderation status tracking
+            models.Index(
+                fields=["is_approved", "moderated_at"],
+                name="idx_moderation_status"
+            ),
+            # Partial index for pending moderation (most common case)
+            models.Index(
+                fields=["created_at"],
+                name="idx_pending_moderation",
+                condition=models.Q(
+                    review_type='USER',
+                    is_public=True,
+                    is_approved__isnull=True
+                )
+            ),
+            # Partial index for spoiler reviews needing attention
+            models.Index(
+                fields=["created_at"],
+                name="idx_spoiler_reviews",
+                condition=models.Q(
+                    review_type='USER',
+                    is_spoiler=True
+                )
+            ),
         ]
         ordering = ['-created_at']  # Add default ordering by creation date
         constraints = [
@@ -896,6 +937,23 @@ class ReviewReport(models.Model):
             models.Index(fields=["reported_by"]),
             models.Index(fields=["reason"]),
             models.Index(fields=["created_at"]),
+
+            # MODERATION PERFORMANCE INDEXES FOR REPORTS
+            # Composite index for report counting and lookup
+            models.Index(
+                fields=["review", "created_at"],
+                name="idx_review_reports_lookup"
+            ),
+            # Reports by reason and date for analytics
+            models.Index(
+                fields=["reason", "created_at"],
+                name="idx_reports_reason_date"
+            ),
+            # Multiple reports on same review (priority detection)
+            models.Index(
+                fields=["review", "reason"],
+                name="idx_review_reason_reports"
+            ),
         ]
         unique_together = ("review", "reported_by", "reason")  # Prevent duplicate reports for same reason
         verbose_name = "Review Report"

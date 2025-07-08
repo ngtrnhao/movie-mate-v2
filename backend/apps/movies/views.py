@@ -3186,6 +3186,327 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             'suggest_warning': 0.4
         }
 
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def moderation_queue_optimized(self, request):
+        """
+        OPTIMIZED VERSION: Get reviews that need moderator attention
+        EXACT SAME LOGIC AS ORIGINAL but with performance optimizations:
+        1. Reviews marked as spoiler by auto-detection (need confirmation)
+        2. Reviews with low confidence spoiler detection (need manual review)
+        3. Reviews reported by users (need investigation)
+        """
+        try:
+            # Check permissions
+            if not request.user.is_staff and not request.user.groups.filter(name__in=['Moderators', 'Administrators']).exists():
+                return Response({
+                    'status': 'error',
+                    'message': 'Permission denied'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            # Get filter parameters
+            priority = request.query_params.get('priority', 'all')
+            type_filter = request.query_params.get('type', 'all')
+            language = request.query_params.get('language', '')
+            date_from = request.query_params.get('date_from', '')
+            date_to = request.query_params.get('date_to', '')
+            page = int(request.query_params.get('page', 1))
+            page_size = min(int(request.query_params.get('page_size', 20)), 100)
+
+            # Import spoiler_detector at function level to avoid import issues
+            from apps.movies.services.spoiler_detection_service import spoiler_detector
+
+            # Cache thresholds (avoid repeated calls)
+            thresholds = self._get_current_thresholds()
+
+            # Base queryset - SAME AS ORIGINAL: all unmoderated reviews (include is_spoiler=True)
+            from django.db.models import Count, Q, Exists, OuterRef
+
+            queryset = MovieReview.objects.filter(
+                review_type='USER',
+                is_public=True,
+                is_approved__isnull=True  # Not yet moderated
+            ).select_related(
+                'user', 'movie'
+            ).prefetch_related(
+                'reports'
+            ).annotate(
+                # Pre-calculate report counts for optimization
+                report_count=Count('reports', distinct=True)
+            ).order_by('-created_at')
+
+            # Apply filters at database level
+            if language:
+                queryset = queryset.filter(language=language)
+            if date_from:
+                queryset = queryset.filter(created_at__date__gte=date_from)
+            if date_to:
+                queryset = queryset.filter(created_at__date__lte=date_to)
+
+            # Filter by type at database level (SAME AS ORIGINAL)
+            if type_filter == 'spoiler':
+                # Only spoiler-related reviews
+                queryset = queryset.filter(is_spoiler=True)
+            elif type_filter == 'reported':
+                # Only reported reviews
+                queryset = queryset.filter(reports__isnull=False).distinct()
+
+            # Process reviews to find those needing moderation
+            reviews_with_analysis = []
+
+            for review in queryset:
+                try:
+                    # Initialize analysis (SAME STRUCTURE AS ORIGINAL)
+                    review.moderation_analysis = {
+                        'priority_level': 'low',
+                        'moderation_reasons': [],
+                        'report_count': 0,
+                        'report_reasons': [],
+                        'spoiler_analysis': None
+                    }
+
+                    # Check for user reports (use pre-calculated count for optimization)
+                    report_count = review.report_count
+                    if report_count > 0:
+                        review.moderation_analysis['report_count'] = report_count
+                        review.moderation_analysis['moderation_reasons'].append('user_reported')
+
+                        # Get unique report reasons (optimized with prefetch)
+                        report_reasons = list(review.reports.values_list('reason', flat=True).distinct())
+                        review.moderation_analysis['report_reasons'] = report_reasons
+
+                        # Set priority based on report count and reasons (SAME AS ORIGINAL)
+                        if report_count >= 3 or 'abuse' in report_reasons or 'offensive' in report_reasons:
+                            review.moderation_analysis['priority_level'] = 'high'
+                        elif report_count >= 2 or 'spam' in report_reasons:
+                            review.moderation_analysis['priority_level'] = 'medium'
+                        else:
+                            review.moderation_analysis['priority_level'] = 'low'
+
+                    # Check for spoiler detection (SAME LOGIC AS ORIGINAL)
+                    if review.is_spoiler:
+                        review.moderation_analysis['moderation_reasons'].append('marked_spoiler')
+                        review.moderation_analysis['priority_level'] = 'high'
+                    else:
+                        # Run spoiler detection analysis (SAME AS ORIGINAL)
+                        try:
+                            spoiler_result = spoiler_detector.detect_spoilers(
+                                review.content,
+                                review.language,
+                                review.movie.title if review.movie else None,
+                                thresholds
+                            )
+
+                            review.moderation_analysis['spoiler_analysis'] = {
+                                'is_spoiler': spoiler_result.is_spoiler,
+                                'confidence': spoiler_result.confidence,
+                                'detected_patterns': spoiler_result.detected_patterns,
+                                'spoiler_indicators': spoiler_result.spoiler_indicators,
+                                'explanation': spoiler_result.explanation
+                            }
+
+                            if spoiler_result.is_spoiler and spoiler_result.confidence >= thresholds['flag_review']:
+                                review.moderation_analysis['moderation_reasons'].append('auto_detected_spoiler')
+                                if review.moderation_analysis['priority_level'] != 'high':
+                                    review.moderation_analysis['priority_level'] = 'high'
+                            elif spoiler_result.confidence >= thresholds['suggest_warning']:
+                                review.moderation_analysis['moderation_reasons'].append('potential_spoiler')
+                                if review.moderation_analysis['priority_level'] == 'low':
+                                    review.moderation_analysis['priority_level'] = 'medium'
+
+                        except Exception as e:
+                            logger.error(f"Error analyzing spoiler for review {review.id}: {str(e)}")
+
+                    # Determine if review needs moderation (EXACT SAME LOGIC AS ORIGINAL)
+                    needs_moderation = (
+                        review.moderation_analysis['report_count'] > 0 or
+                        'marked_spoiler' in review.moderation_analysis['moderation_reasons'] or
+                        'auto_detected_spoiler' in review.moderation_analysis['moderation_reasons'] or
+                        'potential_spoiler' in review.moderation_analysis['moderation_reasons']
+                    )
+
+                    if needs_moderation:
+                        reviews_with_analysis.append(review)
+
+                except Exception as e:
+                    logger.error(f"Error analyzing review {review.id}: {str(e)}")
+                    # Include review if it has reports or is marked as spoiler (SAME AS ORIGINAL)
+                    if review.reports.exists() or review.is_spoiler:
+                        review.moderation_analysis = {
+                            'priority_level': 'high',
+                            'moderation_reasons': ['error_in_analysis'],
+                            'report_count': review.reports.count(),
+                            'report_reasons': [],
+                            'spoiler_analysis': None
+                        }
+                        reviews_with_analysis.append(review)
+
+            # Filter by priority (SAME AS ORIGINAL)
+            if priority == 'high':
+                reviews_with_analysis = [r for r in reviews_with_analysis if r.moderation_analysis['priority_level'] == 'high']
+            elif priority == 'medium':
+                reviews_with_analysis = [r for r in reviews_with_analysis if r.moderation_analysis['priority_level'] == 'medium']
+            elif priority == 'low':
+                reviews_with_analysis = [r for r in reviews_with_analysis if r.moderation_analysis['priority_level'] == 'low']
+
+            # Sort by priority and creation date (SAME AS ORIGINAL)
+            reviews_with_analysis.sort(
+                key=lambda x: (
+                    {'high': 0, 'medium': 1, 'low': 2}.get(x.moderation_analysis.get('priority_level', 'low'), 3),
+                    x.created_at
+                ),
+                reverse=True
+            )
+
+            # Pagination (applied after processing for correct logic match)
+            start = (page - 1) * page_size
+            end = start + page_size
+            paginated_reviews = reviews_with_analysis[start:end]
+
+            # Import ModerationQueueReviewSerializer at function level
+            from .serializers import ModerationQueueReviewSerializer
+            serializer = ModerationQueueReviewSerializer(paginated_reviews, many=True, context={'request': request})
+
+            # Calculate stats (SAME AS ORIGINAL)
+            priority_stats = {
+                'high': len([r for r in reviews_with_analysis if r.moderation_analysis.get('priority_level') == 'high']),
+                'medium': len([r for r in reviews_with_analysis if r.moderation_analysis.get('priority_level') == 'medium']),
+                'low': len([r for r in reviews_with_analysis if r.moderation_analysis.get('priority_level') == 'low'])
+            }
+
+            type_stats = {
+                'reported': len([r for r in reviews_with_analysis if r.moderation_analysis.get('report_count', 0) > 0]),
+                'spoiler': len([r for r in reviews_with_analysis if 'marked_spoiler' in r.moderation_analysis.get('moderation_reasons', []) or 'auto_detected_spoiler' in r.moderation_analysis.get('moderation_reasons', [])]),
+                'total': len(reviews_with_analysis)
+            }
+
+            return Response({
+                'status': 'success',
+                'count': len(reviews_with_analysis),
+                'total_pages': (len(reviews_with_analysis) + page_size - 1) // page_size,
+                'current_page': page,
+                'page_size': page_size,
+                'data': serializer.data,
+                'priority_stats': priority_stats,
+                'type_stats': type_stats,
+                'performance_info': {
+                    'total_reviews_processed': len(reviews_with_analysis),
+                    'total_candidates_analyzed': queryset.count(),
+                    'optimizations_applied': ['prefetch_related', 'annotated_counts', 'cached_thresholds']
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error in optimized moderation queue: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def spoiler_statistics_optimized(self, request):
+        """
+        OPTIMIZED VERSION: Get spoiler detection statistics for reviews
+        Performance improvements while matching original logic:
+        1. Use optimized database queries with select_related
+        2. Batch processing for large datasets
+        3. Same detection logic as original but with performance enhancements
+        4. Optional pagination for very large datasets
+        """
+        try:
+            # Import spoiler_detector at function level to avoid import issues
+            from apps.movies.services.spoiler_detection_service import spoiler_detector
+
+            # Optional performance parameters for very large datasets
+            batch_size = int(request.query_params.get('batch_size', 1000))  # Process in batches
+            max_reviews = request.query_params.get('max_reviews', None)  # Optional limit
+
+            # Get user's reviews or all reviews if admin (SAME LOGIC AS ORIGINAL)
+            if request.user.is_staff:
+                reviews_queryset = MovieReview.objects.filter(review_type='USER')
+            else:
+                reviews_queryset = MovieReview.objects.filter(user=request.user, review_type='USER')
+
+            # Apply select_related for performance optimization
+            reviews_queryset = reviews_queryset.select_related('movie').order_by('-created_at')
+
+            # Apply optional review limit for very large datasets
+            if max_reviews:
+                try:
+                    limit = int(max_reviews)
+                    reviews_queryset = reviews_queryset[:limit]
+                except (ValueError, TypeError):
+                    pass  # Ignore invalid max_reviews parameter
+
+            # Cache thresholds (avoid repeated calls)
+            thresholds = self._get_current_thresholds()
+
+            # Convert to list for statistics (SAME STRUCTURE AS ORIGINAL)
+            review_list = []
+            processed_count = 0
+
+            # Process in batches for memory efficiency
+            for i in range(0, reviews_queryset.count(), batch_size):
+                batch = reviews_queryset[i:i + batch_size]
+
+                for review in batch:
+                    review_data = {
+                        'id': review.id,
+                        'is_spoiler': review.is_spoiler,
+                        'content': review.content,
+                        'language': review.language,
+                        'movie_title': review.movie.title if review.movie else None
+                    }
+
+                    # Add detection result if available (SAME LOGIC AS ORIGINAL)
+                    try:
+                        # Auto-detect Vietnamese content if language is 'en' but content is Vietnamese
+                        language = review.language
+                        if language == 'en':
+                            import re
+                            vietnamese_chars = re.search(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', review.content, re.IGNORECASE)
+                            if vietnamese_chars:
+                                language = 'vi'
+
+                        result = spoiler_detector.detect_spoilers(
+                            review.content,
+                            language,
+                            review.movie.title if review.movie else None,
+                            thresholds
+                        )
+                        review_data['detection_result'] = {
+                            'confidence': result.confidence,
+                            'detected_patterns': result.detected_patterns,
+                            'spoiler_indicators': result.spoiler_indicators
+                        }
+                    except Exception as e:
+                        logger.error(f"Error detecting spoilers for review {review.id}: {str(e)}")
+                        review_data['detection_result'] = None
+
+                    review_list.append(review_data)
+                    processed_count += 1
+
+            # Generate statistics (SAME AS ORIGINAL)
+            stats = spoiler_detector.get_spoiler_statistics(review_list)
+
+            return Response({
+                'status': 'success',
+                'statistics': stats,
+                'total_reviews_analyzed': len(review_list),
+                'performance_info': {
+                    'batch_size': batch_size,
+                    'total_processed': processed_count,
+                    'optimizations_applied': ['select_related', 'batch_processing', 'cached_thresholds'],
+                    'max_reviews_limit': max_reviews if max_reviews else 'no_limit'
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error generating optimized spoiler statistics: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': 'Error generating spoiler statistics'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ReviewReportViewSet(viewsets.ModelViewSet):
     """

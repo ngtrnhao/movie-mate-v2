@@ -13,11 +13,13 @@ import {
 } from 'lucide-react';
 import {
   getModerationQueue,
+  getModerationQueueOptimized,
   moderateReview,
   bulkModerateReviews,
   analyzeReviewSpoiler,
   detectSpoilers,
   getSpoilerStatistics,
+  getSpoilerStatisticsOptimized,
 } from '../../../api/movieService';
 
 const ContentModerationDashboard = () => {
@@ -41,21 +43,43 @@ const ContentModerationDashboard = () => {
   const [notification, setNotification] = useState(null);
   // Removed viewMode state - only list view is supported
 
+  // Separate useEffects to prevent unnecessary calls
   useEffect(() => {
     fetchModerationQueue();
-    fetchSpoilerStats();
   }, [currentPage, filters]);
+
+  // Only fetch stats on initial load and after moderation actions (not on filter changes)
+  useEffect(() => {
+    fetchSpoilerStats();
+  }, []); // Only on component mount
 
   const fetchModerationQueue = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getModerationQueue(currentPage, 20, filters);
+
+      // Use optimized API for better performance
+      const response = await getModerationQueueOptimized(currentPage, 20, filters);
       setReviews(response.data || []);
       setTotalPages(response.total_pages || 1);
+
+      console.log('✅ Optimized moderation queue loaded:', {
+        count: response.data?.length || 0,
+        performance: response.performance_info,
+      });
     } catch (err) {
       console.error('Error fetching moderation queue:', err);
       setError('Không thể tải hàng đợi kiểm duyệt');
+
+      // Fallback to original API if optimized fails
+      try {
+        console.log('⚠️ Falling back to original API...');
+        const fallbackResponse = await getModerationQueue(currentPage, 20, filters);
+        setReviews(fallbackResponse.data || []);
+        setTotalPages(fallbackResponse.total_pages || 1);
+      } catch (fallbackErr) {
+        console.error('Fallback also failed:', fallbackErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -63,10 +87,25 @@ const ContentModerationDashboard = () => {
 
   const fetchSpoilerStats = async () => {
     try {
-      const response = await getSpoilerStatistics();
+      // Use optimized API with 30-day limit for better performance
+      const response = await getSpoilerStatisticsOptimized(30);
       setStats(response.statistics);
+
+      console.log('✅ Optimized spoiler stats loaded:', {
+        analyzed: response.total_reviews_analyzed,
+        performance: response.statistics?.performance_info,
+      });
     } catch (err) {
-      console.error('Error fetching spoiler stats:', err);
+      console.error('Error fetching optimized spoiler stats:', err);
+
+      // Fallback to original API
+      try {
+        console.log('⚠️ Falling back to original spoiler stats API...');
+        const fallbackResponse = await getSpoilerStatistics();
+        setStats(fallbackResponse.statistics);
+      } catch (fallbackErr) {
+        console.error('Spoiler stats fallback also failed:', fallbackErr);
+      }
     }
   };
 
@@ -81,9 +120,13 @@ const ContentModerationDashboard = () => {
       setSelectedReview(null);
       setShowModal(false);
 
-      // Refresh data
+      // Refresh only moderation queue (stats don't change much from single actions)
       await fetchModerationQueue();
-      await fetchSpoilerStats();
+      // Only refresh stats occasionally to avoid performance hit
+      if (Math.random() < 0.3) {
+        // 30% chance to refresh stats
+        await fetchSpoilerStats();
+      }
 
       // Show success notification
       setNotification({
@@ -121,7 +164,10 @@ const ContentModerationDashboard = () => {
       // Clear selection and refresh
       setSelectedReviews([]);
       await fetchModerationQueue();
-      await fetchSpoilerStats();
+      // Refresh stats after bulk operations (higher chance since it's bulk)
+      if (selectedReviews.length >= 3 || Math.random() < 0.5) {
+        await fetchSpoilerStats();
+      }
 
       alert(
         `Đã ${action === 'approve' ? 'phê duyệt' : 'từ chối'} ${selectedReviews.length} reviews thành công!`

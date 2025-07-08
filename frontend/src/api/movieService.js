@@ -689,6 +689,49 @@ export const submitMovieReviewWithSpoilerDetection = async (movieId, reviewData)
   }
 };
 
+// ====== OPTIMIZED MODERATION API CALLS ======
+
+// Optimized moderation queue API (replaces getModerationQueue for better performance)
+export const getModerationQueueOptimized = async (page = 1, pageSize = 20, filters = {}) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('page_size', pageSize);
+
+    // Add filters
+    if (filters.status) params.append('status', filters.status);
+    if (filters.language) params.append('language', filters.language);
+    if (filters.priority) params.append('priority', filters.priority);
+    if (filters.has_spoiler !== undefined) params.append('has_spoiler', filters.has_spoiler);
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+
+    const response = await axiosInstance.get(`/api/reviews/moderation_queue_optimized/?${params}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching optimized moderation queue:', error);
+    throw error;
+  }
+};
+
+// Optimized spoiler statistics API (replaces getSpoilerStatistics for better performance)
+export const getSpoilerStatisticsOptimized = async (days = 30) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('days', days);
+
+    const response = await axiosInstance.get(
+      `/api/reviews/spoiler_statistics_optimized/?${params}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error getting optimized spoiler statistics:', error);
+    throw error;
+  }
+};
+
+// ====== ORIGINAL MODERATION API CALLS (keeping for backward compatibility) ======
+
 // Moderation Queue API
 export const getModerationQueue = async (page = 1, pageSize = 20, filters = {}) => {
   try {

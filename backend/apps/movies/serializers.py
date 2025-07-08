@@ -472,6 +472,7 @@ class MovieReviewSerializer(serializers.ModelSerializer):
     replies = serializers.SerializerMethodField()
     moderation_analysis = serializers.SerializerMethodField()
     report_summary = serializers.SerializerMethodField()
+    moderation_feedback = serializers.SerializerMethodField()
     spoiler_confidence = serializers.FloatField(read_only=True)
 
     class Meta:
@@ -485,7 +486,7 @@ class MovieReviewSerializer(serializers.ModelSerializer):
             'is_reply', 'parent_review', 'replies',
             'is_approved', 'moderated_by', 'moderated_at', 'moderation_reason',
             'moderation_analysis', 'created_at', 'updated_at', 'report_summary',
-            'spoiler_confidence'
+            'moderation_feedback', 'spoiler_confidence'
         ]
         read_only_fields = [
             'id', 'user', 'helpful_votes', 'total_votes', 'helpfulness_ratio',
@@ -575,6 +576,33 @@ class MovieReviewSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'report_summary'):
             return obj.report_summary
         return None
+
+    def get_moderation_feedback(self, obj):
+        """Get moderation feedback for this review"""
+        try:
+            from apps.movies.models import ModerationFeedback
+            feedback_qs = ModerationFeedback.objects.filter(review=obj).select_related('moderator')
+            feedback_data = []
+            for feedback in feedback_qs:
+                feedback_data.append({
+                    'id': feedback.id,
+                    'feedback_type': feedback.feedback_type,
+                    'moderator_decision': feedback.moderator_decision,
+                    'is_spoiler_correct': feedback.is_spoiler_correct,
+                    'difficulty_level': feedback.difficulty_level,
+                    'notes': feedback.notes,
+                    'time_spent_seconds': feedback.time_spent_seconds,
+                    'moderator': {
+                        'id': feedback.moderator.id,
+                        'username': feedback.moderator.username
+                    } if feedback.moderator else None,
+                    'created_at': feedback.created_at,
+                    'updated_at': feedback.updated_at
+                })
+            return feedback_data
+        except Exception as e:
+            # Return empty list if there's an error
+            return []
 
     def create(self, validated_data):
         """Set the user automatically from request"""

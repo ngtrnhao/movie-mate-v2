@@ -399,11 +399,102 @@ const AutoMarkedReviews = () => {
                           </div>
                         </div>
 
+                        {/* Enhanced Processed Review Information */}
+                        {moderationFeedback.length > 0 && (
+                          <div className="mb-3 p-3 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-800">
+                                Đã được xử lý bởi Moderator
+                              </span>
+                            </div>
+                            {moderationFeedback.map((feedback, index) => (
+                              <div key={index} className="text-sm text-green-700">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                                  <div>
+                                    <span className="font-medium">Quyết định:</span>{' '}
+                                    <span
+                                      className={`px-2 py-1 text-xs rounded-full ${
+                                        feedback.moderator_decision === 'approve_as_spoiler'
+                                          ? 'bg-red-100 text-red-700'
+                                          : feedback.moderator_decision === 'approve_as_non_spoiler'
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-gray-100 text-gray-700'
+                                      }`}
+                                    >
+                                      {feedback.moderator_decision === 'approve_as_spoiler'
+                                        ? 'Phê duyệt là Spoiler'
+                                        : feedback.moderator_decision === 'approve_as_non_spoiler'
+                                          ? 'Phê duyệt không phải Spoiler'
+                                          : feedback.moderator_decision === 'reject_review'
+                                            ? 'Từ chối Review'
+                                            : feedback.moderator_decision}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Người xử lý:</span>{' '}
+                                    {feedback.moderator?.username || 'N/A'}
+                                  </div>
+                                </div>
+                                {feedback.feedback_type && (
+                                  <div className="mb-1">
+                                    <span className="font-medium">Loại feedback:</span>{' '}
+                                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                                      {feedback.feedback_type === 'correct_spoiler'
+                                        ? 'Spoiler chính xác'
+                                        : feedback.feedback_type === 'false_positive'
+                                          ? 'False positive'
+                                          : feedback.feedback_type === 'missed_spoiler'
+                                            ? 'Bỏ sót spoiler'
+                                            : feedback.feedback_type === 'correct_non_spoiler'
+                                              ? 'Không phải spoiler'
+                                              : feedback.feedback_type}
+                                    </span>
+                                  </div>
+                                )}
+                                {feedback.is_spoiler_correct !== null && (
+                                  <div className="mb-1">
+                                    <span className="font-medium">Độ chính xác AI:</span>{' '}
+                                    <span
+                                      className={`px-2 py-1 text-xs rounded ${
+                                        feedback.is_spoiler_correct
+                                          ? 'bg-green-100 text-green-700'
+                                          : 'bg-red-100 text-red-700'
+                                      }`}
+                                    >
+                                      {feedback.is_spoiler_correct
+                                        ? '✓ Chính xác'
+                                        : '✗ Không chính xác'}
+                                    </span>
+                                  </div>
+                                )}
+                                {feedback.notes && (
+                                  <div className="mb-1">
+                                    <span className="font-medium">Ghi chú:</span>{' '}
+                                    <span className="italic">"{feedback.notes}"</span>
+                                  </div>
+                                )}
+                                {feedback.created_at && (
+                                  <div className="text-xs text-green-600 mt-1">
+                                    Xử lý lúc: {formatDate(feedback.created_at)}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         <div className="mb-3">
                           <p className="text-sm text-gray-600 mb-1">
                             <strong>Phim:</strong> {review.movie?.title || 'N/A'}
                           </p>
-                          <div className="bg-gray-50 p-3 rounded-lg">
+                          <div
+                            className={`p-3 rounded-lg ${
+                              moderationFeedback.length > 0
+                                ? 'bg-gray-50 border-l-4 border-gray-300'
+                                : 'bg-gray-50'
+                            }`}
+                          >
                             <p className="text-gray-800">{review.content}</p>
                           </div>
                         </div>
@@ -430,16 +521,37 @@ const AutoMarkedReviews = () => {
 
                       {/* Actions */}
                       <div className="flex flex-col space-y-2">
-                        <button
-                          onClick={() => {
-                            setSelectedReview(review);
-                            setShowFeedbackModal(true);
-                          }}
-                          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                        >
-                          <EyeIcon className="h-4 w-4 inline mr-1" />
-                          Xử lý
-                        </button>
+                        {moderationFeedback.length === 0 ? (
+                          <button
+                            onClick={() => {
+                              setSelectedReview(review);
+                              setShowFeedbackModal(true);
+                            }}
+                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                          >
+                            <EyeIcon className="h-4 w-4 inline mr-1" />
+                            Xử lý
+                          </button>
+                        ) : (
+                          <div className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded text-center">
+                            <CheckCircleIcon className="h-4 w-4 inline mr-1" />
+                            Đã hoàn thành
+                          </div>
+                        )}
+
+                        {/* Additional actions for processed reviews */}
+                        {moderationFeedback.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setSelectedReview(review);
+                              setShowFeedbackModal(true);
+                            }}
+                            className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                          >
+                            <EyeIcon className="h-4 w-4 inline mr-1" />
+                            Xem chi tiết
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -503,8 +615,17 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
   });
   const [startTime] = useState(Date.now());
 
+  // Check if review is already processed
+  const moderationFeedback = Array.isArray(review.moderation_feedback)
+    ? review.moderation_feedback
+    : [];
+  const isProcessed = moderationFeedback.length > 0;
+
   const handleSubmit = e => {
     e.preventDefault();
+
+    // Only allow submission for unprocessed reviews
+    if (isProcessed) return;
 
     // Calculate time spent
     const timeSpent = Math.floor((Date.now() - startTime) / 1000);
@@ -519,140 +640,263 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
 
   return (
     <div className="fixed inset-0 min-h-screen bg-black bg-opacity-50 z-50 flex items-center justify-center p-2">
-      <div className="bg-white rounded-lg max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
         <div className="p-6 border-b">
-          <h3 className="text-lg font-medium text-black">Feedback cho Review</h3>
+          <h3 className="text-lg font-medium text-black">
+            {isProcessed ? 'Chi tiết Review đã xử lý' : 'Feedback cho Review'}
+          </h3>
+          {isProcessed && (
+            <p className="text-sm text-green-600 mt-1">Review này đã được xử lý bởi moderator</p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <div className="p-6 space-y-4">
           {/* Review Info */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="font-medium mb-2 text-black">Review Content:</p>
             <p className="text-gray-800">{review.content}</p>
-            <p className="text-sm text-gray-600 mt-2  ">
-              Confidence: {(review.spoiler_confidence * 100).toFixed(1)}%
-            </p>
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-sm text-gray-600">
+                Confidence: {(review.spoiler_confidence * 100).toFixed(1)}%
+              </p>
+              <p className="text-sm text-gray-600">Phim: {review.movie?.title || 'N/A'}</p>
+            </div>
           </div>
 
-          {/* Feedback Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Loại feedback *</label>
-            <select
-              value={feedbackData.feedbackType}
-              onChange={e => setFeedbackData({ ...feedbackData, feedbackType: e.target.value })}
-              required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-            >
-              <option className="text-black" value="">
-                Chọn loại feedback
-              </option>
-              <option className="text-black" value="correct_spoiler">
-                Spoiler chính xác
-              </option>
-              <option className="text-black" value="false_positive">
-                False positive
-              </option>
-              <option className="text-black" value="missed_spoiler">
-                Bỏ sót spoiler
-              </option>
-              <option className="text-black" value="correct_non_spoiler">
-                Không phải spoiler chính xác
-              </option>
-            </select>
-          </div>
+          {/* Show processed info if available, otherwise show form */}
+          {isProcessed ? (
+            <div className="space-y-4">
+              <h4 className="text-lg font-medium text-green-800 border-b pb-2">Thông tin xử lý</h4>
+              {moderationFeedback.map((feedback, index) => (
+                <div key={index} className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <label className="block text-sm font-medium text-green-700">Quyết định</label>
+                      <span
+                        className={`inline-block px-3 py-1 text-sm rounded-full ${
+                          feedback.moderator_decision === 'approve_as_spoiler'
+                            ? 'bg-red-100 text-red-800'
+                            : feedback.moderator_decision === 'approve_as_non_spoiler'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {feedback.moderator_decision === 'approve_as_spoiler'
+                          ? 'Phê duyệt là Spoiler'
+                          : feedback.moderator_decision === 'approve_as_non_spoiler'
+                            ? 'Phê duyệt không phải Spoiler'
+                            : feedback.moderator_decision === 'reject_review'
+                              ? 'Từ chối Review'
+                              : feedback.moderator_decision}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-green-700">
+                        Người xử lý
+                      </label>
+                      <p className="text-gray-800">{feedback.moderator?.username || 'N/A'}</p>
+                    </div>
+                  </div>
 
-          {/* Moderator Decision */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Quyết định moderator *
-            </label>
-            <select
-              value={feedbackData.moderatorDecision}
-              onChange={e =>
-                setFeedbackData({ ...feedbackData, moderatorDecision: e.target.value })
-              }
-              required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-            >
-              <option className="text-black" value="">
-                Chọn quyết định
-              </option>
-              <option className="text-black" value="approve_as_spoiler">
-                Phê duyệt là spoiler
-              </option>
-              <option className="text-black" value="approve_as_non_spoiler">
-                Phê duyệt không phải spoiler
-              </option>
-              <option className="text-black" value="reject_review">
-                Từ chối review
-              </option>
-            </select>
-          </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <label className="block text-sm font-medium text-green-700">
+                        Loại feedback
+                      </label>
+                      <span className="inline-block px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded">
+                        {feedback.feedback_type === 'correct_spoiler'
+                          ? 'Spoiler chính xác'
+                          : feedback.feedback_type === 'false_positive'
+                            ? 'False positive'
+                            : feedback.feedback_type === 'missed_spoiler'
+                              ? 'Bỏ sót spoiler'
+                              : feedback.feedback_type === 'correct_non_spoiler'
+                                ? 'Không phải spoiler'
+                                : feedback.feedback_type || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-green-700">
+                        Độ chính xác AI
+                      </label>
+                      <span
+                        className={`inline-block px-3 py-1 text-sm rounded ${
+                          feedback.is_spoiler_correct
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {feedback.is_spoiler_correct ? '✓ Chính xác' : '✗ Không chính xác'}
+                      </span>
+                    </div>
+                  </div>
 
-          {/* Is Spoiler Correct */}
-          <div>
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={feedbackData.isSpoilerCorrect}
-                onChange={e =>
-                  setFeedbackData({ ...feedbackData, isSpoilerCorrect: e.target.checked })
-                }
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm font-medium text-gray-700">Phát hiện spoiler chính xác</span>
-            </label>
-          </div>
+                  {feedback.notes && (
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-green-700">Ghi chú</label>
+                      <p className="text-gray-800 italic bg-white p-2 rounded border">
+                        "{feedback.notes}"
+                      </p>
+                    </div>
+                  )}
 
-          {/* Difficulty Level */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mức độ khó</label>
-            <select
-              value={feedbackData.difficultyLevel}
-              onChange={e => setFeedbackData({ ...feedbackData, difficultyLevel: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-            >
-              <option className="text-black" value="easy">
-                Dễ
-              </option>
-              <option className="text-black" value="medium">
-                Trung bình
-              </option>
-              <option className="text-black" value="hard">
-                Khó
-              </option>
-            </select>
-          </div>
+                  {feedback.created_at && (
+                    <div className="text-xs text-green-600">
+                      Xử lý lúc:{' '}
+                      {new Date(feedback.created_at).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Feedback Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Loại feedback *
+                </label>
+                <select
+                  value={feedbackData.feedbackType}
+                  onChange={e => setFeedbackData({ ...feedbackData, feedbackType: e.target.value })}
+                  required
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                >
+                  <option className="text-black" value="">
+                    Chọn loại feedback
+                  </option>
+                  <option className="text-black" value="correct_spoiler">
+                    Spoiler chính xác
+                  </option>
+                  <option className="text-black" value="false_positive">
+                    False positive
+                  </option>
+                  <option className="text-black" value="missed_spoiler">
+                    Bỏ sót spoiler
+                  </option>
+                  <option className="text-black" value="correct_non_spoiler">
+                    Không phải spoiler chính xác
+                  </option>
+                </select>
+              </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú</label>
-            <textarea
-              value={feedbackData.notes}
-              onChange={e => setFeedbackData({ ...feedbackData, notes: e.target.value })}
-              rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Ghi chú thêm về quyết định..."
-            />
-          </div>
+              {/* Moderator Decision */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quyết định moderator *
+                </label>
+                <select
+                  value={feedbackData.moderatorDecision}
+                  onChange={e =>
+                    setFeedbackData({ ...feedbackData, moderatorDecision: e.target.value })
+                  }
+                  required
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                >
+                  <option className="text-black" value="">
+                    Chọn quyết định
+                  </option>
+                  <option className="text-black" value="approve_as_spoiler">
+                    Phê duyệt là spoiler
+                  </option>
+                  <option className="text-black" value="approve_as_non_spoiler">
+                    Phê duyệt không phải spoiler
+                  </option>
+                  <option className="text-black" value="reject_review">
+                    Từ chối review
+                  </option>
+                </select>
+              </div>
 
-          {/* Actions */}
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Gửi Feedback
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Hủy
-            </button>
-          </div>
-        </form>
+              {/* Is Spoiler Correct */}
+              <div>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={feedbackData.isSpoilerCorrect}
+                    onChange={e =>
+                      setFeedbackData({ ...feedbackData, isSpoilerCorrect: e.target.checked })
+                    }
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Phát hiện spoiler chính xác
+                  </span>
+                </label>
+              </div>
+
+              {/* Difficulty Level */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mức độ khó</label>
+                <select
+                  value={feedbackData.difficultyLevel}
+                  onChange={e =>
+                    setFeedbackData({ ...feedbackData, difficultyLevel: e.target.value })
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                >
+                  <option className="text-black" value="easy">
+                    Dễ
+                  </option>
+                  <option className="text-black" value="medium">
+                    Trung bình
+                  </option>
+                  <option className="text-black" value="hard">
+                    Khó
+                  </option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú</label>
+                <textarea
+                  value={feedbackData.notes}
+                  onChange={e => setFeedbackData({ ...feedbackData, notes: e.target.value })}
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Ghi chú thêm về quyết định..."
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Gửi Feedback
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Close button for processed reviews */}
+          {isProcessed && (
+            <div className="flex justify-end pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

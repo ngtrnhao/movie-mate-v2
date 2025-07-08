@@ -2820,7 +2820,7 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             ).select_related(
                 'user', 'movie', 'moderated_by'
             ).prefetch_related(
-                'moderation_feedback'
+                'moderation_feedback__moderator'
             ).order_by('-created_at')
 
             # Apply date filters

@@ -18,9 +18,8 @@ import {
   bulkModerateReviews,
   analyzeReviewSpoiler,
   detectSpoilers,
-  getSpoilerStatistics,
-  getSpoilerStatisticsOptimized,
 } from '../../../api/movieService';
+import SpoilerDetectionPanel from './SpoilerDetectionPanel';
 
 const ContentModerationDashboard = () => {
   const [reviews, setReviews] = useState([]);
@@ -37,7 +36,7 @@ const ContentModerationDashboard = () => {
     date_from: '',
     date_to: '',
   });
-  const [stats, setStats] = useState(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [notification, setNotification] = useState(null);
@@ -47,11 +46,6 @@ const ContentModerationDashboard = () => {
   useEffect(() => {
     fetchModerationQueue();
   }, [currentPage, filters]);
-
-  // Only fetch stats on initial load and after moderation actions (not on filter changes)
-  useEffect(() => {
-    fetchSpoilerStats();
-  }, []); // Only on component mount
 
   const fetchModerationQueue = async () => {
     try {
@@ -85,30 +79,6 @@ const ContentModerationDashboard = () => {
     }
   };
 
-  const fetchSpoilerStats = async () => {
-    try {
-      // Use optimized API with 30-day limit for better performance
-      const response = await getSpoilerStatisticsOptimized(30);
-      setStats(response.statistics);
-
-      console.log('✅ Optimized spoiler stats loaded:', {
-        analyzed: response.total_reviews_analyzed,
-        performance: response.statistics?.performance_info,
-      });
-    } catch (err) {
-      console.error('Error fetching optimized spoiler stats:', err);
-
-      // Fallback to original API
-      try {
-        console.log('⚠️ Falling back to original spoiler stats API...');
-        const fallbackResponse = await getSpoilerStatistics();
-        setStats(fallbackResponse.statistics);
-      } catch (fallbackErr) {
-        console.error('Spoiler stats fallback also failed:', fallbackErr);
-      }
-    }
-  };
-
   const handleModerationAction = async (reviewId, action, reason = '') => {
     try {
       console.log(`Moderating review ${reviewId} with action: ${action}`);
@@ -120,13 +90,8 @@ const ContentModerationDashboard = () => {
       setSelectedReview(null);
       setShowModal(false);
 
-      // Refresh only moderation queue (stats don't change much from single actions)
+      // Refresh moderation queue
       await fetchModerationQueue();
-      // Only refresh stats occasionally to avoid performance hit
-      if (Math.random() < 0.3) {
-        // 30% chance to refresh stats
-        await fetchSpoilerStats();
-      }
 
       // Show success notification
       setNotification({
@@ -164,10 +129,6 @@ const ContentModerationDashboard = () => {
       // Clear selection and refresh
       setSelectedReviews([]);
       await fetchModerationQueue();
-      // Refresh stats after bulk operations (higher chance since it's bulk)
-      if (selectedReviews.length >= 3 || Math.random() < 0.5) {
-        await fetchSpoilerStats();
-      }
 
       alert(
         `Đã ${action === 'approve' ? 'phê duyệt' : 'từ chối'} ${selectedReviews.length} reviews thành công!`
@@ -348,6 +309,11 @@ const ContentModerationDashboard = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Spoiler Detection Statistics - Using dedicated component */}
+      <div className="mb-6">
+        <SpoilerDetectionPanel />
       </div>
 
       {/* Filters */}

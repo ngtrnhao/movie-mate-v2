@@ -7,7 +7,11 @@ import {
   XCircle,
   RefreshCw,
 } from 'lucide-react';
-import { getSpoilerStatistics, analyzeReviewSpoiler } from '../../../api/movieService';
+import {
+  getSpoilerStatistics,
+  getSpoilerStatisticsOptimized,
+  analyzeReviewSpoiler,
+} from '../../../api/movieService';
 
 const SpoilerDetectionPanel = () => {
   const [statistics, setStatistics] = useState(null);
@@ -23,11 +27,19 @@ const SpoilerDetectionPanel = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getSpoilerStatistics();
+      // Try optimized API first
+      const data = await getSpoilerStatisticsOptimized();
       setStatistics(data);
     } catch (err) {
-      console.error('Error fetching spoiler statistics:', err);
-      setError('Không thể tải thống kê spoiler detection');
+      console.error('Error with optimized API, trying fallback:', err);
+      try {
+        // Fallback to original API
+        const fallbackData = await getSpoilerStatistics();
+        setStatistics(fallbackData);
+      } catch (fallbackErr) {
+        console.error('Error with both APIs:', fallbackErr);
+        setError('Không thể tải thống kê spoiler detection');
+      }
     } finally {
       setLoading(false);
     }

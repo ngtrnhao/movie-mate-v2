@@ -63,6 +63,67 @@ class Movie(models.Model):
     combined_rating_score = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True,
                                                help_text="Weighted average of all ratings")
 
+    # 🎛️ PRODUCTION CONTROL FIELDS
+    is_published = models.BooleanField(default=True,
+                                     help_text="Hiển thị phim trên production")
+    visibility_status = models.CharField(max_length=20, choices=[
+        ('PUBLISHED', 'Công khai'),
+        ('DRAFT', 'Bản nháp'),
+        ('SCHEDULED', 'Đã lên lịch'),
+        ('ARCHIVED', 'Lưu trữ'),
+        ('RESTRICTED', 'Hạn chế')
+    ], default='PUBLISHED', help_text="Trạng thái hiển thị của phim")
+
+    # 📅 SCHEDULING FIELDS
+    publish_date = models.DateTimeField(null=True, blank=True,
+                                       help_text="Thời gian xuất bản")
+    unpublish_date = models.DateTimeField(null=True, blank=True,
+                                         help_text="Thời gian ngừng hiển thị")
+    featured_from = models.DateTimeField(null=True, blank=True,
+                                        help_text="Bắt đầu featured")
+    featured_until = models.DateTimeField(null=True, blank=True,
+                                         help_text="Kết thúc featured")
+
+    # 👨‍💼 ADMIN CONTROL FIELDS
+    admin_featured = models.BooleanField(default=False,
+                                        help_text="Admin manually featured")
+    admin_priority = models.IntegerField(default=0,
+                                        help_text="Admin priority (higher = more important)")
+    manual_override = models.JSONField(default=dict, blank=True,
+                                      help_text="Admin override settings")
+
+    # ✅ APPROVAL WORKFLOW FIELDS
+    approval_status = models.CharField(max_length=20, choices=[
+        ('PENDING', 'Chờ duyệt'),
+        ('APPROVED', 'Đã duyệt'),
+        ('REJECTED', 'Từ chối'),
+        ('NEEDS_REVIEW', 'Cần xem xét')
+    ], default='PENDING', help_text="Trạng thái duyệt của phim")
+    approved_by = models.ForeignKey('users.User', on_delete=models.SET_NULL,
+                                   null=True, blank=True,
+                                   related_name='approved_movies',
+                                   help_text="Người duyệt phim")
+    approved_at = models.DateTimeField(null=True, blank=True,
+                                      help_text="Thời gian duyệt")
+
+    # 🌍 TARGETING FIELDS
+    target_regions = models.JSONField(default=list, blank=True,
+                                     help_text="Danh sách regions hiển thị")
+    age_rating = models.CharField(max_length=10, blank=True, null=True,
+                                 help_text="Phân loại độ tuổi")
+    content_warnings = models.JSONField(default=list, blank=True,
+                                       help_text="Cảnh báo nội dung")
+
+    # 📊 QUALITY CONTROL FIELDS
+    quality_score = models.DecimalField(max_digits=3, decimal_places=1,
+                                       null=True, blank=True,
+                                       help_text="Điểm chất lượng content (0-10)")
+    content_completeness = models.DecimalField(max_digits=5, decimal_places=2,
+                                              default=0,
+                                              help_text="% hoàn thiện content")
+    minimum_quality_met = models.BooleanField(default=True,
+                                             help_text="Đạt tiêu chuẩn chất lượng tối thiểu")
+
     class Meta:
         db_table = "movies_movie"
         indexes = [
@@ -137,6 +198,64 @@ class Movie(models.Model):
                     poster_url__gt='',
                     backdrop_url__isnull=False,
                     backdrop_url__gt=''
+                )
+            ),
+
+            # 🎛️ PRODUCTION CONTROL INDEXES
+            models.Index(fields=["is_published"], name="idx_movie_is_published"),
+            models.Index(fields=["visibility_status"], name="idx_movie_visibility_status"),
+            models.Index(fields=["approval_status"], name="idx_movie_approval_status"),
+            models.Index(fields=["admin_featured"], name="idx_movie_admin_featured"),
+            models.Index(fields=["admin_priority"], name="idx_movie_admin_priority"),
+            models.Index(fields=["minimum_quality_met"], name="idx_movie_min_quality"),
+
+            # 📅 SCHEDULING INDEXES
+            models.Index(fields=["publish_date"], name="idx_movie_publish_date"),
+            models.Index(fields=["unpublish_date"], name="idx_movie_unpublish_date"),
+            models.Index(fields=["featured_from"], name="idx_movie_featured_from"),
+            models.Index(fields=["featured_until"], name="idx_movie_featured_until"),
+            models.Index(fields=["approved_at"], name="idx_movie_approved_at"),
+
+            # 📊 QUALITY INDEXES
+            models.Index(fields=["quality_score"], name="idx_movie_quality_score"),
+            models.Index(fields=["content_completeness"], name="idx_movie_content_completeness"),
+
+            # 🎯 COMPOSITE PRODUCTION INDEXES
+            # Index for production-ready movies
+            models.Index(
+                fields=["is_published", "approval_status", "visibility_status"],
+                name="idx_movie_production_ready"
+            ),
+            # Index for admin featured movies with scheduling
+            models.Index(
+                fields=["admin_featured", "admin_priority", "featured_from"],
+                name="idx_movie_admin_schedule"
+            ),
+            # Index for quality-based filtering
+            models.Index(
+                fields=["minimum_quality_met", "quality_score", "content_completeness"],
+                name="idx_movie_quality_filter"
+            ),
+
+            # 🎭 PARTIAL INDEXES FOR PRODUCTION
+            # Production-visible movies only
+            models.Index(
+                fields=["admin_priority", "combined_rating_score"],
+                name="idx_movie_production_visible",
+                condition=models.Q(
+                    is_published=True,
+                    approval_status='APPROVED',
+                    visibility_status='PUBLISHED',
+                    minimum_quality_met=True
+                )
+            ),
+            # Admin featured movies only
+            models.Index(
+                fields=["admin_priority", "featured_from"],
+                name="idx_movie_admin_active",
+                condition=models.Q(
+                    admin_featured=True,
+                    is_published=True
                 )
             ),
         ]
@@ -1361,3 +1480,385 @@ class ModerationFeedback(models.Model):
             'false_negatives': false_negatives,
             'true_negatives': true_negatives,
         }
+
+
+class ProductionMetrics(models.Model):
+    """
+    Track production performance metrics for movies
+    Used for analytics and admin decision making
+    """
+    movie = models.OneToOneField(Movie, on_delete=models.CASCADE,
+                                related_name='production_metrics')
+
+    # 📈 ENGAGEMENT METRICS
+    homepage_views = models.IntegerField(default=0,
+                                        help_text="Views on homepage/landing page")
+    detail_page_views = models.IntegerField(default=0,
+                                           help_text="Views on movie detail page")
+    trailer_plays = models.IntegerField(default=0,
+                                       help_text="Number of trailer plays")
+    search_appearances = models.IntegerField(default=0,
+                                           help_text="Times appeared in search results")
+
+    # 🎯 CONVERSION METRICS
+    click_through_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
+                                           help_text="CTR from homepage to detail page (%)")
+    engagement_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
+                                        help_text="Overall engagement rate (%)")
+    trailer_completion_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
+                                                 help_text="Trailer completion rate (%)")
+
+    # 📱 DEVICE/PLATFORM BREAKDOWN
+    mobile_views = models.IntegerField(default=0, help_text="Views from mobile devices")
+    desktop_views = models.IntegerField(default=0, help_text="Views from desktop")
+    tablet_views = models.IntegerField(default=0, help_text="Views from tablet")
+
+    # 🗓️ TIME TRACKING
+    last_featured_date = models.DateTimeField(null=True, blank=True,
+                                             help_text="Last time movie was featured")
+    total_featured_days = models.IntegerField(default=0,
+                                            help_text="Total days movie was featured")
+    first_published_date = models.DateTimeField(null=True, blank=True,
+                                               help_text="First time movie was published")
+
+    # 📊 PERFORMANCE SCORE
+    performance_score = models.DecimalField(max_digits=4, decimal_places=2, default=0,
+                                          help_text="Calculated performance score (0-100)")
+    trending_score = models.DecimalField(max_digits=4, decimal_places=2, default=0,
+                                       help_text="Trending score based on recent activity")
+
+    # 🌍 REGIONAL METRICS
+    region_performance = models.JSONField(default=dict, blank=True,
+                                        help_text="Performance breakdown by region")
+    language_preferences = models.JSONField(default=dict, blank=True,
+                                          help_text="User language preferences for this movie")
+
+    # 📝 CONTENT METRICS
+    review_count = models.IntegerField(default=0, help_text="Total user reviews")
+    average_user_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True,
+                                            help_text="Average user rating")
+    positive_review_ratio = models.DecimalField(max_digits=5, decimal_places=2, default=0,
+                                              help_text="Percentage of positive reviews")
+
+    # ⏰ TEMPORAL TRACKING
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_metrics_update = models.DateTimeField(null=True, blank=True,
+                                             help_text="Last time metrics were calculated")
+
+    class Meta:
+        db_table = "movies_production_metrics"
+        indexes = [
+            models.Index(fields=["movie"]),
+            models.Index(fields=["performance_score"], name="idx_metrics_performance"),
+            models.Index(fields=["trending_score"], name="idx_metrics_trending"),
+            models.Index(fields=["click_through_rate"], name="idx_metrics_ctr"),
+            models.Index(fields=["engagement_rate"], name="idx_metrics_engagement"),
+            models.Index(fields=["last_featured_date"], name="idx_metrics_last_featured"),
+            models.Index(fields=["total_featured_days"], name="idx_metrics_featured_days"),
+            models.Index(fields=["homepage_views"], name="idx_metrics_homepage_views"),
+            models.Index(fields=["detail_page_views"], name="idx_metrics_detail_views"),
+            models.Index(fields=["updated_at"], name="idx_metrics_updated"),
+
+            # Composite indexes for common queries
+            models.Index(fields=["performance_score", "trending_score"],
+                        name="idx_metrics_scores"),
+                        models.Index(fields=["homepage_views", "click_through_rate"],
+                        name="idx_metrics_homepage"),
+        ]
+        verbose_name = "Production Metrics"
+        verbose_name_plural = "Production Metrics"
+
+    def __str__(self):
+        return f"Metrics for {self.movie.title}"
+
+    def calculate_performance_score(self):
+        """
+        Calculate overall performance score based on various metrics
+        """
+        try:
+            # Weighted scoring algorithm
+            scores = []
+
+            # Engagement score (40% weight)
+            if self.homepage_views > 0:
+                engagement_score = min((
+                    (self.click_through_rate * 0.4) +
+                    (self.engagement_rate * 0.3) +
+                    (self.trailer_completion_rate * 0.3)
+                ), 40)
+                scores.append(engagement_score)
+
+            # View count score (30% weight)
+            total_views = self.homepage_views + self.detail_page_views
+            if total_views > 0:
+                # Logarithmic scale for views (max 30 points)
+                import math
+                view_score = min(math.log10(total_views + 1) * 10, 30)
+                scores.append(view_score)
+
+            # Content quality score (20% weight)
+            if self.review_count > 0 and self.average_user_rating:
+                content_score = min((
+                    (float(self.average_user_rating) / 5.0 * 15) +
+                    (self.positive_review_ratio / 100 * 5)
+                ), 20)
+                scores.append(content_score)
+
+            # Consistency score (10% weight)
+            if self.total_featured_days > 0:
+                consistency_score = min(self.total_featured_days * 2, 10)
+                scores.append(consistency_score)
+
+            self.performance_score = sum(scores) if scores else 0
+            return self.performance_score
+
+        except Exception as e:
+            logger.error(f"Error calculating performance score: {str(e)}")
+            return 0
+
+    def update_metrics(self):
+        """
+        Update metrics from current data
+        """
+        try:
+            # Update review metrics
+            reviews = self.movie.reviews.filter(review_type='USER', is_public=True)
+            self.review_count = reviews.count()
+
+            if self.review_count > 0:
+                # Calculate average rating
+                avg_rating = reviews.aggregate(avg_rating=models.Avg('rating'))['avg_rating']
+                self.average_user_rating = avg_rating
+
+                # Calculate positive review ratio (rating >= 3.5)
+                positive_reviews = reviews.filter(rating__gte=3.5).count()
+                self.positive_review_ratio = (positive_reviews / self.review_count) * 100
+
+            # Calculate trending score based on recent activity
+            from datetime import datetime, timedelta
+            recent_date = timezone.now() - timedelta(days=7)
+
+            # Update performance score
+            self.calculate_performance_score()
+
+            # Update timestamp
+            self.last_metrics_update = timezone.now()
+            self.save()
+
+        except Exception as e:
+            logger.error(f"Error updating metrics for movie {self.movie.id}: {str(e)}")
+
+    @classmethod
+    def get_top_performers(cls, days=30, limit=10):
+        """
+        Get top performing movies by performance score
+        """
+        cutoff_date = timezone.now() - timedelta(days=days)
+        return cls.objects.filter(
+            last_metrics_update__gte=cutoff_date
+        ).order_by('-performance_score', '-trending_score')[:limit]
+
+    @classmethod
+    def get_trending_movies(cls, limit=20):
+        """
+        Get trending movies based on recent activity
+        """
+        return cls.objects.filter(
+            trending_score__gt=0
+        ).order_by('-trending_score', '-performance_score')[:limit]
+
+# 🆕 NEW NORMALIZED TABLES FOR MOVIE MANAGEMENT
+
+class MovieAdminControl(models.Model):
+    """
+    Separate table for all admin workflow and control logic
+    Extracted from Movie model for better separation of concerns
+    """
+    APPROVAL_STATUS_CHOICES = [
+        ('PENDING', 'Chờ duyệt'),
+        ('APPROVED', 'Đã duyệt'),
+        ('REJECTED', 'Từ chối'),
+        ('NEEDS_REVIEW', 'Cần xem xét'),
+    ]
+
+    VISIBILITY_STATUS_CHOICES = [
+        ('PUBLISHED', 'Công khai'),
+        ('DRAFT', 'Bản nháp'),
+        ('SCHEDULED', 'Đã lên lịch'),
+        ('ARCHIVED', 'Lưu trữ'),
+        ('RESTRICTED', 'Hạn chế'),
+        ('HIDDEN', 'Ẩn'),
+    ]
+
+    # Core relationship
+    movie = models.OneToOneField(
+        Movie,
+        on_delete=models.CASCADE,
+        related_name='admin_control'
+    )
+
+    # 📋 APPROVAL WORKFLOW
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default='PENDING',
+        help_text="Trạng thái duyệt của phim"
+    )
+    approved_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='approved_movies_new',
+        help_text="Người duyệt phim"
+    )
+    approved_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Thời gian duyệt"
+    )
+    rejection_reason = models.TextField(
+        blank=True, null=True,
+        help_text="Lý do từ chối"
+    )
+
+    # 👁️ VISIBILITY CONTROL
+    visibility_status = models.CharField(
+        max_length=20,
+        choices=VISIBILITY_STATUS_CHOICES,
+        default='PUBLISHED',
+        help_text="Trạng thái hiển thị của phim"
+    )
+    is_published = models.BooleanField(
+        default=True,
+        help_text="Hiển thị phim trên production"
+    )
+
+    # ⭐ ADMIN FEATURES
+    admin_featured = models.BooleanField(
+        default=False,
+        help_text="Admin manually featured"
+    )
+    admin_priority = models.IntegerField(
+        default=0,
+        help_text="Admin priority (0-10, higher = more important)"
+    )
+    manual_override = models.JSONField(
+        default=dict, blank=True,
+        help_text="Admin override settings"
+    )
+
+    # 🎯 TARGETING & RESTRICTIONS
+    target_regions = models.JSONField(
+        default=list, blank=True,
+        help_text="Danh sách regions hiển thị"
+    )
+    age_rating = models.CharField(
+        max_length=10, blank=True, null=True,
+        help_text="Phân loại độ tuổi"
+    )
+    content_warnings = models.JSONField(
+        default=list, blank=True,
+        help_text="Cảnh báo nội dung"
+    )
+
+    # 📝 AUDIT TRAIL
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='created_admin_controls',
+        help_text="Admin tạo control record"
+    )
+    last_modified_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='modified_admin_controls',
+        help_text="Admin sửa đổi cuối"
+    )
+
+    # 📅 TIMESTAMPS
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "movies_admin_control"
+        verbose_name = "Movie Admin Control"
+        verbose_name_plural = "Movie Admin Controls"
+
+        indexes = [
+            # Primary workflow indexes
+            models.Index(fields=['approval_status'], name='idx_admin_approval_status'),
+            models.Index(fields=['visibility_status'], name='idx_admin_visibility_status'),
+            models.Index(fields=['admin_featured'], name='idx_admin_featured'),
+            models.Index(fields=['admin_priority'], name='idx_admin_priority'),
+            models.Index(fields=['is_published'], name='idx_admin_published'),
+
+            # Composite indexes for common queries
+            models.Index(fields=['approval_status', 'visibility_status'],
+                        name='idx_admin_approval_visibility'),
+            models.Index(fields=['admin_featured', 'admin_priority'],
+                        name='idx_admin_featured_priority'),
+            models.Index(fields=['is_published', 'approval_status'],
+                        name='idx_admin_published_approval'),
+
+            # Audit trail indexes
+            models.Index(fields=['created_by'], name='idx_admin_created_by'),
+            models.Index(fields=['last_modified_by'], name='idx_admin_modified_by'),
+            models.Index(fields=['updated_at'], name='idx_admin_updated_at'),
+
+            # Date-based queries
+            models.Index(fields=['approved_at'], name='idx_admin_approved_at'),
+            models.Index(fields=['created_at'], name='idx_admin_created_at'),
+        ]
+
+        constraints = [
+            # Ensure admin_priority is within valid range
+            models.CheckConstraint(
+                check=models.Q(admin_priority__gte=0) & models.Q(admin_priority__lte=10),
+                name='check_admin_priority_range'
+            ),
+        ]
+
+    def __str__(self):
+        return f"AdminControl for {self.movie.title} ({self.approval_status})"
+
+    @property
+    def is_approved(self):
+        """Quick check if movie is approved"""
+        return self.approval_status == 'APPROVED'
+
+    @property
+    def is_published_and_approved(self):
+        """Check if movie is both published and approved"""
+        return self.is_published and self.is_approved
+
+    @property
+    def needs_attention(self):
+        """Check if admin action is needed"""
+        return self.approval_status in ['PENDING', 'NEEDS_REVIEW']
+
+    def approve(self, user, commit=True):
+        """Approve the movie"""
+        self.approval_status = 'APPROVED'
+        self.approved_by = user
+        self.approved_at = timezone.now()
+        self.last_modified_by = user
+        if commit:
+            self.save()
+
+    def reject(self, user, reason="", commit=True):
+        """Reject the movie"""
+        self.approval_status = 'REJECTED'
+        self.rejection_reason = reason
+        self.last_modified_by = user
+        if commit:
+            self.save()
+
+    def set_featured(self, featured=True, user=None, commit=True):
+        """Set featured status"""
+        self.admin_featured = featured
+        if user:
+            self.last_modified_by = user
+        if commit:
+            self.save()

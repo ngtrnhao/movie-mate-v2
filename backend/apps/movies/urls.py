@@ -6,7 +6,8 @@ from .views import (
     MovieReviewViewSet,
     ReviewReportViewSet,
     ModerationConfigViewSet,
-    ModerationFeedbackViewSet
+    ModerationFeedbackViewSet,
+    AdminMovieViewSet
 )
 
 router = DefaultRouter()
@@ -16,6 +17,9 @@ router.register(r'review-reports', ReviewReportViewSet, basename='review-report'
 
 router.register(r'moderation-config', ModerationConfigViewSet, basename='moderation-config')
 router.register(r'moderation-feedback', ModerationFeedbackViewSet, basename='moderation-feedback')
+
+# Admin-only endpoints
+router.register(r'admin/movies', AdminMovieViewSet, basename='admin-movie')
 
 urlpatterns = [
     path('', include(router.urls)),

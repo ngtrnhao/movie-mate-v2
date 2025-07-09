@@ -57,6 +57,8 @@ import KanbanBoard from '../Moderator/components/KanbanBoard';
 import QueueList from '../Moderator/components/QueueList';
 import BulkActions from '../Moderator/components/BulkActions';
 import AdminDashboardOverview from './components/AdminDashboardOverview';
+import VisibilityControl from './components/VisibilityControl';
+import MovieManagement from './components/MovieManagement';
 
 const AdminDashboard = () => {
   const [activeView, setActiveView] = useState('overview');
@@ -94,6 +96,23 @@ const AdminDashboard = () => {
         color: 'green',
         description: 'Quản lý tài khoản và phân quyền người dùng',
         priority: 'high',
+      },
+      {
+        id: 'movies',
+        label: 'Quản lý phim',
+        icon: FilmIcon,
+        iconSolid: FilmIcon,
+        color: 'blue',
+        description: 'Quản lý nội dung phim và production control',
+        priority: 'high',
+      },
+      {
+        id: 'visibility',
+        label: 'Quản lý hiện thị',
+        icon: EyeIcon,
+        iconSolid: EyeIcon,
+        color: 'blue',
+        description: 'Quản lý hiện thị phim và production control',
       },
       {
         id: 'content',
@@ -227,10 +246,14 @@ const AdminDashboard = () => {
         return <AdminDashboardOverview />;
       case 'users':
         return <UserManagement />;
+      case 'movies':
+        return <MovieManagement />;
       case 'analytics':
         return <UserAnalytics />;
       case 'content':
         return <ContentAnalytics />;
+      case 'visibility':
+        return <VisibilityControl />;
       case 'moderation':
         return (
           <KanbanBoard

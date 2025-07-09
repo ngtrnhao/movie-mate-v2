@@ -5,7 +5,7 @@ from .models import (
     Movie, MovieRating, MovieAward, MovieCast,
     MovieReview, MovieBoxOffice, MovieMetadata,
     MovieGenre, MovieTrailer, MovieImage, MovieNews,
-    ReviewReport
+    ReviewReport, MovieAdminControl
 )
 import logging
 
@@ -965,3 +965,372 @@ class ModerationQueueReviewSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'report_summary'):
             return obj.report_summary
         return None
+
+# 🆕 NEW SERIALIZERS FOR NORMALIZED STRUCTURE
+
+class AdminControlSerializer(serializers.ModelSerializer):
+    """
+    Serializer for MovieAdminControl model - handles all admin workflow logic
+    """
+    approved_by_username = serializers.CharField(source='approved_by.username', read_only=True)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    last_modified_by_username = serializers.CharField(source='last_modified_by.username', read_only=True)
+
+    # Computed fields for UI
+    can_approve = serializers.SerializerMethodField()
+    can_reject = serializers.SerializerMethodField()
+    needs_attention = serializers.SerializerMethodField()
+    is_featured_active = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MovieAdminControl
+        fields = [
+            # Core workflow fields
+            'approval_status', 'approved_by', 'approved_by_username', 'approved_at', 'rejection_reason',
+            'visibility_status', 'is_published',
+            'admin_featured', 'admin_priority', 'manual_override',
+            'target_regions', 'age_rating', 'content_warnings',
+
+            # Audit fields
+            'created_by', 'created_by_username', 'last_modified_by', 'last_modified_by_username',
+            'created_at', 'updated_at',
+
+            # Computed fields
+            'can_approve', 'can_reject', 'needs_attention', 'is_featured_active'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'approved_at']
+
+    def get_can_approve(self, obj):
+        """Check if movie can be approved"""
+        return obj.approval_status in ['PENDING', 'NEEDS_REVIEW']
+
+    def get_can_reject(self, obj):
+        """Check if movie can be rejected"""
+        return obj.approval_status in ['PENDING', 'APPROVED', 'NEEDS_REVIEW']
+
+    def get_needs_attention(self, obj):
+        """Check if admin action is needed"""
+        return obj.needs_attention
+
+    def get_is_featured_active(self, obj):
+        """Check if featured period is currently active"""
+        if not obj.admin_featured:
+            return False
+
+        from django.utils import timezone
+        now = timezone.now()
+
+        # No scheduling = always active if featured
+        if not hasattr(obj.movie, 'scheduling') or not obj.movie.scheduling:
+            return True
+
+        # Check scheduling if exists
+        scheduling = obj.movie.scheduling
+        featured_from = scheduling.featured_from
+        featured_until = scheduling.featured_until
+
+        return (
+            (not featured_from or featured_from <= now) and
+            (not featured_until or featured_until > now)
+        )
+
+class AdminMovieListSerializer(OptimizedMovieListSerializer):
+    """
+    🆕 UPDATED: Lightweight admin serializer using new normalized structure
+    """
+    # Use nested serializer for admin control
+    admin_control = AdminControlSerializer(read_only=True)
+
+    # Keep some direct fields for backwards compatibility during transition
+    approval_status = serializers.CharField(source='admin_control.approval_status', read_only=True)
+    visibility_status = serializers.CharField(source='admin_control.visibility_status', read_only=True)
+    admin_featured = serializers.BooleanField(source='admin_control.admin_featured', read_only=True)
+    admin_priority = serializers.IntegerField(source='admin_control.admin_priority', read_only=True)
+
+    # Quality and production fields (these will be moved later)
+    minimum_quality_met = serializers.BooleanField(read_only=True)
+    quality_score = serializers.IntegerField(read_only=True)
+    content_completeness = serializers.IntegerField(read_only=True)
+    combined_rating_score = serializers.DecimalField(max_digits=3, decimal_places=1, read_only=True)
+
+    # Legacy fields for scheduling (will be moved to scheduling table later)
+    publish_date = serializers.DateTimeField(read_only=True)
+    unpublish_date = serializers.DateTimeField(read_only=True)
+    featured_from = serializers.DateTimeField(read_only=True)
+    featured_until = serializers.DateTimeField(read_only=True)
+
+    # Enhanced serializer methods
+    approval_info = serializers.SerializerMethodField()
+    production_metrics = serializers.SerializerMethodField()
+
+    class Meta(OptimizedMovieListSerializer.Meta):
+        fields = OptimizedMovieListSerializer.Meta.fields + [
+            # NEW: Nested admin control
+            'admin_control',
+
+            # BACKWARDS COMPATIBILITY: Direct access fields
+            'approval_status', 'visibility_status', 'admin_featured', 'admin_priority',
+
+            # LEGACY: Will be moved to other tables later
+            'minimum_quality_met', 'quality_score', 'content_completeness',
+            'publish_date', 'unpublish_date', 'featured_from', 'featured_until',
+            'combined_rating_score',
+
+            # Computed fields
+            'approval_info', 'production_metrics'
+        ]
+
+    def get_approval_info(self, obj):
+        """Enhanced approval information using new structure"""
+        if not hasattr(obj, 'admin_control') or not obj.admin_control:
+            return {
+                'status': 'PENDING',
+                'can_approve': True,
+                'can_reject': False,
+                'requires_review': False
+            }
+
+        admin_control = obj.admin_control
+        return {
+            'status': admin_control.approval_status,
+            'can_approve': admin_control.approval_status in ['PENDING', 'NEEDS_REVIEW'],
+            'can_reject': admin_control.approval_status in ['PENDING', 'APPROVED', 'NEEDS_REVIEW'],
+            'requires_review': admin_control.approval_status == 'NEEDS_REVIEW',
+            'approved_by': admin_control.approved_by.username if admin_control.approved_by else None,
+            'approved_at': admin_control.approved_at
+        }
+
+    def get_production_metrics(self, obj):
+        """Enhanced production metrics - will use ProductionMetrics table"""
+        base_metrics = {
+            'homepage_views': 0,
+            'detail_views': 0,
+            'search_appearances': 0,
+            'performance_score': float(obj.combined_rating_score) if obj.combined_rating_score else 0
+        }
+
+        # Use ProductionMetrics if available
+        if hasattr(obj, 'production_metrics') and obj.production_metrics:
+            metrics = obj.production_metrics
+            base_metrics.update({
+                'homepage_views': metrics.homepage_views,
+                'detail_page_views': metrics.detail_page_views,
+                'trailer_plays': metrics.trailer_plays,
+                'click_through_rate': float(metrics.click_through_rate) if metrics.click_through_rate else 0,
+                'engagement_rate': float(metrics.engagement_rate) if metrics.engagement_rate else 0,
+                'performance_score': float(metrics.performance_score) if metrics.performance_score else 0,
+                'trending_score': float(metrics.trending_score) if metrics.trending_score else 0
+            })
+
+        return base_metrics
+
+class AdminMovieSerializer(MovieDetailSerializer):
+    """
+    Admin-specific serializer with production control fields
+    """
+    production_metrics = serializers.SerializerMethodField()
+    approval_info = serializers.SerializerMethodField()
+    visibility_info = serializers.SerializerMethodField()
+    quality_metrics = serializers.SerializerMethodField()
+    admin_controls = serializers.SerializerMethodField()
+    content_status = serializers.SerializerMethodField()
+
+    class Meta(MovieDetailSerializer.Meta):
+        fields = MovieDetailSerializer.Meta.fields + [
+            # Production control fields
+            'is_published', 'visibility_status', 'publish_date', 'unpublish_date',
+            'featured_from', 'featured_until', 'admin_featured', 'admin_priority',
+            'manual_override', 'approval_status', 'approved_by', 'approved_at',
+            'target_regions', 'age_rating', 'content_warnings',
+            'quality_score', 'content_completeness', 'minimum_quality_met',
+
+            # Computed fields
+            'production_metrics', 'approval_info', 'visibility_info',
+            'quality_metrics', 'admin_controls', 'content_status'
+        ]
+
+    def get_production_metrics(self, obj):
+        """Get production performance metrics"""
+        try:
+            if hasattr(obj, 'production_metrics'):
+                metrics = obj.production_metrics
+                return {
+                    'homepage_views': metrics.homepage_views,
+                    'detail_page_views': metrics.detail_page_views,
+                    'trailer_plays': metrics.trailer_plays,
+                    'click_through_rate': float(metrics.click_through_rate) if metrics.click_through_rate else 0,
+                    'engagement_rate': float(metrics.engagement_rate) if metrics.engagement_rate else 0,
+                    'performance_score': float(metrics.performance_score) if metrics.performance_score else 0,
+                    'trending_score': float(metrics.trending_score) if metrics.trending_score else 0,
+                    'last_metrics_update': metrics.last_metrics_update
+                }
+        except:
+            pass
+        return {
+            'homepage_views': 0,
+            'detail_page_views': 0,
+            'trailer_plays': 0,
+            'click_through_rate': 0,
+            'engagement_rate': 0,
+            'performance_score': 0,
+            'trending_score': 0,
+            'last_metrics_update': None
+        }
+
+    def get_approval_info(self, obj):
+        """Get approval workflow information"""
+        return {
+            'status': obj.approval_status,
+            'approved_by': obj.approved_by.username if obj.approved_by else None,
+            'approved_at': obj.approved_at,
+            'can_approve': obj.approval_status in ['PENDING', 'NEEDS_REVIEW'],
+            'can_reject': obj.approval_status in ['PENDING', 'APPROVED'],
+            'rejection_reason': obj.manual_override.get('rejection_reason') if obj.manual_override else None
+        }
+
+    def get_visibility_info(self, obj):
+        """Get visibility settings and status"""
+        from django.utils import timezone
+        now = timezone.now()
+
+        # Check if currently visible
+        is_currently_visible = (
+            obj.is_published and
+            obj.visibility_status == 'PUBLISHED' and
+            obj.approval_status == 'APPROVED' and
+            obj.minimum_quality_met and
+            (not obj.publish_date or obj.publish_date <= now) and
+            (not obj.unpublish_date or obj.unpublish_date > now)
+        )
+
+        # Check if scheduled
+        is_scheduled = (
+            obj.visibility_status == 'SCHEDULED' and
+            obj.publish_date and obj.publish_date > now
+        )
+
+        return {
+            'status': obj.visibility_status,
+            'is_published': obj.is_published,
+            'is_currently_visible': is_currently_visible,
+            'is_scheduled': is_scheduled,
+            'publish_date': obj.publish_date,
+            'unpublish_date': obj.unpublish_date,
+            'target_regions': obj.target_regions,
+            'age_rating': obj.age_rating,
+            'content_warnings': obj.content_warnings
+        }
+
+    def get_quality_metrics(self, obj):
+        """Get content quality information"""
+        return {
+            'quality_score': float(obj.quality_score) if obj.quality_score else None,
+            'content_completeness': float(obj.content_completeness) if obj.content_completeness else 0,
+            'minimum_quality_met': obj.minimum_quality_met,
+            'has_poster': bool(obj.poster_url),
+            'has_backdrop': bool(obj.backdrop_url),
+            'has_overview': bool(obj.overview_en or obj.overview_vi),
+            'has_trailers': obj.trailers.filter(type='TRAILER').exists(),
+            'has_cast': obj.cast.exists(),
+            'has_ratings': obj.ratings.exists()
+        }
+
+    def get_admin_controls(self, obj):
+        """Get admin control settings"""
+        from django.utils import timezone
+        now = timezone.now()
+
+        # Check if featured period is active
+        is_featured_active = (
+            obj.admin_featured and
+            (not obj.featured_from or obj.featured_from <= now) and
+            (not obj.featured_until or obj.featured_until > now)
+        )
+
+        return {
+            'admin_featured': obj.admin_featured,
+            'admin_priority': obj.admin_priority,
+            'is_featured_active': is_featured_active,
+            'featured_from': obj.featured_from,
+            'featured_until': obj.featured_until,
+            'manual_override': obj.manual_override or {},
+            'can_feature': not obj.admin_featured,
+            'can_unfeature': obj.admin_featured,
+            'can_change_priority': obj.admin_featured
+        }
+
+    def get_content_status(self, obj):
+        """Get overall content status summary"""
+        issues = []
+
+        # Quality issues
+        if not obj.minimum_quality_met:
+            issues.append('Quality standards not met')
+        if not obj.poster_url:
+            issues.append('Missing poster')
+        if not (obj.overview_en or obj.overview_vi):
+            issues.append('Missing overview')
+        if not obj.trailers.filter(type='TRAILER').exists():
+            issues.append('Missing trailers')
+
+        # Approval issues
+        if obj.approval_status == 'PENDING':
+            issues.append('Awaiting approval')
+        elif obj.approval_status == 'REJECTED':
+            issues.append('Rejected')
+        elif obj.approval_status == 'NEEDS_REVIEW':
+            issues.append('Needs review')
+
+        # Visibility issues
+        if not obj.is_published:
+            issues.append('Not published')
+        if obj.visibility_status != 'PUBLISHED':
+            issues.append(f'Visibility: {obj.visibility_status}')
+
+        return {
+            'overall_status': 'ready' if not issues else 'issues',
+            'issues': issues,
+            'issue_count': len(issues),
+            'production_ready': (
+                obj.is_published and
+                obj.visibility_status == 'PUBLISHED' and
+                obj.approval_status == 'APPROVED' and
+                obj.minimum_quality_met
+            )
+        }
+
+class AdminDashboardMovieSerializer(serializers.ModelSerializer):
+    """
+    Ultra-lightweight serializer for dashboard overview with minimal queries
+    """
+    rating_score = serializers.DecimalField(max_digits=3, decimal_places=1, source='combined_rating_score', read_only=True)
+    approval_by_username = serializers.CharField(source='approved_by.username', read_only=True)
+
+    # Add minimal versions of fields that frontend expects
+    approval_info = serializers.SerializerMethodField()
+    production_metrics = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Movie
+        fields = [
+            'id', 'slug', 'title', 'title_en', 'poster_url', 'release_date',
+            'approval_status', 'visibility_status', 'admin_featured', 'admin_priority',
+            'minimum_quality_met', 'quality_score', 'content_completeness',
+            'is_published', 'rating_score', 'approval_by_username', 'created_at',
+            'approval_info', 'production_metrics'
+        ]
+
+    def get_approval_info(self, obj):
+        """Minimal approval info for dashboard"""
+        return {
+            'status': obj.approval_status,
+            'can_approve': obj.approval_status in ['PENDING', 'NEEDS_REVIEW'],
+            'can_reject': obj.approval_status in ['PENDING', 'APPROVED'],
+        }
+
+    def get_production_metrics(self, obj):
+        """Minimal production metrics for dashboard"""
+        return {
+            'homepage_views': 0,  # Placeholder - avoid additional queries
+            'performance_score': 0,
+        }

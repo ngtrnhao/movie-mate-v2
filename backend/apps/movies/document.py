@@ -37,8 +37,9 @@ class MovieDocument(Document):
     release_date = fields.DateField()
     runtime = fields.IntegerField()
     status = fields.KeywordField()
+    slug = fields.KeywordField()
 
-    # Rating fields - using FloatField to match existing mapping
+    # Rating fields
     vote_average = fields.FloatField()
     vote_count = fields.IntegerField()
     popularity = fields.FloatField()
@@ -53,8 +54,10 @@ class MovieDocument(Document):
     is_popular = fields.BooleanField()
     is_top_rated = fields.BooleanField()
     is_upcoming = fields.BooleanField()
+    is_published = fields.BooleanField()
+    minimum_quality_met = fields.BooleanField()
 
-    # URLs
+    # URLs and media
     poster_url = fields.TextField()
     backdrop_url = fields.TextField()
 
@@ -62,6 +65,20 @@ class MovieDocument(Document):
     trailer_count = fields.IntegerField()
     genre_count = fields.IntegerField()
     data_completeness_score = fields.IntegerField()
+
+    # Status fields
+    approval_status = fields.KeywordField()
+    visibility_status = fields.KeywordField()
+
+    # Scheduling fields
+    publish_date = fields.DateField()
+    unpublish_date = fields.DateField()
+    featured_from = fields.DateField()
+    featured_until = fields.DateField()
+
+    # Admin fields
+    admin_featured = fields.BooleanField()
+    admin_priority = fields.IntegerField()
 
     # Relationship fields
     genres = fields.NestedField(properties={
@@ -71,7 +88,7 @@ class MovieDocument(Document):
     })
     production_countries = fields.KeywordField(multi=True)
 
-    # Trailers field for consistency
+    # Trailers field
     trailers = fields.NestedField(properties={
         'title': fields.TextField(),
         'youtube_key': fields.KeywordField(),
@@ -88,7 +105,7 @@ class MovieDocument(Document):
                     'vietnamese_analyzer': {
                         'type': 'custom',
                         'tokenizer': 'standard',
-                        'filter': ['lowercase']
+                        'filter': ['lowercase', 'asciifolding']
                     }
                 }
             }
@@ -97,8 +114,7 @@ class MovieDocument(Document):
     class Django:
         model = Movie
         fields = [
-            'id',
-            'slug',  # Add slug field
+            'id'
         ]
 
     def prepare_genres(self, instance):
@@ -132,6 +148,10 @@ class MovieDocument(Document):
         except Exception as e:
             logger.warning(f"Error preparing production countries for movie {instance.id}: {e}")
             return []
+
+    def prepare_slug(self, instance):
+        """Prepare slug field"""
+        return instance.slug if instance.slug else None
 
     def prepare_vote_count(self, instance):
         """Prepare data for vote_count field"""

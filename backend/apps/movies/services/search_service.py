@@ -4,6 +4,10 @@ from django.conf import settings
 from django.core.cache import cache
 import logging
 from apps.metadata.models import Genre
+from ..serializers import OptimizedMovieListSerializer
+from ..models import Movie
+from django.db.models import Prefetch
+from ..models import MovieTrailer
 
 logger = logging.getLogger(__name__)
 
@@ -171,8 +175,47 @@ class MovieSearchService:
             # Execute search with error handling
             logger.info(f"Executing Elasticsearch query: {search.to_dict()}")
             response = search.execute()
-            logger.info(f"Elasticsearch returned {len(response.hits)} results out of {response.hits.total.value} total")
-            return response
+
+            # Get total hits
+            total_hits = response.hits.total.value
+
+            # Extract movie IDs from Elasticsearch results while preserving order
+            movie_ids = [int(hit.meta.id) for hit in response.hits]
+
+            # Fetch movies from database with proper prefetching
+            movies_dict = {}
+            movies = Movie.objects.select_related(
+                'moviemetadata'
+            ).prefetch_related(
+                Prefetch('ratings', to_attr='prefetched_ratings'),
+                Prefetch('genres', to_attr='prefetched_genres'),
+                Prefetch(
+                    'trailers',
+                    queryset=MovieTrailer.objects.filter(type='TRAILER'),
+                    to_attr='prefetched_trailers'
+                ),
+                Prefetch('cast', to_attr='prefetched_cast'),
+                Prefetch('movieimage_set', to_attr='prefetched_images')
+            ).filter(id__in=movie_ids)
+
+            # Create a dictionary for O(1) lookup while preserving ES order
+            for movie in movies:
+                movies_dict[movie.id] = movie
+
+            # Maintain Elasticsearch result order
+            ordered_movies = [movies_dict[movie_id] for movie_id in movie_ids if movie_id in movies_dict]
+
+            # Serialize using OptimizedMovieListSerializer
+            serializer = OptimizedMovieListSerializer(ordered_movies, many=True)
+
+            logger.info(f"Successfully serialized {len(ordered_movies)} movies from Elasticsearch results")
+
+            return {
+                'total': total_hits,
+                'results': serializer.data,
+                'search_engine': 'elasticsearch'
+            }
+
         except Exception as e:
             logger.error(f"Elasticsearch search error: {str(e)}")
             return None

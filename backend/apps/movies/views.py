@@ -3,6 +3,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework.viewsets import GenericViewSet
 from rest_framework import serializers
@@ -14,7 +16,7 @@ from django.db.models.functions import Greatest, Coalesce, Cast
 from django.core.paginator import Paginator
 from django.db import models
 from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer, ReviewReport,ModerationConfig,ModerationFeedback
-from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer, ReviewReportSerializer, ModerationQueueReviewSerializer
+from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer, ReviewReportSerializer, ModerationQueueReviewSerializer, AdminMovieListSerializer, AdminMovieSerializer
 import logging
 import hashlib
 from django.utils import timezone
@@ -73,6 +75,53 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             # Add images prefetch for media gallery
             Prefetch('movieimage_set', to_attr='prefetched_images')
         )
+
+    def get_production_ready_queryset(self):
+        """
+        Get movies that meet production visibility standards
+        """
+        from django.utils import timezone
+        now = timezone.now()
+
+        base_filter = Q(
+            # ✅ BASIC REQUIREMENTS
+            is_published=True,
+            poster_url__isnull=False,
+            poster_url__gt='',
+
+            # ✅ APPROVAL STATUS
+            approval_status='APPROVED',
+
+            # ✅ QUALITY GATES
+            minimum_quality_met=True,
+
+            # ✅ VISIBILITY STATUS
+            visibility_status='PUBLISHED',
+        ) & (
+            # ✅ PUBLISH DATE (optional)
+            Q(publish_date__isnull=True) | Q(publish_date__lte=now)
+        ) & (
+            # ✅ UNPUBLISH DATE (optional)
+            Q(unpublish_date__isnull=True) | Q(unpublish_date__gt=now)
+        )
+
+        return self.get_optimized_queryset().filter(base_filter)
+
+    def get_admin_featured_movies(self):
+        """
+        Get admin manually featured movies with scheduling
+        """
+        from django.utils import timezone
+        now = timezone.now()
+
+        return self.get_production_ready_queryset().filter(
+            admin_featured=True,
+        ).filter(
+            # ✅ FEATURED SCHEDULING
+            Q(featured_from__isnull=True) | Q(featured_from__lte=now)
+        ).filter(
+            Q(featured_until__isnull=True) | Q(featured_until__gt=now)
+        ).order_by('-admin_priority', '-combined_rating_score', '-release_date')
 
     def get_movie_score(self, movie):
         """Calculate movie score based on data completeness"""
@@ -148,77 +197,55 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def featured(self, request):
-        """Get 3 featured movies for hero section with complete data"""
+        """Get 3 featured movies - ULTRA SIMPLIFIED for performance"""
         try:
-            logger.info("Fetching featured movies...")
-            cache_key = 'featured_movies_v3'
+            logger.info("Fetching featured movies with ULTRA SIMPLIFIED approach...")
+            cache_key = 'featured_movies_v6_ultra_simple'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached featured movies")
                 return Response(cached_data)
 
-            # Get movies with trailers
-            movies = self.get_optimized_queryset().filter(
-                is_popular=True,
+            # 🔥 ULTRA SIMPLE: Just get top movies without complex logic
+            featured_movies = Movie.objects.select_related(
+                'moviemetadata'
+            ).filter(
+                is_published=True,
                 poster_url__isnull=False,
-                poster_url__gt='',
-                trailers__isnull=False,
-                trailers__type='TRAILER'
-            ).exclude(
-                poster_url__exact=''
-            ).distinct().order_by(
-                '-combined_rating_score',
-                '-cached_imdb_rating',
-                '-release_date'
-            )[:10]
+                approval_status='APPROVED',
+                minimum_quality_met=True,
+                visibility_status='PUBLISHED',
+            ).order_by(
+                '-admin_featured',  # Admin featured first
+                '-admin_priority',  # Then by priority
+                '-combined_rating_score',  # Then by rating
+                '-release_date'  # Then by date
+            )[:3]
 
-            logger.info(f"Found {len(movies)} popular movies with trailers")
-
-            if not movies:
-                logger.warning("No popular movies with trailers found, using top rated fallback")
-                movies = self.get_optimized_queryset().filter(
-                    is_top_rated=True,
-                    poster_url__isnull=False,
-                    poster_url__gt='',
-                    trailers__isnull=False,
-                    trailers__type='TRAILER'
-                ).exclude(
-                    poster_url__exact=''
-                ).distinct().order_by(
-                    '-combined_rating_score',
-                    '-cached_imdb_rating',
-                    '-release_date'
-                )[:10]
-
-            if not movies:
-                logger.warning("No suitable movies with trailers found for featured section")
+            if not featured_movies:
                 response_data = {
                     'status': 'success',
                     'count': 0,
-                    'data': []
+                    'data': [],
+                    'message': 'No featured movies available'
                 }
-                cache.set(cache_key, response_data, timeout=300)
+                cache.set(cache_key, response_data, timeout=1800)
                 return Response(response_data)
 
-            # Score movies based on data completeness
-            scored_movies = [(movie, self.get_movie_score(movie)) for movie in movies]
+            logger.info(f"Found {len(featured_movies)} featured movies with ultra simple query")
 
-            # Sort by score and take top 3
-            scored_movies.sort(key=lambda x: x[1], reverse=True)
-            top_movies = [movie for movie, score in scored_movies[:3]]
-
-            serializer = self.get_serializer(top_movies, many=True)
-            logger.info("Successfully serialized featured movies")
+            serializer = self.get_serializer(featured_movies, many=True)
 
             response_data = {
                 'status': 'success',
-                'count': len(top_movies),
-                'data': serializer.data
+                'count': len(featured_movies),
+                'data': serializer.data,
+                'ultra_simplified': True
             }
 
-            # Cache for 5 minutes
-            cache.set(cache_key, response_data, timeout=300)
+            # Cache for 1 hour since this is now super fast
+            cache.set(cache_key, response_data, timeout=3600)
             return Response(response_data)
 
         except Exception as e:
@@ -230,45 +257,42 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def trending(self, request):
-        """Get trending movies"""
+        """Get trending movies with production control"""
         try:
-            logger.info("Fetching trending movies...")
-            cache_key = 'trending_movies_v3'
+            logger.info("Fetching trending movies with production control...")
+            cache_key = 'trending_movies_v4_production'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached trending movies")
                 return Response(cached_data)
 
-            # Get popular movies
-            movies = self.get_optimized_queryset().filter(
-                is_popular=True,
-                poster_url__isnull=False,
-                poster_url__gt=''
-            ).exclude(
-                poster_url__exact=''
+            # Get production-ready popular movies
+            movies = self.get_production_ready_queryset().filter(
+                is_popular=True
             ).order_by(
                 '-combined_rating_score',
                 '-cached_imdb_rating',
                 '-release_date'
-            )[:20]
+            )[:30]  # Get more for better scoring
 
-            logger.info(f"Found {len(movies)} popular movies")
+            logger.info(f"Found {len(movies)} production-ready popular movies")
 
             # Score movies based on data completeness
             scored_movies = [(movie, self.get_movie_score(movie)) for movie in movies]
 
             # Sort by score and take top movies
             scored_movies.sort(key=lambda x: x[1], reverse=True)
-            top_movies = [movie for movie, score in scored_movies[:30]]
+            top_movies = [movie for movie, score in scored_movies[:20]]
 
             serializer = self.get_serializer(top_movies, many=True)
-            logger.info("Successfully serialized trending movies")
+            logger.info(f"Successfully serialized {len(top_movies)} trending movies")
 
             response_data = {
                 'status': 'success',
                 'count': len(top_movies),
-                'data': serializer.data
+                'data': serializer.data,
+                'production_controlled': True
             }
 
             # Cache for 5 minutes
@@ -284,45 +308,42 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def top_rated(self, request):
-        """Get top rated movies"""
+        """Get top rated movies with production control"""
         try:
-            logger.info("Fetching top rated movies...")
-            cache_key = 'top_rated_movies_v3'
+            logger.info("Fetching top rated movies with production control...")
+            cache_key = 'top_rated_movies_v4_production'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached top rated movies")
                 return Response(cached_data)
 
-            # Get top rated movies
-            movies = self.get_optimized_queryset().filter(
-                is_top_rated=True,
-                poster_url__isnull=False,
-                poster_url__gt=''
-            ).exclude(
-                poster_url__exact=''
+            # Get production-ready top rated movies
+            movies = self.get_production_ready_queryset().filter(
+                is_top_rated=True
             ).order_by(
                 '-combined_rating_score',
                 '-cached_imdb_rating',
                 '-release_date'
-            )[:20]
+            )[:30]  # Get more for better scoring
 
-            logger.info(f"Found {len(movies)} top rated movies")
+            logger.info(f"Found {len(movies)} production-ready top rated movies")
 
             # Score movies based on data completeness
             scored_movies = [(movie, self.get_movie_score(movie)) for movie in movies]
 
             # Sort by score and take top movies
             scored_movies.sort(key=lambda x: x[1], reverse=True)
-            top_movies = [movie for movie, score in scored_movies[:30]]
+            top_movies = [movie for movie, score in scored_movies[:20]]
 
             serializer = self.get_serializer(top_movies, many=True)
-            logger.info("Successfully serialized top rated movies")
+            logger.info(f"Successfully serialized {len(top_movies)} top rated movies")
 
             response_data = {
                 'status': 'success',
                 'count': len(top_movies),
-                'data': serializer.data
+                'data': serializer.data,
+                'production_controlled': True
             }
 
             # Cache for 5 minutes
@@ -338,45 +359,42 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
-        """Get upcoming movies"""
+        """Get upcoming movies with production control"""
         try:
-            logger.info("Fetching upcoming movies...")
-            cache_key = 'upcoming_movies_v3'
+            logger.info("Fetching upcoming movies with production control...")
+            cache_key = 'upcoming_movies_v4_production'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached upcoming movies")
                 return Response(cached_data)
 
-            # Get upcoming movies
-            movies = self.get_optimized_queryset().filter(
-                is_upcoming=True,
-                poster_url__isnull=False,
-                poster_url__gt=''
-            ).exclude(
-                poster_url__exact=''
+            # Get production-ready upcoming movies
+            movies = self.get_production_ready_queryset().filter(
+                is_upcoming=True
             ).order_by(
                 '-combined_rating_score',
                 '-cached_imdb_rating',
                 'release_date'
-            )[:20]
+            )[:30]  # Get more for better scoring
 
-            logger.info(f"Found {len(movies)} upcoming movies")
+            logger.info(f"Found {len(movies)} production-ready upcoming movies")
 
             # Score movies based on data completeness
             scored_movies = [(movie, self.get_movie_score(movie)) for movie in movies]
 
             # Sort by score and take top movies
             scored_movies.sort(key=lambda x: x[1], reverse=True)
-            top_movies = [movie for movie, score in scored_movies[:30]]
+            top_movies = [movie for movie, score in scored_movies[:20]]
 
             serializer = self.get_serializer(top_movies, many=True)
-            logger.info("Successfully serialized upcoming movies")
+            logger.info(f"Successfully serialized {len(top_movies)} upcoming movies")
 
             response_data = {
                 'status': 'success',
                 'count': len(top_movies),
-                'data': serializer.data
+                'data': serializer.data,
+                'production_controlled': True
             }
 
             # Cache for 5 minutes
@@ -661,586 +679,77 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # @action(detail=False, methods=['get'])
-    # def movie_buzz_data(self, request):
-    #     """Get comprehensive data for Movie Buzz Section"""
-    #     try:
-    #         from django.utils import timezone
-    #         from datetime import timedelta
-    #         from django.db.models import Count, Q
-
-    #         # Hot Movies (based on recent activity)
-    #         hot_movies = Movie.objects.annotate(
-    #             recent_review_count=Count('reviews', filter=Q(
-    #                 reviews__created_at__gte=timezone.now() - timedelta(days=7),
-    #                 reviews__review_type='USER'
-    #             ))
-    #         ).filter(
-    #             recent_review_count__gte=2,
-    #             poster_url__isnull=False
-    #         ).select_related().prefetch_related('genres')[:10]
-
-    #         # Featured Comments (most helpful)
-    #         featured_comments = MovieReview.get_featured_reviews(limit=5)
-
-    #         # Live Comments (recent user activity)
-    #         live_comments = MovieReview.get_recent_user_activity(hours=24, limit=20)
-
-    #         # Community Stats
-    #         stats = {
-    #             'total_comments': MovieReview.objects.filter(review_type='USER').count(),
-    #             'active_users': MovieReview.objects.filter(
-    #                 review_type='USER',
-    #                 created_at__gte=timezone.now() - timedelta(days=7)
-    #             ).values('user').distinct().count(),
-    #             'new_reviews': MovieReview.objects.filter(
-    #                 review_type='USER',
-    #                 created_at__gte=timezone.now() - timedelta(days=1)
-    #             ).count()
-    #         }
-
-    #         # Serialize data
-    #         hot_movies_serializer = self.get_serializer(hot_movies, many=True)
-    #         featured_serializer = UnifiedMovieReviewSerializer(featured_comments, many=True)
-    #         live_serializer = UnifiedMovieReviewSerializer(live_comments, many=True)
-
-    #         return Response({
-    #             'status': 'success',
-    #             'data': {
-    #                 'hot_movies': hot_movies_serializer.data,
-    #                 'featured_comments': featured_serializer.data,
-    #                 'live_comments': live_serializer.data,
-    #                 'community_stats': stats
-    #             }
-    #         })
-
-    #     except Exception as e:
-    #         logger.error(f"Error in movie_buzz_data endpoint: {str(e)}")
-    #         return Response({
-    #             'status': 'error',
-    #             'message': str(e)
-    #         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    # @action(detail=False, methods=['get'])
-    # def hot_movies(self, request):
-    #     """Get hot movies based on recent activity"""
-    #     try:
-    #         from django.utils import timezone
-    #         from datetime import timedelta
-    #         from django.db.models import Count, Q
-
-    #         limit = int(request.query_params.get('limit', 10))
-    #         days = int(request.query_params.get('days', 7))
-
-    #         hot_movies = Movie.objects.annotate(
-    #             activity_score=Count('reviews', filter=Q(
-    #                 reviews__created_at__gte=timezone.now() - timedelta(days=days),
-    #                 reviews__review_type='USER'
-    #             ))
-    #         ).filter(
-    #             activity_score__gte=1,
-    #             poster_url__isnull=False
-    #         ).order_by('-activity_score', '-cached_imdb_rating')[:limit]
-
-    #         serializer = self.get_serializer(hot_movies, many=True)
-    #         return Response({
-    #             'status': 'success',
-    #             'count': len(hot_movies),
-    #             'data': serializer.data
-    #         })
-
-    #     except Exception as e:
-    #         logger.error(f"Error in hot_movies endpoint: {str(e)}")
-    #         return Response({
-    #             'status': 'error',
-    #             'message': str(e)
-    #         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    @action(detail=True, methods=['get'])
-    def details_complete(self, request, pk=None):
-        """
-        Consolidated API endpoint for complete movie details page
-        Returns all data needed in a single request for optimal performance
-        """
-        try:
-            # Cache key for complete details
-            cache_key = f'movie_details_complete_v3_{pk}'  # v2 to bust old cache
-            cached_data = cache.get(cache_key)
-
-            if cached_data:
-                logger.info(f"Returning cached complete details for movie {pk}")
-                return Response(cached_data)
-
-            # Get movie with all related data in single query - simplified for performance
-            movie = Movie.objects.select_related(
-                'moviemetadata'
-            ).prefetch_related(
-                Prefetch('cast', queryset=MovieCast.objects.select_related().order_by('order', 'role')[:10],
-                        to_attr='prefetched_cast'),
-                Prefetch('genres', to_attr='prefetched_genres'),
-                Prefetch('trailers', to_attr='prefetched_trailers'),
-                # Add images prefetch for media gallery
-                Prefetch('movieimage_set', to_attr='prefetched_images')
-            ).get(id=pk)
-
-            # Serialize movie with enhanced serializer
-            movie_serializer = MovieDetailSerializer(movie)
-            movie_data = movie_serializer.data
-
-            # Get similar movies with simplified query (cached)
-            similar_movies = []
-            try:
-                if movie_data.get('genres') and len(movie_data['genres']) > 0:
-                    # Use first genre only for performance
-                    primary_genre_id = movie_data['genres'][0]['id']
-                    similar_cache_key = f'similar_movies_v3_{pk}_{primary_genre_id}'
-                    similar_movies = cache.get(similar_cache_key)
-
-                    if not similar_movies:
-                        from django.utils import timezone
-                        from datetime import timedelta
-
-                        # Get movie's release year for context
-                        movie_year = None
-                        if movie.release_date:
-                            movie_year = movie.release_date.year
-
-                        # Build query for similar movies with better relevance
-                        similar_query = Movie.objects.filter(
-                            genres=primary_genre_id,
-                            poster_url__isnull=False,
-                        ).exclude(id=pk)
-
-                        # Prefer movies with ratings and from similar time period
-                        if movie_year and movie_year >= 2000:
-                            # For modern movies, prefer recent movies (last 20 years)
-                            recent_cutoff = timezone.now().date() - timedelta(days=20*365)
-                            similar_query = similar_query.filter(
-                                release_date__gte=recent_cutoff
-                            )
-                        elif movie_year and movie_year >= 1980:
-                            # For 80s-90s movies, prefer movies from 1980-2010
-                            similar_query = similar_query.filter(
-                                release_date__year__gte=1980,
-                                release_date__year__lte=2010
-                            )
-
-                        # Order by relevance: rating first, then popularity
-                        similar_queryset = similar_query.order_by(
-                            '-cached_imdb_rating',  # Movies with IMDB ratings first
-                            '-is_popular',          # Popular movies next
-                            '-release_date'         # More recent movies preferred
-                        ).select_related('moviemetadata')[:6]
-
-                        # Use basic serializer for similar movies with better data
-                        similar_data = []
-                        for similar_movie in similar_queryset:
-                            similar_data.append({
-                                'id': similar_movie.id,
-                                'title': similar_movie.title_en or similar_movie.title,
-                                'title_en': similar_movie.title_en,
-                                'title_vi': similar_movie.title_vi,
-                                'original_title': similar_movie.original_title,
-                                'poster_url': similar_movie.poster_url,
-                                'backdrop_url': similar_movie.backdrop_url,
-                                'rating': float(similar_movie.cached_imdb_rating) if similar_movie.cached_imdb_rating else None,
-                                'release_date': similar_movie.release_date.isoformat() if similar_movie.release_date else None,
-                                'overview': similar_movie.overview_en or similar_movie.overview_vi,
-                                'overview_en': similar_movie.overview_en,
-                                'overview_vi': similar_movie.overview_vi,
-                                'runtime': similar_movie.runtime
-                            })
-
-                        similar_movies = similar_data
-                        # Cache similar movies for 2 hours
-                        cache.set(similar_cache_key, similar_movies, timeout=7200)
-
-            except Exception as e:
-                logger.error(f"Error getting similar movies for {pk}: {str(e)}")
-                similar_movies = []
-
-            # Build consolidated response
-            response_data = {
-                'status': 'success',
-                'data': {
-                    'movie': movie_data,
-                    'similar_movies': similar_movies,
-                    'stats': {
-                        'cast_count': len(movie_data.get('cast', [])),
-                        'director_count': len(movie_data.get('directors', [])),
-                        'genre_count': len(movie_data.get('genres', [])),
-                        'trailer_count': len(movie_data.get('trailers', []))
-                    }
-                }
-            }
-
-            # Cache complete response for 30 minutes
-            cache.set(cache_key, response_data, timeout=1800)
-            logger.info(f"Cached complete details for movie {pk}")
-
-            return Response(response_data)
-
-        except Movie.DoesNotExist:
-            return Response({
-                'status': 'error',
-                'message': 'Movie not found'
-            }, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error in details_complete endpoint: {str(e)}", exc_info=True)
-            return Response({
-                'status': 'error',
-                'message': f'Internal server error: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     @action(detail=False, methods=['get'])
     def search(self, request):
-        """Optimized movie search with comprehensive filters for large datasets"""
+        """Enhanced search endpoint using Elasticsearch with ORM fallback"""
         try:
-            # Get filter parameters
-            genres = request.GET.getlist('genres')
-            year_from = request.GET.get('year_from')
-            year_to = request.GET.get('year_to')
-            country = request.GET.get('country')
-            status_filter = request.GET.get('status')
-            adult = request.GET.get('adult', 'false')
-            language = request.GET.get('language', 'en')
-            search_query = request.GET.get('q', '')
-            sort_by = request.GET.get('sort_by', 'popularity')
-            order = request.GET.get('order', 'desc')
-            page = int(request.GET.get('page', 1))
-            page_size = min(int(request.GET.get('page_size', 50)), 100)
+            # Get search parameters
+            params = request.query_params.dict()
 
-            #Forece Django ORM for specific case (fallback parameters)
-            use_django = request.GET.get('use_django','false').lower() == 'true'
+            # Initialize search service
+            search_service = MovieSearchService()
 
+            # Try Elasticsearch search first
+            es_response = search_service.search(params)
 
-            # Create separate cache keys for ES and Django results to prevent conflicts
-            cache_params = {
-                'genres': ','.join(sorted(genres)),
-                'year_from': year_from,
-                'year_to': year_to,
-                'country': country,
-                'status': status_filter,
-                'adult': adult,
-                'language': language,
-                'q': search_query,
-                'sort_by': sort_by,
-                'order': order,
-                'page': page,
-                'page_size': page_size,
-            }
+            if es_response:
+                # Return Elasticsearch results
+                return Response({
+                    'status': 'success',
+                    'count': es_response['total'],
+                    'data': es_response['results'],
+                    'search_engine': es_response['search_engine']
+                })
 
-            # Create separate cache keys for different engines
-            cache_string = '&'.join([f"{k}={v}" for k, v in sorted(cache_params.items()) if v])
-            cache_hash = hashlib.md5(cache_string.encode()).hexdigest()
+            # Fallback to ORM search if Elasticsearch fails
+            logger.info("Falling back to ORM search")
+            queryset = self.get_production_ready_queryset()
 
-            # Use different cache keys and timeouts for different engines
-            if use_django:
-                cache_key = f"movies_search_django_v4_{cache_hash}"
-                cache_timeout = 300  # 5 minutes for Django fallback
-            else:
-                cache_key = f"movies_search_es_v4_{cache_hash}"
-                cache_timeout = 600  # 10 minutes for Elasticsearch
-
-            # Check cache first - only for same engine
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                logger.info(f"Returning cached search results for key: {cache_key}")
-                # Add cache metadata for debugging
-                cached_data['cache_info'] = {
-                    'cached': True,
-                    'engine': 'django' if use_django else 'elasticsearch',
-                    'cache_key': cache_key
-                }
-                return Response(cached_data)
-            #Try Elasticsearch first
-            if not use_django:
-                try:
-                    search_service = MovieSearchService()
-                    search_params = {
-                        'q': search_query,
-                        'genres': genres,
-                        'year_from': year_from,
-                        'year_to': year_to,
-                        'country': country,
-                        'status': status_filter,
-                        'adult': adult,
-                        'language': language,
-                        'sort_by': sort_by,
-                        'order': order,
-                        'page': page,
-                        'page_size': page_size
-                    }
-                    logger.info(f"Elasticsearch for search with params: {search_params}")
-                    es_results = search_service.search(search_params)
-
-                    #Convert Elasticsearch results to expected format
-                    movies = []
-                    for hit in es_results.hits:
-                        movie_data = hit.to_dict()
-                        # Safely get nested values
-                        def safe_get(data, key, default=None):
-                            if isinstance(data, dict):
-                                return data.get(key, default)
-                            return default
-
-                        # Convert rating values safely
-                        def safe_float(value, default=None):
-                            try:
-                                return float(value) if value is not None else default
-                            except (ValueError, TypeError):
-                                return default
-
-                        # Process trailers safely
-                        trailers = movie_data.get('trailers', [])
-                        if isinstance(trailers, str):
-                            trailers = []
-                        elif not isinstance(trailers, list):
-                            trailers = [trailers] if trailers else []
-
-                        # Process genres safely
-                        genres = movie_data.get('genres', [])
-                        if isinstance(genres, str):
-                            genres = []
-                        elif not isinstance(genres, list):
-                            genres = [genres] if genres else []
-
-                        # Build the response data
-                        processed_data = {
-                            'id': hit.meta.id,
-                            'poster_path': safe_get(movie_data, 'poster_url'),
-                            'backdrop_path': safe_get(movie_data, 'backdrop_url'),
-                            'rating': {
-                                'imdb': safe_float(safe_get(movie_data, 'cached_imdb_rating')),
-                                'imdb_votes': safe_get(movie_data, 'cached_imdb_votes'),
-                                'tmdb': safe_float(safe_get(movie_data, 'cached_tmdb_rating')),
-                                'tmdb_votes': safe_get(movie_data, 'cached_tmdb_votes'),
-                                'combined_score': safe_float(safe_get(movie_data, 'combined_rating_score')),
-                            },
-                            'vote_average': safe_float(safe_get(movie_data, 'combined_rating_score'), 0) / 2,
-                            'vote_count': (safe_get(movie_data, 'cached_imdb_votes', 0) or 0) +
-                                        (safe_get(movie_data, 'cached_tmdb_votes', 0) or 0),
-                            'overviews': {
-                                'en': safe_get(movie_data, 'overview_en'),
-                                'vi': safe_get(movie_data, 'overview_vi')
-                            },
-                            'trailers': [
-                                {
-                                    'title': safe_get(trailer, 'title'),
-                                    'youtube_key': safe_get(trailer, 'youtube_key'),
-                                    'type': safe_get(trailer, 'type')
-                                }
-                                for trailer in trailers
-                            ],
-                            'genres': [
-                                {
-                                    'id': safe_get(genre, 'id'),
-                                    'name': safe_get(genre, 'name'),
-                                    'language': safe_get(genre, 'language')
-                                }
-                                for genre in genres
-                            ]
-                        }
-                        movies.append(processed_data)
-                    response_data = {
-                        'status': 'success',
-                        'count': es_results.hits.total.value,
-                        'pages': (es_results.hits.total.value + page_size -1) // page_size,
-                        'current_page': page,
-                        'page_size': page_size,
-                        'has_next': page * page_size < es_results.hits.total.value,
-                        'data': movies,
-                        'search_engine': 'elasticsearch',
-                        'data_source': 'elasticsearch_index'
-                    }
-
-                    # Cache with engine-specific timeout
-                    cache.set(cache_key, response_data, timeout=cache_timeout)
-                    logger.info(f"Cached Elasticsearch results for key: {cache_key} (timeout: {cache_timeout}s)")
-
-                    return Response(response_data)
-
-                except Exception as es_error:
-                    logger.warning(f"Elasticsearch error: {str(es_error)}, falling back to Django ORM")
-                    #Continue to Django ORM
-            # Start with optimized base queryset
-            queryset = self.get_optimized_queryset().filter(
-                poster_url__isnull=False,
-                poster_url__gt=''
-            )
-            # Genre filter - use the indexed many-to-many relationship
-            if genres:
-                queryset = queryset.filter(genres__in=genres).distinct()
-
-            # Year filters - use indexed release_date
-            if year_from:
-                try:
-                    year_from_int = int(year_from)
-                    queryset = queryset.filter(release_date__year__gte=year_from_int)
-                except (ValueError, TypeError):
-                    pass
-
-            if year_to:
-                try:
-                    year_to_int = int(year_to)
-                    queryset = queryset.filter(release_date__year__lte=year_to_int)
-                except (ValueError, TypeError):
-                    pass
-
-            # Country filter - check production_countries in metadata
-            if country:
+            # Apply search filters
+            if params.get('q'):
+                query = params['q'].strip()
                 queryset = queryset.filter(
-                    moviemetadata__production_countries__contains=[{'iso_3166_1': country}]
+                    Q(title__icontains=query) |
+                    Q(title_en__icontains=query) |
+                    Q(title_vi__icontains=query) |
+                    Q(overview_en__icontains=query) |
+                    Q(overview_vi__icontains=query)
                 )
 
-            # Status filter - use indexed status field
-            if status_filter:
-                queryset = queryset.filter(status=status_filter)
+            # Apply other filters
+            if params.get('genres'):
+                genre_list = params['genres'].split(',') if isinstance(params['genres'], str) else params['genres']
+                queryset = queryset.filter(genres__id__in=genre_list).distinct()
 
-            # Adult content filter - use indexed is_adult field
-            if adult.lower() == 'false':
-                queryset = queryset.filter(is_adult=False)
-            elif adult.lower() == 'true':
-                pass  # No filter applied
-            else:
-                queryset = queryset.filter(is_adult=False)
+            if params.get('year_from'):
+                queryset = queryset.filter(release_date__year__gte=params['year_from'])
 
-            # Search query - simplified for performance (no icontains for large datasets)
-            if search_query:
-                search_q = Q()
-                if language == 'vi':
-                    search_q |= Q(title_vi__icontains=search_query)
-                    search_q |= Q(title_en__icontains=search_query)
-                    search_q |= Q(title__icontains=search_query)
-                else:
-                    search_q |= Q(title_en__icontains=search_query)
-                    search_q |= Q(title__icontains=search_query)
-                    search_q |= Q(title_vi__icontains=search_query)
-                queryset = queryset.filter(search_q)
+            if params.get('year_to'):
+                queryset = queryset.filter(release_date__year__lte=params['year_to'])
 
-            # Optimized sorting using indexed fields
-            sort_fields = {
-                'popularity': '-is_popular',
-                'rating': [
-                    '-has_rating',  # Custom field to sort rated movies first
-                    '-highest_rating',  # Custom field for highest rating between IMDB and TMDB
-                    '-cached_imdb_votes',  # Prefer movies with more votes when ratings are equal
-                    '-cached_tmdb_votes',
-                    '-release_date'
-                ],
-                'release_date': '-release_date',
-                'title': 'title_en' if language == 'en' else 'title_vi',
-                'runtime': '-runtime',
-                'vote_count': ['-cached_imdb_votes', '-cached_tmdb_votes']
-            }
+            # Apply sorting
+            sort_field = params.get('sort_by', '-combined_rating_score')
+            if params.get('order') == 'asc':
+                sort_field = sort_field.lstrip('-')
+            elif not sort_field.startswith('-'):
+                sort_field = f'-{sort_field}'
+            queryset = queryset.order_by(sort_field)
 
-            sort_field = sort_fields.get(sort_by, '-is_popular')
+            # Apply pagination
+            page = self.paginate_queryset(queryset)
+            serializer = self.get_serializer(page, many=True)
 
-            # Handle multiple sort fields
-            if isinstance(sort_field, list):
-                if order == 'asc':
-                    sort_field = [field.lstrip('-') for field in sort_field]
-                if sort_by == 'rating':
-                    # Add custom fields for rating sort
-                    queryset = queryset.annotate(
-                        has_rating=Case(
-                            When(
-                                Q(cached_imdb_rating__isnull=False) |
-                                Q(cached_tmdb_rating__isnull=False),
-                                then=Value(1)
-                            ),
-                            default=Value(0),
-                            output_field=IntegerField(),
-                        ),
-                        highest_rating=Greatest(
-                            Coalesce(
-                                Cast('cached_imdb_rating', DecimalField(max_digits=3, decimal_places=1)),
-                                Value(0, output_field=DecimalField(max_digits=3, decimal_places=1))
-                            ),
-                            Coalesce(
-                                Cast('cached_tmdb_rating', DecimalField(max_digits=3, decimal_places=1)),
-                                Value(0, output_field=DecimalField(max_digits=3, decimal_places=1))
-                            ),
-                            output_field=DecimalField(max_digits=3, decimal_places=1)
-                        )
-                    )
-                queryset = queryset.order_by(*sort_field)
-            else:
-                if order == 'asc':
-                    sort_field = sort_field.lstrip('-')
-                queryset = queryset.order_by(sort_field, '-release_date')
-
-            # Use optimized pagination for large datasets
-            try:
-                # For better performance with large datasets, limit the queryset
-                max_results = 100000  # Limit total results to prevent performance issues
-                limited_queryset = queryset[:max_results]
-
-
-                paginator = Paginator(limited_queryset, page_size)
-                page_obj = paginator.get_page(page)
-
-                # Get the actual objects for this page
-                movies = list(page_obj.object_list)
-
-                # Serialize results
-                serializer = self.get_serializer(movies, many=True)
-
-                response_data = {
-                    'status': 'success',
-                    'count': min(paginator.count, max_results),
-                    'pages': paginator.num_pages,
-                    'current_page': page,
-                    'page_size': page_size,
-                    'has_next': page_obj.has_next(),
-                    'has_previous': page_obj.has_previous(),
-                    'data': serializer.data,
-                    'total_results_limited': paginator.count >= max_results,
-                    'search_engine': 'django_orm',
-                    'data_source': 'database_fallback'
-                }
-
-                # Cache with engine-specific timeout
-                cache.set(cache_key, response_data, timeout=cache_timeout)
-                logger.info(f"Cached Django ORM results for key: {cache_key} (timeout: {cache_timeout}s)")
-
-                return Response(response_data)
-
-            except Exception as paginate_error:
-                logger.error(f"Pagination error: {str(paginate_error)}")
-                # Fallback to simple slicing
-                start = (page - 1) * page_size
-                end = start + page_size
-                movies = list(queryset[start:end])
-
-                serializer = self.get_serializer(movies, many=True)
-
-                # Calculate pagination info for fallback
-                total_count = queryset.count()
-                total_pages = (total_count + page_size - 1) // page_size
-                has_next = page < total_pages
-                has_previous = page > 1
-
-                response_data = {
-                    'status': 'success',
-                    'count': total_count,
-                    'pages': total_pages,
-                    'current_page': page,
-                    'page_size': page_size,
-                    'has_next': has_next,
-                    'has_previous': has_previous,
-                    'data': serializer.data,
-                    'search_engine': 'django_orm_fallback'
-                }
-
-                return Response(response_data)
+            response = self.get_paginated_response(serializer.data)
+            response.data['search_engine'] = 'django_orm'
+            return response
 
         except Exception as e:
-            logger.error(f"Error in movie search: {str(e)}", exc_info=True)
+            logger.error(f"Search error: {str(e)}")
             return Response({
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=False, methods=['get'])
     def search_suggestions(self, request):
         """Get search suggestions from Elasticsearch"""
@@ -1649,31 +1158,6 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
         recent_reviews = MovieReview.get_recent_user_activity(hours=hours, limit=20)
         serializer = self.get_serializer(recent_reviews, many=True)
         return Response(serializer.data)
-
-    # @action(detail=False, methods=['get'])
-    # def stats(self, request):
-    #     """Get review statistics"""
-    #     movie_id = request.query_params.get('movie_id')
-    #     if not movie_id:
-    #         return Response({'error': 'movie_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     reviews = MovieReview.objects.filter(
-    #         movie_id=movie_id,
-    #         review_type='USER',
-    #         is_public=True
-    #     )
-
-    #     stats = {
-    #         'total_reviews': reviews.count(),
-    #         'average_rating': float(reviews.aggregate(Avg('rating'))['rating__avg'] or 0),
-    #         'rating_distribution': rating_distribution,  # Format: {1: count, 2: count, ...}
-    #         'language_distribution': reviews.values('language').annotate(count=Count('id')).order_by('language'),
-    #         'recent_reviews': reviews.filter(
-    #             created_at__gte=timezone.now() - timedelta(days=7)
-    #         ).count()
-    #     }
-
-    #     return Response(stats)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def reply(self, request, pk=None):
@@ -3910,6 +3394,733 @@ class ModerationFeedbackViewSet(viewsets.ReadOnlyModelViewSet):
 
         except Exception as e:
             logger.error(f"Error getting accuracy summary: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminMovieViewSet(viewsets.ModelViewSet):
+    """
+    Admin-only viewset for managing movies with production control
+    """
+    queryset = Movie.objects.all()
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    filter_backends = [SearchFilter, DjangoFilterBackend, OrderingFilter]
+    search_fields = ['title', 'title_en', 'title_vi', 'overview_en', 'overview_vi']
+    filterset_fields = [
+        'is_published', 'visibility_status', 'approval_status', 'admin_featured',
+        'is_popular', 'is_top_rated', 'is_upcoming', 'minimum_quality_met'
+    ]
+    ordering_fields = [
+        'created_at', 'updated_at', 'release_date', 'admin_priority',
+        'combined_rating_score', 'quality_score', 'content_completeness'
+    ]
+    ordering = ['-created_at']
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return AdminMovieSerializer
+        return AdminMovieListSerializer
+
+    def get_queryset(self):
+        """🚨 EMERGENCY OPTIMIZED: Get admin queryset with minimal fields to fix timeout"""
+
+        # 🚨 EMERGENCY FIX: Ultra-minimal queryset for performance
+        if getattr(self, 'action', None) == 'list':
+            # For list view: absolutely minimal fields only
+            base_queryset = Movie.objects.select_related('admin_control').only(
+                # Essential fields only - no heavy joins
+                'id', 'title', 'poster_url', 'approval_status', 'admin_featured',
+                'is_published', 'visibility_status', 'combined_rating_score',
+                'quality_score', 'content_completeness', 'minimum_quality_met',
+                'admin_priority', 'created_at', 'updated_at'
+            )
+
+            # Apply early filtering to reduce dataset BEFORE checking filters
+            if hasattr(self, 'request') and hasattr(self.request, 'query_params'):
+                approval_status = self.request.query_params.get('approval_status')
+                if approval_status:
+                    base_queryset = base_queryset.filter(approval_status=approval_status)
+
+                admin_featured = self.request.query_params.get('admin_featured')
+                if admin_featured:
+                    base_queryset = base_queryset.filter(admin_featured=admin_featured == 'true')
+
+                is_published = self.request.query_params.get('is_published')
+                if is_published:
+                    base_queryset = base_queryset.filter(is_published=is_published == 'true')
+
+                visibility_status = self.request.query_params.get('visibility_status')
+                if visibility_status:
+                    base_queryset = base_queryset.filter(visibility_status=visibility_status)
+
+                minimum_quality_met = self.request.query_params.get('minimum_quality_met')
+                if minimum_quality_met:
+                    base_queryset = base_queryset.filter(minimum_quality_met=minimum_quality_met == 'true')
+
+            # Store flag for list method to handle default limiting AFTER filtering
+            self._needs_default_limit = True
+            if hasattr(self, 'request') and hasattr(self.request, 'query_params'):
+                filter_params = ['approval_status', 'visibility_status', 'is_published',
+                               'admin_featured', 'minimum_quality_met', 'category']
+                has_any_filter = any(self.request.query_params.get(param) for param in filter_params)
+
+                # Apply search filter if exists
+                search = self.request.query_params.get('search')
+                if search:
+                    has_any_filter = True
+
+                if has_any_filter:
+                    self._needs_default_limit = False
+
+            return base_queryset
+
+        elif getattr(self, 'action', None) == 'retrieve':
+            # Full optimization for detail view
+            return Movie.objects.select_related(
+                'moviemetadata', 'approved_by',
+                'admin_control',
+                'admin_control__approved_by',
+                'admin_control__created_by',
+                'admin_control__last_modified_by'
+            ).prefetch_related(
+                'production_metrics', 'genres', 'cast', 'trailers'
+            ).all()
+        else:
+            # 🚨 UPDATED: ULTRA OPTIMIZED for list views with new structure
+            return Movie.objects.select_related(
+                'admin_control',
+                'admin_control__approved_by',
+                'approved_by'
+            ).only(
+                # Only fetch fields actually needed for list view
+                'id', 'title', 'title_en', 'title_vi', 'poster_url', 'backdrop_url',
+                'release_date', 'runtime', 'cached_imdb_rating', 'overview_en', 'overview_vi',
+
+                # Legacy admin fields (for backwards compatibility during transition)
+                'is_published', 'visibility_status', 'approval_status', 'admin_featured',
+                'admin_priority', 'minimum_quality_met', 'quality_score', 'content_completeness',
+                'publish_date', 'unpublish_date', 'featured_from', 'featured_until',
+                'combined_rating_score', 'created_at', 'updated_at',
+                'approved_by__username'
+            ).all()
+
+    def list(self, request, *args, **kwargs):
+        """Optimized list view with caching for admin movie management"""
+        try:
+            # Create cache key based on query params (handle both DRF and Django request types)
+            if hasattr(request, 'query_params'):
+                query_params = request.query_params.dict()
+            else:
+                # Fallback for Django WSGIRequest
+                query_params = request.GET.dict()
+
+            cache_key_parts = [
+                'admin_movies_list_v2',
+                str(query_params.get('page', 1)),
+                str(query_params.get('page_size', 20)),
+                query_params.get('approval_status', ''),
+                query_params.get('visibility_status', ''),
+                query_params.get('admin_featured', ''),
+                query_params.get('sort_by', '-created_at')
+            ]
+            cache_key = '_'.join(filter(None, cache_key_parts)).replace(' ', '_')
+
+            # Try cache first
+            cached_response = cache.get(cache_key)
+            if cached_response:
+                return Response(cached_response)
+
+            # Get queryset and apply filters/pagination
+            queryset = self.filter_queryset(self.get_queryset())
+
+            # 🚨 EMERGENCY FIX: Apply default limiting AFTER filtering if needed
+            if hasattr(self, '_needs_default_limit') and self._needs_default_limit:
+                # For no-filter case, limit to recent 1000 movies AFTER all filtering
+                queryset = queryset[:1000]
+
+            # DON'T apply manual ordering here - let DRF handle it through filter_queryset
+            # Apply ordering optimization REMOVED to prevent slice conflict
+
+            # Paginate efficiently
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                result = self.get_paginated_response(serializer.data)
+
+                # Cache for 5 minutes
+                cache.set(cache_key, result.data, timeout=300)
+                return result
+
+            # Fallback without pagination
+            serializer = self.get_serializer(queryset, many=True)
+            response_data = {
+                'status': 'success',
+                'count': len(serializer.data),
+                'data': serializer.data
+            }
+
+            # Cache for 5 minutes
+            cache.set(cache_key, response_data, timeout=300)
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error in admin movies list: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def dashboard_overview(self, request):
+        """Get admin dashboard overview - ULTRA SIMPLIFIED for performance"""
+        try:
+            cache_key = 'admin_dashboard_overview_v3_ultra_simple'
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                return Response(cached_data)
+
+            from django.db.models import Count, Q
+
+                        # ULTRA SIMPLIFIED: Essential stats with aggressive caching
+
+            # Cache heavy count operations separately
+            total_movies_cache_key = 'admin_total_movies_count_v1'
+            total_movies = cache.get(total_movies_cache_key)
+            if total_movies is None:
+                total_movies = Movie.objects.count()
+                cache.set(total_movies_cache_key, total_movies, timeout=3600)  # 1 hour cache
+
+            # Simplified stats - minimal queries only
+            published_count = Movie.objects.filter(is_published=True).count()
+            featured_count = Movie.objects.filter(admin_featured=True).count()
+            pending_count = 0  # Simplified to avoid query
+
+            # MINIMAL recent movies - just basic fields
+            recent_movies = Movie.objects.only(
+                'id', 'title', 'poster_url', 'created_at', 'approval_status'
+            ).order_by('-created_at')[:5]  # Reduced to 5 items
+
+            recent_data = [
+                {
+                    'id': movie.id,
+                    'title': movie.title,
+                    'poster_url': movie.poster_url,
+                    'approval_status': movie.approval_status,
+                    'created_at': movie.created_at
+                }
+                for movie in recent_movies
+            ]
+
+            response_data = {
+                'status': 'success',
+                'data': {
+                    'total_movies': total_movies,
+                    'published_movies': published_count,
+                    'pending_approval': pending_count,
+                    'admin_featured': featured_count,
+                    'quality_issues': 0,  # Simplified - can be calculated separately if needed
+                    'recent_movies': recent_data
+                }
+            }
+
+            # Cache for 10 minutes
+            cache.set(cache_key, response_data, timeout=600)
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error in dashboard overview: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def toggle_featured(self, request, pk=None):
+        """Toggle admin featured status"""
+        try:
+            movie = self.get_object()
+            movie.admin_featured = not movie.admin_featured
+
+            # Set priority if becoming featured
+            if movie.admin_featured and movie.admin_priority == 0:
+                movie.admin_priority = 1
+
+            movie.save(update_fields=['admin_featured', 'admin_priority'])
+
+            return Response({
+                'status': 'success',
+                'message': f"Movie {'featured' if movie.admin_featured else 'unfeatured'}",
+                'admin_featured': movie.admin_featured,
+                'admin_priority': movie.admin_priority
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def update_priority(self, request, pk=None):
+        """Update admin priority"""
+        try:
+            movie = self.get_object()
+            priority = request.data.get('priority', 0)
+
+            if not isinstance(priority, int) or priority < 0:
+                return Response({
+                    'status': 'error',
+                    'message': 'Priority must be a non-negative integer'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            movie.admin_priority = priority
+            movie.save(update_fields=['admin_priority'])
+
+            return Response({
+                'status': 'success',
+                'message': 'Priority updated successfully',
+                'admin_priority': movie.admin_priority
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def update_visibility(self, request, pk=None):
+        """Update movie visibility settings"""
+        try:
+            movie = self.get_object()
+
+            # Update visibility fields
+            visibility_status = request.data.get('visibility_status')
+            is_published = request.data.get('is_published')
+            publish_date = request.data.get('publish_date')
+            unpublish_date = request.data.get('unpublish_date')
+
+            updated_fields = []
+
+            if visibility_status in ['PUBLISHED', 'DRAFT', 'SCHEDULED', 'ARCHIVED', 'RESTRICTED']:
+                movie.visibility_status = visibility_status
+                updated_fields.append('visibility_status')
+
+            if isinstance(is_published, bool):
+                movie.is_published = is_published
+                updated_fields.append('is_published')
+
+            if publish_date:
+                from django.utils.dateparse import parse_datetime
+                parsed_date = parse_datetime(publish_date)
+                if parsed_date:
+                    movie.publish_date = parsed_date
+                    updated_fields.append('publish_date')
+
+            if unpublish_date:
+                from django.utils.dateparse import parse_datetime
+                parsed_date = parse_datetime(unpublish_date)
+                if parsed_date:
+                    movie.unpublish_date = parsed_date
+                    updated_fields.append('unpublish_date')
+
+            if updated_fields:
+                movie.save(update_fields=updated_fields)
+
+            return Response({
+                'status': 'success',
+                'message': 'Visibility settings updated',
+                'visibility_status': movie.visibility_status,
+                'is_published': movie.is_published
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def approve_movie(self, request, pk=None):
+        """Approve movie for production"""
+        try:
+            movie = self.get_object()
+
+            movie.approval_status = 'APPROVED'
+            movie.approved_by = request.user
+            movie.approved_at = timezone.now()
+
+            # Auto-publish if quality standards are met
+            if movie.minimum_quality_met and movie.visibility_status == 'DRAFT':
+                movie.visibility_status = 'PUBLISHED'
+                movie.is_published = True
+
+            movie.save(update_fields=[
+                'approval_status', 'approved_by', 'approved_at',
+                'visibility_status', 'is_published'
+            ])
+
+            return Response({
+                'status': 'success',
+                'message': 'Movie approved successfully',
+                'approval_status': movie.approval_status,
+                'approved_by': movie.approved_by.username if movie.approved_by else None
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def reject_movie(self, request, pk=None):
+        """Reject movie from production"""
+        try:
+            movie = self.get_object()
+            reason = request.data.get('reason', '')
+
+            movie.approval_status = 'REJECTED'
+            movie.approved_by = request.user
+            movie.approved_at = timezone.now()
+            movie.is_published = False
+            movie.visibility_status = 'DRAFT'
+
+            # Store rejection reason in manual_override
+            if not movie.manual_override:
+                movie.manual_override = {}
+            movie.manual_override['rejection_reason'] = reason
+            movie.manual_override['rejected_at'] = timezone.now().isoformat()
+
+            movie.save(update_fields=[
+                'approval_status', 'approved_by', 'approved_at',
+                'is_published', 'visibility_status', 'manual_override'
+            ])
+
+            return Response({
+                'status': 'success',
+                'message': 'Movie rejected',
+                'approval_status': movie.approval_status,
+                'reason': reason
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def bulk_action(self, request):
+        """Perform bulk actions on multiple movies"""
+        try:
+            movie_ids = request.data.get('movie_ids', [])
+            action = request.data.get('action')
+
+            if not movie_ids or not action:
+                return Response({
+                    'status': 'error',
+                    'message': 'movie_ids and action are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            movies = Movie.objects.filter(id__in=movie_ids)
+
+            if action == 'approve':
+                movies.update(
+                    approval_status='APPROVED',
+                    approved_by=request.user,
+                    approved_at=timezone.now()
+                )
+                message = f'Approved {movies.count()} movies'
+
+            elif action == 'reject':
+                movies.update(
+                    approval_status='REJECTED',
+                    approved_by=request.user,
+                    approved_at=timezone.now(),
+                    is_published=False
+                )
+                message = f'Rejected {movies.count()} movies'
+
+            elif action == 'feature':
+                movies.update(admin_featured=True, admin_priority=1)
+                message = f'Featured {movies.count()} movies'
+
+            elif action == 'unfeature':
+                movies.update(admin_featured=False, admin_priority=0)
+                message = f'Unfeatured {movies.count()} movies'
+
+            elif action == 'publish':
+                movies.update(is_published=True, visibility_status='PUBLISHED')
+                message = f'Published {movies.count()} movies'
+
+            elif action == 'unpublish':
+                movies.update(is_published=False, visibility_status='DRAFT')
+                message = f'Unpublished {movies.count()} movies'
+
+            # Visibility control actions
+            elif action == 'enable_popular':
+                movies.update(is_popular=True)
+                message = f'Marked {movies.count()} movies as popular'
+
+            elif action == 'disable_popular':
+                movies.update(is_popular=False)
+                message = f'Removed {movies.count()} movies from popular'
+
+            elif action == 'enable_top_rated':
+                movies.update(is_top_rated=True)
+                message = f'Marked {movies.count()} movies as top rated'
+
+            elif action == 'disable_top_rated':
+                movies.update(is_top_rated=False)
+                message = f'Removed {movies.count()} movies from top rated'
+
+            elif action == 'enable_upcoming':
+                movies.update(is_upcoming=True)
+                message = f'Marked {movies.count()} movies as upcoming'
+
+            elif action == 'disable_upcoming':
+                movies.update(is_upcoming=False)
+                message = f'Removed {movies.count()} movies from upcoming'
+
+            elif action == 'enable_featured':
+                movies.update(admin_featured=True, admin_priority=1)
+                message = f'Featured {movies.count()} movies'
+
+            elif action == 'disable_featured':
+                movies.update(admin_featured=False, admin_priority=0)
+                message = f'Unfeatured {movies.count()} movies'
+
+            else:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid action'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                'status': 'success',
+                'message': message,
+                'affected_count': movies.count()
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def production_metrics(self, request):
+        """Get production metrics - ULTRA SIMPLIFIED for performance"""
+        try:
+            cache_key = 'admin_production_metrics_v3_ultra_simple'
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                return Response(cached_data)
+
+            # ULTRA SIMPLIFIED: Individual simple queries with aggressive caching
+
+            # Use cached total movies count
+            total_movies_cache_key = 'admin_total_movies_count_v1'
+            total_movies = cache.get(total_movies_cache_key)
+            if total_movies is None:
+                total_movies = Movie.objects.count()
+                cache.set(total_movies_cache_key, total_movies, timeout=3600)  # 1 hour cache
+
+            published_count = Movie.objects.filter(is_published=True).count()
+            admin_featured_count = Movie.objects.filter(admin_featured=True).count()
+
+            # Simplified ratios
+            published_ratio = published_count / max(total_movies, 1) if total_movies > 0 else 0
+
+            # MINIMAL metrics to reduce query complexity
+            metrics = {
+                'total_movies': total_movies,
+                'published_ratio': round(published_ratio, 3),
+                'published_count': published_count,
+                'admin_featured_count': admin_featured_count,
+                'popular_count': 0,  # Simplified for performance
+                'top_rated_count': 0,  # Simplified for performance
+                'upcoming_count': 0,  # Simplified for performance
+                'scheduled_count': 0,  # Simplified for performance
+                'approval_stats': [
+                    {'approval_status': 'APPROVED', 'count': published_count},
+                    {'approval_status': 'PENDING', 'count': 0}
+                ],
+                'visibility_stats': [
+                    {'visibility_status': 'PUBLISHED', 'count': published_count},
+                    {'visibility_status': 'DRAFT', 'count': 0}
+                ],
+                'quality_stats': {
+                    'avg_quality_score': None,  # Simplified for performance
+                    'avg_completeness': None,   # Simplified for performance
+                    'quality_issues': 0         # Simplified for performance
+                },
+                'featured_stats': {
+                    'admin_featured_count': admin_featured_count,
+                    'auto_featured_count': 0    # Simplified for performance
+                }
+            }
+
+            response_data = {
+                'status': 'success',
+                'data': metrics
+            }
+
+            # Cache for 10 minutes
+            cache.set(cache_key, response_data, timeout=600)
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error in production metrics: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def toggle_popular(self, request, pk=None):
+        """Toggle popular status"""
+        try:
+            movie = self.get_object()
+            movie.is_popular = not movie.is_popular
+            movie.save(update_fields=['is_popular'])
+
+            return Response({
+                'status': 'success',
+                'message': f"Movie {'marked as popular' if movie.is_popular else 'removed from popular'}",
+                'is_popular': movie.is_popular
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def toggle_top_rated(self, request, pk=None):
+        """Toggle top rated status"""
+        try:
+            movie = self.get_object()
+            movie.is_top_rated = not movie.is_top_rated
+            movie.save(update_fields=['is_top_rated'])
+
+            return Response({
+                'status': 'success',
+                'message': f"Movie {'marked as top rated' if movie.is_top_rated else 'removed from top rated'}",
+                'is_top_rated': movie.is_top_rated
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def toggle_upcoming(self, request, pk=None):
+        """Toggle upcoming status"""
+        try:
+            movie = self.get_object()
+            movie.is_upcoming = not movie.is_upcoming
+            movie.save(update_fields=['is_upcoming'])
+
+            return Response({
+                'status': 'success',
+                'message': f"Movie {'marked as upcoming' if movie.is_upcoming else 'removed from upcoming'}",
+                'is_upcoming': movie.is_upcoming
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def schedule_visibility(self, request, pk=None):
+        """Schedule visibility changes"""
+        try:
+            movie = self.get_object()
+
+            visibility_type = request.data.get('type')  # featured, popular, top_rated, upcoming
+            start_date = request.data.get('start_date')
+            end_date = request.data.get('end_date')
+            priority = request.data.get('priority', 1)
+
+            # For now, implement immediate scheduling
+            # In production, you'd use Celery for scheduling
+            from django.utils.dateparse import parse_datetime
+            from django.utils import timezone
+
+            start_datetime = parse_datetime(start_date) if start_date else timezone.now()
+            end_datetime = parse_datetime(end_date) if end_date else None
+
+            # Update fields based on type
+            updated_fields = []
+            if visibility_type == 'featured':
+                movie.admin_featured = True
+                movie.featured_from = start_datetime
+                movie.featured_until = end_datetime
+                movie.admin_priority = priority
+                updated_fields.extend(['admin_featured', 'featured_from', 'featured_until', 'admin_priority'])
+            elif visibility_type == 'popular':
+                movie.is_popular = True
+                updated_fields.append('is_popular')
+            elif visibility_type == 'top_rated':
+                movie.is_top_rated = True
+                updated_fields.append('is_top_rated')
+            elif visibility_type == 'upcoming':
+                movie.is_upcoming = True
+                updated_fields.append('is_upcoming')
+
+            movie.save(update_fields=updated_fields)
+
+            return Response({
+                'status': 'success',
+                'message': f'Visibility scheduled for {visibility_type}',
+                'scheduled_type': visibility_type,
+                'start_date': start_datetime.isoformat() if start_datetime else None,
+                'end_date': end_datetime.isoformat() if end_datetime else None
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def featured_test(self, request):
+        """TEST: Minimal featured movies with NO serializer"""
+        try:
+            logger.info("Testing minimal featured movies...")
+
+            # 🔥 MINIMAL: Just get raw movie data
+            featured_movies = Movie.objects.filter(
+                is_published=True,
+                poster_url__isnull=False,
+            ).values('id', 'title', 'poster_url')[:3]
+
+            # Convert to list to measure serialization time
+            movies_list = list(featured_movies)
+
+            logger.info(f"Found {len(movies_list)} movies with minimal query")
+
+            return Response({
+                'status': 'success',
+                'count': len(movies_list),
+                'data': movies_list,
+                'test': 'minimal_no_serializer'
+            })
+
+        except Exception as e:
+            logger.error(f"Error in featured test: {str(e)}", exc_info=True)
             return Response({
                 'status': 'error',
                 'message': str(e)

@@ -2,17 +2,17 @@
 import { motion } from 'framer-motion';
 import { Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
-import AdBannerFooter from '../ads/AdBannerFooter';
-import { AdWrapper } from '../ads';
+// import AdBannerFooter from '../ads/AdBannerFooter';
+// import { AdWrapper } from '../ads';
 
 const LandingFooter = () => {
   const { t } = useTranslation('landing');
   return (
     <footer className=" border-t-2 border-gray-800 bg-black py-12">
       {/* Quảng cáo banner footer - chỉ hiển thị cho non-premium users */}
-      <AdWrapper>
+      {/* <AdWrapper>
         <AdBannerFooter />
-      </AdWrapper>
+      </AdWrapper> */}
 
       <div className="container mx-auto px-4 ">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">

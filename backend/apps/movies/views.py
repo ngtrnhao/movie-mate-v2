@@ -197,17 +197,17 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def featured(self, request):
-        """Get 3 featured movies - ULTRA SIMPLIFIED for performance"""
+        """Get 3 featured movies - ULTRA SIMPLIFIED for performance with trailer requirement"""
         try:
             logger.info("Fetching featured movies with ULTRA SIMPLIFIED approach...")
-            cache_key = 'featured_movies_v6_ultra_simple'
+            cache_key = 'featured_movies_v7_ultra_simple'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached featured movies")
                 return Response(cached_data)
 
-            # 🔥 ULTRA SIMPLE: Just get top movies without complex logic
+            # 🔥 ULTRA SIMPLE: Get top movies with trailers
             featured_movies = Movie.objects.select_related(
                 'moviemetadata'
             ).filter(
@@ -216,7 +216,9 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 approval_status='APPROVED',
                 minimum_quality_met=True,
                 visibility_status='PUBLISHED',
-            ).order_by(
+                trailers__isnull=False,  # Ensure movie has trailers
+                trailers__type='TRAILER'  # Specifically trailer type
+            ).distinct().order_by(  # Add distinct to prevent duplicates due to trailer join
                 '-admin_featured',  # Admin featured first
                 '-admin_priority',  # Then by priority
                 '-combined_rating_score',  # Then by rating
@@ -228,12 +230,12 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                     'status': 'success',
                     'count': 0,
                     'data': [],
-                    'message': 'No featured movies available'
+                    'message': 'No featured movies with trailers available'
                 }
                 cache.set(cache_key, response_data, timeout=1800)
                 return Response(response_data)
 
-            logger.info(f"Found {len(featured_movies)} featured movies with ultra simple query")
+            logger.info(f"Found {len(featured_movies)} featured movies with trailers using ultra simple query")
 
             serializer = self.get_serializer(featured_movies, many=True)
 
@@ -244,7 +246,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'ultra_simplified': True
             }
 
-            # Cache for 1 hour since this is now super fast
+            # Cache for 1 hour since this is still super fast
             cache.set(cache_key, response_data, timeout=3600)
             return Response(response_data)
 

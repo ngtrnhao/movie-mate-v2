@@ -22,7 +22,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { rehydrateAuth } from './store/slices/authSlice';
-import AdManager from './components/ads/AdManager';
+// import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
 import AdminDashboard from './pages/Admin/Dashboard';
@@ -134,9 +134,9 @@ function App() {
                     pointerEvents: 'none',
                   }}
                 >
-                  <div style={{ pointerEvents: 'auto' }}>
+                  {/* <div style={{ pointerEvents: 'auto' }}>
                     <AdManager />
-                  </div>
+                  </div> */}
                 </div>
                 <Routes>
                   {/* Landing Page Route */}

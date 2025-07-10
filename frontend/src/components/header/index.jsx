@@ -259,6 +259,7 @@ const Header = () => {
                     }}
                     transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                     anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                    disableScrollLock={true}
                   >
                     <MenuItem onClick={handleProfileClick}>
                       <AccountCircle fontSize="small" sx={{ mr: 1.5, color: '#10b981' }} />

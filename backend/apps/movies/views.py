@@ -3450,12 +3450,22 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         return qs
 
     def list(self, request, *args, **kwargs):
-        # Sử dụng Elasticsearch cho admin list
+        logger.info("[ADMIN MOVIE LIST] --- BẮT ĐẦU XỬ LÝ REQUEST ---")
+        # Đặt page_size mặc định là 5 nếu không truyền vào
+        if not request.query_params.get('page_size'):
+            mutable = request.GET._mutable if hasattr(request.GET, '_mutable') else None
+            if hasattr(request.GET, '_mutable'):
+                request.GET._mutable = True
+            request.GET = request.GET.copy()
+            request.GET['page_size'] = 5
+            if mutable is not None:
+                request.GET._mutable = mutable
+
         from apps.movies.services.search_service import MovieSearchService
         from rest_framework.response import Response
         from rest_framework.exceptions import ValidationError
         params = request.query_params.copy()
-        # Bắt buộc phải có ít nhất 1 filter quản trị
+        logger.info(f"[ADMIN MOVIE LIST] Request params: {params}")
         admin_filters = [
             'approval_status', 'admin_featured', 'visibility_status', 'is_published', 'admin_priority'
         ]
@@ -3463,33 +3473,37 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         for f in admin_filters:
             if params.get(f) is not None:
                 filter_count += 1
+        logger.info(f"[ADMIN MOVIE LIST] Filter count: {filter_count}")
         if filter_count == 0:
+            logger.warning("[ADMIN MOVIE LIST] Không có filter quản trị hợp lệ, raise ValidationError")
             raise ValidationError({
                 'detail': 'Bạn phải chọn ít nhất 1 filter quản trị (approval_status, visibility_status, is_published, admin_featured, admin_priority) để truy vấn.'
             })
-        # Keyset pagination: after_created_at
         after_created_at = params.get('after_created_at')
         page_size = int(params.get('page_size', 5))
-        # Gọi Elasticsearch service
         search_service = MovieSearchService()
-        es_params = dict(params)
-        es_params['page'] = 1  # keyset, không dùng offset page
+        es_params = {k: params.get(k) for k in params}
+        es_params['page'] = 1
         es_params['page_size'] = page_size
-        # Map filter fields
         for f in admin_filters:
             if params.get(f) is not None:
                 es_params[f] = params.get(f)
         if after_created_at:
             es_params['after_created_at'] = after_created_at
-        # Sort
         if params.get('ordering'):
             es_params['sort_by'] = params['ordering'].lstrip('-')
             es_params['order'] = 'desc' if params['ordering'].startswith('-') else 'asc'
-        # Thực thi Elasticsearch
+        logger.info(f"[ADMIN MOVIE LIST] About to call Elasticsearch with es_params: {es_params}")
         es_response = search_service.search(es_params, admin_mode=True)
+        logger.info(f"[ADMIN MOVIE LIST] Elasticsearch response: {es_response}")
         if es_response:
-            # Serialize kết quả (dùng AdminMovieListSerializer)
-            serializer = self.get_serializer(es_response['results'], many=True)
+            # Lấy list id từ ES
+            es_ids = [item['id'] for item in es_response['results']]
+            movies_qs = Movie.objects.filter(id__in=es_ids).select_related('admin_control')
+            # Đảm bảo giữ đúng thứ tự như ES
+            movies_qs = sorted(movies_qs, key=lambda m: es_ids.index(m.id))
+            serializer = self.get_serializer(movies_qs, many=True)
+            logger.info(f"[ADMIN MOVIE LIST] Returning ES results, count: {es_response['total']}")
             return Response({
                 'status': 'success',
                 'count': es_response['total'],
@@ -3498,7 +3512,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 'next_after_created_at': es_response.get('next_after_created_at'),
                 'prev_after_created_at': es_response.get('prev_after_created_at'),
             })
-        # Fallback ORM nếu Elasticsearch không khả dụng
+        logger.warning("[ADMIN MOVIE LIST] Elasticsearch did not return results, falling back to ORM")
         return super().list(request, *args, **kwargs)
 
     def get_object_admin_control(self, movie):
@@ -3516,18 +3530,18 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         admin_control.save()
         return admin_control
 
-    def list(self, request, *args, **kwargs):
-        # Đặt page_size mặc định là 5 nếu không truyền vào
-        if not request.query_params.get('page_size'):
-            mutable = request.GET._mutable if hasattr(request.GET, '_mutable') else None
-            if hasattr(request.GET, '_mutable'):
-                request.GET._mutable = True
-            request.GET = request.GET.copy()
-            request.GET['page_size'] = 5
-            if mutable is not None:
-                request.GET._mutable = mutable
-        # Keyset pagination: không dùng offset/limit, chỉ dùng after_created_at
-        return super().list(request, *args, **kwargs)
+    # def list(self, request, *args, **kwargs):
+    #     # Đặt page_size mặc định là 5 nếu không truyền vào
+    #     if not request.query_params.get('page_size'):
+    #         mutable = request.GET._mutable if hasattr(request.GET, '_mutable') else None
+    #         if hasattr(request.GET, '_mutable'):
+    #             request.GET._mutable = True
+    #         request.GET = request.GET.copy()
+    #         request.GET['page_size'] = 5
+    #         if mutable is not None:
+    #             request.GET._mutable = mutable
+    #     # Keyset pagination: không dùng offset/limit, chỉ dùng after_created_at
+    #     return super().list(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'])
     def dashboard_overview(self, request):

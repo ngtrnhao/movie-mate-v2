@@ -114,7 +114,7 @@ const MovieManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 500); // 500ms debounce
   const [filters, setFilters] = useState({
-    approval_status: '',
+    approval_status: 'NEEDS_REVIEW', // Mặc định luôn có filter hợp lệ cho ES
     visibility_status: '',
     is_published: '',
     admin_featured: '',
@@ -895,7 +895,7 @@ const MovieManagement = () => {
             <button
               onClick={() => {
                 setFilters({
-                  approval_status: '',
+                  approval_status: 'NEEDS_REVIEW', // Giữ filter hợp lệ cho ES
                   visibility_status: '',
                   is_published: '',
                   admin_featured: '',
@@ -955,7 +955,7 @@ const MovieManagement = () => {
                 <button
                   onClick={() => {
                     setFilters({
-                      approval_status: '',
+                      approval_status: 'NEEDS_REVIEW', // Giữ filter hợp lệ cho ES
                       visibility_status: '',
                       is_published: '',
                       admin_featured: '',

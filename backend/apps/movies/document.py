@@ -38,6 +38,7 @@ class MovieDocument(Document):
     runtime = fields.IntegerField()
     status = fields.KeywordField()
     slug = fields.KeywordField()
+    created_at = fields.DateField()
 
     # Rating fields
     vote_average = fields.FloatField()
@@ -256,3 +257,6 @@ class MovieDocument(Document):
 
     def prepare_admin_priority(self, instance):
         return instance.admin_control.admin_priority if hasattr(instance, 'admin_control') and instance.admin_control else 0
+
+    def prepare_created_at(self, instance):
+        return instance.created_at

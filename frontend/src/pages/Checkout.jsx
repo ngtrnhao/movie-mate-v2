@@ -10,6 +10,7 @@ import { fetchProfile } from '../store/slices/profileSlice';
 import { getPaymentTransactionAPI } from '../api/profileService';
 import { toast } from 'react-hot-toast';
 import { updateUser } from '../store/slices/authSlice';
+import { useTranslation as useI18nTranslation } from 'react-i18next';
 
 const getInitials = user => {
   if (user.firstName || user.lastName) {
@@ -20,22 +21,27 @@ const getInitials = user => {
   return 'U';
 };
 
-const DURATION_OPTIONS = [
-  { value: 1, label: '1 tháng', discount: 0 },
-  { value: 3, label: '3 tháng (giảm 10%)', discount: 0.1 },
-  { value: 12, label: '12 tháng (giảm 20%)', discount: 0.2 },
-];
-
 const CheckoutPage = () => {
-  const { t } = useTranslation('landing');
+  const { t } = useTranslation('checkout');
+  const { t: tLanding } = useTranslation('landing');
+  const { i18n } = useI18nTranslation();
   const [searchParams] = useSearchParams();
   const planName = searchParams.get('plan');
-  let plan = t(`plans.${planName.replace('premium_', '')}`, { returnObjects: true });
+  let plan = tLanding(`plans.${planName.replace('premium_', '')}`, { returnObjects: true });
   if (!plan || typeof plan !== 'object' || !plan.name) plan = null;
   const user = useSelector(selectUser);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Get duration options based on current language
+  const getDurationOptions = () => [
+    { value: 1, label: t('durationOptions.1'), discount: 0 },
+    { value: 3, label: t('durationOptions.3'), discount: 0.1 },
+    { value: 12, label: t('durationOptions.12'), discount: 0.2 },
+  ];
+
+  const DURATION_OPTIONS = getDurationOptions();
 
   const { data: currentSubscription, isLoading: isLoadingSubscription } = useQuery({
     queryKey: ['subscription', user?.id],
@@ -205,7 +211,7 @@ const CheckoutPage = () => {
 
   const handlePayment = async () => {
     if (!user) {
-      toast.error('Please login to continue');
+      toast.error(t('errors.loginRequired'));
       return;
     }
 
@@ -217,7 +223,10 @@ const CheckoutPage = () => {
 
       if (daysUntilExpiry > 7) {
         toast.error(
-          `You already have an active ${currentSubscription.plan} subscription valid until ${new Date(currentSubscription.subscription_end_date).toLocaleDateString()}. Please wait until it's closer to expiry to renew.`
+          t('errors.samePlanTooEarly', {
+            plan: currentSubscription.plan,
+            date: new Date(currentSubscription.subscription_end_date).toLocaleDateString(),
+          })
         );
         return;
       }
@@ -231,7 +240,9 @@ const CheckoutPage = () => {
 
       if (daysUntilExpiry > 30) {
         toast.error(
-          `You can only downgrade your plan when it's within 30 days of expiry. Your current plan expires on ${new Date(currentSubscription.subscription_end_date).toLocaleDateString()}.`
+          t('errors.downgradeTooEarly', {
+            date: new Date(currentSubscription.subscription_end_date).toLocaleDateString(),
+          })
         );
         return;
       }
@@ -243,35 +254,58 @@ const CheckoutPage = () => {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] px-2 py-10 text-white">
+      {/* Language Switcher */}
+      <div className="absolute top-4 right-4 flex gap-2">
+        <button
+          onClick={() => i18n.changeLanguage('en')}
+          className={`rounded-lg px-3 py-1 text-sm font-medium transition-colors ${
+            i18n.language === 'en'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          EN
+        </button>
+        <button
+          onClick={() => i18n.changeLanguage('vi')}
+          className={`rounded-lg px-3 py-1 text-sm font-medium transition-colors ${
+            i18n.language === 'vi'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          VI
+        </button>
+      </div>
+
       <div className="flex w-full max-w-2xl flex-col gap-8 rounded-2xl bg-gray-900/95 p-8 shadow-2xl md:flex-row md:items-start md:gap-10">
         {/* Plan Summary */}
         <div className="flex-1">
-          <h1 className="mb-4 text-center text-3xl font-bold md:text-left">
-            {t('checkout.title', 'Checkout')}
-          </h1>
+          <h1 className="mb-4 text-center text-3xl font-bold md:text-left">{t('title')}</h1>
 
           {/* Loading state */}
           {isLoadingSubscription && (
             <div className="py-8 text-center">
               <div className="mx-auto size-8 animate-spin rounded-full border-y-2 border-blue-500"></div>
-              <p className="mt-2">Loading subscription information...</p>
+              <p className="mt-2">{t('loadingSubscriptionInfo')}</p>
             </div>
           )}
 
           {/* Current subscription info */}
           {!isLoadingSubscription && currentSubscription?.has_active_subscription && (
             <div className="mb-4 rounded-xl bg-blue-800/90 p-4 shadow-lg">
-              <h3 className="mb-2 font-semibold text-blue-200">Current Subscription</h3>
+              <h3 className="mb-2 font-semibold text-blue-200">{t('currentSubscription')}</h3>
               <div className="space-y-1 text-sm">
                 <p>
-                  <span className="text-gray-300">Plan:</span> {currentSubscription.plan}
+                  <span className="text-gray-300">{t('plan')}:</span> {currentSubscription.plan}
                 </p>
                 <p>
-                  <span className="text-gray-300">Valid until:</span>{' '}
+                  <span className="text-gray-300">{t('validUntil')}:</span>{' '}
                   {new Date(currentSubscription.subscription_end_date).toLocaleDateString()}
                 </p>
                 <p>
-                  <span className="text-gray-300">Amount:</span> ${currentSubscription.amount}
+                  <span className="text-gray-300">{t('amount')}:</span> $
+                  {currentSubscription.amount}
                 </p>
               </div>
             </div>
@@ -282,24 +316,20 @@ const CheckoutPage = () => {
             <div className="mb-4 rounded-lg p-3 text-center">
               {isUpgrade() && (
                 <div className="rounded bg-green-800/50 p-2">
-                  <span className="font-semibold text-green-300">⬆️ Upgrade Plan</span>
-                  <p className="mt-1 text-sm text-gray-300">
-                    You're upgrading to a higher tier plan
-                  </p>
+                  <span className="font-semibold text-green-300">{t('upgradePlan')}</span>
+                  <p className="mt-1 text-sm text-gray-300">{t('upgradeDescription')}</p>
                 </div>
               )}
               {isDowngrade() && (
                 <div className="rounded bg-yellow-800/50 p-2">
-                  <span className="font-semibold text-yellow-300">⬇️ Downgrade Plan</span>
-                  <p className="mt-1 text-sm text-gray-300">
-                    You're switching to a lower tier plan
-                  </p>
+                  <span className="font-semibold text-yellow-300">{t('downgradePlan')}</span>
+                  <p className="mt-1 text-sm text-gray-300">{t('downgradeDescription')}</p>
                 </div>
               )}
               {isSamePlan() && (
                 <div className="rounded bg-blue-800/50 p-2">
-                  <span className="font-semibold text-blue-300">🔄 Renew Plan</span>
-                  <p className="mt-1 text-sm text-gray-300">You're renewing the same plan</p>
+                  <span className="font-semibold text-blue-300">{t('renewPlan')}</span>
+                  <p className="mt-1 text-sm text-gray-300">{t('renewDescription')}</p>
                 </div>
               )}
             </div>
@@ -311,11 +341,11 @@ const CheckoutPage = () => {
                 <span className="text-2xl font-bold text-yellow-400">{plan.name}</span>
                 <span className="ml-auto text-3xl font-extrabold">${totalPrice}</span>
                 <span className="text-base text-gray-400">
-                  /{duration} {duration > 1 ? 'tháng' : 'tháng'}
+                  /{duration} {duration > 1 ? t('months') : t('month')}
                 </span>
               </div>
               <div className="mb-3">
-                <label className="mb-1 block font-semibold">Chọn thời gian đăng ký:</label>
+                <label className="mb-1 block font-semibold">{t('selectDuration')}</label>
                 <select
                   className="w-full rounded-lg bg-gray-700 p-2 text-white"
                   value={duration}
@@ -334,9 +364,7 @@ const CheckoutPage = () => {
               </ul>
             </div>
           ) : (
-            <div className="text-center text-red-400">
-              {t('checkout.invalidPlan', 'Invalid plan selected.')}
-            </div>
+            <div className="text-center text-red-400">{t('invalidPlan')}</div>
           )}
           {/* User Info */}
           <div className="mt-6 flex items-center gap-3 rounded-lg bg-gray-800/80 p-4">
@@ -355,7 +383,7 @@ const CheckoutPage = () => {
               <div className="font-semibold">
                 {user?.firstName || user?.lastName
                   ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
-                  : user?.username || t('checkout.user', 'User')}
+                  : user?.username || t('user')}
               </div>
               <div className="text-xs text-gray-400">{user?.email || ''}</div>
             </div>
@@ -363,9 +391,13 @@ const CheckoutPage = () => {
           {/* Hiển thị thời gian hiệu lực dự kiến sau thanh toán */}
           {paymentInfo && (
             <div className="mt-6 rounded-lg bg-green-800/80 p-4 text-center">
-              <div className="mb-1 font-semibold">Đăng ký thành công!</div>
-              <div>Hiệu lực từ: {format(now, 'dd/MM/yyyy')}</div>
-              <div>Đến: {format(expectedEnd, 'dd/MM/yyyy')}</div>
+              <div className="mb-1 font-semibold">{t('subscriptionSuccess')}</div>
+              <div>
+                {t('effectiveFrom')}: {format(now, 'dd/MM/yyyy')}
+              </div>
+              <div>
+                {t('effectiveTo')}: {format(expectedEnd, 'dd/MM/yyyy')}
+              </div>
             </div>
           )}
         </div>
@@ -374,23 +406,15 @@ const CheckoutPage = () => {
           {isProcessing && (
             <div className="text-center">
               <div className="mx-auto size-16 animate-spin rounded-full border-y-2 border-blue-500"></div>
-              <p className="mt-4 text-lg">
-                {t('checkout.processing', 'Processing your payment, please wait...')}
-              </p>
-              <p className="mt-2 text-sm text-gray-400">
-                This may take up to 2 minutes. Please don't close this page.
-              </p>
+              <p className="mt-4 text-lg">{t('processing')}</p>
+              <p className="mt-2 text-sm text-gray-400">{t('processingDescription')}</p>
             </div>
           )}
 
           {paymentStatus === 'success' && (
             <div className="rounded-lg bg-green-800/50 p-6 text-center">
-              <h2 className="text-2xl font-bold text-green-300">
-                {t('checkout.successTitle', 'Payment Successful!')}
-              </h2>
-              <p className="mt-2">
-                {t('checkout.successMessage', 'Your account has been upgraded.')}
-              </p>
+              <h2 className="text-2xl font-bold text-green-300">{t('successTitle')}</h2>
+              <p className="mt-2">{t('successMessage')}</p>
               <button
                 className="text-sm text-blue-400 hover:text-blue-300"
                 onClick={() => {
@@ -401,25 +425,16 @@ const CheckoutPage = () => {
                   }
                 }}
               >
-                Go to Profile
+                {t('goToProfile')}
               </button>
             </div>
           )}
 
           {paymentStatus === 'failed' && (
             <div className="rounded-lg bg-red-800/50 p-6 text-center">
-              <h2 className="text-2xl font-bold text-red-300">
-                {t('checkout.failedTitle', 'Processing Delayed')}
-              </h2>
-              <p className="mt-2">
-                {t(
-                  'checkout.failedMessage',
-                  'Your payment is being processed. Please check your profile in a few minutes.'
-                )}
-              </p>
-              <p className="mt-2 text-sm text-gray-300">
-                If you don't see the update in 5 minutes, please contact support.
-              </p>
+              <h2 className="text-2xl font-bold text-red-300">{t('failedTitle')}</h2>
+              <p className="mt-2">{t('failedMessage')}</p>
+              <p className="mt-2 text-sm text-gray-300">{t('failedDescription')}</p>
               <button
                 className="text-sm text-blue-400 hover:text-blue-300"
                 onClick={() => {
@@ -430,16 +445,14 @@ const CheckoutPage = () => {
                   }
                 }}
               >
-                {t('checkout.goToProfile', 'Go to Profile')}
+                {t('goToProfile')}
               </button>
             </div>
           )}
 
           {plan && paymentStatus === 'idle' && (
             <div className="flex w-full max-w-xs flex-col items-center rounded-xl bg-gray-800/90 p-6 shadow-lg">
-              <h2 className="mb-4 text-center text-xl font-semibold">
-                {t('checkout.payWithPaypal', 'Pay securely with PayPal')}
-              </h2>
+              <h2 className="mb-4 text-center text-xl font-semibold">{t('payWithPaypal')}</h2>
 
               {/* Disable button if loading subscription or trùng plan */}
               {isLoadingSubscription ? (
@@ -448,7 +461,7 @@ const CheckoutPage = () => {
                     disabled
                     className="w-full cursor-not-allowed rounded-lg bg-gray-600 px-6 py-3 font-semibold text-gray-400"
                   >
-                    Loading subscription info...
+                    {t('loadingSubscriptionInfo')}
                   </button>
                 </div>
               ) : (
@@ -466,38 +479,33 @@ const CheckoutPage = () => {
                         Processing...
                       </div>
                     ) : (
-                      `Continue to PayPal - $${totalPrice}`
+                      `${t('continueToPaypal')} - $${totalPrice}`
                     )}
                   </button>
 
                   {/* Show warning for same plan renewal */}
                   {currentSubscription?.has_active_subscription && isSamePlan() && (
                     <div className="rounded bg-red-900/30 p-2 text-xs font-semibold text-red-400">
-                      ❌ Bạn đã đăng ký gói <b>{currentSubscription.plan}</b> đến ngày{' '}
-                      <b>
-                        {new Date(currentSubscription.subscription_end_date).toLocaleDateString()}
-                      </b>
-                      .<br />
-                      Vui lòng chờ đến gần ngày hết hạn để gia hạn hoặc chọn gói khác.
+                      {t('validation.samePlanRenewal', {
+                        plan: currentSubscription.plan,
+                        date: new Date(
+                          currentSubscription.subscription_end_date
+                        ).toLocaleDateString(),
+                      })}
                     </div>
                   )}
 
                   {/* Show warning for downgrade */}
                   {currentSubscription?.has_active_subscription && isDowngrade() && (
                     <div className="rounded bg-orange-900/30 p-2 text-xs text-orange-300">
-                      ⚠️ You're downgrading your plan. Changes will take effect at next billing
-                      cycle.
+                      {t('validation.downgradeWarning')}
                     </div>
                   )}
 
                   {/* Show warning for upgrading */}
                   {currentSubscription?.has_active_subscription && isUpgrade() && (
                     <div className="rounded bg-green-900/30 p-2 text-xs font-semibold text-green-300">
-                      ⬆️ Bạn đang nâng cấp lên gói <b>{plan.name}</b>
-                      <br />
-                      Thời hạn còn lại của gói hiện tại sẽ bị thay thế bởi gói mới.
-                      <br />
-                      Sau khi thanh toán, bạn sẽ sử dụng gói mới ngay lập tức.
+                      {t('validation.upgradeInfo', { plan: plan.name })}
                     </div>
                   )}
                 </div>
@@ -508,9 +516,7 @@ const CheckoutPage = () => {
           {/* PayPal Buttons - Show when ready */}
           {plan && paymentStatus === 'ready' && (
             <div className="flex w-full max-w-xs flex-col items-center rounded-xl bg-gray-800/90 p-6 shadow-lg">
-              <h2 className="mb-4 text-center text-xl font-semibold">
-                {t('checkout.payWithPaypal', 'Pay securely with PayPal')}
-              </h2>
+              <h2 className="mb-4 text-center text-xl font-semibold">{t('payWithPaypal')}</h2>
 
               <PayPalScriptProvider
                 options={{ 'client-id': process.env.REACT_APP_PAYPAL_CLIENT_ID }}
@@ -544,7 +550,7 @@ const CheckoutPage = () => {
                   }}
                   onError={err => {
                     console.error('PayPal error:', err);
-                    toast.error('Payment failed. Please try again.');
+                    toast.error(t('errors.paymentFailed'));
                     setPaymentStatus('error');
                   }}
                   onCancel={() => {
@@ -557,7 +563,7 @@ const CheckoutPage = () => {
                 onClick={() => setPaymentStatus('idle')}
                 className="mt-4 text-sm text-gray-400 hover:text-white"
               >
-                ← Back to payment options
+                {t('backToPaymentOptions')}
               </button>
             </div>
           )}

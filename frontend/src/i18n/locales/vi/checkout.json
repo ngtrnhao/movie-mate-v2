@@ -1,0 +1,81 @@
+{
+  "title": "Thanh Toán",
+  "subtitle": "Hoàn tất đăng ký của bạn",
+  "user": "Người Dùng",
+  "invalidPlan": "Gói phim không hợp lệ.",
+  "success": "Thanh toán thành công bởi",
+  "payWithPaypal": "Thanh toán an toàn bằng PayPal",
+  "processing": "Đang xử lý thanh toán, vui lòng chờ...",
+  "processingDescription": "Quá trình này có thể mất tối đa 2 phút. Vui lòng không đóng trang này.",
+  "successTitle": "Thanh Toán Thành Công!",
+  "successMessage": "Tài khoản của bạn đã được nâng cấp.",
+  "failedTitle": "Xử Lý Bị Trì Hoãn",
+  "failedMessage": "Thanh toán của bạn đang được xử lý. Vui lòng kiểm tra hồ sơ trong vài phút.",
+  "failedDescription": "Nếu bạn không thấy cập nhật trong 5 phút, vui lòng liên hệ hỗ trợ.",
+  "goToProfile": "Đi Đến Hồ Sơ",
+  "backToPaymentOptions": "← Quay lại tùy chọn thanh toán",
+  "continueToPaypal": "Tiếp Tục Với PayPal",
+  "loadingSubscriptionInfo": "Đang tải thông tin đăng ký...",
+  "currentSubscription": "Đăng Ký Hiện Tại",
+  "plan": "Gói",
+  "validUntil": "Có hiệu lực đến",
+  "amount": "Số tiền",
+  "upgradePlan": "⬆️ Nâng Cấp Gói",
+  "upgradeDescription": "Bạn đang nâng cấp lên gói cao hơn",
+  "downgradePlan": "⬇️ Hạ Cấp Gói",
+  "downgradeDescription": "Bạn đang chuyển xuống gói thấp hơn",
+  "renewPlan": "🔄 Gia Hạn Gói",
+  "renewDescription": "Bạn đang gia hạn cùng gói",
+  "selectDuration": "Chọn thời gian đăng ký:",
+  "month": "tháng",
+  "months": "tháng",
+  "durationOptions": {
+    "1": "1 tháng",
+    "3": "3 tháng (giảm 10%)",
+    "12": "12 tháng (giảm 20%)"
+  },
+  "subscriptionSuccess": "Đăng Ký Thành Công!",
+  "effectiveFrom": "Hiệu lực từ",
+  "effectiveTo": "Đến",
+  "warnings": {
+    "samePlan": {
+      "title": "❌ Bạn đã có đăng ký đang hoạt động",
+      "message": "Bạn đã đăng ký gói {plan} đến ngày {date}. Vui lòng chờ đến gần ngày hết hạn để gia hạn hoặc chọn gói khác."
+    },
+    "downgrade": {
+      "title": "⚠️ Bạn đang hạ cấp gói",
+      "message": "Thay đổi sẽ có hiệu lực ở chu kỳ thanh toán tiếp theo."
+    },
+    "upgrade": {
+      "title": "⬆️ Bạn đang nâng cấp lên {plan}",
+      "message": "Thời hạn còn lại của gói hiện tại sẽ bị thay thế bởi gói mới. Sau khi thanh toán, bạn sẽ sử dụng gói mới ngay lập tức."
+    }
+  },
+  "errors": {
+    "loginRequired": "Vui lòng đăng nhập để tiếp tục",
+    "paymentFailed": "Thanh toán thất bại. Vui lòng thử lại.",
+    "samePlanTooEarly": "Bạn đã có đăng ký gói {plan} có hiệu lực đến {date}. Vui lòng chờ đến gần ngày hết hạn để gia hạn.",
+    "downgradeTooEarly": "Bạn chỉ có thể hạ cấp gói khi còn trong vòng 30 ngày hết hạn. Gói hiện tại của bạn hết hạn vào {date}."
+  },
+  "validation": {
+    "samePlanRenewal": "❌ Bạn đã đăng ký gói {plan} đến ngày {date}. Vui lòng chờ đến gần ngày hết hạn để gia hạn hoặc chọn gói khác.",
+    "downgradeWarning": "⚠️ Bạn đang hạ cấp gói. Thay đổi sẽ có hiệu lực ở chu kỳ thanh toán tiếp theo.",
+    "upgradeInfo": "⬆️ Bạn đang nâng cấp lên {plan}. Thời hạn còn lại của gói hiện tại sẽ bị thay thế bởi gói mới. Sau khi thanh toán, bạn sẽ sử dụng gói mới ngay lập tức."
+  },
+  "subscriptionStatus": {
+    "loading": "Đang tải thông tin đăng ký...",
+    "noActive": "Chưa có đăng ký hoạt động",
+    "choosePlan": "Chọn một gói để bắt đầu",
+    "current": "Đăng Ký Hiện Tại",
+    "plan": "Gói:",
+    "validUntil": "Có hiệu lực đến:",
+    "daysRemaining": "Số ngày còn lại:",
+    "amount": "Số tiền:",
+    "expiringSoon": "Sắp hết hạn",
+    "expiringMonth": "Hết hạn trong tháng này",
+    "active": "Đang hoạt động",
+    "days": "ngày",
+    "renewWarning": "⚠️ Gói của bạn sắp hết hạn. Bạn có thể gia hạn ngay.",
+    "downgradeWarning": "⚠️ Bạn có thể hạ cấp gói trong vòng 30 ngày trước khi hết hạn."
+  }
+}

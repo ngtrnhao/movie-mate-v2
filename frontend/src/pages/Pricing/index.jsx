@@ -60,9 +60,7 @@ const PricingPage = () => {
           <p className="mt-4 text-lg text-white">
             {t('pricing.compareSubtitle', 'A detailed look at what each plan offers.')}
           </p>
-          <p className="mt-2 text-base italic text-white">
-            {t('pricing.comparison.slogan', 'See what you get with each plan!')}
-          </p>
+          <p className="mt-2 text-base italic text-white">{t('pricing.comparison.slogan')}</p>
         </div>
         <div className="mt-12">
           <FeatureComparisonTable />

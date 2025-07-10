@@ -22,7 +22,8 @@ from .views import (
     GoogleAuthView,
     CustomTokenRefreshView,
     AdminDashboardViewSet,
-    ModeratorDashboardViewSet
+    ModeratorDashboardViewSet,
+    UserUsageStatsView
 )
 
 router = DefaultRouter()
@@ -50,5 +51,6 @@ urlpatterns = [
     path('profile/<int:userId>/ratings/', UserRatingsView.as_view(), name='user-ratings'),
     path('profile/<int:userId>/favorite-genres/', UserFavoriteGenresView.as_view(), name='user-favorite-genres'),
     path('profile/<int:userId>/favorite-movies/', UserFavoriteMoviesView.as_view(), name='user-favorite-movies'),
+    path('usage-stats/', UserUsageStatsView.as_view(), name='user-usage-stats'),
     path('google/', GoogleAuthView.as_view(), name='google-auth'),
 ]

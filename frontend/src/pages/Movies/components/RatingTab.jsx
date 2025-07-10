@@ -110,10 +110,12 @@ const RatingTab = ({ movieId }) => {
   const [sortBy, setSortBy] = useState('recent');
   const [showSpoilers, setShowSpoilers] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
+  const [editingContent, setEditingContent] = useState('');
+  const [editingRating, setEditingRating] = useState(0);
+  const [editingSpoiler, setEditingSpoiler] = useState(false);
   const [userReview, setUserReview] = useState(null);
   const [isSpoiler, setIsSpoiler] = useState(false);
   const [showRejectedReviews, setShowRejectedReviews] = useState(false); // Toggle hiển thị review bị từ chối
-  const [showSpoilerReviews, setShowSpoilerReviews] = useState(false); // Toggle hiển thị review spoiler
 
   // Spoiler detection hook
   const {
@@ -149,7 +151,7 @@ const RatingTab = ({ movieId }) => {
     if (isAuthenticated) {
       fetchUserReview();
     }
-  }, [movieId, currentPage, sortBy, isAuthenticated, showSpoilerReviews]);
+  }, [movieId, currentPage, sortBy, isAuthenticated]);
 
   const handleAuthRequired = () => {
     const returnPath = {
@@ -163,7 +165,7 @@ const RatingTab = ({ movieId }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getMovieReviews(movieId, currentPage, 10, sortBy, showSpoilerReviews);
+      const data = await getMovieReviews(movieId, currentPage, 10, sortBy, true);
 
       setReviews(data.data || []);
       setTotalPages(data.total_pages || 1);
@@ -312,8 +314,63 @@ const RatingTab = ({ movieId }) => {
     }
 
     setEditingReview(review);
-    setUserRating(parseFloat(review.rating) || 0);
-    setRatingComment(review.content || '');
+    setEditingContent(review.content || '');
+    setEditingRating(parseFloat(review.rating) || 0);
+    setEditingSpoiler(review.is_spoiler || false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingReview(null);
+    setEditingContent('');
+    setEditingRating(0);
+    setEditingSpoiler(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingReview || !editingContent.trim() || editingContent.length < 10) {
+      return;
+    }
+
+    try {
+      const reviewData = {
+        title: '',
+        content: editingContent.trim(),
+        rating: editingRating,
+        is_public: true,
+        is_spoiler: editingSpoiler,
+      };
+
+      await updateReview(editingReview.id, reviewData);
+
+      // Update the review in the list
+      setReviews(prev =>
+        prev.map(r =>
+          r.id === editingReview.id
+            ? {
+                ...r,
+                content: editingContent.trim(),
+                rating: editingRating,
+                is_spoiler: editingSpoiler,
+              }
+            : r
+        )
+      );
+
+      // Update user review if it's the same
+      if (userReview && userReview.id === editingReview.id) {
+        setUserReview(prev => ({
+          ...prev,
+          content: editingContent.trim(),
+          rating: editingRating,
+          is_spoiler: editingSpoiler,
+        }));
+      }
+
+      handleCancelEdit();
+    } catch (err) {
+      console.error('Error updating review:', err);
+      setError('Không thể cập nhật đánh giá. Vui lòng thử lại.');
+    }
   };
 
   const handleSortChange = newSort => {
@@ -339,7 +396,7 @@ const RatingTab = ({ movieId }) => {
     return stats.totalRatings ? ((count / stats.totalRatings) * 100).toFixed(1) : 0;
   };
 
-  // Filter reviews based on moderation status
+  // Filter reviews based on moderation status only (always show spoiler reviews)
   const filteredReviews = showRejectedReviews
     ? reviews // Show all reviews including rejected ones
     : reviews.filter(review => review.is_approved !== false); // Hide rejected reviews
@@ -550,19 +607,6 @@ const RatingTab = ({ movieId }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Show/Hide Spoiler Reviews Toggle */}
-          <button
-            onClick={() => setShowSpoilerReviews(!showSpoilerReviews)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1 text-sm transition-colors ${
-              showSpoilerReviews
-                ? 'bg-orange-500/20 text-orange-400'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            {showSpoilerReviews ? <EyeOff size={16} /> : <Eye size={16} />}
-            {showSpoilerReviews ? 'Ẩn' : 'Hiện'} Review spoiler
-          </button>
-
           {/* Show/Hide Rejected Reviews Toggle */}
           {rejectedReviewsCount > 0 && (
             <button
@@ -647,19 +691,103 @@ const RatingTab = ({ movieId }) => {
                     )}
 
                     {review.content && (
-                      <div className={`mb-3 ${shouldBlur ? 'blur-sm' : ''}`}>
-                        <p className="text-sm leading-relaxed text-gray-200">{review.content}</p>
-                        {shouldBlur && (
-                          <div className="mt-2">
-                            <button
-                              onClick={() => setShowSpoilers(true)}
-                              className="text-xs text-yellow-400 hover:text-yellow-300"
-                            >
-                              Nhấn để xem spoiler
-                            </button>
+                      <>
+                        {editingReview?.id === review.id ? (
+                          // Edit Mode
+                          <div className="mb-3 space-y-5 pt-5">
+                            {/* Rating Edit */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-sm text-gray-400">Đánh giá:</span>
+                              <StarRating
+                                rating={editingRating}
+                                onRatingChange={setEditingRating}
+                                editable={true}
+                                size={20}
+                                showLabel={false}
+                              />
+                            </div>
+
+                            {/* Content Edit */}
+                            <textarea
+                              value={editingContent}
+                              onChange={e => setEditingContent(e.target.value)}
+                              placeholder="Chia sẻ cảm nhận của bạn..."
+                              className="w-full resize-none rounded-lg bg-gray-700 p-3 pb-10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                              rows="3"
+                              maxLength={500}
+                            />
+
+                            {/* Character Count */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-400">
+                                {editingContent.length} / 500
+                              </span>
+                              {editingContent.length > 0 && editingContent.length < 10 && (
+                                <span className="text-xs text-red-400">
+                                  Đánh giá phải có ít nhất 10 ký tự
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Spoiler Toggle */}
+                            <div className="flex items-center gap-x-2">
+                              <button
+                                type="button"
+                                aria-pressed={editingSpoiler}
+                                onClick={() => setEditingSpoiler(v => !v)}
+                                className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none ${
+                                  editingSpoiler ? 'bg-orange-500' : 'bg-gray-400'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block size-5 rounded-full bg-white shadow transition-transform${
+                                    editingSpoiler ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                              <label className="flex cursor-pointer items-center text-sm font-semibold text-orange-500">
+                                <AlertTriangle className="mr-1 size-4" /> Chứa spoiler
+                              </label>
+                            </div>
+
+                            {/* Edit Actions */}
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={handleSaveEdit}
+                                disabled={!editingContent.trim() || editingContent.length < 10}
+                                className="flex items-center gap-2 rounded-lg bg-yellow-500 px-3 py-1 text-sm font-medium text-black transition-colors hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-600"
+                              >
+                                Lưu
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="flex items-center gap-2 rounded-lg bg-gray-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+                              >
+                                Hủy
+                              </button>
+                            </div>
                           </div>
+                        ) : (
+                          // View Mode
+                          <>
+                            <div className={`mb-3 ${shouldBlur ? 'blur-sm' : ''}`}>
+                              <p className="text-sm leading-relaxed text-gray-200">
+                                {review.content}
+                              </p>
+                            </div>
+                            {shouldBlur && (
+                              <div className="mb-3">
+                                <button
+                                  onClick={() => setShowSpoilers(true)}
+                                  className="text-xs text-yellow-400 hover:text-yellow-300"
+                                >
+                                  Nhấn để xem spoiler
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
-                      </div>
+                      </>
                     )}
 
                     {/* Moderation Reason for Rejected Reviews */}

@@ -1,10 +1,18 @@
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { Bookmark, Play } from 'lucide-react';
 import { useWatchlistContext } from '../../../context/WatchlistContext';
+import { useUserLimits } from '../../../hooks/useUserLimits';
+import { useState } from 'react';
+import UpgradePrompt from '../../../components/common/UpgradePrompt';
 
 const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {
   const { t } = useTranslation('movies');
   const { watchlists, openCreateModal, openExistingModal } = useWatchlistContext();
+  const { shouldShowUpgrade, getUpgradeMessage, userLimits, usageStats } = useUserLimits();
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  // Đảm bảo maxLists luôn có giá trị trong render
+  const maxLists = userLimits?.lists;
 
   const handleTrailerClick = e => {
     if (e && e.preventDefault) {
@@ -16,6 +24,16 @@ const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {
   };
 
   const handleAddToWatchlist = () => {
+    // Kiểm tra giới hạn trước khi mở modal
+    const currentLists = usageStats?.lists?.current || 0;
+    const isUnlimited = maxLists === -1;
+    const reachedLimit = !isUnlimited && currentLists >= maxLists;
+
+    if (reachedLimit) {
+      setShowUpgrade(true);
+      return;
+    }
+
     // If user has no watchlists, show create modal
     if (watchlists.length === 0) {
       openCreateModal(movie.id, movie, window.location.pathname);
@@ -26,30 +44,38 @@ const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      {/* Watch Trailer Button */}
-      {!onlyBookmark && (
-        <button
-          onClick={handleTrailerClick}
-          className="flex flex-1 items-center justify-center gap-2 rounded bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!movie?.trailers?.length}
-          title={movie?.trailers?.length ? t('details.watchTrailer') : t('details.noTrailer')}
-        >
-          <Play size={16} />
-          {t('details.watchTrailer')}
-        </button>
+    <>
+      <div className="flex items-center gap-2">
+        {/* Watch Trailer Button */}
+        {!onlyBookmark && (
+          <button
+            onClick={handleTrailerClick}
+            className="flex flex-1 items-center justify-center gap-2 rounded bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!movie?.trailers?.length}
+            title={movie?.trailers?.length ? t('details.watchTrailer') : t('details.noTrailer')}
+          >
+            <Play size={16} />
+            {t('details.watchTrailer')}
+          </button>
+        )}
+        {/* Add to Watchlist Button */}
+        {!onlyMainButton && (
+          <button
+            onClick={handleAddToWatchlist}
+            className="flex items-center justify-center rounded border border-gray-600 p-2 text-gray-400 transition-colors hover:border-red-600 hover:text-red-600"
+            title={t('details.addToWatchlist')}
+          >
+            <Bookmark size={16} />
+          </button>
+        )}
+      </div>
+      {showUpgrade && (
+        <UpgradePrompt
+          message={getUpgradeMessage('lists') + ` (Tối đa ${maxLists} danh sách)`}
+          onClose={() => setShowUpgrade(false)}
+        />
       )}
-      {/* Add to Watchlist Button */}
-      {!onlyMainButton && (
-        <button
-          onClick={handleAddToWatchlist}
-          className="flex items-center justify-center rounded border border-gray-600 p-2 text-gray-400 transition-colors hover:border-red-600 hover:text-red-600"
-          title={t('details.addToWatchlist')}
-        >
-          <Bookmark size={16} />
-        </button>
-      )}
-    </div>
+    </>
   );
 };
 

@@ -606,8 +606,21 @@ class MovieReviewSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Set the user automatically from request"""
-        validated_data['user'] = self.context['request'].user
+        user = self.context['request'].user
+        validated_data['user'] = user
         validated_data['review_type'] = 'USER'
+
+        # Validate user limits before creating
+        from apps.users.services.user_limits_service import UserLimitsService
+        can_review, limit_info = UserLimitsService.validate_reviews_limit(user)
+
+        if not can_review:
+            raise serializers.ValidationError({
+                'limit_exceeded': limit_info['message'],
+                'current': limit_info['current'],
+                'max': limit_info['max']
+            })
+
         return super().create(validated_data)
 
 
@@ -631,8 +644,21 @@ class MovieReviewCreateSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
+        user = self.context['request'].user
+        validated_data['user'] = user
         validated_data['review_type'] = 'USER'
+
+        # Validate user limits before creating
+        from apps.users.services.user_limits_service import UserLimitsService
+        can_review, limit_info = UserLimitsService.validate_reviews_limit(user)
+
+        if not can_review:
+            raise serializers.ValidationError({
+                'limit_exceeded': limit_info['message'],
+                'current': limit_info['current'],
+                'max': limit_info['max']
+            })
+
         return super().create(validated_data)
 
 

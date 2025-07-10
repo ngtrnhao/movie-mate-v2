@@ -8,12 +8,14 @@ import enLanding from './locales/en/landing.json';
 import enMovies from './locales/en/movies.json';
 import enReviews from './locales/en/reviews.json';
 import enAuth from './locales/en/auth.json';
+import enCheckout from './locales/en/checkout.json';
 
 import viCommon from './locales/vi/common.json';
 import viLanding from './locales/vi/landing.json';
 import viMovies from './locales/vi/movies.json';
 import viReviews from './locales/vi/reviews.json';
 import viAuth from './locales/vi/auth.json';
+import viCheckout from './locales/vi/checkout.json';
 
 const resources = {
   en: {
@@ -22,6 +24,7 @@ const resources = {
     movies: enMovies,
     reviews: enReviews,
     auth: enAuth,
+    checkout: enCheckout,
   },
   vi: {
     common: viCommon,
@@ -29,6 +32,7 @@ const resources = {
     movies: viMovies,
     reviews: viReviews,
     auth: viAuth,
+    checkout: viCheckout,
   },
 };
 
@@ -38,7 +42,7 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
-    ns: ['common', 'landing', 'movies', 'reviews', 'auth'],
+    ns: ['common', 'landing', 'movies', 'reviews', 'auth', 'checkout'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false,

@@ -182,6 +182,7 @@
     "subtitle": "Mở khóa các tính năng mạnh mẽ để nâng tầm trải nghiệm phim của bạn. Dùng thử miễn phí 14 ngày cho mọi gói.",
     "compareTitle": "So sánh chi tiết các gói",
     "compareSubtitle": "Xem chi tiết tính năng của từng gói thành viên.",
+
     "comparison": {
       "featureCol": "Tính năng",
       "columns": {
@@ -191,6 +192,7 @@
         "standard": "Tiêu Chuẩn",
         "vip": "VIP"
       },
+      "slogan": "Xem những gì bạn nhận được với mỗi gói!",
       "categories": {
         "general": {
           "title": "Tính năng cơ bản",

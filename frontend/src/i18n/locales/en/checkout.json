@@ -1,0 +1,81 @@
+{
+  "title": "Checkout",
+  "subtitle": "Complete your subscription",
+  "user": "User",
+  "invalidPlan": "Invalid plan selected.",
+  "success": "Payment completed by",
+  "payWithPaypal": "Pay securely with PayPal",
+  "processing": "Processing your payment, please wait...",
+  "processingDescription": "This may take up to 2 minutes. Please don't close this page.",
+  "successTitle": "Payment Successful!",
+  "successMessage": "Your account has been upgraded.",
+  "failedTitle": "Processing Delayed",
+  "failedMessage": "Your payment is being processed. Please check your profile in a few minutes.",
+  "failedDescription": "If you don't see the update in 5 minutes, please contact support.",
+  "goToProfile": "Go to Profile",
+  "backToPaymentOptions": "← Back to payment options",
+  "continueToPaypal": "Continue to PayPal",
+  "loadingSubscriptionInfo": "Loading subscription info...",
+  "currentSubscription": "Current Subscription",
+  "plan": "Plan",
+  "validUntil": "Valid until",
+  "amount": "Amount",
+  "upgradePlan": "⬆️ Upgrade Plan",
+  "upgradeDescription": "You're upgrading to a higher tier plan",
+  "downgradePlan": "⬇️ Downgrade Plan",
+  "downgradeDescription": "You're switching to a lower tier plan",
+  "renewPlan": "🔄 Renew Plan",
+  "renewDescription": "You're renewing the same plan",
+  "selectDuration": "Select subscription duration:",
+  "month": "month",
+  "months": "months",
+  "durationOptions": {
+    "1": "1 month",
+    "3": "3 months (10% off)",
+    "12": "12 months (20% off)"
+  },
+  "subscriptionSuccess": "Subscription Successful!",
+  "effectiveFrom": "Effective from",
+  "effectiveTo": "To",
+  "warnings": {
+    "samePlan": {
+      "title": "❌ You already have an active subscription",
+      "message": "You have an active {plan} subscription until {date}. Please wait until it's closer to expiry to renew or choose a different plan."
+    },
+    "downgrade": {
+      "title": "⚠️ You're downgrading your plan",
+      "message": "Changes will take effect at next billing cycle."
+    },
+    "upgrade": {
+      "title": "⬆️ You're upgrading to {plan}",
+      "message": "The remaining time of your current plan will be replaced by the new plan. After payment, you will use the new plan immediately."
+    }
+  },
+  "errors": {
+    "loginRequired": "Please login to continue",
+    "paymentFailed": "Payment failed. Please try again.",
+    "samePlanTooEarly": "You already have an active {plan} subscription valid until {date}. Please wait until it's closer to expiry to renew.",
+    "downgradeTooEarly": "You can only downgrade your plan when it's within 30 days of expiry. Your current plan expires on {date}."
+  },
+  "validation": {
+    "samePlanRenewal": "❌ You have already subscribed to {plan} until {date}. Please wait until closer to expiry to renew or choose a different plan.",
+    "downgradeWarning": "⚠️ You're downgrading your plan. Changes will take effect at next billing cycle.",
+    "upgradeInfo": "⬆️ You're upgrading to {plan}. The remaining time of your current plan will be replaced by the new plan. After payment, you will use the new plan immediately."
+  },
+  "subscriptionStatus": {
+    "loading": "Loading subscription...",
+    "noActive": "No Active Subscription",
+    "choosePlan": "Choose a plan to get started",
+    "current": "Current Subscription",
+    "plan": "Plan:",
+    "validUntil": "Valid Until:",
+    "daysRemaining": "Days Remaining:",
+    "amount": "Amount:",
+    "expiringSoon": "Expiring Soon",
+    "expiringMonth": "Expiring This Month",
+    "active": "Active",
+    "days": "days",
+    "renewWarning": "⚠️ Your subscription expires soon. You can renew now.",
+    "downgradeWarning": "⚠️ You can downgrade your plan within 30 days of expiry."
+  }
+}

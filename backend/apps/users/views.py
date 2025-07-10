@@ -947,3 +947,17 @@ class ModeratorDashboardViewSet(viewsets.ViewSet):
             'reviews_by_language': reviews_by_language,
             'moderation_actions': 0  # Placeholder for future implementation
         })
+
+class UserUsageStatsView(generics.RetrieveAPIView):
+    """Get user usage statistics and limits"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        from apps.users.services.user_limits_service import UserLimitsService
+
+        usage_stats = UserLimitsService.get_user_usage_stats(request.user)
+
+        return Response({
+            'status': 'success',
+            'data': usage_stats
+        }, status=status.HTTP_200_OK)

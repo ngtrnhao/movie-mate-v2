@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
 import { useFavorites } from '../../../hooks/useFavorites';
+import { useUserLimits } from '../../../hooks/useUserLimits';
+import { toast } from 'react-toastify';
 
 const FavoriteButton = ({
   movie,
@@ -17,6 +19,7 @@ const FavoriteButton = ({
     isAuthenticated,
   } = useFavorites();
 
+  const { canPerformAction, getUpgradeMessage, shouldShowUpgrade } = useUserLimits();
   const [isToggling, setIsToggling] = useState(false);
 
   const handleToggle = async e => {
@@ -24,16 +27,27 @@ const FavoriteButton = ({
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      // You might want to show a login modal here
-      alert('Please login to add favorites');
+      toast.error('Please login to add favorites');
+      return;
+    }
+
+    // Check if user can add more favorites
+    if (!isFavorited(movie.id) && !canPerformAction('add_favorite')) {
+      const message = getUpgradeMessage('favorites');
+      toast.error(message);
       return;
     }
 
     if (isToggling) return;
 
     setIsToggling(true);
-    await toggleFavorite(movie.id, movie);
+    const result = await toggleFavorite(movie.id, movie);
     setIsToggling(false);
+
+    // Show upgrade message if limit exceeded
+    if (!result.success && shouldShowUpgrade('add_favorite')) {
+      toast.error(getUpgradeMessage('favorites'));
+    }
   };
 
   const isLiked = isFavorited(movie.id);

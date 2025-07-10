@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { X } from 'lucide-react';
 
-const CreateWatchlistModal = ({ isOpen, onClose, onSubmit, loading }) => {
+const CreateWatchlistModal = ({ isOpen, onClose, onSubmit, loading, limitMessage }) => {
   const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) setName('');
+  }, [isOpen]);
 
   const handleSubmit = e => {
     e.preventDefault();
@@ -25,6 +29,12 @@ const CreateWatchlistModal = ({ isOpen, onClose, onSubmit, loading }) => {
             </button>
           </div>
 
+          {limitMessage && (
+            <div className="mb-4 rounded bg-yellow-100/10 p-3 text-sm text-yellow-400 border border-yellow-400">
+              {limitMessage}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-300">
@@ -38,6 +48,7 @@ const CreateWatchlistModal = ({ isOpen, onClose, onSubmit, loading }) => {
                 className="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                 placeholder="Enter watchlist name"
                 required
+                disabled={!!limitMessage}
               />
             </div>
 
@@ -51,7 +62,7 @@ const CreateWatchlistModal = ({ isOpen, onClose, onSubmit, loading }) => {
               </button>
               <button
                 type="submit"
-                disabled={loading || !name.trim()}
+                disabled={loading || !name.trim() || !!limitMessage}
                 className="rounded-md bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? 'Creating...' : 'Create'}

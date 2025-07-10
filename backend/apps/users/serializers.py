@@ -256,6 +256,17 @@ class UserFavoriteMovieSerializer(serializers.ModelSerializer):
         validated_data['user'] = user
         validated_data['movie'] = movie
 
+        # Validate user limits before creating
+        from apps.users.services.user_limits_service import UserLimitsService
+        can_add, limit_info = UserLimitsService.validate_favorites_limit(user)
+
+        if not can_add:
+            raise serializers.ValidationError({
+                'limit_exceeded': limit_info['message'],
+                'current': limit_info['current'],
+                'max': limit_info['max']
+            })
+
         return super().create(validated_data)
 
 class GoogleAuthSerializer(serializers.Serializer):
@@ -338,6 +349,24 @@ class UserWatchlistItemSerializer(serializers.ModelSerializer):
 
 class UserWatchlistSerializer(serializers.ModelSerializer):
     items = UserWatchlistItemSerializer(many=True, read_only=True)
+
     class Meta:
         model = Watchlist
         fields = ['id', 'name', 'created_at', 'updated_at', 'items']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['user'] = user
+
+        # Validate user limits before creating
+        from apps.users.services.user_limits_service import UserLimitsService
+        can_create, limit_info = UserLimitsService.validate_lists_limit(user)
+
+        if not can_create:
+            raise serializers.ValidationError({
+                'limit_exceeded': limit_info['message'],
+                'current': limit_info['current'],
+                'max': limit_info['max']
+            })
+
+        return super().create(validated_data)

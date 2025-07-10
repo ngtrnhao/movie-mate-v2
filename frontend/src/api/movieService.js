@@ -322,7 +322,7 @@ export const submitMovieRating = async (movieId, rating, review = '') => {
 // Enhanced search movies with caching and request cancellation
 let searchController = null; // Store AbortController for request cancellation
 
-export const searchMovies = async (filters = {}, page = 1, pageSize = 50) => {
+export const searchMovies = async (filters = {}, pageOrSearchAfter = 1, pageSize = 50) => {
   try {
     // Cancel previous request if exists
     if (searchController) {
@@ -335,7 +335,7 @@ export const searchMovies = async (filters = {}, page = 1, pageSize = 50) => {
     // Create cache key from filters
     const cacheKey = JSON.stringify({
       ...filters,
-      page,
+      pageOrSearchAfter,
       pageSize,
     });
 
@@ -368,8 +368,14 @@ export const searchMovies = async (filters = {}, page = 1, pageSize = 50) => {
       }
     });
 
-    params.append('page', page);
     params.append('page_size', pageSize);
+
+    // Nếu pageOrSearchAfter là mảng (search_after), truyền vào
+    if (Array.isArray(pageOrSearchAfter)) {
+      pageOrSearchAfter.forEach(val => params.append('search_after', val));
+    } else {
+      params.append('page', pageOrSearchAfter);
+    }
 
     const response = await axiosInstance.get(`/api/movies/search/?${params}`, {
       signal: searchController.signal,

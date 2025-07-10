@@ -695,6 +695,11 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             # Get search parameters
             params = request.query_params.dict()
 
+            # Xử lý multiple search_after parameters
+            search_after_values = request.query_params.getlist('search_after')
+            if search_after_values:
+                params['search_after'] = search_after_values
+
             # Initialize search service
             search_service = MovieSearchService()
 
@@ -707,7 +712,8 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                     'status': 'success',
                     'count': es_response['total'],
                     'data': es_response['results'],
-                    'search_engine': es_response['search_engine']
+                    'search_engine': es_response['search_engine'],
+                    'next_search_after': es_response.get('next_search_after')
                 })
 
             # Fallback to ORM search if Elasticsearch fails

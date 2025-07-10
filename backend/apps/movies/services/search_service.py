@@ -194,19 +194,38 @@ class MovieSearchService:
                 'approval_status': 'approval_status',
             }
             sort_field = sort_mapping.get(params.get('sort_by', 'created_at'))
+            # Đảm bảo sort là duy nhất cho search_after
             if sort_field:
                 if params.get('order') == 'asc':
                     sort_field = sort_field.lstrip('-')
-                search = search.sort(sort_field)
-            # Default secondary sort by created_at for admin
-            if params.get('sort_by') != 'created_at':
-                search = search.sort('-created_at')
+                # Luôn sort theo created_at và id để dùng search_after
+                search = search.sort(
+                    {sort_field.lstrip('-'): {'order': 'asc' if not sort_field.startswith('-') else 'desc'}},
+                    {'id': {'order': 'desc'}}
+                )
+            else:
+                search = search.sort({'created_at': {'order': 'desc'}}, {'id': {'order': 'desc'}})
 
-            # Pagination
-            page = int(params.get('page', 1))
-            page_size = min(int(params.get('page_size', 50)), 100)
-            start = (page - 1) * page_size
-            search = search[start:start + page_size]
+            # Keyset pagination với search_after
+            if params.get('search_after'):
+                # Xử lý search_after có thể là string hoặc list
+                search_after_value = params['search_after']
+                if isinstance(search_after_value, str):
+                    # Nếu là string, chuyển thành list
+                    search_after_value = [search_after_value]
+                elif not isinstance(search_after_value, list):
+                    # Nếu không phải list, chuyển thành list
+                    search_after_value = [search_after_value]
+
+                search = search.extra(search_after=search_after_value)
+                page_size = min(int(params.get('page_size', 50)), 100)
+                search = search[:page_size]
+            else:
+                # Offset-based fallback (trang đầu)
+                page = int(params.get('page', 1))
+                page_size = min(int(params.get('page_size', 50)), 100)
+                start = (page - 1) * page_size
+                search = search[start:start + page_size]
 
             # Execute search with error handling
             logger.info(f"Executing Elasticsearch query: {search.to_dict()}")
@@ -246,19 +265,53 @@ class MovieSearchService:
 
             logger.info(f"Successfully serialized {len(ordered_movies)} movies from Elasticsearch results")
 
-            # Keyset pagination markers
-            next_after_created_at = None
-            prev_after_created_at = None
-            if ordered_movies:
-                next_after_created_at = getattr(ordered_movies[-1], 'created_at', None)
-                prev_after_created_at = getattr(ordered_movies[0], 'created_at', None)
+            # Keyset pagination: trả về next_search_after cho frontend
+            next_search_after = None
+            logger.info(f"DEBUG: response.hits count: {len(response.hits) if response.hits else 0}, page_size: {page_size}")
+            if response.hits and len(response.hits) == page_size:
+                last_hit = response.hits[-1]
+                logger.info(f"DEBUG: Creating next_search_after for sort_field: {sort_field}")
+                # Lấy giá trị các trường sort đúng thứ tự sort
+                # Nếu sort theo popularity và id
+                sort_fields = []
+                if sort_field:
+                    # popularity, rating, release_date, title, runtime, vote_count, created_at, admin_priority, approval_status
+                    if sort_field.lstrip('-') == 'popularity':
+                        sort_fields.append(getattr(last_hit, 'popularity', None))
+                    elif sort_field.lstrip('-') == 'vote_average':
+                        sort_fields.append(getattr(last_hit, 'vote_average', None))
+                    elif sort_field.lstrip('-') == 'release_date':
+                        sort_fields.append(getattr(last_hit, 'release_date', None))
+                    elif sort_field.lstrip('-') == 'title_en.raw':
+                        sort_fields.append(getattr(last_hit, 'title_en', None))
+                    elif sort_field.lstrip('-') == 'title_vi.raw':
+                        sort_fields.append(getattr(last_hit, 'title_vi', None))
+                    elif sort_field.lstrip('-') == 'runtime':
+                        sort_fields.append(getattr(last_hit, 'runtime', None))
+                    elif sort_field.lstrip('-') == 'vote_count':
+                        sort_fields.append(getattr(last_hit, 'vote_count', None))
+                    elif sort_field.lstrip('-') == 'created_at':
+                        sort_fields.append(getattr(last_hit, 'created_at', None))
+                    elif sort_field.lstrip('-') == 'admin_priority':
+                        sort_fields.append(getattr(last_hit, 'admin_priority', None))
+                    elif sort_field.lstrip('-') == 'approval_status':
+                        sort_fields.append(getattr(last_hit, 'approval_status', None))
+                    else:
+                        sort_fields.append(getattr(last_hit, 'created_at', None))
+                else:
+                    sort_fields.append(getattr(last_hit, 'created_at', None))
+                # Luôn thêm id vào cuối
+                sort_fields.append(int(last_hit.meta.id))
+                next_search_after = sort_fields
+                logger.info(f"DEBUG: Created next_search_after: {next_search_after}")
+            else:
+                logger.info(f"DEBUG: Not creating next_search_after - hits: {len(response.hits) if response.hits else 0}, page_size: {page_size}")
 
             return {
                 'total': total_hits,
                 'results': serializer.data,
                 'search_engine': 'elasticsearch',
-                'next_after_created_at': next_after_created_at,
-                'prev_after_created_at': prev_after_created_at,
+                'next_search_after': next_search_after,
             }
 
         except Exception as e:

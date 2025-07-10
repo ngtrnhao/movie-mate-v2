@@ -211,38 +211,24 @@ const MoviesPage = () => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error, refetch } =
     useInfiniteQuery({
       queryKey: ['movies', filters],
-      queryFn: ({ pageParam = 1 }) => searchMovies(filters, pageParam, 50),
+      queryFn: ({ pageParam = null }) =>
+        pageParam ? searchMovies(filters, pageParam, 50) : searchMovies(filters, 1, 50),
       getNextPageParam: lastPage => {
-        // Handle cases where lastPage might be null or missing has_next
-        if (!lastPage) {
-          console.warn('getNextPageParam: lastPage is null or undefined');
-          return undefined;
+        if (!lastPage) return undefined;
+        // Nếu có next_search_after thì dùng cho lần fetch tiếp
+        if (lastPage.next_search_after) {
+          return lastPage.next_search_after;
         }
-
-        // Check if has_next exists and is true
+        // Fallback: nếu có has_next và current_page
         if (lastPage.has_next === true) {
-          return lastPage.current_page + 1;
+          return (lastPage.current_page || 1) + 1;
         }
-
-        // Fallback: check if we have data and if there might be more pages
-        if (lastPage.data && lastPage.data.length > 0) {
-          const currentPage = lastPage.current_page || 1;
-          const pageSize = lastPage.page_size || 50;
-          const totalCount = lastPage.count || 0;
-
-          // If we have more items than what we've seen so far, there might be more pages
-          if (totalCount > currentPage * pageSize) {
-            return currentPage + 1;
-          }
-        }
-
         return undefined;
       },
       enabled: true,
       staleTime: 5 * 60 * 1000, // 5 minutes
       cacheTime: 10 * 60 * 1000, // 10 minutes
       retry: (failureCount, error) => {
-        // Retry up to 3 times for network errors, but not for 4xx errors
         if (failureCount < 3 && error?.response?.status >= 500) {
           return true;
         }
@@ -898,12 +884,11 @@ const MoviesPage = () => {
                 )}
 
                 {/* End of Results Message */}
-                {!hasNextPage && movies.length > 0 && (
+                {!data?.pages?.[data.pages.length - 1]?.next_search_after && movies.length > 0 && (
                   <div className="mt-8 text-center text-gray-400">
                     <div className="inline-flex items-center gap-2 rounded-lg bg-gray-800/50 px-4 py-2">
-                      {/* <span>✨</span> */}
                       <span>
-                        {t('messages.exploreAll', { count: totalCount.toLocaleString() })}
+                        {t('messages.exploreAll', { count: movies.length.toLocaleString() })}
                       </span>
                     </div>
                   </div>

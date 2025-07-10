@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
   ChartBarIcon,
@@ -37,9 +37,10 @@ import {
   FunnelIcon,
   ArrowPathIcon,
   DocumentArrowDownIcon,
-  Cog6ToothIcon as Cog6ToothIconSolid,
-  UsersIcon as UsersIconSolid,
+} from '@heroicons/react/24/outline';
+import {
   ChartBarIcon as ChartBarIconSolid,
+  UsersIcon as UsersIconSolid,
   ShieldCheckIcon as ShieldCheckIconSolid,
   DocumentTextIcon as DocumentTextIconSolid,
   ExclamationTriangleIcon as ExclamationTriangleIconSolid,
@@ -47,7 +48,11 @@ import {
   ServerIcon as ServerIconSolid,
   UserGroupIcon as UserGroupIconSolid,
   CogIcon as CogIconSolid,
-} from '@heroicons/react/24/outline';
+  Cog6ToothIcon as Cog6ToothIconSolid,
+  FilmIcon as FilmIconSolid,
+  EyeIcon as EyeIconSolid,
+} from '@heroicons/react/24/solid';
+
 import SystemOverview from './components/SystemOverview';
 import UserAnalytics from './components/UserAnalytics';
 import ContentAnalytics from './components/ContentAnalytics';
@@ -59,13 +64,17 @@ import BulkActions from '../Moderator/components/BulkActions';
 import AdminDashboardOverview from './components/AdminDashboardOverview';
 import VisibilityControl from './components/VisibilityControl';
 import MovieManagement from './components/MovieManagement';
+import { useDashboardData } from '../../hooks/useDashboardData';
 
 const AdminDashboard = () => {
+  const dispatch = useDispatch();
   const [activeView, setActiveView] = useState('overview');
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState('dashboard'); // dashboard, kanban, queue
+
+  const { data: dashboardData } = useDashboardData();
   const user = useSelector(state => state.auth.user);
   const navigate = useNavigate();
 
@@ -101,7 +110,7 @@ const AdminDashboard = () => {
         id: 'movies',
         label: 'Quản lý phim',
         icon: FilmIcon,
-        iconSolid: FilmIcon,
+        iconSolid: FilmIconSolid,
         color: 'blue',
         description: 'Quản lý nội dung phim và production control',
         priority: 'high',
@@ -110,7 +119,7 @@ const AdminDashboard = () => {
         id: 'visibility',
         label: 'Quản lý hiện thị',
         icon: EyeIcon,
-        iconSolid: EyeIcon,
+        iconSolid: EyeIconSolid,
         color: 'blue',
         description: 'Quản lý hiện thị phim và production control',
       },

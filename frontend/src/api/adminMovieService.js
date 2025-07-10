@@ -52,7 +52,7 @@ export const getAdminMovies = async (params = {}) => {
   try {
     const queryParams = new URLSearchParams({
       page: params.page || 1,
-      page_size: params.pageSize || 20,
+      page_size: params.pageSize || 5,
       ...params.filters,
     });
 

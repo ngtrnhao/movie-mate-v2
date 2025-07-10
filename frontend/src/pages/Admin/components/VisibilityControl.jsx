@@ -39,6 +39,7 @@ import {
   scheduleMovieVisibility,
 } from '../../../api/adminMovieService';
 import { useDebounce } from '../../../hooks/useDebounce';
+import { useProductionMetrics } from '../../../hooks/useProductionMetrics';
 
 const VisibilityControl = () => {
   // State Management
@@ -47,11 +48,11 @@ const VisibilityControl = () => {
   const [loading, setLoading] = useState(false);
   const [selectedMovies, setSelectedMovies] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearchQuery = useDebounce(searchQuery, 500); // Add debounce for search
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [showScheduler, setShowScheduler] = useState(false);
   const [schedulerData, setSchedulerData] = useState({
     movie_id: null,
-    type: 'featured', // featured, popular, top_rated, upcoming
+    type: 'featured',
     start_date: '',
     end_date: '',
     priority: 1,
@@ -66,7 +67,13 @@ const VisibilityControl = () => {
     scheduled: 0,
   });
 
-  // Note: Using adminMovieService for all API calls (with automatic auth headers)
+  const {
+    data: productionMetrics,
+    loading: metricsLoading,
+    error: metricsError,
+    refreshMetrics,
+  } = useProductionMetrics();
+  const [localData, setLocalData] = useState({});
 
   // Visibility Categories Configuration with Enhanced Styling
   const visibilityCategories = {
@@ -143,7 +150,7 @@ const VisibilityControl = () => {
       }
 
       const params = {
-        pageSize: 50,
+        pageSize: 5,
         filters,
         search: debouncedSearchQuery, // Use debounced search
       };
@@ -481,302 +488,332 @@ const VisibilityControl = () => {
     );
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <AdjustmentsHorizontalIcon className="w-8 h-8 text-purple-600 mr-3" />
-              Điều khiển hiển thị
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Quản lý visibility và featured status của phim trên production
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setShowScheduler(true)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
-            >
-              <ClockIcon className="w-4 h-4 mr-2" />
-              Lên lịch hiển thị
-            </button>
-          </div>
+  const renderContent = () => {
+    if (metricsLoading || loading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
+      );
+    }
 
-        {/* Visibility Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          {Object.entries(visibilityCategories).map(([key, category]) => (
-            <div
-              key={key}
-              className={`${category.bgColor} rounded-lg p-4 border ${category.borderColor} cursor-pointer transition-all duration-200 hover:shadow-md ${
-                activeSection === key ? 'ring-2 ring-purple-500' : ''
-              }`}
-              onClick={() => setActiveSection(key)}
-            >
+    if (metricsError) {
+      return (
+        <div className="text-center py-8">
+          <div className="text-red-600 mb-4">{metricsError}</div>
+          <button
+            onClick={refreshMetrics}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Thử lại
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <AdjustmentsHorizontalIcon className="w-8 h-8 text-purple-600 mr-3" />
+                Điều khiển hiển thị
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Quản lý visibility và featured status của phim trên production
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowScheduler(true)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              >
+                <ClockIcon className="w-4 h-4 mr-2" />
+                Lên lịch hiển thị
+              </button>
+            </div>
+          </div>
+
+          {/* Visibility Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+            {Object.entries(visibilityCategories).map(([key, category]) => (
+              <div
+                key={key}
+                className={`${category.bgColor} rounded-lg p-4 border ${category.borderColor} cursor-pointer transition-all duration-200 hover:shadow-md ${
+                  activeSection === key ? 'ring-2 ring-purple-500' : ''
+                }`}
+                onClick={() => setActiveSection(key)}
+              >
+                <div className="flex items-center">
+                  <category.icon className={`w-8 h-8 ${category.iconColor}`} />
+                  <div className="ml-3">
+                    <p className={`text-sm font-medium ${category.textColor}`}>
+                      {category.title.split(' ')[0]}
+                    </p>
+                    <p className={`text-2xl font-bold ${category.iconColor}`}>
+                      {stats[key]?.toLocaleString() || 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
               <div className="flex items-center">
-                <category.icon className={`w-8 h-8 ${category.iconColor}`} />
+                <ClockIcon className="w-8 h-8 text-purple-600" />
                 <div className="ml-3">
-                  <p className={`text-sm font-medium ${category.textColor}`}>
-                    {category.title.split(' ')[0]}
-                  </p>
-                  <p className={`text-2xl font-bold ${category.iconColor}`}>
-                    {stats[key]?.toLocaleString() || 0}
+                  <p className="text-sm font-medium text-purple-900">Đã lên lịch</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {stats.scheduled?.toLocaleString() || 0}
                   </p>
                 </div>
               </div>
             </div>
-          ))}
+          </div>
 
-          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+          {/* Search and Controls */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 text-gray-900 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="Tìm kiếm phim..."
+                />
+                {searchQuery && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="text-gray-400 hover:text-gray-500 transition-colors"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {selectedMovies.length > 0 && (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600 font-medium">
+                  Đã chọn {selectedMovies.length} phim
+                </span>
+
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => bulkToggleVisibility(selectedMovies, activeSection, true)}
+                    className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                      visibilityCategories[activeSection]?.buttonColor +
+                      ' focus:ring-' +
+                      visibilityCategories[activeSection]?.color +
+                      '-500'
+                    }`}
+                  >
+                    {visibilityCategories[activeSection]?.icon &&
+                      React.createElement(visibilityCategories[activeSection].icon, {
+                        className: 'w-4 h-4 mr-1',
+                      })}
+                    Bật {visibilityCategories[activeSection]?.title.split(' ')[0]}
+                  </button>
+
+                  <button
+                    onClick={() => bulkToggleVisibility(selectedMovies, activeSection, false)}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                  >
+                    <XMarkIcon className="w-4 h-4 mr-1" />
+                    Tắt
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Current Section Display */}
+        {activeSection !== 'all' && (
+          <div
+            className={`${visibilityCategories[activeSection]?.bgColor} rounded-lg border ${visibilityCategories[activeSection]?.borderColor} p-4`}
+          >
             <div className="flex items-center">
-              <ClockIcon className="w-8 h-8 text-purple-600" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-purple-900">Đã lên lịch</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {stats.scheduled?.toLocaleString() || 0}
+              {visibilityCategories[activeSection]?.iconSolid &&
+                React.createElement(visibilityCategories[activeSection].iconSolid, {
+                  className: `w-6 h-6 ${visibilityCategories[activeSection]?.iconColor} mr-3`,
+                })}
+              <div>
+                <h3
+                  className={`text-lg font-medium ${visibilityCategories[activeSection]?.textColor}`}
+                >
+                  {visibilityCategories[activeSection]?.title}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {visibilityCategories[activeSection]?.description}
                 </p>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Search and Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 text-gray-900 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
-                placeholder="Tìm kiếm phim..."
-              />
-              {searchQuery && (
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+        {/* Movies Grid */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <span className="ml-3 text-gray-600">Đang tải...</span>
+            </div>
+          ) : movies.length === 0 ? (
+            <div className="text-center py-12">
+              <EyeSlashIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Không có phim nào</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {debouncedSearchQuery
+                  ? `Không tìm thấy phim nào với từ khóa "${debouncedSearchQuery}"`
+                  : `Chưa có phim nào trong danh mục ${visibilityCategories[activeSection]?.title || 'này'}`}
+              </p>
+              {debouncedSearchQuery && (
+                <div className="mt-6">
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="text-gray-400 hover:text-gray-500 transition-colors"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
                   >
-                    <XMarkIcon className="h-4 w-4" />
+                    Xóa tìm kiếm
                   </button>
                 </div>
               )}
             </div>
-          </div>
+          ) : (
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedMovies.length === movies.length && movies.length > 0}
+                    onChange={handleSelectAll}
+                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-600">
+                    Hiển thị <span className="font-medium text-gray-900">{movies.length}</span> phim
+                    {debouncedSearchQuery && (
+                      <span className="text-gray-500">
+                        {' '}
+                        • Tìm kiếm: "<span className="font-medium">{debouncedSearchQuery}</span>"
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
 
-          {selectedMovies.length > 0 && (
-            <div className="flex items-center space-x-3">
-              <span className="text-sm text-gray-600 font-medium">
-                Đã chọn {selectedMovies.length} phim
-              </span>
-
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => bulkToggleVisibility(selectedMovies, activeSection, true)}
-                  className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    visibilityCategories[activeSection]?.buttonColor +
-                    ' focus:ring-' +
-                    visibilityCategories[activeSection]?.color +
-                    '-500'
-                  }`}
-                >
-                  {visibilityCategories[activeSection]?.icon &&
-                    React.createElement(visibilityCategories[activeSection].icon, {
-                      className: 'w-4 h-4 mr-1',
-                    })}
-                  Bật {visibilityCategories[activeSection]?.title.split(' ')[0]}
-                </button>
-
-                <button
-                  onClick={() => bulkToggleVisibility(selectedMovies, activeSection, false)}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
-                >
-                  <XMarkIcon className="w-4 h-4 mr-1" />
-                  Tắt
-                </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {movies.map(renderMovieCard)}
               </div>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Current Section Display */}
-      {activeSection !== 'all' && (
-        <div
-          className={`${visibilityCategories[activeSection]?.bgColor} rounded-lg border ${visibilityCategories[activeSection]?.borderColor} p-4`}
-        >
-          <div className="flex items-center">
-            {visibilityCategories[activeSection]?.iconSolid &&
-              React.createElement(visibilityCategories[activeSection].iconSolid, {
-                className: `w-6 h-6 ${visibilityCategories[activeSection]?.iconColor} mr-3`,
-              })}
-            <div>
-              <h3
-                className={`text-lg font-medium ${visibilityCategories[activeSection]?.textColor}`}
-              >
-                {visibilityCategories[activeSection]?.title}
-              </h3>
-              <p className="text-sm text-gray-600 mt-1">
-                {visibilityCategories[activeSection]?.description}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Movies Grid */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            <span className="ml-3 text-gray-600">Đang tải...</span>
-          </div>
-        ) : movies.length === 0 ? (
-          <div className="text-center py-12">
-            <EyeSlashIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Không có phim nào</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {debouncedSearchQuery
-                ? `Không tìm thấy phim nào với từ khóa "${debouncedSearchQuery}"`
-                : `Chưa có phim nào trong danh mục ${visibilityCategories[activeSection]?.title || 'này'}`}
-            </p>
-            {debouncedSearchQuery && (
-              <div className="mt-6">
+        {/* Scheduler Modal */}
+        {showScheduler && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Lên lịch hiển thị</h3>
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                  onClick={() => setShowScheduler(false)}
+                  className="text-gray-400 hover:text-gray-500 transition-colors"
                 >
-                  Xóa tìm kiếm
+                  <XMarkIcon className="h-6 w-6" />
                 </button>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <input
-                  type="checkbox"
-                  checked={selectedMovies.length === movies.length && movies.length > 0}
-                  onChange={handleSelectAll}
-                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                />
-                <span className="text-sm text-gray-600">
-                  Hiển thị <span className="font-medium text-gray-900">{movies.length}</span> phim
-                  {debouncedSearchQuery && (
-                    <span className="text-gray-500">
-                      {' '}
-                      • Tìm kiếm: "<span className="font-medium">{debouncedSearchQuery}</span>"
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {movies.map(renderMovieCard)}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Loại hiển thị
+                  </label>
+                  <select
+                    value={schedulerData.type}
+                    onChange={e => setSchedulerData({ ...schedulerData, type: e.target.value })}
+                    className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                  >
+                    {Object.entries(visibilityCategories).map(([key, category]) => (
+                      <option key={key} value={key}>
+                        {category.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ngày bắt đầu
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={schedulerData.start_date}
+                    onChange={e =>
+                      setSchedulerData({ ...schedulerData, start_date: e.target.value })
+                    }
+                    className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ngày kết thúc
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={schedulerData.end_date}
+                    onChange={e => setSchedulerData({ ...schedulerData, end_date: e.target.value })}
+                    className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Độ ưu tiên (1-10)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={schedulerData.priority}
+                    onChange={e =>
+                      setSchedulerData({ ...schedulerData, priority: parseInt(e.target.value) })
+                    }
+                    className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowScheduler(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={scheduleVisibility}
+                  className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+                >
+                  Lên lịch
+                </button>
+              </div>
             </div>
           </div>
         )}
       </div>
+    );
+  };
 
-      {/* Scheduler Modal */}
-      {showScheduler && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Lên lịch hiển thị</h3>
-              <button
-                onClick={() => setShowScheduler(false)}
-                className="text-gray-400 hover:text-gray-500 transition-colors"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Loại hiển thị
-                </label>
-                <select
-                  value={schedulerData.type}
-                  onChange={e => setSchedulerData({ ...schedulerData, type: e.target.value })}
-                  className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                >
-                  {Object.entries(visibilityCategories).map(([key, category]) => (
-                    <option key={key} value={key}>
-                      {category.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Ngày bắt đầu</label>
-                <input
-                  type="datetime-local"
-                  value={schedulerData.start_date}
-                  onChange={e => setSchedulerData({ ...schedulerData, start_date: e.target.value })}
-                  className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ngày kết thúc
-                </label>
-                <input
-                  type="datetime-local"
-                  value={schedulerData.end_date}
-                  onChange={e => setSchedulerData({ ...schedulerData, end_date: e.target.value })}
-                  className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Độ ưu tiên (1-10)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={schedulerData.priority}
-                  onChange={e =>
-                    setSchedulerData({ ...schedulerData, priority: parseInt(e.target.value) })
-                  }
-                  className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end space-x-3">
-              <button
-                onClick={() => setShowScheduler(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={scheduleVisibility}
-                className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
-              >
-                Lên lịch
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return renderContent();
 };
 
 export default VisibilityControl;

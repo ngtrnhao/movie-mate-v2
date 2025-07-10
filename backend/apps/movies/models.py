@@ -1810,6 +1810,16 @@ class MovieAdminControl(models.Model):
             # Date-based queries
             models.Index(fields=['approved_at'], name='idx_admin_approved_at'),
             models.Index(fields=['created_at'], name='idx_admin_created_at'),
+
+            # Performance optimization indexes for admin queries
+            models.Index(fields=['created_at', 'approval_status'],
+                        name='idx_admin_cr_approval'),
+            models.Index(fields=['updated_at', 'visibility_status'],
+                        name='idx_admin_upd_vis'),
+            models.Index(fields=['admin_priority', 'admin_featured'],
+                        name='idx_admin_pri_feat'),
+            models.Index(fields=['is_published', 'visibility_status', 'approval_status'],
+                        name='idx_admin_pub_vis_app'),
         ]
 
         constraints = [

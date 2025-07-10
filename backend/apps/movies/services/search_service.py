@@ -46,8 +46,8 @@ class MovieSearchService:
             self.index = 'movies'
             self.connection_available = False
 
-    def search(self, params):
-        """Search movies with Elasticsearch"""
+    def search(self, params, admin_mode=False):
+        """Search movies with Elasticsearch, hỗ trợ admin_mode cho filter đặc biệt"""
         if not self.connection_available or not self.client:
             logger.warning("Elasticsearch connection not available, falling back to database search")
             return None
@@ -146,6 +146,32 @@ class MovieSearchService:
             if params.get('adult') == 'false':
                 search = search.filter('term', is_adult=False)
 
+            # --- ADMIN FILTERS ---
+            if admin_mode:
+                # Các filter đặc biệt cho admin
+                if params.get('approval_status'):
+                    search = search.filter('term', approval_status=params['approval_status'])
+                if params.get('admin_featured') is not None:
+                    val = params['admin_featured']
+                    if isinstance(val, str):
+                        val = val.lower() == 'true'
+                    search = search.filter('term', admin_featured=val)
+                if params.get('visibility_status'):
+                    search = search.filter('term', visibility_status=params['visibility_status'])
+                if params.get('is_published') is not None:
+                    val = params['is_published']
+                    if isinstance(val, str):
+                        val = val.lower() == 'true'
+                    search = search.filter('term', is_published=val)
+                if params.get('admin_priority') is not None:
+                    try:
+                        search = search.filter('term', admin_priority=int(params['admin_priority']))
+                    except Exception:
+                        pass
+                # Keyset pagination: after_created_at
+                if params.get('after_created_at'):
+                    search = search.filter('range', created_at={'lt': params['after_created_at']})
+
             # Sorting with enhanced options
             sort_mapping = {
                 'popularity': '-popularity',
@@ -153,18 +179,20 @@ class MovieSearchService:
                 'release_date': '-release_date',
                 'title': 'title_en.raw' if params.get('language') == 'en' else 'title_vi.raw',
                 'runtime': '-runtime',
-                'vote_count': '-vote_count'
+                'vote_count': '-vote_count',
+                # Admin sort
+                'created_at': '-created_at',
+                'admin_priority': '-admin_priority',
+                'approval_status': 'approval_status',
             }
-
-            sort_field = sort_mapping.get(params.get('sort_by', 'popularity'))
+            sort_field = sort_mapping.get(params.get('sort_by', 'created_at'))
             if sort_field:
                 if params.get('order') == 'asc':
                     sort_field = sort_field.lstrip('-')
                 search = search.sort(sort_field)
-
-            # Default secondary sort by release_date for consistency
-            if params.get('sort_by') != 'release_date':
-                search = search.sort('-release_date')
+            # Default secondary sort by created_at for admin
+            if params.get('sort_by') != 'created_at':
+                search = search.sort('-created_at')
 
             # Pagination
             page = int(params.get('page', 1))
@@ -210,10 +238,19 @@ class MovieSearchService:
 
             logger.info(f"Successfully serialized {len(ordered_movies)} movies from Elasticsearch results")
 
+            # Keyset pagination markers
+            next_after_created_at = None
+            prev_after_created_at = None
+            if ordered_movies:
+                next_after_created_at = getattr(ordered_movies[-1], 'created_at', None)
+                prev_after_created_at = getattr(ordered_movies[0], 'created_at', None)
+
             return {
                 'total': total_hits,
                 'results': serializer.data,
-                'search_engine': 'elasticsearch'
+                'search_engine': 'elasticsearch',
+                'next_after_created_at': next_after_created_at,
+                'prev_after_created_at': prev_after_created_at,
             }
 
         except Exception as e:

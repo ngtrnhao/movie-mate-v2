@@ -24,6 +24,13 @@ from datetime import timedelta
 from .services.search_service import MovieSearchService
 from .services.spoiler_detection_service import spoiler_detector
 logger = logging.getLogger(__name__)
+from rest_framework.pagination import PageNumberPagination
+
+class AdminMoviePagination(PageNumberPagination):
+    """Custom pagination for admin movies with smaller page size"""
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 20
 
 class OptimizedMovieViewSet(viewsets.ModelViewSet):
     """Ehanced movie search using Elasticsearch with fallback to Django ORM"""
@@ -3408,14 +3415,16 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
     """
     queryset = Movie.objects.all()
     permission_classes = [IsAuthenticated, IsAdminUser]
+    pagination_class = AdminMoviePagination
     filter_backends = [SearchFilter, DjangoFilterBackend, OrderingFilter]
     search_fields = ['title', 'title_en', 'title_vi', 'overview_en', 'overview_vi']
     filterset_fields = [
-        'is_published', 'visibility_status', 'approval_status', 'admin_featured',
+        # Chỉ giữ các trường không liên quan admin_control
         'is_popular', 'is_top_rated', 'is_upcoming', 'minimum_quality_met'
     ]
     ordering_fields = [
-        'created_at', 'updated_at', 'release_date', 'admin_priority',
+        'created_at', 'updated_at', 'release_date',
+        # Không order trực tiếp các trường admin nữa
         'combined_rating_score', 'quality_score', 'content_completeness'
     ]
     ordering = ['-created_at']
@@ -3426,493 +3435,268 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         return AdminMovieListSerializer
 
     def get_queryset(self):
-        """🚨 EMERGENCY OPTIMIZED: Get admin queryset with minimal fields to fix timeout"""
-
-        # 🚨 EMERGENCY FIX: Ultra-minimal queryset for performance
-        if getattr(self, 'action', None) == 'list':
-            # For list view: absolutely minimal fields only
-            base_queryset = Movie.objects.select_related('admin_control').only(
-                # Essential fields only - no heavy joins
-                'id', 'title', 'poster_url', 'approval_status', 'admin_featured',
-                'is_published', 'visibility_status', 'combined_rating_score',
-                'quality_score', 'content_completeness', 'minimum_quality_met',
-                'admin_priority', 'created_at', 'updated_at'
-            )
-
-            # Apply early filtering to reduce dataset BEFORE checking filters
-            if hasattr(self, 'request') and hasattr(self.request, 'query_params'):
-                approval_status = self.request.query_params.get('approval_status')
-                if approval_status:
-                    base_queryset = base_queryset.filter(approval_status=approval_status)
-
-                admin_featured = self.request.query_params.get('admin_featured')
-                if admin_featured:
-                    base_queryset = base_queryset.filter(admin_featured=admin_featured == 'true')
-
-                is_published = self.request.query_params.get('is_published')
-                if is_published:
-                    base_queryset = base_queryset.filter(is_published=is_published == 'true')
-
-                visibility_status = self.request.query_params.get('visibility_status')
-                if visibility_status:
-                    base_queryset = base_queryset.filter(visibility_status=visibility_status)
-
-                minimum_quality_met = self.request.query_params.get('minimum_quality_met')
-                if minimum_quality_met:
-                    base_queryset = base_queryset.filter(minimum_quality_met=minimum_quality_met == 'true')
-
-            # Store flag for list method to handle default limiting AFTER filtering
-            self._needs_default_limit = True
-            if hasattr(self, 'request') and hasattr(self.request, 'query_params'):
-                filter_params = ['approval_status', 'visibility_status', 'is_published',
-                               'admin_featured', 'minimum_quality_met', 'category']
-                has_any_filter = any(self.request.query_params.get(param) for param in filter_params)
-
-                # Apply search filter if exists
-                search = self.request.query_params.get('search')
-                if search:
-                    has_any_filter = True
-
-                if has_any_filter:
-                    self._needs_default_limit = False
-
-            return base_queryset
-
-        elif getattr(self, 'action', None) == 'retrieve':
-            # Full optimization for detail view
-            return Movie.objects.select_related(
-                'moviemetadata', 'approved_by',
-                'admin_control',
-                'admin_control__approved_by',
-                'admin_control__created_by',
-                'admin_control__last_modified_by'
-            ).prefetch_related(
-                'production_metrics', 'genres', 'cast', 'trailers'
-            ).all()
-        else:
-            # 🚨 UPDATED: ULTRA OPTIMIZED for list views with new structure
-            return Movie.objects.select_related(
-                'admin_control',
-                'admin_control__approved_by',
-                'approved_by'
-            ).only(
-                # Only fetch fields actually needed for list view
-                'id', 'title', 'title_en', 'title_vi', 'poster_url', 'backdrop_url',
-                'release_date', 'runtime', 'cached_imdb_rating', 'overview_en', 'overview_vi',
-
-                # Legacy admin fields (for backwards compatibility during transition)
-                'is_published', 'visibility_status', 'approval_status', 'admin_featured',
-                'admin_priority', 'minimum_quality_met', 'quality_score', 'content_completeness',
-                'publish_date', 'unpublish_date', 'featured_from', 'featured_until',
-                'combined_rating_score', 'created_at', 'updated_at',
-                'approved_by__username'
-            ).all()
+        # fallback ORM query (for retrieve/detail, not for list)
+        qs = Movie.objects.select_related('admin_control').only(
+            'id', 'title', 'title_en', 'title_vi', 'poster_url', 'release_date',
+            'created_at', 'updated_at', 'is_popular', 'is_top_rated', 'is_upcoming',
+            'minimum_quality_met', 'combined_rating_score', 'quality_score',
+            'content_completeness',
+            'admin_control__approval_status', 'admin_control__admin_featured',
+            'admin_control__visibility_status', 'admin_control__is_published',
+            'admin_control__admin_priority', 'admin_control__created_at',
+            'admin_control__updated_at'
+        )
+        # ... existing code ...
+        return qs
 
     def list(self, request, *args, **kwargs):
-        """Optimized list view with caching for admin movie management"""
-        try:
-            # Create cache key based on query params (handle both DRF and Django request types)
-            if hasattr(request, 'query_params'):
-                query_params = request.query_params.dict()
-            else:
-                # Fallback for Django WSGIRequest
-                query_params = request.GET.dict()
-
-            cache_key_parts = [
-                'admin_movies_list_v2',
-                str(query_params.get('page', 1)),
-                str(query_params.get('page_size', 20)),
-                query_params.get('approval_status', ''),
-                query_params.get('visibility_status', ''),
-                query_params.get('admin_featured', ''),
-                query_params.get('sort_by', '-created_at')
-            ]
-            cache_key = '_'.join(filter(None, cache_key_parts)).replace(' ', '_')
-
-            # Try cache first
-            cached_response = cache.get(cache_key)
-            if cached_response:
-                return Response(cached_response)
-
-            # Get queryset and apply filters/pagination
-            queryset = self.filter_queryset(self.get_queryset())
-
-            # 🚨 EMERGENCY FIX: Apply default limiting AFTER filtering if needed
-            if hasattr(self, '_needs_default_limit') and self._needs_default_limit:
-                # For no-filter case, limit to recent 1000 movies AFTER all filtering
-                queryset = queryset[:1000]
-
-            # DON'T apply manual ordering here - let DRF handle it through filter_queryset
-            # Apply ordering optimization REMOVED to prevent slice conflict
-
-            # Paginate efficiently
-            page = self.paginate_queryset(queryset)
-            if page is not None:
-                serializer = self.get_serializer(page, many=True)
-                result = self.get_paginated_response(serializer.data)
-
-                # Cache for 5 minutes
-                cache.set(cache_key, result.data, timeout=300)
-                return result
-
-            # Fallback without pagination
-            serializer = self.get_serializer(queryset, many=True)
-            response_data = {
-                'status': 'success',
-                'count': len(serializer.data),
-                'data': serializer.data
-            }
-
-            # Cache for 5 minutes
-            cache.set(cache_key, response_data, timeout=300)
-            return Response(response_data)
-
-        except Exception as e:
-            logger.error(f"Error in admin movies list: {str(e)}", exc_info=True)
+        # Sử dụng Elasticsearch cho admin list
+        from apps.movies.services.search_service import MovieSearchService
+        from rest_framework.response import Response
+        from rest_framework.exceptions import ValidationError
+        params = request.query_params.copy()
+        # Bắt buộc phải có ít nhất 1 filter quản trị
+        admin_filters = [
+            'approval_status', 'admin_featured', 'visibility_status', 'is_published', 'admin_priority'
+        ]
+        filter_count = 0
+        for f in admin_filters:
+            if params.get(f) is not None:
+                filter_count += 1
+        if filter_count == 0:
+            raise ValidationError({
+                'detail': 'Bạn phải chọn ít nhất 1 filter quản trị (approval_status, visibility_status, is_published, admin_featured, admin_priority) để truy vấn.'
+            })
+        # Keyset pagination: after_created_at
+        after_created_at = params.get('after_created_at')
+        page_size = int(params.get('page_size', 5))
+        # Gọi Elasticsearch service
+        search_service = MovieSearchService()
+        es_params = dict(params)
+        es_params['page'] = 1  # keyset, không dùng offset page
+        es_params['page_size'] = page_size
+        # Map filter fields
+        for f in admin_filters:
+            if params.get(f) is not None:
+                es_params[f] = params.get(f)
+        if after_created_at:
+            es_params['after_created_at'] = after_created_at
+        # Sort
+        if params.get('ordering'):
+            es_params['sort_by'] = params['ordering'].lstrip('-')
+            es_params['order'] = 'desc' if params['ordering'].startswith('-') else 'asc'
+        # Thực thi Elasticsearch
+        es_response = search_service.search(es_params, admin_mode=True)
+        if es_response:
+            # Serialize kết quả (dùng AdminMovieListSerializer)
+            serializer = self.get_serializer(es_response['results'], many=True)
             return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'status': 'success',
+                'count': es_response['total'],
+                'data': serializer.data,
+                'search_engine': es_response['search_engine'],
+                'next_after_created_at': es_response.get('next_after_created_at'),
+                'prev_after_created_at': es_response.get('prev_after_created_at'),
+            })
+        # Fallback ORM nếu Elasticsearch không khả dụng
+        return super().list(request, *args, **kwargs)
+
+    def get_object_admin_control(self, movie):
+        # Helper: lấy hoặc tạo admin_control cho movie
+        if hasattr(movie, 'admin_control') and movie.admin_control:
+            return movie.admin_control
+        from apps.movies.models import MovieAdminControl
+        admin_control, _ = MovieAdminControl.objects.get_or_create(movie=movie)
+        return admin_control
+
+    def perform_admin_update(self, movie, update_dict):
+        admin_control = self.get_object_admin_control(movie)
+        for k, v in update_dict.items():
+            setattr(admin_control, k, v)
+        admin_control.save()
+        return admin_control
+
+    def list(self, request, *args, **kwargs):
+        # Đặt page_size mặc định là 5 nếu không truyền vào
+        if not request.query_params.get('page_size'):
+            mutable = request.GET._mutable if hasattr(request.GET, '_mutable') else None
+            if hasattr(request.GET, '_mutable'):
+                request.GET._mutable = True
+            request.GET = request.GET.copy()
+            request.GET['page_size'] = 5
+            if mutable is not None:
+                request.GET._mutable = mutable
+        # Keyset pagination: không dùng offset/limit, chỉ dùng after_created_at
+        return super().list(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'])
     def dashboard_overview(self, request):
-        """Get admin dashboard overview - ULTRA SIMPLIFIED for performance"""
-        try:
-            cache_key = 'admin_dashboard_overview_v3_ultra_simple'
-            cached_data = cache.get(cache_key)
-
-            if cached_data:
-                return Response(cached_data)
-
-            from django.db.models import Count, Q
-
-                        # ULTRA SIMPLIFIED: Essential stats with aggressive caching
-
-            # Cache heavy count operations separately
-            total_movies_cache_key = 'admin_total_movies_count_v1'
-            total_movies = cache.get(total_movies_cache_key)
-            if total_movies is None:
-                total_movies = Movie.objects.count()
-                cache.set(total_movies_cache_key, total_movies, timeout=3600)  # 1 hour cache
-
-            # Simplified stats - minimal queries only
-            published_count = Movie.objects.filter(is_published=True).count()
-            featured_count = Movie.objects.filter(admin_featured=True).count()
-            pending_count = 0  # Simplified to avoid query
-
-            # MINIMAL recent movies - just basic fields
-            recent_movies = Movie.objects.only(
-                'id', 'title', 'poster_url', 'created_at', 'approval_status'
-            ).order_by('-created_at')[:5]  # Reduced to 5 items
-
-            recent_data = [
-                {
-                    'id': movie.id,
-                    'title': movie.title,
-                    'poster_url': movie.poster_url,
-                    'approval_status': movie.approval_status,
-                    'created_at': movie.created_at
-                }
-                for movie in recent_movies
-            ]
-
-            response_data = {
-                'status': 'success',
-                'data': {
-                    'total_movies': total_movies,
-                    'published_movies': published_count,
-                    'pending_approval': pending_count,
-                    'admin_featured': featured_count,
-                    'quality_issues': 0,  # Simplified - can be calculated separately if needed
-                    'recent_movies': recent_data
-                }
+        """Get admin dashboard overview - lấy thống kê từ admin_control"""
+        from apps.movies.models import MovieAdminControl
+        total_movies = Movie.objects.count()
+        published_count = MovieAdminControl.objects.filter(is_published=True).count()
+        featured_count = MovieAdminControl.objects.filter(admin_featured=True).count()
+        pending_count = MovieAdminControl.objects.filter(approval_status='PENDING').count()
+        recent_controls = MovieAdminControl.objects.select_related('movie').order_by('-created_at')[:5]
+        recent_data = [
+            {
+                'id': ac.movie.id,
+                'title': ac.movie.title,
+                'poster_url': ac.movie.poster_url,
+                'approval_status': ac.approval_status,
+                'created_at': ac.created_at
             }
-
-            # Cache for 10 minutes
-            cache.set(cache_key, response_data, timeout=600)
-            return Response(response_data)
-
-        except Exception as e:
-            logger.error(f"Error in dashboard overview: {str(e)}", exc_info=True)
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            for ac in recent_controls if ac.movie
+        ]
+        return Response({
+            'status': 'success',
+            'data': {
+                'total_movies': total_movies,
+                'published_movies': published_count,
+                'pending_approval': pending_count,
+                'admin_featured': featured_count,
+                'quality_issues': 0,
+                'recent_movies': recent_data
+            }
+        })
 
     @action(detail=True, methods=['post'])
     def toggle_featured(self, request, pk=None):
-        """Toggle admin featured status"""
-        try:
-            movie = self.get_object()
-            movie.admin_featured = not movie.admin_featured
-
-            # Set priority if becoming featured
-            if movie.admin_featured and movie.admin_priority == 0:
-                movie.admin_priority = 1
-
-            movie.save(update_fields=['admin_featured', 'admin_priority'])
-
-            return Response({
-                'status': 'success',
-                'message': f"Movie {'featured' if movie.admin_featured else 'unfeatured'}",
-                'admin_featured': movie.admin_featured,
-                'admin_priority': movie.admin_priority
-            })
-
-        except Exception as e:
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        movie = self.get_object()
+        admin_control = self.get_object_admin_control(movie)
+        admin_control.admin_featured = not admin_control.admin_featured
+        if admin_control.admin_featured and admin_control.admin_priority == 0:
+            admin_control.admin_priority = 1
+        admin_control.save(update_fields=['admin_featured', 'admin_priority'])
+        return Response({
+            'status': 'success',
+            'message': f"Movie {'featured' if admin_control.admin_featured else 'unfeatured'}",
+            'admin_featured': admin_control.admin_featured,
+            'admin_priority': admin_control.admin_priority
+        })
 
     @action(detail=True, methods=['post'])
     def update_priority(self, request, pk=None):
-        """Update admin priority"""
+        movie = self.get_object()
+        admin_control = self.get_object_admin_control(movie)
+        priority = request.data.get('priority', 0)
         try:
-            movie = self.get_object()
-            priority = request.data.get('priority', 0)
-
-            if not isinstance(priority, int) or priority < 0:
-                return Response({
-                    'status': 'error',
-                    'message': 'Priority must be a non-negative integer'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            movie.admin_priority = priority
-            movie.save(update_fields=['admin_priority'])
-
-            return Response({
-                'status': 'success',
-                'message': 'Priority updated successfully',
-                'admin_priority': movie.admin_priority
-            })
-
-        except Exception as e:
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            priority = int(priority)
+        except Exception:
+            return Response({'status': 'error', 'message': 'Priority must be a non-negative integer'}, status=400)
+        if priority < 0:
+            return Response({'status': 'error', 'message': 'Priority must be a non-negative integer'}, status=400)
+        admin_control.admin_priority = priority
+        admin_control.save(update_fields=['admin_priority'])
+        return Response({'status': 'success', 'message': 'Priority updated successfully', 'admin_priority': admin_control.admin_priority})
 
     @action(detail=True, methods=['post'])
     def update_visibility(self, request, pk=None):
-        """Update movie visibility settings"""
-        try:
-            movie = self.get_object()
-
-            # Update visibility fields
-            visibility_status = request.data.get('visibility_status')
-            is_published = request.data.get('is_published')
-            publish_date = request.data.get('publish_date')
-            unpublish_date = request.data.get('unpublish_date')
-
-            updated_fields = []
-
-            if visibility_status in ['PUBLISHED', 'DRAFT', 'SCHEDULED', 'ARCHIVED', 'RESTRICTED']:
-                movie.visibility_status = visibility_status
-                updated_fields.append('visibility_status')
-
-            if isinstance(is_published, bool):
-                movie.is_published = is_published
-                updated_fields.append('is_published')
-
-            if publish_date:
-                from django.utils.dateparse import parse_datetime
-                parsed_date = parse_datetime(publish_date)
-                if parsed_date:
-                    movie.publish_date = parsed_date
-                    updated_fields.append('publish_date')
-
-            if unpublish_date:
-                from django.utils.dateparse import parse_datetime
-                parsed_date = parse_datetime(unpublish_date)
-                if parsed_date:
-                    movie.unpublish_date = parsed_date
-                    updated_fields.append('unpublish_date')
-
-            if updated_fields:
-                movie.save(update_fields=updated_fields)
-
-            return Response({
-                'status': 'success',
-                'message': 'Visibility settings updated',
-                'visibility_status': movie.visibility_status,
-                'is_published': movie.is_published
-            })
-
-        except Exception as e:
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        movie = self.get_object()
+        admin_control = self.get_object_admin_control(movie)
+        visibility_status = request.data.get('visibility_status')
+        is_published = request.data.get('is_published')
+        publish_date = request.data.get('publish_date')
+        unpublish_date = request.data.get('unpublish_date')
+        updated_fields = []
+        if visibility_status in ['PUBLISHED', 'DRAFT', 'SCHEDULED', 'ARCHIVED', 'RESTRICTED']:
+            admin_control.visibility_status = visibility_status
+            updated_fields.append('visibility_status')
+        if isinstance(is_published, bool):
+            admin_control.is_published = is_published
+            updated_fields.append('is_published')
+        if publish_date:
+            from django.utils.dateparse import parse_datetime
+            parsed_date = parse_datetime(publish_date)
+            if parsed_date:
+                admin_control.publish_date = parsed_date
+                updated_fields.append('publish_date')
+        if unpublish_date:
+            from django.utils.dateparse import parse_datetime
+            parsed_date = parse_datetime(unpublish_date)
+            if parsed_date:
+                admin_control.unpublish_date = parsed_date
+                updated_fields.append('unpublish_date')
+        if updated_fields:
+            admin_control.save(update_fields=updated_fields)
+        return Response({
+            'status': 'success',
+            'message': 'Visibility settings updated',
+            'visibility_status': admin_control.visibility_status,
+            'is_published': admin_control.is_published
+        })
 
     @action(detail=True, methods=['post'])
     def approve_movie(self, request, pk=None):
-        """Approve movie for production"""
-        try:
-            movie = self.get_object()
-
-            movie.approval_status = 'APPROVED'
-            movie.approved_by = request.user
-            movie.approved_at = timezone.now()
-
-            # Auto-publish if quality standards are met
-            if movie.minimum_quality_met and movie.visibility_status == 'DRAFT':
-                movie.visibility_status = 'PUBLISHED'
-                movie.is_published = True
-
-            movie.save(update_fields=[
-                'approval_status', 'approved_by', 'approved_at',
-                'visibility_status', 'is_published'
-            ])
-
-            return Response({
-                'status': 'success',
-                'message': 'Movie approved successfully',
-                'approval_status': movie.approval_status,
-                'approved_by': movie.approved_by.username if movie.approved_by else None
-            })
-
-        except Exception as e:
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        movie = self.get_object()
+        admin_control = self.get_object_admin_control(movie)
+        admin_control.approval_status = 'APPROVED'
+        admin_control.approved_by = request.user
+        admin_control.approved_at = timezone.now()
+        if admin_control.minimum_quality_met and admin_control.visibility_status == 'DRAFT':
+            admin_control.visibility_status = 'PUBLISHED'
+            admin_control.is_published = True
+        admin_control.save(update_fields=['approval_status', 'approved_by', 'approved_at', 'visibility_status', 'is_published'])
+        return Response({
+            'status': 'success',
+            'message': 'Movie approved successfully',
+            'approval_status': admin_control.approval_status,
+            'approved_by': admin_control.approved_by.username if admin_control.approved_by else None
+        })
 
     @action(detail=True, methods=['post'])
     def reject_movie(self, request, pk=None):
-        """Reject movie from production"""
-        try:
-            movie = self.get_object()
-            reason = request.data.get('reason', '')
-
-            movie.approval_status = 'REJECTED'
-            movie.approved_by = request.user
-            movie.approved_at = timezone.now()
-            movie.is_published = False
-            movie.visibility_status = 'DRAFT'
-
-            # Store rejection reason in manual_override
-            if not movie.manual_override:
-                movie.manual_override = {}
-            movie.manual_override['rejection_reason'] = reason
-            movie.manual_override['rejected_at'] = timezone.now().isoformat()
-
-            movie.save(update_fields=[
-                'approval_status', 'approved_by', 'approved_at',
-                'is_published', 'visibility_status', 'manual_override'
-            ])
-
-            return Response({
-                'status': 'success',
-                'message': 'Movie rejected',
-                'approval_status': movie.approval_status,
-                'reason': reason
-            })
-
-        except Exception as e:
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        movie = self.get_object()
+        admin_control = self.get_object_admin_control(movie)
+        reason = request.data.get('reason', '')
+        admin_control.approval_status = 'REJECTED'
+        admin_control.approved_by = request.user
+        admin_control.approved_at = timezone.now()
+        admin_control.is_published = False
+        admin_control.visibility_status = 'DRAFT'
+        if not admin_control.manual_override:
+            admin_control.manual_override = {}
+        admin_control.manual_override['rejection_reason'] = reason
+        admin_control.manual_override['rejected_at'] = timezone.now().isoformat()
+        admin_control.save(update_fields=['approval_status', 'approved_by', 'approved_at', 'is_published', 'visibility_status', 'manual_override'])
+        return Response({
+            'status': 'success',
+            'message': 'Movie rejected',
+            'approval_status': admin_control.approval_status,
+            'reason': reason
+        })
 
     @action(detail=False, methods=['post'])
     def bulk_action(self, request):
-        """Perform bulk actions on multiple movies"""
-        try:
-            movie_ids = request.data.get('movie_ids', [])
-            action = request.data.get('action')
-
-            if not movie_ids or not action:
-                return Response({
-                    'status': 'error',
-                    'message': 'movie_ids and action are required'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            movies = Movie.objects.filter(id__in=movie_ids)
-
-            if action == 'approve':
-                movies.update(
-                    approval_status='APPROVED',
-                    approved_by=request.user,
-                    approved_at=timezone.now()
-                )
-                message = f'Approved {movies.count()} movies'
-
-            elif action == 'reject':
-                movies.update(
-                    approval_status='REJECTED',
-                    approved_by=request.user,
-                    approved_at=timezone.now(),
-                    is_published=False
-                )
-                message = f'Rejected {movies.count()} movies'
-
-            elif action == 'feature':
-                movies.update(admin_featured=True, admin_priority=1)
-                message = f'Featured {movies.count()} movies'
-
-            elif action == 'unfeature':
-                movies.update(admin_featured=False, admin_priority=0)
-                message = f'Unfeatured {movies.count()} movies'
-
-            elif action == 'publish':
-                movies.update(is_published=True, visibility_status='PUBLISHED')
-                message = f'Published {movies.count()} movies'
-
-            elif action == 'unpublish':
-                movies.update(is_published=False, visibility_status='DRAFT')
-                message = f'Unpublished {movies.count()} movies'
-
-            # Visibility control actions
-            elif action == 'enable_popular':
-                movies.update(is_popular=True)
-                message = f'Marked {movies.count()} movies as popular'
-
-            elif action == 'disable_popular':
-                movies.update(is_popular=False)
-                message = f'Removed {movies.count()} movies from popular'
-
-            elif action == 'enable_top_rated':
-                movies.update(is_top_rated=True)
-                message = f'Marked {movies.count()} movies as top rated'
-
-            elif action == 'disable_top_rated':
-                movies.update(is_top_rated=False)
-                message = f'Removed {movies.count()} movies from top rated'
-
-            elif action == 'enable_upcoming':
-                movies.update(is_upcoming=True)
-                message = f'Marked {movies.count()} movies as upcoming'
-
-            elif action == 'disable_upcoming':
-                movies.update(is_upcoming=False)
-                message = f'Removed {movies.count()} movies from upcoming'
-
-            elif action == 'enable_featured':
-                movies.update(admin_featured=True, admin_priority=1)
-                message = f'Featured {movies.count()} movies'
-
-            elif action == 'disable_featured':
-                movies.update(admin_featured=False, admin_priority=0)
-                message = f'Unfeatured {movies.count()} movies'
-
-            else:
-                return Response({
-                    'status': 'error',
-                    'message': 'Invalid action'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            return Response({
-                'status': 'success',
-                'message': message,
-                'affected_count': movies.count()
-            })
-
-        except Exception as e:
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        movie_ids = request.data.get('movie_ids', [])
+        action = request.data.get('action')
+        if not movie_ids or not action:
+            return Response({'status': 'error', 'message': 'movie_ids and action are required'}, status=400)
+        from apps.movies.models import MovieAdminControl
+        controls = MovieAdminControl.objects.filter(movie_id__in=movie_ids)
+        now = timezone.now()
+        updated = 0
+        if action == 'approve':
+            updated = controls.update(approval_status='APPROVED', approved_at=now)
+            message = f'Approved {updated} movies'
+        elif action == 'reject':
+            updated = controls.update(approval_status='REJECTED', approved_at=now, is_published=False)
+            message = f'Rejected {updated} movies'
+        elif action == 'feature':
+            updated = controls.update(admin_featured=True, admin_priority=1)
+            message = f'Featured {updated} movies'
+        elif action == 'unfeature':
+            updated = controls.update(admin_featured=False, admin_priority=0)
+            message = f'Unfeatured {updated} movies'
+        elif action == 'publish':
+            updated = controls.update(is_published=True, visibility_status='PUBLISHED')
+            message = f'Published {updated} movies'
+        elif action == 'unpublish':
+            updated = controls.update(is_published=False, visibility_status='DRAFT')
+            message = f'Unpublished {updated} movies'
+        else:
+            return Response({'status': 'error', 'message': 'Invalid action'}, status=400)
+        return Response({'status': 'success', 'message': message, 'affected_count': updated})
 
     @action(detail=False, methods=['get'])
     def production_metrics(self, request):

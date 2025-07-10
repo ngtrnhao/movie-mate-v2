@@ -1,13 +1,13 @@
 import QuickLink from './QuickLink';
-import { AdWrapper, AdBannerFooter } from '../ads';
+// import { AdWrapper, AdBannerFooter } from '../ads';
 
 const Footer = () => {
   return (
     <footer className="mt-auto border-t border-border bg-gray-900 py-12 transition-colors duration-200">
       {/* Quảng cáo banner footer - chỉ hiển thị cho non-premium users */}
-      <AdWrapper>
+      {/* <AdWrapper>
         <AdBannerFooter />
-      </AdWrapper>
+      </AdWrapper> */}
 
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">

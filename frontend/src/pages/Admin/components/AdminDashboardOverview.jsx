@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { getDashboardOverview, getProductionMetrics } from '../../../api/adminMovieService';
+import { useSelector } from 'react-redux';
+import { useDashboardData } from '../../../hooks/useDashboardData';
+import { useProductionMetrics } from '../../../hooks/useProductionMetrics';
 
 const AdminDashboardOverview = () => {
+  const {
+    data: dashboardData,
+    loading: isDashboardLoading,
+    error: dashboardError,
+  } = useDashboardData();
+  const {
+    data: productionMetrics,
+    loading: isMetricsLoading,
+    error: metricsError,
+  } = useProductionMetrics();
+
   const [stats, setStats] = useState({
     systemStats: {},
     userStats: {},
@@ -11,112 +24,88 @@ const AdminDashboardOverview = () => {
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [systemHealth, setSystemHealth] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [movieStats, setMovieStats] = useState({});
-  const [productionMetrics, setProductionMetrics] = useState({});
 
-  // Fetch Real API Data
+  // Update stats when dashboardData changes
   useEffect(() => {
-    const fetchRealData = async () => {
-      try {
-        setLoading(true);
+    if (dashboardData) {
+      // Convert API data to component format
+      const realStats = {
+        systemStats: {
+          uptime: 99.8,
+          responseTime: 245,
+          errorRate: 0.2,
+          serverLoad: 65,
+          databaseConnections: 45,
+          cacheHitRate: 92.5,
+        },
+        userStats: {
+          totalUsers: 1250,
+          newUsers: 45,
+          activeUsers: 890,
+          bannedUsers: 23,
+          moderators: 8,
+          admins: 2,
+          userGrowth: 12.5,
+          retentionRate: 78.3,
+        },
+        contentStats: {
+          totalMovies: dashboardData?.total_movies || 0,
+          totalReviews: 15678,
+          totalComments: 45678,
+          reportedContent: 234,
+          pendingModeration: dashboardData?.pending_approval || 0,
+          contentGrowth: 8.3,
+          averageRating: 4.2,
+          publishedMovies: dashboardData?.published_movies || 0,
+          adminFeatured: dashboardData?.admin_featured || 0,
+          qualityIssues: dashboardData?.quality_issues || 0,
+        },
+        moderationStats: {
+          pendingReviews: 47,
+          processedToday: 156,
+          averageResponseTime: 2.3,
+          moderatorEfficiency: 94.2,
+          autoModerationRate: 67.8,
+          falsePositiveRate: 2.1,
+        },
+        securityStats: {
+          failedLogins: 12,
+          suspiciousActivities: 5,
+          blockedIPs: 8,
+          securityAlerts: 2,
+          lastBackup: '2024-01-15T10:00:00Z',
+          backupStatus: 'success',
+        },
+      };
 
-        // Fetch optimized dashboard overview (270ms!)
-        const dashboardData = await getDashboardOverview();
+      setStats(realStats);
 
-        // Fetch optimized production metrics (273ms!)
-        const metricsData = await getProductionMetrics();
+      // Use real recent movies from API
+      const realActivity =
+        dashboardData?.recent_movies?.slice(0, 5).map((movie, index) => ({
+          id: index + 1,
+          type: 'content',
+          action: 'Movie added',
+          content: `Added movie "${movie.title}"`,
+          user: 'Admin',
+          time: formatTimeAgo(movie.created_at),
+          priority: movie.approval_status === 'PENDING' ? 'medium' : 'low',
+        })) || [];
 
-        setMovieStats(dashboardData);
-        setProductionMetrics(metricsData);
+      setRecentActivity(realActivity);
 
-        // Convert API data to component format
-        const realStats = {
-          systemStats: {
-            uptime: 99.8,
-            responseTime: 245,
-            errorRate: 0.2,
-            serverLoad: 65,
-            databaseConnections: 45,
-            cacheHitRate: 92.5,
-          },
-          userStats: {
-            totalUsers: 1250,
-            newUsers: 45,
-            activeUsers: 890,
-            bannedUsers: 23,
-            moderators: 8,
-            admins: 2,
-            userGrowth: 12.5,
-            retentionRate: 78.3,
-          },
-          contentStats: {
-            totalMovies: dashboardData?.total_movies || 0,
-            totalReviews: 15678,
-            totalComments: 45678,
-            reportedContent: 234,
-            pendingModeration: dashboardData?.pending_approval || 0,
-            contentGrowth: 8.3,
-            averageRating: 4.2,
-            publishedMovies: dashboardData?.published_movies || 0,
-            adminFeatured: dashboardData?.admin_featured || 0,
-            qualityIssues: dashboardData?.quality_issues || 0,
-          },
-          moderationStats: {
-            pendingReviews: 47,
-            processedToday: 156,
-            averageResponseTime: 2.3,
-            moderatorEfficiency: 94.2,
-            autoModerationRate: 67.8,
-            falsePositiveRate: 2.1,
-          },
-          securityStats: {
-            failedLogins: 12,
-            suspiciousActivities: 5,
-            blockedIPs: 8,
-            securityAlerts: 2,
-            lastBackup: '2024-01-15T10:00:00Z',
-            backupStatus: 'success',
-          },
-        };
+      // Set system health (mock for now)
+      const mockSystemHealth = {
+        database: { status: 'healthy', responseTime: 45, connections: 45 },
+        cache: { status: 'healthy', hitRate: 92.5, memory: 78 },
+        api: { status: 'healthy', responseTime: 245, requests: 1250 },
+        storage: { status: 'warning', usage: 85, available: 15 },
+        queue: { status: 'busy', pending: 47, processed: 156 },
+      };
 
-        setStats(realStats);
-
-        // Use real recent movies from API
-        const realActivity =
-          dashboardData?.recent_movies?.slice(0, 5).map((movie, index) => ({
-            id: index + 1,
-            type: 'content',
-            action: 'Movie added',
-            content: `Added movie "${movie.title}"`,
-            user: 'Admin',
-            time: formatTimeAgo(movie.created_at),
-            priority: movie.approval_status === 'PENDING' ? 'medium' : 'low',
-          })) || [];
-
-        setRecentActivity(realActivity);
-
-        // Set system health (mock for now)
-        const mockSystemHealth = {
-          database: { status: 'healthy', responseTime: 45, connections: 45 },
-          cache: { status: 'healthy', hitRate: 92.5, memory: 78 },
-          api: { status: 'healthy', responseTime: 245, requests: 1250 },
-          storage: { status: 'warning', usage: 85, available: 15 },
-          queue: { status: 'busy', pending: 47, processed: 156 },
-        };
-
-        setSystemHealth(mockSystemHealth);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        // Fallback to mock data on error
-        // loadMockData();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRealData();
-  }, []);
+      setSystemHealth(mockSystemHealth);
+    }
+  }, [dashboardData]);
 
   // Utility function to format time ago
   const formatTimeAgo = dateString => {
@@ -181,10 +170,24 @@ const AdminDashboardOverview = () => {
     }
   };
 
-  if (loading) {
+  if (isDashboardLoading || isMetricsLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  if (dashboardError || metricsError) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">{dashboardError || metricsError}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Thử lại
+        </button>
       </div>
     );
   }

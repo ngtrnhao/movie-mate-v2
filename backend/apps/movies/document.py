@@ -241,3 +241,18 @@ class MovieDocument(Document):
             return float(instance.combined_rating_score) if instance.combined_rating_score else None
         except (ValueError, TypeError):
             return None
+
+    def prepare_approval_status(self, instance):
+        return instance.admin_control.approval_status if hasattr(instance, 'admin_control') and instance.admin_control else None
+
+    def prepare_admin_featured(self, instance):
+        return instance.admin_control.admin_featured if hasattr(instance, 'admin_control') and instance.admin_control else False
+
+    def prepare_visibility_status(self, instance):
+        return instance.admin_control.visibility_status if hasattr(instance, 'admin_control') and instance.admin_control else None
+
+    def prepare_is_published(self, instance):
+        return instance.admin_control.is_published if hasattr(instance, 'admin_control') and instance.admin_control else False
+
+    def prepare_admin_priority(self, instance):
+        return instance.admin_control.admin_priority if hasattr(instance, 'admin_control') and instance.admin_control else 0

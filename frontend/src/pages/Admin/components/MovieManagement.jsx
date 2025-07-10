@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import {
   FilmIcon,
   MagnifyingGlassIcon,
@@ -34,7 +35,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, FilmIcon as FilmIconSolid } from '@heroicons/react/24/solid';
 import {
-  getDashboardOverview,
   getAdminMovies,
   toggleMovieFeatured,
   approveMovie,
@@ -43,6 +43,7 @@ import {
   performBulkAction,
 } from '../../../api/adminMovieService';
 import { useDebounce } from '../../../hooks/useDebounce';
+import { useRefreshDashboard } from '../../../hooks/useDashboardData';
 
 // UTILITY FUNCTIONS FOR NEW NORMALIZED STRUCTURE
 const getAdminField = (movie, field, fallback = null) => {
@@ -98,6 +99,8 @@ const isAdminFeatured = movie => {
 };
 
 const MovieManagement = () => {
+  const refreshDashboard = useRefreshDashboard();
+
   // State Management
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -119,78 +122,84 @@ const MovieManagement = () => {
     category: '',
     sort_by: '-created_at',
   });
-
-  // Dashboard Overview State
-  const [overview, setOverview] = useState({
-    total_movies: 0,
-    published_movies: 0,
-    pending_approval: 0,
-    admin_featured: 0,
-    quality_issues: 0,
-    recent_movies: [],
-  });
-
-  // Pagination
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  // Keyset pagination state
+  const [afterStack, setAfterStack] = useState([]); // Stack of after_created_at for prev
+  const [currentAfter, setCurrentAfter] = useState(null); // Current after_created_at
   const [hasNext, setHasNext] = useState(false);
   const [hasPrevious, setHasPrevious] = useState(false);
 
-  // Note: Using axiosInstance for all API calls (with automatic auth headers)
-
-  // Fetch Dashboard Overview
-  const fetchOverview = useCallback(async () => {
-    try {
-      const data = await getDashboardOverview();
-      setOverview(data);
-    } catch (error) {
-      console.error('Error fetching overview:', error);
-    }
-  }, []);
-
-  // Fetch Movies
-  const fetchMovies = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const params = {
-        page,
-        pageSize: 20,
-        filters,
-        search: debouncedSearchQuery, // Use debounced search
-      };
-
-      const data = await getAdminMovies(params);
-
-      if (data.results) {
-        setMovies(data.results);
-        setTotalPages(data.totalPages);
-        setHasNext(!!data.next);
-        setHasPrevious(!!data.previous);
-      } else {
-        setMovies(data || []);
+  // Fetch Movies (keyset)
+  const fetchMovies = useCallback(
+    async (direction = 'init') => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = {
+          pageSize: 5,
+          filters: { ...filters, sort_by: '-created_at' },
+          search: debouncedSearchQuery,
+        };
+        if (currentAfter) params.filters.after_created_at = currentAfter;
+        const data = await getAdminMovies(params);
+        setMovies(data.results || []);
+        // Keyset logic
+        if (direction === 'next') {
+          setAfterStack(prev => [...prev, currentAfter]);
+          setHasPrevious(true);
+        } else if (direction === 'prev') {
+          setHasPrevious(afterStack.length > 1);
+        } else {
+          setAfterStack([]);
+          setHasPrevious(false);
+        }
+        setHasNext((data.results || []).length === 5); // Có thể còn trang sau nếu đủ 5 bản ghi
+      } catch (error) {
+        setError('Không thể tải danh sách phim. Vui lòng thử lại.');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching movies:', error);
-      setError('Không thể tải danh sách phim. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, filters, debouncedSearchQuery]); // Use debounced search
+    },
+    [filters, debouncedSearchQuery, currentAfter, afterStack]
+  );
 
-  // Movie Actions
+  // Initial fetch and refetch when filters/search change
+  useEffect(() => {
+    setCurrentAfter(null);
+    fetchMovies('init');
+    // eslint-disable-next-line
+  }, [filters, debouncedSearchQuery]);
+
+  // Next page
+  const handleNextPage = () => {
+    if (movies.length > 0) {
+      const lastCreatedAt = movies[movies.length - 1].created_at;
+      setCurrentAfter(lastCreatedAt);
+      fetchMovies('next');
+    }
+  };
+  // Prev page
+  const handlePrevPage = () => {
+    if (afterStack.length > 0) {
+      const prevStack = [...afterStack];
+      prevStack.pop();
+      setAfterStack(prevStack);
+      setCurrentAfter(prevStack[prevStack.length - 1] || null);
+      fetchMovies('prev');
+    }
+  };
+
+  // Movie Actions with Redux
   const toggleFeatured = useCallback(
     async movieId => {
       try {
         await toggleMovieFeatured(movieId);
         fetchMovies(); // Refresh list
-        fetchOverview(); // Update overview
+        refreshDashboard(); // Refresh dashboard data
       } catch (error) {
         console.error('Error toggling featured:', error);
       }
     },
-    [fetchMovies, fetchOverview]
+    [fetchMovies, refreshDashboard]
   );
 
   const approveMovieAction = useCallback(
@@ -198,12 +207,12 @@ const MovieManagement = () => {
       try {
         await approveMovie(movieId);
         fetchMovies();
-        fetchOverview();
+        refreshDashboard();
       } catch (error) {
         console.error('Error approving movie:', error);
       }
     },
-    [fetchMovies, fetchOverview]
+    [fetchMovies, refreshDashboard]
   );
 
   const rejectMovieAction = useCallback(
@@ -211,12 +220,12 @@ const MovieManagement = () => {
       try {
         await rejectMovie(movieId, reason);
         fetchMovies();
-        fetchOverview();
+        refreshDashboard();
       } catch (error) {
         console.error('Error rejecting movie:', error);
       }
     },
-    [fetchMovies, fetchOverview]
+    [fetchMovies, refreshDashboard]
   );
 
   const updatePriorityAction = useCallback(
@@ -237,26 +246,33 @@ const MovieManagement = () => {
         await performBulkAction(action, movieIds);
         setSelectedMovies([]);
         fetchMovies();
-        fetchOverview();
+        refreshDashboard();
       } catch (error) {
         console.error('Error performing bulk action:', error);
       }
     },
-    [fetchMovies, fetchOverview]
+    [fetchMovies, refreshDashboard]
   );
 
   // Event Handlers
   const handleSearchChange = e => {
     setSearchQuery(e.target.value);
-    setPage(1);
+    setFilters(prev => ({ ...prev, page: 1 }));
   };
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({
       ...prev,
       [key]: value,
+      page: 1,
     }));
-    setPage(1);
+  };
+
+  const handlePageChange = newPage => {
+    setFilters(prev => ({
+      ...prev,
+      page: newPage,
+    }));
   };
 
   const handleMovieSelect = movieId => {
@@ -589,15 +605,6 @@ const MovieManagement = () => {
     );
   };
 
-  // Load data on component mount and when search changes
-  useEffect(() => {
-    fetchOverview();
-  }, [fetchOverview]);
-
-  useEffect(() => {
-    fetchMovies();
-  }, [fetchMovies]);
-
   // Active filter indicator
   const hasActiveFilters = useMemo(() => {
     return (
@@ -671,7 +678,7 @@ const MovieManagement = () => {
               <div className="ml-3">
                 <p className="text-sm font-medium text-blue-900">Tổng phim</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {overview.total_movies.toLocaleString()}
+                  {/* overviewData.total_movies.toLocaleString() */}
                 </p>
               </div>
             </div>
@@ -683,7 +690,7 @@ const MovieManagement = () => {
               <div className="ml-3">
                 <p className="text-sm font-medium text-green-900">Đã xuất bản</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {overview.published_movies.toLocaleString()}
+                  {/* overviewData.published_movies.toLocaleString() */}
                 </p>
               </div>
             </div>
@@ -695,7 +702,7 @@ const MovieManagement = () => {
               <div className="ml-3">
                 <p className="text-sm font-medium text-yellow-900">Chờ duyệt</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {overview.pending_approval.toLocaleString()}
+                  {/* overviewData.pending_approval.toLocaleString() */}
                 </p>
               </div>
             </div>
@@ -707,7 +714,7 @@ const MovieManagement = () => {
               <div className="ml-3">
                 <p className="text-sm font-medium text-purple-900">Featured</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {overview.admin_featured.toLocaleString()}
+                  {/* overviewData.admin_featured.toLocaleString() */}
                 </p>
               </div>
             </div>
@@ -719,7 +726,7 @@ const MovieManagement = () => {
               <div className="ml-3">
                 <p className="text-sm font-medium text-red-900">Vấn đề chất lượng</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {overview.quality_issues.toLocaleString()}
+                  {/* overviewData.quality_issues.toLocaleString() */}
                 </p>
               </div>
             </div>
@@ -895,6 +902,7 @@ const MovieManagement = () => {
                   minimum_quality_met: '',
                   category: '',
                   sort_by: '-created_at',
+                  page: 1,
                 });
                 setSearchQuery('');
               }}
@@ -954,6 +962,7 @@ const MovieManagement = () => {
                       minimum_quality_met: '',
                       category: '',
                       sort_by: '-created_at',
+                      page: 1,
                     });
                     setSearchQuery('');
                   }}
@@ -997,58 +1006,22 @@ const MovieManagement = () => {
             )}
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <button
-                    onClick={() => setPage(page - 1)}
-                    disabled={!hasPrevious}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Trước
-                  </button>
-                  <button
-                    onClick={() => setPage(page + 1)}
-                    disabled={!hasNext}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Sau
-                  </button>
-                </div>
-
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Trang <span className="font-medium text-gray-900">{page}</span> /{' '}
-                      <span className="font-medium text-gray-900">{totalPages}</span>
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                      <button
-                        onClick={() => setPage(page - 1)}
-                        disabled={!hasPrevious}
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <ChevronUpIcon className="h-5 w-5 rotate-[-90deg]" />
-                      </button>
-
-                      <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                        {page}
-                      </span>
-
-                      <button
-                        onClick={() => setPage(page + 1)}
-                        disabled={!hasNext}
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <ChevronDownIcon className="h-5 w-5 rotate-[-90deg]" />
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+              <button
+                onClick={handlePrevPage}
+                disabled={!hasPrevious}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Trước
+              </button>
+              <button
+                onClick={handleNextPage}
+                disabled={!hasNext}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Sau
+              </button>
+            </div>
           </>
         )}
       </div>

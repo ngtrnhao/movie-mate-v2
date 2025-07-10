@@ -1,27 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   getAutoMarkedReviews,
   submitModerationFeedback,
   getModerationAnalytics,
 } from '../../../api/movieService';
+import moderationCacheService from '../../../services/moderationCacheService';
 import {
   BoltIcon,
   FunnelIcon,
   ChartBarIcon,
   CheckCircleIcon,
-  XCircleIcon,
-  ExclamationTriangleIcon,
   ClockIcon,
   EyeIcon,
   UserIcon,
   CalendarDaysIcon,
-  AdjustmentsHorizontalIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
 const AutoMarkedReviews = () => {
   const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   const [selectedReview, setSelectedReview] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -41,14 +39,24 @@ const AutoMarkedReviews = () => {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
 
-  // Fetch auto-marked reviews
+  // Optimized fetch auto-marked reviews with caching
   const fetchAutoMarkedReviews = useCallback(
     async (page = 1) => {
       setLoading(true);
       try {
-        const response = await getAutoMarkedReviews(page, pagination.pageSize, filters);
+        // Use cache service for auto-marked reviews API
+        const response = await moderationCacheService.cachedApiCall(
+          'auto_marked_reviews',
+          async () => await getAutoMarkedReviews(page, pagination.pageSize, filters),
+          { page, pageSize: pagination.pageSize, ...filters }
+        );
+
         // Debug log
-        console.log('AutoMarkedReviews API response:', response);
+        console.log('✅ AutoMarkedReviews API response:', {
+          count: response?.data?.length || response?.length || 0,
+          fromCache: response.__fromCache || false,
+        });
+
         const reviewList = Array.isArray(response)
           ? response
           : Array.isArray(response?.data)
@@ -70,11 +78,22 @@ const AutoMarkedReviews = () => {
     [filters, pagination.pageSize]
   );
 
-  // Fetch analytics
+  // Optimized fetch analytics with caching
   const fetchAnalytics = useCallback(async () => {
     try {
-      const response = await getModerationAnalytics(30);
+      // Use cache service for moderation analytics API
+      const response = await moderationCacheService.cachedApiCall(
+        'moderation_analytics',
+        async () => await getModerationAnalytics(30),
+        { days: 30 }
+      );
+
       setAnalytics(response.data);
+
+      console.log('✅ Moderation analytics loaded:', {
+        totalFeedback: response.data?.summary?.total_feedback || 0,
+        fromCache: response.__fromCache || false,
+      });
     } catch (error) {
       console.error('Error fetching analytics:', error);
     }
@@ -96,6 +115,7 @@ const AutoMarkedReviews = () => {
 
   // Apply filters
   const applyFilters = () => {
+    moderationCacheService.invalidateCache('auto_marked_reviews');
     fetchAutoMarkedReviews(1);
   };
 
@@ -119,7 +139,9 @@ const AutoMarkedReviews = () => {
   const handleSubmitFeedback = async (reviewId, feedbackData) => {
     try {
       await submitModerationFeedback(reviewId, feedbackData);
-      // Refresh the reviews list
+      // Invalidate cache and refresh the reviews list
+      moderationCacheService.invalidateCache('auto_marked_reviews');
+      moderationCacheService.invalidateCache('moderation_analytics');
       fetchAutoMarkedReviews(pagination.currentPage);
       setShowFeedbackModal(false);
       setSelectedReview(null);
@@ -154,11 +176,11 @@ const AutoMarkedReviews = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <BoltIcon className="h-6 w-6 text-yellow-600" />
+            <div className="rounded-lg bg-yellow-100 p-2">
+              <BoltIcon className="size-6 text-yellow-600" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Auto-marked Reviews</h1>
@@ -168,10 +190,14 @@ const AutoMarkedReviews = () => {
             </div>
           </div>
           <button
-            onClick={() => fetchAutoMarkedReviews(pagination.currentPage)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => {
+              moderationCacheService.invalidateCache('auto_marked_reviews');
+              moderationCacheService.invalidateCache('moderation_analytics');
+              fetchAutoMarkedReviews(pagination.currentPage);
+            }}
+            className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
           >
-            <ArrowPathIcon className="h-4 w-4" />
+            <ArrowPathIcon className="size-4" />
             <span>Làm mới</span>
           </button>
         </div>
@@ -179,11 +205,11 @@ const AutoMarkedReviews = () => {
 
       {/* Analytics Summary */}
       {analytics && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <ChartBarIcon className="h-5 w-5 text-blue-600" />
+              <div className="rounded-lg bg-blue-100 p-2">
+                <ChartBarIcon className="size-5 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-600">Độ chính xác tổng</p>
@@ -194,10 +220,10 @@ const AutoMarkedReviews = () => {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircleIcon className="h-5 w-5 text-green-600" />
+              <div className="rounded-lg bg-green-100 p-2">
+                <CheckCircleIcon className="size-5 text-green-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-600">Tổng feedback</p>
@@ -206,10 +232,10 @@ const AutoMarkedReviews = () => {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <BoltIcon className="h-5 w-5 text-yellow-600" />
+              <div className="rounded-lg bg-yellow-100 p-2">
+                <BoltIcon className="size-5 text-yellow-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-600">Auto-marked (30d)</p>
@@ -220,10 +246,10 @@ const AutoMarkedReviews = () => {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <ClockIcon className="h-5 w-5 text-purple-600" />
+              <div className="rounded-lg bg-purple-100 p-2">
+                <ClockIcon className="size-5 text-purple-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-600">Chờ xử lý</p>
@@ -235,19 +261,19 @@ const AutoMarkedReviews = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="flex items-center space-x-3 mb-4">
-          <FunnelIcon className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg text-black font-medium">Bộ lọc</h3>
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center space-x-3">
+          <FunnelIcon className="size-5 text-gray-600" />
+          <h3 className="text-lg font-medium text-black">Bộ lọc</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-1">Trạng thái</label>
+            <label className="mb-1 block text-sm font-medium text-gray-900">Trạng thái</label>
             <select
               value={filters.reviewedStatus}
               onChange={e => handleFilterChange('reviewedStatus', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:border-blue-500 focus:ring-blue-500"
             >
               <option className="text-black" value="pending">
                 Chờ xử lý
@@ -262,7 +288,7 @@ const AutoMarkedReviews = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium  text-gray-700 mb-1">
+            <label className="mb-1 block text-sm  font-medium text-gray-700">
               Confidence tối thiểu
             </label>
             <input
@@ -272,12 +298,12 @@ const AutoMarkedReviews = () => {
               step="0.1"
               value={filters.confidenceMin}
               onChange={e => handleFilterChange('confidenceMin', parseFloat(e.target.value))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               Confidence tối đa
             </label>
             <input
@@ -287,41 +313,41 @@ const AutoMarkedReviews = () => {
               step="0.1"
               value={filters.confidenceMax}
               onChange={e => handleFilterChange('confidenceMax', parseFloat(e.target.value))}
-              className="w-full border border-gray-300 rounded-lg text-black px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Từ ngày</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Từ ngày</label>
             <input
               type="date"
               value={filters.dateFrom}
               onChange={e => handleFilterChange('dateFrom', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 text-black py-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Đến ngày</label>
             <input
               type="date"
               value={filters.dateTo}
               onChange={e => handleFilterChange('dateTo', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-black  focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black  focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
         </div>
 
-        <div className="flex space-x-3 mt-4">
+        <div className="mt-4 flex space-x-3">
           <button
             onClick={applyFilters}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
           >
             Áp dụng bộ lọc
           </button>
           <button
             onClick={resetFilters}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            className="rounded-lg bg-gray-600 px-4 py-2 text-white transition-colors hover:bg-gray-700"
           >
             Đặt lại
           </button>
@@ -329,8 +355,8 @@ const AutoMarkedReviews = () => {
       </div>
 
       {/* Reviews List */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-6 border-b">
+      <div className="rounded-lg border bg-white shadow-sm">
+        <div className="border-b p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-black">
               {`Danh sách Reviews (${
@@ -349,12 +375,12 @@ const AutoMarkedReviews = () => {
 
         {loading ? (
           <div className="p-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block size-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
             <p className="mt-2 text-gray-600">Đang tải...</p>
           </div>
         ) : Array.isArray(reviews) && reviews.length === 0 ? (
           <div className="p-12 text-center">
-            <BoltIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <BoltIcon className="mx-auto mb-4 size-12 text-gray-400" />
             <p className="text-gray-600">Không có reviews nào được tìm thấy</p>
           </div>
         ) : (
@@ -365,20 +391,20 @@ const AutoMarkedReviews = () => {
                   ? review.moderation_feedback
                   : [];
                 return (
-                  <div key={review.id} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div key={review.id} className="p-6 transition-colors hover:bg-gray-50">
                     <div className="flex items-start space-x-4">
                       {/* Review Content */}
                       <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
+                        <div className="mb-2 flex items-center space-x-3">
                           <div className="flex items-center space-x-2">
-                            <UserIcon className="h-4 w-4 text-gray-500" />
+                            <UserIcon className="size-4 text-gray-500" />
                             <span className="font-medium text-gray-900">
                               {review.user?.username || 'Anonymous'}
                             </span>
                           </div>
 
                           <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${getConfidenceColor(
+                            className={`rounded-full px-2 py-1 text-xs font-medium ${getConfidenceColor(
                               review.spoiler_confidence
                             )}`}
                           >
@@ -386,7 +412,7 @@ const AutoMarkedReviews = () => {
                           </span>
 
                           <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                            className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(
                               moderationFeedback.length > 0
                             )}`}
                           >
@@ -394,27 +420,27 @@ const AutoMarkedReviews = () => {
                           </span>
 
                           <div className="flex items-center space-x-1 text-sm text-gray-500">
-                            <CalendarDaysIcon className="h-4 w-4" />
+                            <CalendarDaysIcon className="size-4" />
                             <span>{formatDate(review.created_at)}</span>
                           </div>
                         </div>
 
                         {/* Enhanced Processed Review Information */}
                         {moderationFeedback.length > 0 && (
-                          <div className="mb-3 p-3 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                          <div className="mb-3 rounded-r-lg border-l-4 border-green-400 bg-green-50 p-3">
+                            <div className="mb-2 flex items-center space-x-2">
+                              <CheckCircleIcon className="size-4 text-green-600" />
                               <span className="text-sm font-medium text-green-800">
                                 Đã được xử lý bởi Moderator
                               </span>
                             </div>
                             {moderationFeedback.map((feedback, index) => (
                               <div key={index} className="text-sm text-green-700">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                                <div className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                                   <div>
                                     <span className="font-medium">Quyết định:</span>{' '}
                                     <span
-                                      className={`px-2 py-1 text-xs rounded-full ${
+                                      className={`rounded-full px-2 py-1 text-xs ${
                                         feedback.moderator_decision === 'approve_as_spoiler'
                                           ? 'bg-red-100 text-red-700'
                                           : feedback.moderator_decision === 'approve_as_non_spoiler'
@@ -439,7 +465,7 @@ const AutoMarkedReviews = () => {
                                 {feedback.feedback_type && (
                                   <div className="mb-1">
                                     <span className="font-medium">Loại feedback:</span>{' '}
-                                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                                    <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-700">
                                       {feedback.feedback_type === 'correct_spoiler'
                                         ? 'Spoiler chính xác'
                                         : feedback.feedback_type === 'false_positive'
@@ -456,7 +482,7 @@ const AutoMarkedReviews = () => {
                                   <div className="mb-1">
                                     <span className="font-medium">Độ chính xác AI:</span>{' '}
                                     <span
-                                      className={`px-2 py-1 text-xs rounded ${
+                                      className={`rounded px-2 py-1 text-xs ${
                                         feedback.is_spoiler_correct
                                           ? 'bg-green-100 text-green-700'
                                           : 'bg-red-100 text-red-700'
@@ -475,7 +501,7 @@ const AutoMarkedReviews = () => {
                                   </div>
                                 )}
                                 {feedback.created_at && (
-                                  <div className="text-xs text-green-600 mt-1">
+                                  <div className="mt-1 text-xs text-green-600">
                                     Xử lý lúc: {formatDate(feedback.created_at)}
                                   </div>
                                 )}
@@ -485,13 +511,13 @@ const AutoMarkedReviews = () => {
                         )}
 
                         <div className="mb-3">
-                          <p className="text-sm text-gray-600 mb-1">
+                          <p className="mb-1 text-sm text-gray-600">
                             <strong>Phim:</strong> {review.movie?.title || 'N/A'}
                           </p>
                           <div
-                            className={`p-3 rounded-lg ${
+                            className={`rounded-lg p-3 ${
                               moderationFeedback.length > 0
-                                ? 'bg-gray-50 border-l-4 border-gray-300'
+                                ? 'border-l-4 border-gray-300 bg-gray-50'
                                 : 'bg-gray-50'
                             }`}
                           >
@@ -502,14 +528,14 @@ const AutoMarkedReviews = () => {
                         {Array.isArray(review.spoiler_detected_patterns) &&
                           review.spoiler_detected_patterns.length > 0 && (
                             <div className="mb-3">
-                              <p className="text-sm font-medium text-gray-700 mb-1">
+                              <p className="mb-1 text-sm font-medium text-gray-700">
                                 Patterns phát hiện:
                               </p>
                               <div className="flex flex-wrap gap-1">
                                 {review.spoiler_detected_patterns.map((pattern, index) => (
                                   <span
                                     key={index}
-                                    className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded"
+                                    className="rounded bg-red-100 px-2 py-1 text-xs text-red-700"
                                   >
                                     {pattern}
                                   </span>
@@ -527,14 +553,14 @@ const AutoMarkedReviews = () => {
                               setSelectedReview(review);
                               setShowFeedbackModal(true);
                             }}
-                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                            className="rounded bg-blue-600 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-700"
                           >
-                            <EyeIcon className="h-4 w-4 inline mr-1" />
+                            <EyeIcon className="mr-1 inline size-4" />
                             Xử lý
                           </button>
                         ) : (
-                          <div className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded text-center">
-                            <CheckCircleIcon className="h-4 w-4 inline mr-1" />
+                          <div className="rounded bg-green-100 px-3 py-1 text-center text-sm text-green-700">
+                            <CheckCircleIcon className="mr-1 inline size-4" />
                             Đã hoàn thành
                           </div>
                         )}
@@ -546,9 +572,9 @@ const AutoMarkedReviews = () => {
                               setSelectedReview(review);
                               setShowFeedbackModal(true);
                             }}
-                            className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                            className="rounded bg-gray-600 px-3 py-1 text-sm text-white transition-colors hover:bg-gray-700"
                           >
-                            <EyeIcon className="h-4 w-4 inline mr-1" />
+                            <EyeIcon className="mr-1 inline size-4" />
                             Xem chi tiết
                           </button>
                         )}
@@ -562,12 +588,12 @@ const AutoMarkedReviews = () => {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="p-6 border-t">
+          <div className="border-t p-6">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => handlePageChange(pagination.currentPage - 1)}
                 disabled={pagination.currentPage === 1}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Trang trước
               </button>
@@ -579,7 +605,7 @@ const AutoMarkedReviews = () => {
               <button
                 onClick={() => handlePageChange(pagination.currentPage + 1)}
                 disabled={pagination.currentPage === pagination.totalPages}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Trang sau
               </button>
@@ -639,23 +665,23 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 min-h-screen bg-black bg-opacity-50 z-50 flex items-center justify-center p-2">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
-        <div className="p-6 border-b">
+    <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-black bg-opacity-50 p-2">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-lg">
+        <div className="border-b p-6">
           <h3 className="text-lg font-medium text-black">
             {isProcessed ? 'Chi tiết Review đã xử lý' : 'Feedback cho Review'}
           </h3>
           {isProcessed && (
-            <p className="text-sm text-green-600 mt-1">Review này đã được xử lý bởi moderator</p>
+            <p className="mt-1 text-sm text-green-600">Review này đã được xử lý bởi moderator</p>
           )}
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="space-y-4 p-6">
           {/* Review Info */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="font-medium mb-2 text-black">Review Content:</p>
+          <div className="rounded-lg bg-gray-50 p-4">
+            <p className="mb-2 font-medium text-black">Review Content:</p>
             <p className="text-gray-800">{review.content}</p>
-            <div className="flex items-center justify-between mt-2">
+            <div className="mt-2 flex items-center justify-between">
               <p className="text-sm text-gray-600">
                 Confidence: {(review.spoiler_confidence * 100).toFixed(1)}%
               </p>
@@ -666,14 +692,14 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
           {/* Show processed info if available, otherwise show form */}
           {isProcessed ? (
             <div className="space-y-4">
-              <h4 className="text-lg font-medium text-green-800 border-b pb-2">Thông tin xử lý</h4>
+              <h4 className="border-b pb-2 text-lg font-medium text-green-800">Thông tin xử lý</h4>
               {moderationFeedback.map((feedback, index) => (
-                <div key={index} className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                <div key={index} className="rounded-lg border border-green-200 bg-green-50 p-4">
+                  <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <label className="block text-sm font-medium text-green-700">Quyết định</label>
                       <span
-                        className={`inline-block px-3 py-1 text-sm rounded-full ${
+                        className={`inline-block rounded-full px-3 py-1 text-sm ${
                           feedback.moderator_decision === 'approve_as_spoiler'
                             ? 'bg-red-100 text-red-800'
                             : feedback.moderator_decision === 'approve_as_non_spoiler'
@@ -698,12 +724,12 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                  <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <label className="block text-sm font-medium text-green-700">
                         Loại feedback
                       </label>
-                      <span className="inline-block px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded">
+                      <span className="inline-block rounded bg-blue-100 px-3 py-1 text-sm text-blue-800">
                         {feedback.feedback_type === 'correct_spoiler'
                           ? 'Spoiler chính xác'
                           : feedback.feedback_type === 'false_positive'
@@ -720,7 +746,7 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
                         Độ chính xác AI
                       </label>
                       <span
-                        className={`inline-block px-3 py-1 text-sm rounded ${
+                        className={`inline-block rounded px-3 py-1 text-sm ${
                           feedback.is_spoiler_correct
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
@@ -734,7 +760,7 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
                   {feedback.notes && (
                     <div className="mb-3">
                       <label className="block text-sm font-medium text-green-700">Ghi chú</label>
-                      <p className="text-gray-800 italic bg-white p-2 rounded border">
+                      <p className="rounded border bg-white p-2 italic text-gray-800">
                         "{feedback.notes}"
                       </p>
                     </div>
@@ -759,14 +785,14 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Feedback Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Loại feedback *
                 </label>
                 <select
                   value={feedbackData.feedbackType}
                   onChange={e => setFeedbackData({ ...feedbackData, feedbackType: e.target.value })}
                   required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option className="text-black" value="">
                     Chọn loại feedback
@@ -788,7 +814,7 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
 
               {/* Moderator Decision */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Quyết định moderator *
                 </label>
                 <select
@@ -797,7 +823,7 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
                     setFeedbackData({ ...feedbackData, moderatorDecision: e.target.value })
                   }
                   required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option className="text-black" value="">
                     Chọn quyết định
@@ -833,13 +859,13 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
 
               {/* Difficulty Level */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mức độ khó</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Mức độ khó</label>
                 <select
                   value={feedbackData.difficultyLevel}
                   onChange={e =>
                     setFeedbackData({ ...feedbackData, difficultyLevel: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option className="text-black" value="easy">
                     Dễ
@@ -855,12 +881,12 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Ghi chú</label>
                 <textarea
                   value={feedbackData.notes}
                   onChange={e => setFeedbackData({ ...feedbackData, notes: e.target.value })}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
                   placeholder="Ghi chú thêm về quyết định..."
                 />
               </div>
@@ -869,14 +895,14 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
                 >
                   Gửi Feedback
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                  className="flex-1 rounded-lg bg-gray-600 px-4 py-2 text-white transition-colors hover:bg-gray-700"
                 >
                   Hủy
                 </button>
@@ -890,7 +916,7 @@ const FeedbackModal = ({ review, onSubmit, onClose }) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                className="rounded-lg bg-gray-600 px-4 py-2 text-white transition-colors hover:bg-gray-700"
               >
                 Đóng
               </button>

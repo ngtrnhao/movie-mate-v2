@@ -132,11 +132,11 @@ const ReplySection = ({ review, onReplySuccess }) => {
   return (
     <div className="mt-4 border-l-2 border-gray-700 pl-4">
       {/* Reply count and toggle */}
-      <div className="flex items-center gap-4 mb-3">
+      <div className="mb-3 flex items-center gap-4">
         {review.reply_count > 0 && (
           <button
             onClick={handleToggleReplies}
-            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            className="flex items-center gap-2 text-sm text-blue-400 transition-colors hover:text-blue-300"
           >
             <MessageSquare size={14} />
             <span>{review.reply_count} phản hồi</span>
@@ -147,7 +147,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
         {canReply && !isExternal && (
           <button
             onClick={handleToggleReplyForm}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
+            className="flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-gray-300"
           >
             <Send size={14} />
             Trả lời
@@ -155,7 +155,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
         )}
         {/* Show log if cannot reply to external review */}
         {isExternal && (
-          <span className="text-xs text-orange-400 flex items-center gap-1">
+          <span className="flex items-center gap-1 text-xs text-orange-400">
             <AlertTriangle size={14} className="inline-block" />
             Không thể trả lời review từ nguồn ngoài (external review)
           </span>
@@ -164,7 +164,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
 
       {/* Reply form */}
       {showReplyForm && (
-        <div className="mb-4 p-4 bg-gray-800/30 rounded-lg">
+        <div className="mb-4 rounded-lg bg-gray-800/30 p-4">
           <div className="mb-3">
             <textarea
               value={replyText}
@@ -180,7 +180,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
                 }
               }}
               placeholder="Viết phản hồi của bạn (ít nhất 5 ký tự)..."
-              className="w-full p-3 bg-gray-700 text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full resize-none rounded-lg bg-gray-700 p-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows="3"
               maxLength={500}
             />
@@ -198,21 +198,21 @@ const ReplySection = ({ review, onReplySuccess }) => {
               }}
             />
 
-            <div className="flex items-center justify-between mt-2">
+            <div className="mt-2 flex items-center justify-between">
               <span className="text-xs text-gray-400">{replyText.length}/500</span>
               {error && <span className="text-xs text-red-400">{error}</span>}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 justify-end">
+          <div className="flex items-center justify-end gap-2">
             {/* Spoiler Checkbox */}
-            <div className="flex items-center space-x-2 mr-auto">
+            <div className="mr-auto flex items-center space-x-2">
               <input
                 type="checkbox"
                 id="spoiler-checkbox-reply"
                 checked={isSpoiler}
                 onChange={e => setIsSpoiler(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800"
+                className="size-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800"
               />
               <label htmlFor="spoiler-checkbox-reply" className="text-sm text-gray-300">
                 Chứa spoiler
@@ -229,11 +229,11 @@ const ReplySection = ({ review, onReplySuccess }) => {
             <button
               onClick={handleSubmitReply}
               disabled={submitting || !replyText.trim() || replyText.length < 5}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                   Đang gửi...
                 </>
               ) : (
@@ -251,28 +251,28 @@ const ReplySection = ({ review, onReplySuccess }) => {
       {showReplies && (
         <div className="space-y-4">
           {loading ? (
-            <div className="text-center text-gray-400 py-4">
-              <div className="w-6 h-6 border-2 border-gray-400/30 border-t-gray-400 rounded-full animate-spin mx-auto mb-2" />
+            <div className="py-4 text-center text-gray-400">
+              <div className="mx-auto mb-2 size-6 animate-spin rounded-full border-2 border-gray-400/30 border-t-gray-400" />
               Đang tải phản hồi...
             </div>
           ) : error ? (
-            <div className="text-center text-red-400 py-4">{error}</div>
+            <div className="py-4 text-center text-red-400">{error}</div>
           ) : replies.length > 0 ? (
             <div className="space-y-4 pl-4">
               {replies.map(reply => (
-                <div key={reply.id} className="bg-gray-800/20 rounded-lg p-4">
+                <div key={reply.id} className="rounded-lg bg-gray-800/20 p-4">
                   <div className="flex items-start gap-3">
                     <img
                       src={reply.reviewer_avatar || '/api/placeholder/32/32'}
                       alt={reply.reviewer_name || 'User'}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="size-8 rounded-full object-cover"
                       onError={e => {
                         e.target.src = `https://ui-avatars.com/api/?name=${reply.reviewer_name || 'User'}&background=random&color=fff&size=32`;
                       }}
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-white text-sm">{reply.reviewer_name}</h4>
+                      <div className="mb-1 flex items-center gap-2">
+                        <h4 className="text-sm font-medium text-white">{reply.reviewer_name}</h4>
                         {reply.is_verified_reviewer && (
                           <span className="text-xs text-blue-400">✓</span>
                         )}
@@ -280,7 +280,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
                           {new Date(reply.created_at).toLocaleDateString('vi-VN')}
                         </span>
                       </div>
-                      <p className="text-gray-300 text-sm leading-relaxed mb-3">{reply.content}</p>
+                      <p className="mb-3 text-sm leading-relaxed text-gray-300">{reply.content}</p>
                       <ReviewActions
                         review={reply}
                         onVoteUpdate={handleVoteUpdate}
@@ -293,7 +293,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
               ))}
             </div>
           ) : (
-            <div className="text-center text-gray-500 py-4">Chưa có phản hồi nào</div>
+            <div className="py-4 text-center text-gray-500">Chưa có phản hồi nào</div>
           )}
         </div>
       )}

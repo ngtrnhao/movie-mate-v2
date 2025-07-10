@@ -1,5 +1,5 @@
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
-import { Bookmark, Play, Plus, Check } from 'lucide-react';
+import { Bookmark, Play } from 'lucide-react';
 import { useWatchlistContext } from '../../../context/WatchlistContext';
 
 const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {

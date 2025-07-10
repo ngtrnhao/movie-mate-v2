@@ -3457,7 +3457,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             if hasattr(request.GET, '_mutable'):
                 request.GET._mutable = True
             request.GET = request.GET.copy()
-            request.GET['page_size'] = 5
+            request.GET['page_size'] = 50
             if mutable is not None:
                 request.GET._mutable = mutable
 
@@ -3471,7 +3471,9 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         ]
         filter_count = 0
         for f in admin_filters:
-            if params.get(f) is not None:
+            param_value = params.get(f)
+            # Chỉ tính filter có giá trị thực sự (không phải None hoặc empty string)
+            if param_value is not None and param_value != '':
                 filter_count += 1
         logger.info(f"[ADMIN MOVIE LIST] Filter count: {filter_count}")
         if filter_count == 0:
@@ -3486,8 +3488,10 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         es_params['page'] = 1
         es_params['page_size'] = page_size
         for f in admin_filters:
-            if params.get(f) is not None:
-                es_params[f] = params.get(f)
+            param_value = params.get(f)
+            # Chỉ thêm vào es_params nếu có giá trị thực sự
+            if param_value is not None and param_value != '':
+                es_params[f] = param_value
         if after_created_at:
             es_params['after_created_at'] = after_created_at
         if params.get('ordering'):

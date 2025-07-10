@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getModerationAnalytics,
   getAccuracySummary,
   getModerationConfig,
 } from '../../../api/movieService';
+import moderationCacheService from '../../../services/moderationCacheService';
 import {
   AcademicCapIcon,
   ChartBarIcon,
   CogIcon,
   InformationCircleIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   BoltIcon,
@@ -25,29 +25,53 @@ const LearningDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
 
-  // Fetch data
-  const fetchData = async () => {
+  // Optimized fetch data with caching
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      // Use cache service for all three APIs
       const [analyticsResponse, accuracyResponse, configResponse] = await Promise.all([
-        getModerationAnalytics(30),
-        getAccuracySummary(),
-        getModerationConfig(),
+        moderationCacheService.cachedApiCall(
+          'moderation_analytics',
+          async () => await getModerationAnalytics(30),
+          { days: 30 }
+        ),
+        moderationCacheService.cachedApiCall(
+          'accuracy_summary',
+          async () => await getAccuracySummary(),
+          {}
+        ),
+        moderationCacheService.cachedApiCall(
+          'moderation_config',
+          async () => await getModerationConfig(),
+          {}
+        ),
       ]);
 
       setAnalytics(analyticsResponse);
       setAccuracySummary(accuracyResponse);
       setConfig(configResponse);
+
+      console.log('✅ Learning dashboard data loaded:', {
+        analytics: analyticsResponse?.summary?.total_feedback || 0,
+        accuracy: accuracyResponse?.['7d']?.accuracy || 0,
+        config: configResponse?.learning_enabled || false,
+        fromCache: {
+          analytics: analyticsResponse.__fromCache || false,
+          accuracy: accuracyResponse.__fromCache || false,
+          config: configResponse.__fromCache || false,
+        },
+      });
     } catch (error) {
       console.error('Error fetching learning data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   // Calculate learning trends
   const calculateTrends = () => {
@@ -159,12 +183,12 @@ const LearningDashboard = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div className="mb-4 h-8 w-1/3 rounded bg-gray-200"></div>
             <div className="space-y-3">
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+              <div className="h-4 w-1/2 rounded bg-gray-200"></div>
+              <div className="h-4 w-2/3 rounded bg-gray-200"></div>
             </div>
           </div>
         </div>
@@ -179,11 +203,11 @@ const LearningDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <AcademicCapIcon className="h-6 w-6 text-purple-600" />
+            <div className="rounded-lg bg-purple-100 p-2">
+              <AcademicCapIcon className="size-6 text-purple-600" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Learning Dashboard</h1>
@@ -191,26 +215,31 @@ const LearningDashboard = () => {
             </div>
           </div>
           <button
-            onClick={fetchData}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            onClick={() => {
+              moderationCacheService.invalidateCache('moderation_analytics');
+              moderationCacheService.invalidateCache('accuracy_summary');
+              moderationCacheService.invalidateCache('moderation_config');
+              fetchData();
+            }}
+            className="flex items-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700"
           >
-            <ArrowPathIcon className="h-4 w-4" />
+            <ArrowPathIcon className="size-4" />
             <span>Làm mới</span>
           </button>
         </div>
       </div>
 
       {/* Learning Status */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-lg font-medium mb-4 flex items-center space-x-2">
-          <BoltIcon className="h-5 w-5 text-gray-600" />
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
+        <h3 className="mb-4 flex items-center space-x-2 text-lg font-medium">
+          <BoltIcon className="size-5 text-gray-600" />
           <span>Trạng thái Learning System</span>
         </h3>
 
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
           <div className="flex items-center space-x-4">
             <div
-              className={`p-3 rounded-full ${
+              className={`rounded-full p-3 ${
                 learningStatus.color === 'green'
                   ? 'bg-green-100'
                   : learningStatus.color === 'blue'
@@ -222,19 +251,19 @@ const LearningDashboard = () => {
             >
               {learningStatus.status === 'optimal' ? (
                 <CheckCircleIcon
-                  className={`h-6 w-6 ${
+                  className={`size-6 ${
                     learningStatus.color === 'green' ? 'text-green-600' : 'text-gray-600'
                   }`}
                 />
               ) : learningStatus.status === 'learning' ? (
                 <ClockIcon
-                  className={`h-6 w-6 ${
+                  className={`size-6 ${
                     learningStatus.color === 'yellow' ? 'text-yellow-600' : 'text-gray-600'
                   }`}
                 />
               ) : (
                 <CogIcon
-                  className={`h-6 w-6 ${
+                  className={`size-6 ${
                     learningStatus.color === 'blue' ? 'text-blue-600' : 'text-gray-600'
                   }`}
                 />
@@ -263,9 +292,9 @@ const LearningDashboard = () => {
       </div>
 
       {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Accuracy Trends</h4>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
+          <h4 className="mb-3 text-sm font-medium text-gray-700">Accuracy Trends</h4>
           {accuracySummary && (
             <div className="space-y-3">
               {Object.entries(accuracySummary).map(([period, data]) => (
@@ -276,9 +305,9 @@ const LearningDashboard = () => {
                     {trends && trends[period] && (
                       <div className="flex items-center">
                         {trends[period].accuracy > 0 ? (
-                          <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />
+                          <ArrowTrendingUpIcon className="size-4 text-green-500" />
                         ) : trends[period].accuracy < 0 ? (
-                          <ArrowTrendingDownIcon className="h-4 w-4 text-red-500" />
+                          <ArrowTrendingDownIcon className="size-4 text-red-500" />
                         ) : null}
                       </div>
                     )}
@@ -289,8 +318,8 @@ const LearningDashboard = () => {
           )}
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Precision & Recall</h4>
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
+          <h4 className="mb-3 text-sm font-medium text-gray-700">Precision & Recall</h4>
           {accuracySummary && (
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -315,8 +344,8 @@ const LearningDashboard = () => {
           )}
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Learning Stats</h4>
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
+          <h4 className="mb-3 text-sm font-medium text-gray-700">Learning Stats</h4>
           {analytics && (
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -346,15 +375,15 @@ const LearningDashboard = () => {
 
       {/* Threshold Suggestions */}
       {thresholdSuggestions.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-lg font-medium mb-4 flex items-center space-x-2">
-            <ChartBarIcon className="h-5 w-5 text-gray-600" />
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
+          <h3 className="mb-4 flex items-center space-x-2 text-lg font-medium">
+            <ChartBarIcon className="size-5 text-gray-600" />
             <span>AI Threshold Suggestions</span>
           </h3>
 
           <div className="space-y-4">
             {thresholdSuggestions.map((suggestion, index) => (
-              <div key={index} className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div key={index} className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium text-blue-900">
@@ -373,9 +402,9 @@ const LearningDashboard = () => {
                       }`}
                     >
                       {suggestion.change > 0 ? (
-                        <ArrowTrendingUpIcon className="h-4 w-4" />
+                        <ArrowTrendingUpIcon className="size-4" />
                       ) : (
-                        <ArrowTrendingDownIcon className="h-4 w-4" />
+                        <ArrowTrendingDownIcon className="size-4" />
                       )}
                       <span className="text-sm font-medium">
                         {Math.abs(suggestion.change).toFixed(3)}
@@ -390,9 +419,9 @@ const LearningDashboard = () => {
             ))}
           </div>
 
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
             <div className="flex items-start space-x-2">
-              <InformationCircleIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <InformationCircleIcon className="mt-0.5 size-5 text-yellow-600" />
               <div className="text-sm text-yellow-800">
                 <p className="font-medium">Lưu ý:</p>
                 <p>
@@ -407,26 +436,26 @@ const LearningDashboard = () => {
 
       {/* Learning Configuration */}
       {config && (
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-lg font-medium mb-4 flex items-center space-x-2">
-            <CogIcon className="h-5 w-5 text-gray-600" />
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
+          <h3 className="mb-4 flex items-center space-x-2 text-lg font-medium">
+            <CogIcon className="size-5 text-gray-600" />
             <span>Learning Configuration</span>
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg bg-gray-50 p-4">
               <p className="text-sm font-medium text-gray-700">Learning Rate</p>
               <p className="text-lg font-bold text-gray-900">{config.learning_rate}</p>
               <p className="text-xs text-gray-600">Tốc độ học của hệ thống</p>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="rounded-lg bg-gray-50 p-4">
               <p className="text-sm font-medium text-gray-700">Min Feedback Count</p>
               <p className="text-lg font-bold text-gray-900">{config.min_feedback_count}</p>
               <p className="text-xs text-gray-600">Số feedback tối thiểu để học</p>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="rounded-lg bg-gray-50 p-4">
               <p className="text-sm font-medium text-gray-700">Accuracy Target</p>
               <p className="text-lg font-bold text-gray-900">
                 {(config.accuracy_target * 100).toFixed(1)}%
@@ -434,7 +463,7 @@ const LearningDashboard = () => {
               <p className="text-xs text-gray-600">Mục tiêu độ chính xác</p>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="rounded-lg bg-gray-50 p-4">
               <p className="text-sm font-medium text-gray-700">False Positive Limit</p>
               <p className="text-lg font-bold text-gray-900">
                 {(config.false_positive_limit * 100).toFixed(1)}%

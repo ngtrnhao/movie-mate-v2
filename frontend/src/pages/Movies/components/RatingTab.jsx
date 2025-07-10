@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, Filter, AlertTriangle, Eye, EyeOff, XCircle, CheckCircle } from 'lucide-react';
+import { Star, Filter, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -484,17 +484,17 @@ const RatingTab = ({ movieId }) => {
                   }`}
                 >
                   <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    className={`inline-block size-5 rounded-full bg-white shadow transition-transform${
                       isSpoiler ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
                 </button>
                 <label
                   htmlFor="spoiler-toggle"
-                  className="text-sm font-semibold text-orange-500 flex items-center cursor-pointer"
+                  className="flex cursor-pointer items-center text-sm font-semibold text-orange-500"
                   onClick={() => setIsSpoiler(v => !v)}
                 >
-                  <AlertTriangle className="w-4 h-4 mr-1" /> Chứa spoiler
+                  <AlertTriangle className="mr-1 size-4" /> Chứa spoiler
                 </label>
                 <span className="text-xs text-orange-400">(Review sẽ bị ẩn khỏi công khai)</span>
               </div>
@@ -529,7 +529,7 @@ const RatingTab = ({ movieId }) => {
             <span className="ml-2 text-sm text-gray-400">
               ({filteredReviews.length}/{reviews.length})
               {rejectedReviewsCount > 0 && (
-                <span className="text-red-400 ml-2">({rejectedReviewsCount} bị từ chối)</span>
+                <span className="ml-2 text-red-400">({rejectedReviewsCount} bị từ chối)</span>
               )}
             </span>
           </h3>
@@ -595,14 +595,14 @@ const RatingTab = ({ movieId }) => {
             return (
               <div
                 key={review.id}
-                className={`rounded-lg p-4 border-l-4 ${
+                className={`rounded-lg border-l-4 p-4 ${
                   isRejected
-                    ? 'bg-red-900/20 border-red-500'
+                    ? 'border-red-500 bg-red-900/20'
                     : isApproved
-                      ? 'bg-green-900/20 border-green-500'
+                      ? 'border-green-500 bg-green-900/20'
                       : isPending
-                        ? 'bg-yellow-900/20 border-yellow-500'
-                        : 'bg-gray-800/30 border-gray-600'
+                        ? 'border-yellow-500 bg-yellow-900/20'
+                        : 'border-gray-600 bg-gray-800/30'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -664,8 +664,8 @@ const RatingTab = ({ movieId }) => {
 
                     {/* Moderation Reason for Rejected Reviews */}
                     {isRejected && review.moderation_reason && (
-                      <div className="mb-3 bg-red-500/20 border border-red-500/30 rounded-lg p-3">
-                        <p className="text-red-300 text-sm">
+                      <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/20 p-3">
+                        <p className="text-sm text-red-300">
                           <strong>Lý do từ chối:</strong> {review.moderation_reason}
                         </p>
                       </div>
@@ -724,7 +724,7 @@ const RatingTab = ({ movieId }) => {
               <div className="mt-2">
                 <button
                   onClick={() => setShowRejectedReviews(true)}
-                  className="text-xs text-red-400 hover:text-red-300 underline"
+                  className="text-xs text-red-400 underline hover:text-red-300"
                 >
                   Hiện {rejectedReviewsCount} review bị từ chối
                 </button>

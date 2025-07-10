@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import {
-  getModerationQueue,
-  moderateReview,
-  getUnifiedModerationQueue,
-} from '../../../api/movieService';
+import { useState, useEffect, useCallback } from 'react';
+import { moderateReview, getUnifiedModerationQueue } from '../../../api/movieService';
+import moderationCacheService from '../../../services/moderationCacheService';
 
 const QueueList = ({
   selectedItems,
@@ -11,11 +8,17 @@ const QueueList = ({
   onSelectAll,
   onClearSelection,
   isAdmin,
-  filterType = 'all',
+  // Add props for external data
+  items: externalItems = [],
+  totalPages: externalTotalPages = 1,
+  stats: externalStats = {},
+  disableInternalFetch = false,
+  onDataFetch = null,
 }) => {
-  const [items, setItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Local state for search, filter, sort
+  const [items, setItems] = useState(externalItems);
+  const [filteredItems, setFilteredItems] = useState(externalItems);
+  const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     type: 'all',
     priority: 'all',
@@ -23,92 +26,117 @@ const QueueList = ({
   });
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(!disableInternalFetch);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [stats, setStats] = useState({
-    high: 0,
-    medium: 0,
-    low: 0,
-    total: 0,
-  });
+  const [totalPages, setTotalPages] = useState(externalTotalPages);
+  const [stats, setStats] = useState(externalStats);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
 
-  // Fetch moderation queue from API
-  const fetchModerationQueue = async () => {
+  // Update items when external data changes
+  useEffect(() => {
+    if (externalItems && disableInternalFetch) {
+      setItems(externalItems);
+      setTotalPages(externalTotalPages);
+      setStats(externalStats);
+      setLoading(false);
+      // Filter/sort on new data
+      setSearchTerm('');
+      setFilters({ type: 'all', priority: 'all', status: 'all' });
+      setSortBy('createdAt');
+      setSortOrder('desc');
+    }
+  }, [externalItems, externalTotalPages, externalStats, disableInternalFetch]);
+
+  // Filter, search, and sort items
+  useEffect(() => {
+    let result = [...items];
+    // Filter
+    if (filters.type !== 'all') {
+      result = result.filter(item => item.type === filters.type);
+    }
+    if (filters.priority !== 'all') {
+      result = result.filter(item => item.priority === filters.priority);
+    }
+    if (filters.status !== 'all') {
+      result = result.filter(item => item.status === filters.status);
+    }
+    // Search
+    if (searchTerm) {
+      result = result.filter(
+        item =>
+          (item.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    // Sort
+    result.sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+    setFilteredItems(result);
+  }, [items, filters, searchTerm, sortBy, sortOrder]);
+
+  // Fetch moderation data from API with caching (only if not disabled)
+  const fetchModerationData = useCallback(async () => {
+    if (disableInternalFetch) {
+      console.log('🚫 QueueList internal fetch disabled - using external data');
+      return;
+    }
+
+    // Skip if data is fresh (less than 30 seconds old)
+    const now = Date.now();
+    if (now - lastFetchTime < 30000 && items.length > 0) {
+      console.log('🚫 Skipping API call for Queue - data is fresh');
+      return;
+    }
+
     try {
       setLoading(true);
-      const apiFilters = {};
+      console.log('🔄 Fetching unified moderation queue for QueueList...');
 
-      if (filters.priority !== 'all') {
-        apiFilters.priority = filters.priority;
-      }
-      if (filters.status !== 'all') {
-        apiFilters.status = filters.status;
-      }
-      if (filters.type !== 'all') {
-        apiFilters.type = filters.type;
-      }
+      const data = await getUnifiedModerationQueue(currentPage, 100);
 
-      // Use unified moderation queue API
-      const data = await getUnifiedModerationQueue(currentPage, 50, apiFilters);
-
-      // Remove duplicate items based on id and created_at
-      const uniqueItems = (data.tasks || []).filter((item, index, self) => {
-        const firstIndex = self.findIndex(
-          otherItem => otherItem.id === item.id && otherItem.created_at === item.created_at
-        );
-        return firstIndex === index;
-      });
-
-      setItems(uniqueItems);
+      setItems(data.tasks || []);
       setTotalPages(data.total_pages || 1);
       setStats(data.stats?.priority_stats || {});
+      setLastFetchTime(now);
+
+      // Notify parent component about data fetch
+      if (onDataFetch) {
+        onDataFetch({
+          items: data.tasks || [],
+          totalPages: data.total_pages || 1,
+          stats: data.stats?.priority_stats || {},
+          timestamp: now,
+        });
+      }
+
+      console.log('✅ Queue data loaded:', {
+        totalItems: data.tasks?.length || 0,
+        totalPages: data.total_pages || 1,
+        fromCache: false,
+      });
     } catch (error) {
-      console.error('Error fetching moderation queue:', error);
+      console.error('Error fetching moderation data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, lastFetchTime, items.length, onDataFetch, disableInternalFetch]);
 
+  // Only fetch if internal fetch is not disabled
   useEffect(() => {
-    fetchModerationQueue();
-  }, [currentPage, filters.priority, filters.status]);
-
-  // Filter and sort items
-  useEffect(() => {
-    let filtered = [...items];
-
-    // Apply search
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        item =>
-          item.title?.toLowerCase().includes(searchLower) ||
-          item.content?.toLowerCase().includes(searchLower) ||
-          item.user?.toLowerCase().includes(searchLower) ||
-          item.movie_title?.toLowerCase().includes(searchLower)
-      );
+    if (!disableInternalFetch) {
+      fetchModerationData();
+    } else {
+      console.log('✅ QueueList using external data - no internal fetch needed');
+      setLoading(false);
     }
-
-    // Sort by priority and date (server already sorts, but we can re-sort client-side)
-    filtered.sort((a, b) => {
-      // Priority order: high > medium > low
-      const priorityOrder = { high: 3, medium: 2, low: 1 };
-      const aPriority = priorityOrder[a.priority] ?? 0;
-      const bPriority = priorityOrder[b.priority] ?? 0;
-
-      if (aPriority !== bPriority) {
-        return bPriority - aPriority;
-      }
-
-      // Then sort by creation date
-      const aDate = new Date(a.created_at);
-      const bDate = new Date(b.created_at);
-      return bDate - aDate;
-    });
-
-    setFilteredItems(filtered);
-  }, [items, searchTerm]);
+  }, [fetchModerationData, disableInternalFetch]);
 
   const getTypeColor = type => {
     switch (type) {
@@ -166,8 +194,9 @@ const QueueList = ({
       const reason = action === 'approve' ? 'Approved by moderator' : 'Rejected due to violations';
       await moderateReview(reviewId, action, reason);
 
-      // Refresh queue
-      fetchModerationQueue();
+      // Invalidate cache and refresh queue
+      moderationCacheService.invalidateCache('unified_moderation_queue');
+      fetchModerationData(); // Re-fetch to update stats and items
     } catch (error) {
       console.error('Error moderating review:', error);
     }
@@ -239,8 +268,8 @@ const QueueList = ({
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="size-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
       </div>
     );
   }
@@ -248,37 +277,37 @@ const QueueList = ({
   return (
     <div className="space-y-6">
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="rounded-lg border-l-4 border-red-500 bg-white p-4 shadow">
           <div className="flex items-center">
-            <div className="w-6 h-6 text-red-600 mr-3">🚨</div>
+            <div className="mr-3 size-6 text-red-600">🚨</div>
             <div>
               <p className="text-sm font-medium text-gray-600">Ưu tiên cao</p>
               <p className="text-2xl font-bold text-gray-900">{stats.high || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+        <div className="rounded-lg border-l-4 border-yellow-500 bg-white p-4 shadow">
           <div className="flex items-center">
-            <div className="w-6 h-6 text-yellow-600 mr-3">⚠️</div>
+            <div className="mr-3 size-6 text-yellow-600">⚠️</div>
             <div>
               <p className="text-sm font-medium text-gray-600">Ưu tiên trung bình</p>
               <p className="text-2xl font-bold text-gray-900">{stats.medium || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+        <div className="rounded-lg border-l-4 border-green-500 bg-white p-4 shadow">
           <div className="flex items-center">
-            <div className="w-6 h-6 text-green-600 mr-3">✅</div>
+            <div className="mr-3 size-6 text-green-600">✅</div>
             <div>
               <p className="text-sm font-medium text-gray-600">Ưu tiên thấp</p>
               <p className="text-2xl font-bold text-gray-900">{stats.low || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+        <div className="rounded-lg border-l-4 border-blue-500 bg-white p-4 shadow">
           <div className="flex items-center">
-            <div className="w-6 h-6 text-blue-600 mr-3">📊</div>
+            <div className="mr-3 size-6 text-blue-600">📊</div>
             <div>
               <p className="text-sm font-medium text-gray-600">Tổng cộng</p>
               <p className="text-2xl font-bold text-gray-900">{stats.total || 0}</p>
@@ -288,11 +317,11 @@ const QueueList = ({
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="rounded-lg bg-white p-4 shadow">
         <div className="grid grid-cols-12 gap-4">
           {/* Search */}
           <div className="col-span-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Tìm kiếm</label>
             <input
               type="text"
               placeholder="Tìm kiếm theo tiêu đề, nội dung, tác giả..."
@@ -304,7 +333,7 @@ const QueueList = ({
 
           {/* Type Filter */}
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Loại</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Loại</label>
             <select
               value={filters.type}
               onChange={e => handleFilterChange('type', e.target.value)}
@@ -318,7 +347,7 @@ const QueueList = ({
 
           {/* Priority Filter */}
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Ưu tiên</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Ưu tiên</label>
             <select
               value={filters.priority}
               onChange={e => handleFilterChange('priority', e.target.value)}
@@ -333,7 +362,7 @@ const QueueList = ({
 
           {/* Status Filter */}
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Trạng thái</label>
             <select
               value={filters.status}
               onChange={e => handleFilterChange('status', e.target.value)}
@@ -348,9 +377,9 @@ const QueueList = ({
       </div>
 
       {/* Items List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="overflow-hidden rounded-lg bg-white shadow">
         {/* Table Header */}
-        <div className="bg-gray-50 px-6 py-3 border-b">
+        <div className="border-b bg-gray-50 px-6 py-3">
           <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
             <div className="col-span-1">
               <input
@@ -382,21 +411,21 @@ const QueueList = ({
         {/* Table Body */}
         <div className="divide-y divide-gray-200">
           {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <div className="py-12 text-center">
+              <div className="mx-auto size-12 animate-spin rounded-full border-b-2 border-blue-500"></div>
               <p className="mt-4 text-gray-600">Đang tải...</p>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">📝</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Không có items nào</h3>
+            <div className="py-12 text-center">
+              <div className="mb-4 text-6xl text-gray-400">📝</div>
+              <h3 className="mb-2 text-lg font-medium text-gray-900">Không có items nào</h3>
               <p className="text-gray-600">Thử thay đổi bộ lọc hoặc tìm kiếm khác</p>
             </div>
           ) : (
             filteredItems.map((item, index) => (
               <div
                 key={`${item.id}_${item.created_at}_${index}`}
-                className={`px-6 py-4 hover:bg-gray-50 transition-colors ${
+                className={`px-6 py-4 transition-colors hover:bg-gray-50 ${
                   selectedItems.includes(item.id) ? 'bg-indigo-50' : ''
                 }`}
               >
@@ -414,7 +443,7 @@ const QueueList = ({
                   {/* Type */}
                   <div className="col-span-1">
                     <div className="flex flex-col items-center">
-                      <span className="text-2xl mb-1">
+                      <span className="mb-1 text-2xl">
                         {item.type === 'report' || item.type === 'both'
                           ? '🚨'
                           : item.type === 'spoiler'
@@ -435,18 +464,18 @@ const QueueList = ({
 
                   {/* Title and Content */}
                   <div className="col-span-3">
-                    <div className="font-medium text-gray-900 mb-1">
+                    <div className="mb-1 font-medium text-gray-900">
                       {item.title || 'Không có tiêu đề'}
                     </div>
-                    <div className="text-sm text-gray-600 line-clamp-2">
+                    <div className="line-clamp-2 text-sm text-gray-600">
                       {item.content?.substring(0, 100)}...
                     </div>
                     {/* Moderation reasons */}
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="mt-2 flex flex-wrap gap-1">
                       {getModerationReasons(item).map((reason, reasonIndex) => (
                         <span
                           key={`${item.id}_reason_${reasonIndex}_${reason.text}`}
-                          className={`px-2 py-1 text-xs rounded-full ${reason.color}`}
+                          className={`rounded-full px-2 py-1 text-xs ${reason.color}`}
                         >
                           {reason.text}
                         </span>
@@ -466,7 +495,7 @@ const QueueList = ({
                   {/* Priority */}
                   <div className="col-span-1">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+                      className={`rounded-full px-2 py-1 text-xs font-medium ${getPriorityColor(
                         item.priority || 'low'
                       )}`}
                     >
@@ -540,7 +569,7 @@ const QueueList = ({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between bg-white px-6 py-4 border-t">
+          <div className="flex items-center justify-between border-t bg-white px-6 py-4">
             <div className="text-sm text-gray-700">
               Trang {currentPage} của {totalPages}
             </div>
@@ -548,14 +577,14 @@ const QueueList = ({
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Trước
               </button>
               <button
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Sau
               </button>

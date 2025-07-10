@@ -130,7 +130,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
         <button
           onClick={handleToggleFavorite}
           disabled={isTogglingFavorite || favoritesLoading}
-          className={`group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
             isLiked ? 'text-pink-500 hover:text-pink-600' : 'text-white hover:text-red-500'
           }`}
         >
@@ -154,7 +154,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
         <button
           onClick={handleToggleWatchlist}
           disabled={isTogglingWatchlist || watchlistLoading}
-          className={`group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
             isInList ? 'text-green-500 hover:text-green-600' : 'text-white hover:text-red-500'
           }`}
         >
@@ -185,7 +185,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
 
       {/* Error Message */}
       {(actionError || favoritesError) && (
-        <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
+        <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
           {actionError || favoritesError}
         </div>
       )}

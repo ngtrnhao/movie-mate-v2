@@ -1698,7 +1698,7 @@ class MovieAdminControl(models.Model):
         related_name='admin_control'
     )
 
-    # 📋 APPROVAL WORKFLOW
+    #  APPROVAL WORKFLOW
     approval_status = models.CharField(
         max_length=20,
         choices=APPROVAL_STATUS_CHOICES,
@@ -1721,7 +1721,7 @@ class MovieAdminControl(models.Model):
         help_text="Lý do từ chối"
     )
 
-    # 👁️ VISIBILITY CONTROL
+    #  VISIBILITY CONTROL
     visibility_status = models.CharField(
         max_length=20,
         choices=VISIBILITY_STATUS_CHOICES,
@@ -1733,7 +1733,7 @@ class MovieAdminControl(models.Model):
         help_text="Hiển thị phim trên production"
     )
 
-    # ⭐ ADMIN FEATURES
+    #  ADMIN FEATURES
     admin_featured = models.BooleanField(
         default=False,
         help_text="Admin manually featured"
@@ -1747,7 +1747,7 @@ class MovieAdminControl(models.Model):
         help_text="Admin override settings"
     )
 
-    # 🎯 TARGETING & RESTRICTIONS
+    #  TARGETING & RESTRICTIONS
     target_regions = models.JSONField(
         default=list, blank=True,
         help_text="Danh sách regions hiển thị"
@@ -1761,7 +1761,7 @@ class MovieAdminControl(models.Model):
         help_text="Cảnh báo nội dung"
     )
 
-    # 📝 AUDIT TRAIL
+    #  AUDIT TRAIL
     created_by = models.ForeignKey(
         'users.User',
         on_delete=models.SET_NULL,
@@ -1777,7 +1777,7 @@ class MovieAdminControl(models.Model):
         help_text="Admin sửa đổi cuối"
     )
 
-    # 📅 TIMESTAMPS
+    #  TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

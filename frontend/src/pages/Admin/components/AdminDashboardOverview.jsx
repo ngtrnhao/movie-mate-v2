@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useState, useEffect } from 'react';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 import { useProductionMetrics } from '../../../hooks/useProductionMetrics';
 
@@ -172,19 +171,19 @@ const AdminDashboardOverview = () => {
 
   if (isDashboardLoading || isMetricsLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="size-12 animate-spin rounded-full border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
   if (dashboardError || metricsError) {
     return (
-      <div className="text-center py-8">
-        <div className="text-red-600 mb-4">{dashboardError || metricsError}</div>
+      <div className="py-8 text-center">
+        <div className="mb-4 text-red-600">{dashboardError || metricsError}</div>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
         >
           Thử lại
         </button>
@@ -195,8 +194,8 @@ const AdminDashboardOverview = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Section with Performance Info */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">Chào mừng, Admin! 👑</h2>
+      <div className="rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 p-6 text-white">
+        <h2 className="mb-2 text-2xl font-bold">Chào mừng, Admin! 👑</h2>
         <p className="text-purple-100">
           Tổng quan hệ thống quản trị Movie Recommendation - Dashboard load time: ~270ms
         </p>
@@ -206,8 +205,8 @@ const AdminDashboardOverview = () => {
       </div>
 
       {/* Movie Stats Overview (Real Data) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border-l-4 border-blue-500 bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Tổng phim</p>
@@ -215,14 +214,14 @@ const AdminDashboardOverview = () => {
                 {stats.contentStats.totalMovies?.toLocaleString() || '0'}
               </p>
             </div>
-            <div className="bg-blue-100 rounded-full p-3">
+            <div className="rounded-full bg-blue-100 p-3">
               <span className="text-2xl">🎬</span>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">Dữ liệu thực từ API</p>
+          <p className="mt-2 text-sm text-gray-500">Dữ liệu thực từ API</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+        <div className="rounded-lg border-l-4 border-green-500 bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Đã xuất bản</p>
@@ -230,14 +229,14 @@ const AdminDashboardOverview = () => {
                 {stats.contentStats.publishedMovies?.toLocaleString() || '0'}
               </p>
             </div>
-            <div className="bg-green-100 rounded-full p-3">
+            <div className="rounded-full bg-green-100 p-3">
               <span className="text-2xl">✅</span>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">Phim đang hoạt động</p>
+          <p className="mt-2 text-sm text-gray-500">Phim đang hoạt động</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
+        <div className="rounded-lg border-l-4 border-yellow-500 bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Admin Featured</p>
@@ -245,14 +244,14 @@ const AdminDashboardOverview = () => {
                 {stats.contentStats.adminFeatured?.toLocaleString() || '0'}
               </p>
             </div>
-            <div className="bg-yellow-100 rounded-full p-3">
+            <div className="rounded-full bg-yellow-100 p-3">
               <span className="text-2xl">⭐</span>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">Phim nổi bật</p>
+          <p className="mt-2 text-sm text-gray-500">Phim nổi bật</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
+        <div className="rounded-lg border-l-4 border-orange-500 bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Chờ duyệt</p>
@@ -260,17 +259,17 @@ const AdminDashboardOverview = () => {
                 {stats.contentStats.pendingModeration?.toLocaleString() || '0'}
               </p>
             </div>
-            <div className="bg-orange-100 rounded-full p-3">
+            <div className="rounded-full bg-orange-100 p-3">
               <span className="text-2xl">⏳</span>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">Cần xử lý</p>
+          <p className="mt-2 text-sm text-gray-500">Cần xử lý</p>
         </div>
       </div>
 
       {/* Recent Activity (Real Data) */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+      <div className="rounded-lg bg-white p-6 shadow-md">
+        <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
           <span className="mr-2">📋</span>
           Hoạt động gần đây (Dữ liệu thực)
         </h3>
@@ -295,18 +294,18 @@ const AdminDashboardOverview = () => {
               </div>
             ))
           ) : (
-            <p className="text-gray-500 text-center py-4">Không có hoạt động gần đây</p>
+            <p className="py-4 text-center text-gray-500">Không có hoạt động gần đây</p>
           )}
         </div>
       </div>
 
       {/* Performance Status */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-green-900 mb-2 flex items-center">
+      <div className="rounded-lg border border-green-200 bg-green-50 p-6">
+        <h3 className="mb-2 flex items-center text-lg font-semibold text-green-900">
           <span className="mr-2">🚀</span>
           Trạng thái hiệu suất hệ thống
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="text-center">
             <p className="text-2xl font-bold text-green-600">270ms</p>
             <p className="text-sm text-green-800">Dashboard Overview</p>

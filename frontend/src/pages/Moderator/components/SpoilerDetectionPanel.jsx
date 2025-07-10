@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   AlertTriangle,
   TrendingUp,
@@ -12,6 +12,7 @@ import {
   getSpoilerStatisticsOptimized,
   analyzeReviewSpoiler,
 } from '../../../api/movieService';
+import moderationCacheService from '../../../services/moderationCacheService';
 
 const SpoilerDetectionPanel = () => {
   const [statistics, setStatistics] = useState(null);
@@ -19,17 +20,24 @@ const SpoilerDetectionPanel = () => {
   const [error, setError] = useState(null);
   const [analyzingReview, setAnalyzingReview] = useState(null);
 
-  useEffect(() => {
-    fetchStatistics();
-  }, []);
-
-  const fetchStatistics = async () => {
+  // Optimized fetch function with caching
+  const fetchStatistics = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Try optimized API first
-      const data = await getSpoilerStatisticsOptimized();
+      // Use cache service for optimized spoiler statistics API
+      const data = await moderationCacheService.cachedApiCall(
+        'spoiler_statistics_optimized',
+        async () => await getSpoilerStatisticsOptimized(),
+        { days: 30 } // Default 30 days parameter
+      );
+
       setStatistics(data);
+
+      console.log('✅ Spoiler statistics loaded:', {
+        total_reviews: data.statistics?.total_reviews || 0,
+        fromCache: data.__fromCache || false,
+      });
     } catch (err) {
       console.error('Error with optimized API, trying fallback:', err);
       try {
@@ -43,13 +51,18 @@ const SpoilerDetectionPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
 
   const handleAnalyzeReview = async reviewId => {
     setAnalyzingReview(reviewId);
     try {
       const result = await analyzeReviewSpoiler(reviewId);
-      // Refresh statistics after analysis
+      // Invalidate cache and refresh statistics after analysis
+      moderationCacheService.invalidateCache('spoiler_statistics_optimized');
       await fetchStatistics();
       return result;
     } catch (err) {
@@ -68,17 +81,17 @@ const SpoilerDetectionPanel = () => {
   };
 
   const getConfidenceIcon = confidence => {
-    if (confidence > 0.8) return <AlertTriangle className="h-4 w-4 text-red-600" />;
-    if (confidence > 0.6) return <AlertTriangle className="h-4 w-4 text-orange-600" />;
-    if (confidence > 0.4) return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-    return <CheckCircle className="h-4 w-4 text-green-600" />;
+    if (confidence > 0.8) return <AlertTriangle className="size-4 text-red-600" />;
+    if (confidence > 0.6) return <AlertTriangle className="size-4 text-orange-600" />;
+    if (confidence > 0.4) return <AlertTriangle className="size-4 text-yellow-600" />;
+    return <CheckCircle className="size-4 text-green-600" />;
   };
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="rounded-lg bg-white p-6 shadow">
         <div className="flex items-center justify-center space-x-2">
-          <RefreshCw className="h-5 w-5 animate-spin text-blue-600" />
+          <RefreshCw className="size-5 animate-spin text-blue-600" />
           <span className="text-gray-600">Đang tải thống kê spoiler detection...</span>
         </div>
       </div>
@@ -87,13 +100,16 @@ const SpoilerDetectionPanel = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="rounded-lg bg-white p-6 shadow">
         <div className="flex items-center space-x-2 text-red-600">
-          <XCircle className="h-5 w-5" />
+          <XCircle className="size-5" />
           <span>{error}</span>
         </div>
         <button
-          onClick={fetchStatistics}
+          onClick={() => {
+            moderationCacheService.invalidateCache('spoiler_statistics_optimized');
+            fetchStatistics();
+          }}
           className="mt-2 text-sm text-blue-600 hover:text-blue-800"
         >
           Thử lại
@@ -104,7 +120,7 @@ const SpoilerDetectionPanel = () => {
 
   if (!statistics) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="rounded-lg bg-white p-6 shadow">
         <p className="text-gray-600">Không có dữ liệu thống kê</p>
       </div>
     );
@@ -113,7 +129,7 @@ const SpoilerDetectionPanel = () => {
   const { statistics: stats, total_reviews_analyzed } = statistics;
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="rounded-lg bg-white shadow">
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -122,10 +138,13 @@ const SpoilerDetectionPanel = () => {
             <p className="text-sm text-gray-500">Thống kê phát hiện spoiler trong reviews</p>
           </div>
           <button
-            onClick={fetchStatistics}
+            onClick={() => {
+              moderationCacheService.invalidateCache('spoiler_statistics_optimized');
+              fetchStatistics();
+            }}
             className="flex items-center space-x-2 rounded-md bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="size-4" />
             <span>Làm mới</span>
           </button>
         </div>
@@ -135,7 +154,7 @@ const SpoilerDetectionPanel = () => {
       <div className="p-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           {/* Total Reviews */}
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="rounded-lg bg-gray-50 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Tổng Reviews</p>
@@ -143,14 +162,14 @@ const SpoilerDetectionPanel = () => {
                   {stats.total_reviews?.toLocaleString() || 0}
                 </p>
               </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <TrendingUp className="h-6 w-6 text-blue-600" />
+              <div className="rounded-full bg-blue-100 p-3">
+                <TrendingUp className="size-6 text-blue-600" />
               </div>
             </div>
           </div>
 
           {/* Spoiler Count */}
-          <div className="bg-red-50 rounded-lg p-4">
+          <div className="rounded-lg bg-red-50 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-red-600">Reviews có Spoiler</p>
@@ -158,14 +177,14 @@ const SpoilerDetectionPanel = () => {
                   {stats.spoiler_count?.toLocaleString() || 0}
                 </p>
               </div>
-              <div className="bg-red-100 rounded-full p-3">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
+              <div className="rounded-full bg-red-100 p-3">
+                <AlertTriangle className="size-6 text-red-600" />
               </div>
             </div>
           </div>
 
           {/* Spoiler Percentage */}
-          <div className="bg-orange-50 rounded-lg p-4">
+          <div className="rounded-lg bg-orange-50 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-orange-600">Tỷ lệ Spoiler</p>
@@ -173,14 +192,14 @@ const SpoilerDetectionPanel = () => {
                   {stats.spoiler_percentage?.toFixed(1) || 0}%
                 </p>
               </div>
-              <div className="bg-orange-100 rounded-full p-3">
-                <TrendingDown className="h-6 w-6 text-orange-600" />
+              <div className="rounded-full bg-orange-100 p-3">
+                <TrendingDown className="size-6 text-orange-600" />
               </div>
             </div>
           </div>
 
           {/* Average Confidence */}
-          <div className="bg-green-50 rounded-lg p-4">
+          <div className="rounded-lg bg-green-50 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-600">Độ tin cậy TB</p>
@@ -188,8 +207,8 @@ const SpoilerDetectionPanel = () => {
                   {(stats.average_confidence * 100)?.toFixed(1) || 0}%
                 </p>
               </div>
-              <div className="bg-green-100 rounded-full p-3">
-                <CheckCircle className="h-6 w-6 text-green-600" />
+              <div className="rounded-full bg-green-100 p-3">
+                <CheckCircle className="size-6 text-green-600" />
               </div>
             </div>
           </div>
@@ -198,15 +217,15 @@ const SpoilerDetectionPanel = () => {
         {/* Detection Patterns */}
         {stats.detection_patterns && Object.keys(stats.detection_patterns).length > 0 && (
           <div className="mt-6">
-            <h4 className="text-md font-medium text-gray-900 mb-3">Mẫu phát hiện phổ biến</h4>
+            <h4 className="text-md mb-3 font-medium text-gray-900">Mẫu phát hiện phổ biến</h4>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {Object.entries(stats.detection_patterns)
                 .sort(([, a], [, b]) => b - a)
                 .slice(0, 6)
                 .map(([pattern, count]) => (
-                  <div key={pattern} className="bg-gray-50 rounded-lg p-3">
+                  <div key={pattern} className="rounded-lg bg-gray-50 p-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700 capitalize">
+                      <span className="text-sm font-medium capitalize text-gray-700">
                         {pattern.replace(/_/g, ' ')}
                       </span>
                       <span className="text-sm text-gray-500">{count} lần</span>
@@ -219,8 +238,8 @@ const SpoilerDetectionPanel = () => {
 
         {/* Recent Activity */}
         <div className="mt-6">
-          <h4 className="text-md font-medium text-gray-900 mb-3">Hoạt động gần đây</h4>
-          <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="text-md mb-3 font-medium text-gray-900">Hoạt động gần đây</h4>
+          <div className="rounded-lg bg-gray-50 p-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Reviews đã phân tích:</span>
@@ -246,21 +265,21 @@ const SpoilerDetectionPanel = () => {
 
         {/* Quick Actions */}
         <div className="mt-6">
-          <h4 className="text-md font-medium text-gray-900 mb-3">Hành động nhanh</h4>
+          <h4 className="text-md mb-3 font-medium text-gray-900">Hành động nhanh</h4>
           <div className="flex flex-wrap gap-3">
             <button
               onClick={fetchStatistics}
               className="flex items-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="size-4" />
               <span>Cập nhật thống kê</span>
             </button>
             <button className="flex items-center space-x-2 rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="size-4" />
               <span>Kiểm tra reviews mới</span>
             </button>
             <button className="flex items-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
-              <CheckCircle className="h-4 w-4" />
+              <CheckCircle className="size-4" />
               <span>Xem báo cáo chi tiết</span>
             </button>
           </div>

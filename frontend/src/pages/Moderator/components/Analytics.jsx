@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getModerationAnalytics,
   getAccuracySummary,
   getModerationConfig,
 } from '../../../api/movieService';
+import moderationCacheService from '../../../services/moderationCacheService';
 
 const Analytics = () => {
   const [timeRange, setTimeRange] = useState('week');
@@ -28,41 +29,66 @@ const Analytics = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setLoading(true);
-        const days = timeRangeToDays(timeRange);
-        const [analyticsData, accuracyDataRes, configDataRes] = await Promise.all([
-          getModerationAnalytics(days),
-          getAccuracySummary(days),
-          getModerationConfig(),
-        ]);
-        const analyticsObj = analyticsData.data || analyticsData;
-        const accuracyObj = accuracyDataRes.data || accuracyDataRes;
-        const configObj = configDataRes.data || configDataRes;
-        setAnalytics(analyticsObj);
-        setAccuracyData(accuracyObj);
-        setModerationConfig(configObj);
-        setError(null);
-        console.log('analytics', analyticsObj);
-        console.log('accuracyData', accuracyObj);
-        console.log('moderationConfig', configObj);
-      } catch (err) {
-        console.error('Error fetching analytics:', err);
-        setError('Không thể tải dữ liệu analytics');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Optimized fetch analytics with caching
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      const days = timeRangeToDays(timeRange);
 
-    fetchAnalytics();
+      // Use cache service for all three APIs
+      const [analyticsData, accuracyDataRes, configDataRes] = await Promise.all([
+        moderationCacheService.cachedApiCall(
+          'moderation_analytics',
+          async () => await getModerationAnalytics(days),
+          { days }
+        ),
+        moderationCacheService.cachedApiCall(
+          'accuracy_summary',
+          async () => await getAccuracySummary(),
+          {}
+        ),
+        moderationCacheService.cachedApiCall(
+          'moderation_config',
+          async () => await getModerationConfig(),
+          {}
+        ),
+      ]);
+
+      const analyticsObj = analyticsData.data || analyticsData;
+      const accuracyObj = accuracyDataRes.data || accuracyDataRes;
+      const configObj = configDataRes.data || configDataRes;
+
+      setAnalytics(analyticsObj);
+      setAccuracyData(accuracyObj);
+      setModerationConfig(configObj);
+      setError(null);
+
+      console.log('✅ Analytics data loaded:', {
+        analytics: analyticsObj?.summary?.total_feedback || 0,
+        accuracy: accuracyObj?.['7d']?.accuracy || 0,
+        config: configObj?.learning_enabled || false,
+        fromCache: {
+          analytics: analyticsData.__fromCache || false,
+          accuracy: accuracyDataRes.__fromCache || false,
+          config: configDataRes.__fromCache || false,
+        },
+      });
+    } catch (err) {
+      console.error('Error fetching analytics:', err);
+      setError('Không thể tải dữ liệu analytics');
+    } finally {
+      setLoading(false);
+    }
   }, [timeRange]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="size-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
         <span className="ml-2">Đang tải analytics...</span>
       </div>
     );
@@ -70,11 +96,16 @@ const Analytics = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
         <p className="text-red-800">{error}</p>
         <button
-          onClick={() => window.location.reload()}
-          className="mt-2 text-red-600 hover:text-red-800 text-sm underline"
+          onClick={() => {
+            moderationCacheService.invalidateCache('moderation_analytics');
+            moderationCacheService.invalidateCache('accuracy_summary');
+            moderationCacheService.invalidateCache('moderation_config');
+            fetchAnalytics();
+          }}
+          className="mt-2 text-sm text-red-600 underline hover:text-red-800"
         >
           Thử lại
         </button>
@@ -162,19 +193,23 @@ const Analytics = () => {
   return (
     <div className="space-y-6">
       {/* Time Range Selector */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Phân tích hiệu suất</h2>
         <div className="flex items-center space-x-4">
           {moderationConfig?.learning_enabled && (
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-sm text-green-600 font-medium">Learning System Active</span>
+              <div className="size-2 animate-pulse rounded-full bg-green-400"></div>
+              <span className="text-sm font-medium text-green-600">Learning System Active</span>
             </div>
           )}
           <select
             value={timeRange}
-            onChange={e => setTimeRange(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm text-black"
+            onChange={e => {
+              setTimeRange(e.target.value);
+              // Invalidate analytics cache when time range changes
+              moderationCacheService.invalidateCache('moderation_analytics');
+            }}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
           >
             <option className="text-black" value="week">
               Tuần này
@@ -193,13 +228,13 @@ const Analytics = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         {stats.map((stat, index) => (
-          <div key={index} className={`p-6 rounded-xl border ${getColorClasses(stat.color)}`}>
+          <div key={index} className={`rounded-xl border p-6 ${getColorClasses(stat.color)}`}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium opacity-75">{stat.title}</p>
-                <p className="text-3xl font-bold mt-2">{stat.value}</p>
+                <p className="mt-2 text-3xl font-bold">{stat.value}</p>
               </div>
               <div className="text-3xl">{stat.icon}</div>
             </div>
@@ -211,7 +246,7 @@ const Analytics = () => {
               >
                 {stat.change}
               </span>
-              <span className="text-xs opacity-75 ml-1">so với kỳ trước</span>
+              <span className="ml-1 text-xs opacity-75">so với kỳ trước</span>
             </div>
           </div>
         ))}
@@ -219,11 +254,11 @@ const Analytics = () => {
 
       {/* Learning System Performance */}
       {moderationConfig?.learning_enabled && analytics?.accuracy_metrics && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Hiệu suất Learning System</h3>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">Hiệu suất Learning System</h3>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Precision</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-bold text-gray-900">
@@ -231,15 +266,15 @@ const Analytics = () => {
                       ? (analytics.accuracy_metrics.precision * 100).toFixed(1) + '%'
                       : '0%'}
                   </span>
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
+                  <div className="h-2 w-24 rounded-full bg-gray-200">
                     <div
-                      className="bg-blue-600 h-2 rounded-full"
+                      className="h-2 rounded-full bg-blue-600"
                       style={{ width: `${(analytics.accuracy_metrics.precision || 0) * 100}%` }}
                     />
                   </div>
                 </div>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Recall</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-bold text-gray-900">
@@ -247,15 +282,15 @@ const Analytics = () => {
                       ? (analytics.accuracy_metrics.recall * 100).toFixed(1) + '%'
                       : '0%'}
                   </span>
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
+                  <div className="h-2 w-24 rounded-full bg-gray-200">
                     <div
-                      className="bg-green-600 h-2 rounded-full"
+                      className="h-2 rounded-full bg-green-600"
                       style={{ width: `${(analytics.accuracy_metrics.recall || 0) * 100}%` }}
                     />
                   </div>
                 </div>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">F1 Score</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-bold text-gray-900">
@@ -263,9 +298,9 @@ const Analytics = () => {
                       ? (analytics.accuracy_metrics.f1_score * 100).toFixed(1) + '%'
                       : '0%'}
                   </span>
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
+                  <div className="h-2 w-24 rounded-full bg-gray-200">
                     <div
-                      className="bg-purple-600 h-2 rounded-full"
+                      className="h-2 rounded-full bg-purple-600"
                       style={{ width: `${(analytics.accuracy_metrics.f1_score || 0) * 100}%` }}
                     />
                   </div>
@@ -274,8 +309,8 @@ const Analytics = () => {
             </div>
 
             {/* Current Thresholds */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">Current Thresholds</h4>
+            <div className="mt-6 border-t border-gray-200 pt-4">
+              <h4 className="mb-3 text-sm font-semibold text-gray-700">Current Thresholds</h4>
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-xs text-gray-700">Auto Mark:</span>
@@ -299,11 +334,11 @@ const Analytics = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Learning Metrics</h3>
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">Learning Metrics</h3>
             <div className="space-y-4">
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-2">
+              <div className="rounded-lg bg-blue-50 p-4">
+                <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-medium text-blue-800">Total Feedback</span>
                   <span className="text-lg font-bold text-blue-900">
                     {analytics?.accuracy_metrics?.total_feedback || 0}
@@ -313,8 +348,8 @@ const Analytics = () => {
                   Minimum needed: {analytics?.configuration?.min_feedback_count || 0}
                 </div>
               </div>
-              <div className="bg-green-50 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-2">
+              <div className="rounded-lg bg-green-50 p-4">
+                <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-medium text-green-800">Successful Adjustments</span>
                   <span className="text-lg font-bold text-green-900">
                     {analytics?.learning_status?.effectiveness?.improvement !== undefined
@@ -326,8 +361,8 @@ const Analytics = () => {
                   Learning rate: {analytics?.configuration?.learning_rate || 0}
                 </div>
               </div>
-              <div className="bg-yellow-50 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-2">
+              <div className="rounded-lg bg-yellow-50 p-4">
+                <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-medium text-yellow-800">False Positives</span>
                   <span className="text-lg font-bold text-yellow-900">
                     {analytics?.accuracy_metrics?.false_positives || 0}
@@ -344,10 +379,10 @@ const Analytics = () => {
       )}
 
       {/* Charts and Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Processing Trend */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Xu hướng xử lý</h3>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-semibold text-gray-900">Xu hướng xử lý</h3>
           <div className="space-y-4">
             {analytics?.accuracy_metrics?.trends?.weekly_accuracy?.length > 0 ? (
               analytics.accuracy_metrics.trends.weekly_accuracy.map((item, index) => (
@@ -359,32 +394,32 @@ const Analytics = () => {
                 </div>
               ))
             ) : (
-              <div className="text-center text-gray-500 py-4">Chưa có dữ liệu trend</div>
+              <div className="py-4 text-center text-gray-500">Chưa có dữ liệu trend</div>
             )}
           </div>
         </div>
 
         {/* Top Detection Categories */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Loại phát hiện phổ biến</h3>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-semibold text-gray-900">Loại phát hiện phổ biến</h3>
           <div className="space-y-4">
             {analytics?.detection_categories?.map((category, index) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="mb-1 flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">{category.type}</span>
                     <span className="text-sm text-gray-500">{category.count} trường hợp</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="h-2 w-full rounded-full bg-gray-200">
                     <div
-                      className="bg-red-600 h-2 rounded-full"
+                      className="h-2 rounded-full bg-red-600"
                       style={{ width: `${category.percentage}%` }}
                     ></div>
                   </div>
                 </div>
               </div>
             )) || (
-              <div className="text-center text-gray-500 py-4">
+              <div className="py-4 text-center text-gray-500">
                 Chưa có dữ liệu detection categories
               </div>
             )}
@@ -393,38 +428,38 @@ const Analytics = () => {
       </div>
 
       {/* Moderator Performance */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Hiệu suất Moderator</h3>
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 text-lg font-semibold text-gray-900">Hiệu suất Moderator</h3>
         <div className="overflow-x-auto">
           {analytics?.accuracy_metrics?.moderator_performance?.length > 0 ? (
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700">
                     Moderator
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700">
                     Đã xử lý
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700">
                     Độ chính xác
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-700">
                     Thời gian TB
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {analytics.accuracy_metrics.moderator_performance.map((mod, idx) => (
                   <tr key={idx}>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">{mod.moderator}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                    <td className="whitespace-nowrap px-6 py-4 text-gray-900">{mod.moderator}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-gray-900">
                       {mod.total_feedback}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                    <td className="whitespace-nowrap px-6 py-4 text-gray-900">
                       {(mod.accuracy * 100).toFixed(1)}%
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                    <td className="whitespace-nowrap px-6 py-4 text-gray-900">
                       {mod.avg_time_seconds}s
                     </td>
                   </tr>
@@ -432,7 +467,7 @@ const Analytics = () => {
               </tbody>
             </table>
           ) : (
-            <div className="text-center text-gray-500 py-4">
+            <div className="py-4 text-center text-gray-500">
               Chưa có dữ liệu moderator performance
             </div>
           )}
@@ -440,20 +475,20 @@ const Analytics = () => {
       </div>
 
       {/* Export Options */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Xuất báo cáo</h3>
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 text-lg font-semibold text-gray-900">Xuất báo cáo</h3>
         <div className="flex space-x-4">
-          <button className="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700">
+          <button className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700">
             📊 Xuất PDF
           </button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
+          <button className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">
             📈 Xuất Excel
           </button>
-          <button className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700">
+          <button className="rounded-md bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700">
             📋 Báo cáo chi tiết
           </button>
           {moderationConfig?.learning_enabled && (
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">
+            <button className="rounded-md bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700">
               🧠 Learning Report
             </button>
           )}

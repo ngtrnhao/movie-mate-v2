@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   CheckCircle,
   AlertTriangle,
@@ -6,10 +5,8 @@ import {
   Shield,
   Flag,
   UserCheck,
-  Eye,
   EyeOff,
   Zap,
-  Star,
 } from 'lucide-react';
 
 const ReviewClassificationInfo = ({
@@ -110,15 +107,15 @@ const ReviewClassificationInfo = ({
   return (
     <div className={`${config.bgColor} border ${config.borderColor} rounded-lg p-4 ${className}`}>
       <div className="flex items-start space-x-3">
-        <IconComponent className={`h-5 w-5 ${config.color} flex-shrink-0 mt-0.5`} />
+        <IconComponent className={`size-5 ${config.color} mt-0.5 shrink-0`} />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center justify-between">
             <h4 className={`text-sm font-medium ${config.color}`}>{config.title}</h4>
 
             {/* Confidence indicator */}
             <div className="flex items-center space-x-2">
-              <div className="w-16 bg-gray-200 rounded-full h-2">
+              <div className="h-2 w-16 rounded-full bg-gray-200">
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ${
                     confidence > 0.8
@@ -136,14 +133,14 @@ const ReviewClassificationInfo = ({
             </div>
           </div>
 
-          <p className="text-sm text-gray-700 mb-3">{config.description}</p>
+          <p className="mb-3 text-sm text-gray-700">{config.description}</p>
 
           {/* Classification details */}
           <div className="space-y-2">
             {/* Reason */}
             <div className="flex items-center space-x-2">
               <span className="text-xs font-medium text-gray-600">Lý do:</span>
-              <span className="text-xs text-gray-800 capitalize">
+              <span className="text-xs capitalize text-gray-800">
                 {classification.reason?.replace(/_/g, ' ')}
               </span>
             </div>
@@ -153,7 +150,7 @@ const ReviewClassificationInfo = ({
               <div className="flex items-center space-x-2">
                 <span className="text-xs font-medium text-gray-600">Ưu tiên:</span>
                 <div className="flex items-center space-x-1">
-                  <priorityConfig.icon className={`h-3 w-3 ${priorityConfig.color}`} />
+                  <priorityConfig.icon className={`size-3 ${priorityConfig.color}`} />
                   <span className={`text-xs ${priorityConfig.color} font-medium`}>
                     {priorityConfig.label}
                   </span>
@@ -164,8 +161,8 @@ const ReviewClassificationInfo = ({
             {/* Auto actions */}
             {classification.autoMarkAsSpoiler && (
               <div className="flex items-center space-x-2">
-                <EyeOff className="h-3 w-3 text-orange-600" />
-                <span className="text-xs text-orange-600 font-medium">
+                <EyeOff className="size-3 text-orange-600" />
+                <span className="text-xs font-medium text-orange-600">
                   Tự động đánh dấu là spoiler
                 </span>
               </div>
@@ -173,8 +170,8 @@ const ReviewClassificationInfo = ({
 
             {classification.flagForReview && (
               <div className="flex items-center space-x-2">
-                <Flag className="h-3 w-3 text-yellow-600" />
-                <span className="text-xs text-yellow-600 font-medium">
+                <Flag className="size-3 text-yellow-600" />
+                <span className="text-xs font-medium text-yellow-600">
                   Được đánh dấu để kiểm tra sau
                 </span>
               </div>
@@ -183,8 +180,8 @@ const ReviewClassificationInfo = ({
             {/* Suggested action */}
             {classification.suggestedAction && (
               <div className="flex items-center space-x-2">
-                <UserCheck className="h-3 w-3 text-blue-600" />
-                <span className="text-xs text-blue-600 font-medium">
+                <UserCheck className="size-3 text-blue-600" />
+                <span className="text-xs font-medium text-blue-600">
                   Gợi ý:{' '}
                   {classification.suggestedAction === 'mark_as_spoiler'
                     ? 'Đánh dấu là spoiler'
@@ -198,10 +195,10 @@ const ReviewClassificationInfo = ({
           <div className="mt-4 flex items-center space-x-2">
             {classification.action === 'user_confirmation' && (
               <>
-                <button className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
+                <button className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700">
                   Xác nhận là spoiler
                 </button>
-                <button className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors">
+                <button className="rounded-md bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-300">
                   Không phải spoiler
                 </button>
               </>
@@ -209,14 +206,14 @@ const ReviewClassificationInfo = ({
 
             {classification.action === 'moderation_required' && (
               <div className="flex items-center space-x-2 text-xs text-orange-600">
-                <Shield className="h-3 w-3" />
+                <Shield className="size-3" />
                 <span>Review sẽ được gửi đến Moderator để kiểm tra</span>
               </div>
             )}
 
             {classification.action === 'auto_approve' && (
               <div className="flex items-center space-x-2 text-xs text-green-600">
-                <CheckCircle className="h-3 w-3" />
+                <CheckCircle className="size-3" />
                 <span>Review sẽ được tự động phê duyệt</span>
               </div>
             )}

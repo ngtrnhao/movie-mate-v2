@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ExclamationTriangleIcon,
   FlagIcon,
-  UserIcon,
   ClockIcon,
   CheckIcon,
   XMarkIcon,
   EyeIcon,
-  FunnelIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { getReviewReports, moderateReview } from '../../../api/movieService';
@@ -206,8 +204,8 @@ const ReportsList = ({ isAdmin }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="size-12 animate-spin rounded-full border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -215,37 +213,37 @@ const ReportsList = ({ isAdmin }) => {
   return (
     <div className="space-y-6">
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="rounded-lg border-l-4 border-red-500 bg-white p-4 shadow">
           <div className="flex items-center">
-            <FlagIcon className="w-6 h-6 text-red-600 mr-3" />
+            <FlagIcon className="mr-3 size-6 text-red-600" />
             <div>
               <p className="text-sm font-medium text-gray-600">Tổng báo cáo</p>
               <p className="text-2xl font-bold text-gray-900">{stats.total_reported_reviews}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+        <div className="rounded-lg border-l-4 border-red-500 bg-white p-4 shadow">
           <div className="flex items-center">
-            <ExclamationTriangleIcon className="w-6 h-6 text-red-600 mr-3" />
+            <ExclamationTriangleIcon className="mr-3 size-6 text-red-600" />
             <div>
               <p className="text-sm font-medium text-gray-600">Ưu tiên cao</p>
               <p className="text-2xl font-bold text-gray-900">{stats.high_priority}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+        <div className="rounded-lg border-l-4 border-yellow-500 bg-white p-4 shadow">
           <div className="flex items-center">
-            <ClockIcon className="w-6 h-6 text-yellow-600 mr-3" />
+            <ClockIcon className="mr-3 size-6 text-yellow-600" />
             <div>
               <p className="text-sm font-medium text-gray-600">Ưu tiên trung bình</p>
               <p className="text-2xl font-bold text-gray-900">{stats.medium_priority}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+        <div className="rounded-lg border-l-4 border-green-500 bg-white p-4 shadow">
           <div className="flex items-center">
-            <CheckIcon className="w-6 h-6 text-green-600 mr-3" />
+            <CheckIcon className="mr-3 size-6 text-green-600" />
             <div>
               <p className="text-sm font-medium text-gray-600">Ưu tiên thấp</p>
               <p className="text-2xl font-bold text-gray-900">{stats.low_priority}</p>
@@ -255,28 +253,28 @@ const ReportsList = ({ isAdmin }) => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="rounded-lg bg-white p-4 shadow">
+        <div className="flex flex-col gap-4 md:flex-row">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-blue-700 mb-1">Tìm kiếm</label>
+            <label className="mb-1 block text-sm font-medium text-blue-700">Tìm kiếm</label>
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-blue-400" />
               <input
                 type="text"
                 placeholder="Tìm kiếm báo cáo..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
           <div className="flex gap-2">
             <div>
-              <label className="block text-sm font-medium text-blue-700 mb-1">Lý do</label>
+              <label className="mb-1 block text-sm font-medium text-blue-700">Lý do</label>
               <select
                 value={filters.reason}
                 onChange={e => setFilters({ ...filters, reason: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all" className="text-gray-900">
                   Tất cả lý do
@@ -299,11 +297,11 @@ const ReportsList = ({ isAdmin }) => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-blue-700 mb-1">Ưu tiên</label>
+              <label className="mb-1 block text-sm font-medium text-blue-700">Ưu tiên</label>
               <select
                 value={filters.priority}
                 onChange={e => setFilters({ ...filters, priority: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all" className="text-gray-900">
                   Tất cả ưu tiên
@@ -320,11 +318,11 @@ const ReportsList = ({ isAdmin }) => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-blue-700 mb-1">Trạng thái</label>
+              <label className="mb-1 block text-sm font-medium text-blue-700">Trạng thái</label>
               <select
                 value={filters.status}
                 onChange={e => setFilters({ ...filters, status: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all" className="text-gray-900">
                   Tất cả trạng thái
@@ -342,8 +340,8 @@ const ReportsList = ({ isAdmin }) => {
       </div>
 
       {/* Reports List */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="rounded-lg bg-white shadow">
+        <div className="border-b border-gray-200 px-6 py-4">
           <h3 className="text-lg font-medium text-gray-900">
             Danh sách báo cáo ({filteredReports.length})
           </h3>
@@ -351,20 +349,20 @@ const ReportsList = ({ isAdmin }) => {
         <div className="divide-y divide-gray-200">
           {filteredReports.length === 0 ? (
             <div className="px-6 py-8 text-center">
-              <FlagIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <FlagIcon className="mx-auto mb-4 size-12 text-gray-400" />
               <p className="text-gray-500">Không có báo cáo nào</p>
             </div>
           ) : (
             filteredReports.map(report => (
-              <div key={report.id} className="p-6 hover:bg-gray-50 transition-colors">
+              <div key={report.id} className="p-6 transition-colors hover:bg-gray-50">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="mb-2 flex items-center gap-3">
                       <h4 className="text-lg font-medium text-gray-900">
                         {generateReportTitle(report)}
                       </h4>
                       <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(report.report_summary?.priority)}`}
+                        className={`rounded-full border px-2 py-1 text-xs font-medium ${getPriorityColor(report.report_summary?.priority)}`}
                       >
                         {report.report_summary?.priority === 'high'
                           ? 'Cao'
@@ -374,10 +372,10 @@ const ReportsList = ({ isAdmin }) => {
                       </span>
                     </div>
 
-                    <div className="text-sm text-gray-600 mb-3">
+                    <div className="mb-3 text-sm text-gray-600">
                       <div className="mb-2">
                         <strong>Nội dung:</strong>
-                        <div className="mt-1 p-3 bg-gray-50 rounded-lg whitespace-pre-wrap text-gray-700">
+                        <div className="mt-1 whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-gray-700">
                           {isContentExpanded(report.id)
                             ? report.content || 'Không có nội dung'
                             : report.content?.length > 300
@@ -387,7 +385,7 @@ const ReportsList = ({ isAdmin }) => {
                         {report.content && report.content.length > 300 && (
                           <button
                             onClick={() => toggleContentExpansion(report.id)}
-                            className="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-800"
                           >
                             {isContentExpanded(report.id) ? 'Thu gọn' : 'Xem thêm'}
                           </button>
@@ -409,11 +407,11 @@ const ReportsList = ({ isAdmin }) => {
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="mb-4 flex flex-wrap gap-2">
                       {report.report_summary?.unique_reasons?.map(reason => (
                         <span
                           key={reason}
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getReasonColor(reason)}`}
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${getReasonColor(reason)}`}
                         >
                           {reason === 'offensive'
                             ? 'Xúc phạm'
@@ -434,7 +432,7 @@ const ReportsList = ({ isAdmin }) => {
                       <span>Tạo lúc: {formatDate(report.created_at)}</span>
                       {report.is_approved !== null && (
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${
                             report.is_approved
                               ? 'bg-green-100 text-green-700'
                               : 'bg-red-100 text-red-700'
@@ -446,26 +444,26 @@ const ReportsList = ({ isAdmin }) => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 ml-4">
+                  <div className="ml-4 flex flex-col gap-2">
                     <button
                       onClick={() => handleModerate(report.id, 'approve')}
-                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                     >
-                      <CheckIcon className="w-4 h-4 mr-1" />
+                      <CheckIcon className="mr-1 size-4" />
                       Duyệt
                     </button>
                     <button
                       onClick={() => handleModerate(report.id, 'reject')}
-                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                     >
-                      <XMarkIcon className="w-4 h-4 mr-1" />
+                      <XMarkIcon className="mr-1 size-4" />
                       Từ chối
                     </button>
                     <button
                       onClick={() => window.open(`/movies/${report.movie?.id}`, '_blank')}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     >
-                      <EyeIcon className="w-4 h-4 mr-1" />
+                      <EyeIcon className="mr-1 size-4" />
                       Xem
                     </button>
                   </div>
@@ -478,7 +476,7 @@ const ReportsList = ({ isAdmin }) => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
+        <div className="flex items-center justify-between rounded-lg bg-white px-6 py-4 shadow">
           <div className="text-sm text-gray-700">
             Trang {currentPage} của {totalPages}
           </div>
@@ -486,14 +484,14 @@ const ReportsList = ({ isAdmin }) => {
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Trước
             </button>
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Sau
             </button>

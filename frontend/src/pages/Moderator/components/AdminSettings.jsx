@@ -60,17 +60,17 @@ const AdminSettings = () => {
         return <SystemSettings />;
       case 'users':
         return (
-          <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
-            <UsersIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">User Management</h3>
+          <div className="rounded-lg border bg-white p-8 text-center shadow-sm">
+            <UsersIcon className="mx-auto mb-4 size-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-medium text-gray-900">User Management</h3>
             <p className="text-gray-600">Tính năng quản lý người dùng đang được phát triển</p>
           </div>
         );
       case 'analytics':
         return (
-          <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
-            <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Analytics Settings</h3>
+          <div className="rounded-lg border bg-white p-8 text-center shadow-sm">
+            <ChartBarIcon className="mx-auto mb-4 size-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-medium text-gray-900">Analytics Settings</h3>
             <p className="text-gray-600">Cài đặt analytics đang được phát triển</p>
           </div>
         );
@@ -103,10 +103,10 @@ const AdminSettings = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex items-center space-x-3">
-          <div className="p-2 bg-indigo-100 rounded-lg">
-            <CogIcon className="h-6 w-6 text-indigo-600" />
+          <div className="rounded-lg bg-indigo-100 p-2">
+            <CogIcon className="size-6 text-indigo-600" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Admin Settings</h1>
@@ -116,7 +116,7 @@ const AdminSettings = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      <div className="rounded-lg border bg-white shadow-sm">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
             {tabs.map(tab => {
@@ -127,14 +127,14 @@ const AdminSettings = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  className={`border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
                     isActive
                       ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                   }`}
                 >
                   <div className="flex items-center space-x-2">
-                    <Icon className="h-5 w-5" />
+                    <Icon className="size-5" />
                     <span className={isActive ? 'text-indigo-600' : 'text-gray-700'}>
                       {tab.label}
                     </span>
@@ -146,7 +146,7 @@ const AdminSettings = () => {
         </div>
 
         {/* Tab Description */}
-        <div className="px-6 py-3 bg-gray-50">
+        <div className="bg-gray-50 px-6 py-3">
           <p className="text-sm text-gray-600">
             {tabs.find(tab => tab.id === activeTab)?.description}
           </p>

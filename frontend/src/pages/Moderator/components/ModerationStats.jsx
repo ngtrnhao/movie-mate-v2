@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getCommunityStats } from '../../../api/movieService';
 
 const ModerationStats = () => {
@@ -29,10 +29,10 @@ const ModerationStats = () => {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="mb-6 h-4 w-1/4 rounded bg-gray-200"></div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-gray-200 h-32 rounded-lg"></div>
+              <div key={i} className="h-32 rounded-lg bg-gray-200"></div>
             ))}
           </div>
         </div>
@@ -43,10 +43,10 @@ const ModerationStats = () => {
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4">
           <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <div className="shrink-0">
+              <svg className="size-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -73,17 +73,17 @@ const ModerationStats = () => {
   }
 
   const StatCard = ({ title, value, icon, color, description }) => (
-    <div className="bg-white overflow-hidden shadow rounded-lg">
+    <div className="overflow-hidden rounded-lg bg-white shadow">
       <div className="p-5">
         <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <div className={`w-8 h-8 rounded-md flex items-center justify-center ${color}`}>
-              <span className="text-white text-lg">{icon}</span>
+          <div className="shrink-0">
+            <div className={`flex size-8 items-center justify-center rounded-md ${color}`}>
+              <span className="text-lg text-white">{icon}</span>
             </div>
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-gray-500 truncate">{title}</dt>
+              <dt className="truncate text-sm font-medium text-gray-500">{title}</dt>
               <dd className="text-lg font-medium text-gray-900">{value}</dd>
               {description && <dd className="text-sm text-gray-500">{description}</dd>}
             </dl>
@@ -96,12 +96,12 @@ const ModerationStats = () => {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Thống kê kiểm duyệt</h2>
+        <h2 className="mb-2 text-2xl font-bold text-gray-900">Thống kê kiểm duyệt</h2>
         <p className="text-gray-600">Thống kê hoạt động kiểm duyệt nội dung</p>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
         <StatCard
           title="Review mới (30 ngày)"
           value={stats.new_reviews_30d?.toLocaleString() || '0'}
@@ -126,9 +126,9 @@ const ModerationStats = () => {
       </div>
 
       {/* Language Distribution */}
-      <div className="bg-white shadow rounded-lg mb-8">
+      <div className="mb-8 rounded-lg bg-white shadow">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+          <h3 className="mb-4 text-lg font-medium leading-6 text-gray-900">
             Review theo ngôn ngữ (30 ngày)
           </h3>
           <div className="space-y-3">
@@ -142,13 +142,13 @@ const ModerationStats = () => {
                       : lang.language.toUpperCase()}
                 </span>
                 <div className="flex items-center">
-                  <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                  <div className="mr-3 h-2 w-32 rounded-full bg-gray-200">
                     <div
-                      className="bg-blue-600 h-2 rounded-full"
+                      className="h-2 rounded-full bg-blue-600"
                       style={{ width: `${Math.min((lang.count / 10) * 100, 100)}%` }}
                     ></div>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900 w-8 text-right">
+                  <span className="w-8 text-right text-sm font-semibold text-gray-900">
                     {lang.count}
                   </span>
                 </div>
@@ -156,7 +156,7 @@ const ModerationStats = () => {
             ))}
           </div>
           {(!stats.reviews_by_language || stats.reviews_by_language.length === 0) && (
-            <div className="text-center py-8">
+            <div className="py-8 text-center">
               <p className="text-gray-500">Không có dữ liệu review theo ngôn ngữ</p>
             </div>
           )}
@@ -164,38 +164,38 @@ const ModerationStats = () => {
       </div>
 
       {/* Moderation Activity */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="rounded-lg bg-white shadow">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Hoạt động kiểm duyệt</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <h3 className="mb-4 text-lg font-medium leading-6 text-gray-900">Hoạt động kiểm duyệt</h3>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600 mb-2">
+              <div className="mb-2 text-3xl font-bold text-green-600">
                 {stats.new_reviews_30d || '0'}
               </div>
               <div className="text-sm text-gray-500">Review cần kiểm duyệt</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600 mb-2">
+              <div className="mb-2 text-3xl font-bold text-blue-600">
                 {stats.moderation_actions || '0'}
               </div>
               <div className="text-sm text-gray-500">Hành động đã thực hiện</div>
             </div>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Hướng dẫn kiểm duyệt</h4>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <ul className="text-sm text-gray-600 space-y-2">
+          <div className="mt-6 border-t border-gray-200 pt-6">
+            <h4 className="mb-3 text-sm font-medium text-gray-900">Hướng dẫn kiểm duyệt</h4>
+            <div className="rounded-lg bg-gray-50 p-4">
+              <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-start">
-                  <span className="text-green-500 mr-2">✓</span>
+                  <span className="mr-2 text-green-500">✓</span>
                   <span>Phê duyệt review có nội dung chất lượng, không vi phạm</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-red-500 mr-2">✗</span>
+                  <span className="mr-2 text-red-500">✗</span>
                   <span>Từ chối review spam, quảng cáo, hoặc nội dung không phù hợp</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-yellow-500 mr-2">⚠</span>
+                  <span className="mr-2 text-yellow-500">⚠</span>
                   <span>Chú ý review có tỷ lệ hữu ích thấp, có thể cần kiểm tra thêm</span>
                 </li>
               </ul>

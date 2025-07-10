@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getCommunityStats } from '../../../api/movieService';
 
 const UserManagement = () => {
@@ -87,8 +87,8 @@ const UserManagement = () => {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="bg-gray-200 h-64 rounded-lg"></div>
+          <div className="mb-6 h-4 w-1/4 rounded bg-gray-200"></div>
+          <div className="h-64 rounded-lg bg-gray-200"></div>
         </div>
       </div>
     );
@@ -97,10 +97,10 @@ const UserManagement = () => {
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4">
           <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <div className="shrink-0">
+              <svg className="size-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -121,19 +121,19 @@ const UserManagement = () => {
   const getRoleBadge = user => {
     if (user.groups?.includes('Administrators')) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+        <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
           Admin
         </span>
       );
     } else if (user.groups?.includes('Moderators')) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
           Moderator
         </span>
       );
     } else {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
           User
         </span>
       );
@@ -151,7 +151,7 @@ const UserManagement = () => {
     const type = typeMap[userType] || { label: userType, color: 'bg-gray-100 text-gray-800' };
     return (
       <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${type.color}`}
+        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${type.color}`}
       >
         {type.label}
       </span>
@@ -161,26 +161,26 @@ const UserManagement = () => {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Quản lý người dùng</h2>
+        <h2 className="mb-2 text-2xl font-bold text-gray-900">Quản lý người dùng</h2>
         <p className="text-gray-600">Quản lý tài khoản người dùng và phân quyền</p>
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row">
         <div className="flex-1">
           <input
             type="text"
             placeholder="Tìm kiếm theo tên hoặc email..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           />
         </div>
         <div className="sm:w-48">
           <select
             value={filterRole}
             onChange={e => setFilterRole(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           >
             <option value="all">Tất cả vai trò</option>
             <option value="admin">Admin</option>
@@ -191,16 +191,16 @@ const UserManagement = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="overflow-hidden bg-white shadow sm:rounded-md">
         <ul className="divide-y divide-gray-200">
           {filteredUsers.map(user => (
             <li key={user.id}>
-              <div className="px-4 py-4 sm:px-6">
+              <div className="p-4 sm:px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10">
+                    <div className="size-10 shrink-0">
                       <img
-                        className="h-10 w-10 rounded-full"
+                        className="size-10 rounded-full"
                         src={user.avatar_url || '/images/avatar_default.jpg'}
                         alt=""
                       />
@@ -225,7 +225,7 @@ const UserManagement = () => {
                         setSelectedUser(user);
                         setShowModal(true);
                       }}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-3 py-1 text-sm font-medium leading-4 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
                       Chỉnh sửa
                     </button>
@@ -238,22 +238,22 @@ const UserManagement = () => {
       </div>
 
       {filteredUsers.length === 0 && (
-        <div className="text-center py-12">
+        <div className="py-12 text-center">
           <p className="text-gray-500">Không tìm thấy người dùng nào</p>
         </div>
       )}
 
       {/* Role Change Modal */}
       {showModal && selectedUser && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 z-50 size-full overflow-y-auto bg-gray-600 bg-opacity-50">
+          <div className="relative top-20 mx-auto w-96 rounded-md border bg-white p-5 shadow-lg">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+              <h3 className="mb-4 text-lg font-medium text-gray-900">
                 Thay đổi vai trò cho {selectedUser.username}
               </h3>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
                     Vai trò hiện tại
                   </label>
                   <div className="text-sm text-gray-500">
@@ -265,11 +265,11 @@ const UserManagement = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
                     Vai trò mới
                   </label>
                   <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
                     defaultValue=""
                   >
                     <option value="" disabled>
@@ -281,16 +281,16 @@ const UserManagement = () => {
                   </select>
                 </div>
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="mt-6 flex justify-end space-x-3">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  className="rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                 >
                   Hủy
                 </button>
                 <button
                   onClick={() => handleRoleChange(selectedUser.id, 'moderator')}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   Cập nhật
                 </button>

@@ -23,11 +23,11 @@ const RatingDistribution = ({ distribution }) => {
   const totalRatings = stars.reduce((sum, star) => sum + (distribution[`${star}_star`] || 0), 0);
 
   return (
-    <div className="mt-4 p-4 bg-gray-800 rounded-lg">
-      <div className="flex items-center gap-2 mb-4">
-        <BarChart className="w-5 h-5 text-blue-400" />
-        <h3 className="text-gray-200 font-medium">Rating Distribution</h3>
-        <span className="text-gray-400 text-sm ml-auto">{totalRatings} total</span>
+    <div className="mt-4 rounded-lg bg-gray-800 p-4">
+      <div className="mb-4 flex items-center gap-2">
+        <BarChart className="size-5 text-blue-400" />
+        <h3 className="font-medium text-gray-200">Rating Distribution</h3>
+        <span className="ml-auto text-sm text-gray-400">{totalRatings} total</span>
       </div>
 
       <div className="space-y-3">
@@ -36,25 +36,25 @@ const RatingDistribution = ({ distribution }) => {
           const percentage = totalRatings > 0 ? (count / totalRatings) * 100 : 0;
 
           return (
-            <div key={star} className="grid grid-cols-12 gap-2 items-center">
+            <div key={star} className="grid grid-cols-12 items-center gap-2">
               {/* Star Rating */}
               <div className="col-span-2 flex items-center text-sm">
                 <span className="text-yellow-400">{star}</span>
-                <Star className="w-4 h-4 text-yellow-400 ml-1" />
+                <Star className="ml-1 size-4 text-yellow-400" />
               </div>
 
               {/* Progress Bar */}
-              <div className="col-span-8 h-4 bg-gray-700 rounded-full overflow-hidden">
+              <div className="col-span-8 h-4 overflow-hidden rounded-full bg-gray-700">
                 <div
-                  className="h-full bg-yellow-400/80 rounded-full transition-all duration-300"
+                  className="h-full rounded-full bg-yellow-400/80 transition-all duration-300"
                   style={{ width: `${percentage}%` }}
                 />
               </div>
 
               {/* Count & Percentage */}
               <div className="col-span-2 text-right">
-                <span className="text-gray-300 text-sm">{count}</span>
-                <span className="text-gray-500 text-xs ml-1">({percentage.toFixed(0)}%)</span>
+                <span className="text-sm text-gray-300">{count}</span>
+                <span className="ml-1 text-xs text-gray-500">({percentage.toFixed(0)}%)</span>
               </div>
             </div>
           );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   AlertTriangle,
   CheckCircle,
@@ -13,12 +13,13 @@ import {
 } from 'lucide-react';
 import {
   getModerationQueue,
-  getModerationQueueOptimized,
   moderateReview,
   bulkModerateReviews,
-  analyzeReviewSpoiler,
   detectSpoilers,
+  analyzeReviewSpoiler,
+  getModerationQueueOptimized,
 } from '../../../api/movieService';
+import moderationCacheService from '../../../services/moderationCacheService';
 import SpoilerDetectionPanel from './SpoilerDetectionPanel';
 
 const ContentModerationDashboard = () => {
@@ -42,24 +43,26 @@ const ContentModerationDashboard = () => {
   const [notification, setNotification] = useState(null);
   // Removed viewMode state - only list view is supported
 
-  // Separate useEffects to prevent unnecessary calls
-  useEffect(() => {
-    fetchModerationQueue();
-  }, [currentPage, filters]);
-
-  const fetchModerationQueue = async () => {
+  // Optimized fetch function with caching
+  const fetchModerationQueue = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use optimized API for better performance
-      const response = await getModerationQueueOptimized(currentPage, 20, filters);
+      // Use cache service for optimized API
+      const response = await moderationCacheService.cachedApiCall(
+        'moderation_queue_optimized',
+        async () => await getModerationQueueOptimized(currentPage, 20, filters),
+        { page: currentPage, pageSize: 20, ...filters }
+      );
+
       setReviews(response.data || []);
       setTotalPages(response.total_pages || 1);
 
       console.log('✅ Optimized moderation queue loaded:', {
         count: response.data?.length || 0,
         performance: response.performance_info,
+        fromCache: response.__fromCache || false,
       });
     } catch (err) {
       console.error('Error fetching moderation queue:', err);
@@ -77,7 +80,12 @@ const ContentModerationDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, filters]);
+
+  // Separate useEffects to prevent unnecessary calls
+  useEffect(() => {
+    fetchModerationQueue();
+  }, [fetchModerationQueue]);
 
   const handleModerationAction = async (reviewId, action, reason = '') => {
     try {
@@ -90,7 +98,8 @@ const ContentModerationDashboard = () => {
       setSelectedReview(null);
       setShowModal(false);
 
-      // Refresh moderation queue
+      // Invalidate cache and refresh moderation queue
+      moderationCacheService.invalidateCache('moderation_queue_optimized');
       await fetchModerationQueue();
 
       // Show success notification
@@ -126,8 +135,9 @@ const ContentModerationDashboard = () => {
     try {
       await bulkModerateReviews(selectedReviews, action, reason);
 
-      // Clear selection and refresh
+      // Clear selection, invalidate cache and refresh
       setSelectedReviews([]);
+      moderationCacheService.invalidateCache('moderation_queue_optimized');
       await fetchModerationQueue();
 
       alert(
@@ -250,7 +260,10 @@ const ContentModerationDashboard = () => {
           </div>
           <div className="flex items-center space-x-4">
             <button
-              onClick={fetchModerationQueue}
+              onClick={() => {
+                moderationCacheService.invalidateCache('moderation_queue_optimized');
+                fetchModerationQueue();
+              }}
               className="flex items-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               <RefreshCw className="size-4" />
@@ -324,11 +337,11 @@ const ContentModerationDashboard = () => {
         <div className="p-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="block text-sm font-medium text-blue-700 mb-1">Mức độ ưu tiên</label>
+              <label className="mb-1 block text-sm font-medium text-blue-700">Mức độ ưu tiên</label>
               <select
                 value={filters.priority}
                 onChange={e => setFilters(prev => ({ ...prev, priority: e.target.value }))}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
+                className="block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
                 <option value="all" className="text-gray-900">
                   Tất cả ưu tiên
@@ -346,11 +359,11 @@ const ContentModerationDashboard = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-blue-700 mb-1">Ngôn ngữ</label>
+              <label className="mb-1 block text-sm font-medium text-blue-700">Ngôn ngữ</label>
               <select
                 value={filters.language}
                 onChange={e => setFilters(prev => ({ ...prev, language: e.target.value }))}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
+                className="block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
                 <option value="" className="text-gray-900">
                   Tất cả ngôn ngữ
@@ -365,23 +378,23 @@ const ContentModerationDashboard = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-blue-700 mb-1">Từ ngày</label>
+              <label className="mb-1 block text-sm font-medium text-blue-700">Từ ngày</label>
               <input
                 type="date"
                 value={filters.date_from}
                 onChange={e => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
+                className="block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 placeholder="Từ ngày"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-blue-700 mb-1">Đến ngày</label>
+              <label className="mb-1 block text-sm font-medium text-blue-700">Đến ngày</label>
               <input
                 type="date"
                 value={filters.date_to}
                 onChange={e => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900 bg-white"
+                className="block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 placeholder="Đến ngày"
               />
             </div>

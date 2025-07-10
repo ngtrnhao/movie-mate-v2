@@ -25,13 +25,13 @@ const Toast = ({ message, type = 'success', duration = 3000, onClose }) => {
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-400" />;
+        return <CheckCircle className="size-5 text-green-400" />;
       case 'error':
-        return <AlertTriangle className="h-5 w-5 text-red-400" />;
+        return <AlertTriangle className="size-5 text-red-400" />;
       case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-400" />;
+        return <AlertTriangle className="size-5 text-yellow-400" />;
       default:
-        return <Info className="h-5 w-5 text-blue-400" />;
+        return <Info className="size-5 text-blue-400" />;
     }
   };
 
@@ -65,7 +65,7 @@ const Toast = ({ message, type = 'success', duration = 3000, onClose }) => {
 
   const toastContent = (
     <div
-      className={`fixed top-4 right-4 z-[9998] transform transition-all duration-300 ${
+      className={`fixed right-4 top-4 z-[9998] transition-all duration-300${
         isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       }`}
     >
@@ -81,7 +81,7 @@ const Toast = ({ message, type = 'success', duration = 3000, onClose }) => {
           }}
           className="text-gray-400 hover:text-white"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </button>
       </div>
     </div>

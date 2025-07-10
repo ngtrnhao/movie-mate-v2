@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,35 +7,17 @@ import {
   Cog6ToothIcon,
   ShieldCheckIcon,
   DocumentTextIcon,
-  ExclamationTriangleIcon,
   ChartPieIcon,
-  ServerIcon,
-  UserGroupIcon,
-  CogIcon,
-  BellIcon,
-  KeyIcon,
-  GlobeAltIcon,
   CircleStackIcon,
   CpuChipIcon,
-  SignalIcon,
-  CheckCircleIcon,
-  XCircleIcon,
   ClockIcon,
   ExclamationCircleIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
-  UserIcon,
   FilmIcon,
-  ChatBubbleLeftRightIcon,
   FlagIcon,
   EyeIcon,
-  EyeSlashIcon,
-  TrashIcon,
-  PencilIcon,
   PlusIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  ArrowPathIcon,
   DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import {
@@ -43,24 +25,18 @@ import {
   UsersIcon as UsersIconSolid,
   ShieldCheckIcon as ShieldCheckIconSolid,
   DocumentTextIcon as DocumentTextIconSolid,
-  ExclamationTriangleIcon as ExclamationTriangleIconSolid,
   ChartPieIcon as ChartPieIconSolid,
-  ServerIcon as ServerIconSolid,
-  UserGroupIcon as UserGroupIconSolid,
-  CogIcon as CogIconSolid,
   Cog6ToothIcon as Cog6ToothIconSolid,
   FilmIcon as FilmIconSolid,
   EyeIcon as EyeIconSolid,
 } from '@heroicons/react/24/solid';
 
-import SystemOverview from './components/SystemOverview';
 import UserAnalytics from './components/UserAnalytics';
 import ContentAnalytics from './components/ContentAnalytics';
 import UserManagement from './components/UserManagement';
 import SystemSettings from './components/SystemSettings';
 import KanbanBoard from '../Moderator/components/KanbanBoard';
 import QueueList from '../Moderator/components/QueueList';
-import BulkActions from '../Moderator/components/BulkActions';
 import AdminDashboardOverview from './components/AdminDashboardOverview';
 import VisibilityControl from './components/VisibilityControl';
 import MovieManagement from './components/MovieManagement';
@@ -292,9 +268,9 @@ const AdminDashboard = () => {
 
   if (!user || !user.groups?.some(g => g.name === 'Administrators')) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Không có quyền truy cập</h1>
+          <h1 className="mb-4 text-2xl font-bold text-gray-900">Không có quyền truy cập</h1>
           <p className="text-gray-600">Bạn cần quyền Admin để truy cập trang này.</p>
         </div>
       </div>
@@ -307,23 +283,23 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Admin Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl shadow-lg p-6 mb-8">
+      <div className="mb-8 rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 p-6 shadow-lg">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-            <p className="text-blue-100 mt-1">Quản lý hệ thống Movie Recommendation</p>
+            <p className="mt-1 text-blue-100">Quản lý hệ thống Movie Recommendation</p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="size-2 animate-pulse rounded-full bg-green-400"></div>
               <span className="text-sm text-blue-100">Hệ thống hoạt động</span>
             </div>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+            <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
               Administrator
             </span>
             <button
               onClick={() => navigate('/')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 transition-colors"
+              className="inline-flex items-center rounded-md border border-transparent bg-white px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50"
             >
               Về trang chủ
             </button>
@@ -332,103 +308,103 @@ const AdminDashboard = () => {
       </div>
 
       {/* System Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Tổng người dùng</p>
               <p className="text-3xl font-bold text-gray-900">1,234</p>
-              <p className="text-sm text-green-600 flex items-center mt-1">
-                <ArrowTrendingUpIcon className="w-4 h-4 mr-1" />
+              <p className="mt-1 flex items-center text-sm text-green-600">
+                <ArrowTrendingUpIcon className="mr-1 size-4" />
                 +12% so với tháng trước
               </p>
             </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <UsersIcon className="w-6 h-6 text-blue-600" />
+            <div className="rounded-lg bg-blue-100 p-3">
+              <UsersIcon className="size-6 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Tổng phim</p>
               <p className="text-3xl font-bold text-gray-900">8,934</p>
-              <p className="text-sm text-green-600 flex items-center mt-1">
-                <ArrowTrendingUpIcon className="w-4 h-4 mr-1" />
+              <p className="mt-1 flex items-center text-sm text-green-600">
+                <ArrowTrendingUpIcon className="mr-1 size-4" />
                 +5% so với tháng trước
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <FilmIcon className="w-6 h-6 text-green-600" />
+            <div className="rounded-lg bg-green-100 p-3">
+              <FilmIcon className="size-6 text-green-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Nội dung chờ duyệt</p>
               <p className="text-3xl font-bold text-gray-900">47</p>
-              <p className="text-sm text-red-600 flex items-center mt-1">
-                <ArrowTrendingDownIcon className="w-4 h-4 mr-1" />
+              <p className="mt-1 flex items-center text-sm text-red-600">
+                <ArrowTrendingDownIcon className="mr-1 size-4" />
                 -8% so với tuần trước
               </p>
             </div>
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <ClockIcon className="w-6 h-6 text-yellow-600" />
+            <div className="rounded-lg bg-yellow-100 p-3">
+              <ClockIcon className="size-6 text-yellow-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Báo cáo vi phạm</p>
               <p className="text-3xl font-bold text-gray-900">23</p>
-              <p className="text-sm text-orange-600 flex items-center mt-1">
-                <ExclamationCircleIcon className="w-4 h-4 mr-1" />
+              <p className="mt-1 flex items-center text-sm text-orange-600">
+                <ExclamationCircleIcon className="mr-1 size-4" />
                 Cần xử lý
               </p>
             </div>
-            <div className="p-3 bg-red-100 rounded-lg">
-              <FlagIcon className="w-6 h-6 text-red-600" />
+            <div className="rounded-lg bg-red-100 p-3">
+              <FlagIcon className="size-6 text-red-600" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Admin Main Content - Grid Layout */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="mx-auto max-w-7xl px-6 py-8">
         {/* Navigation Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {navigationItems.map(item => {
             const IconComponent = activeView === item.id ? item.iconSolid : item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`p-6 rounded-xl border transition-all duration-200 text-left hover:shadow-lg ${
+                className={`rounded-xl border p-6 text-left transition-all duration-200 hover:shadow-lg ${
                   activeView === item.id
-                    ? 'bg-blue-50 border-blue-200 shadow-md'
-                    : 'bg-white border-gray-200 hover:border-blue-300'
+                    ? 'border-blue-200 bg-blue-50 shadow-md'
+                    : 'border-gray-200 bg-white hover:border-blue-300'
                 }`}
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex items-center justify-between">
                   <div
-                    className={`p-3 rounded-lg ${
+                    className={`rounded-lg p-3 ${
                       activeView === item.id ? 'bg-blue-100' : 'bg-gray-100'
                     }`}
                   >
                     <IconComponent
-                      className={`w-6 h-6 ${
+                      className={`size-6 ${
                         activeView === item.id ? 'text-blue-600' : 'text-gray-600'
                       }`}
                     />
                   </div>
                   {/* Priority indicator */}
                   <div
-                    className={`px-2 py-1 text-xs rounded-full ${
+                    className={`rounded-full px-2 py-1 text-xs ${
                       item.priority === 'high'
                         ? 'bg-orange-100 text-orange-700'
                         : item.priority === 'medium'
@@ -440,7 +416,7 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <h3
-                  className={`text-lg font-semibold mb-2 ${
+                  className={`mb-2 text-lg font-semibold ${
                     activeView === item.id ? 'text-blue-900' : 'text-gray-900'
                   }`}
                 >
@@ -459,20 +435,20 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Hành động nhanh</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-semibold text-gray-900">Hành động nhanh</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {quickActions.map(action => {
               const ActionIcon = action.icon;
               return (
                 <button
                   key={action.id}
                   onClick={() => handleBulkAction(action.id, selectedItems)}
-                  className="flex items-center p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200"
+                  className="flex items-center rounded-lg border border-gray-200 p-4 transition-all duration-200 hover:border-blue-300 hover:bg-blue-50"
                 >
-                  <ActionIcon className="w-5 h-5 text-gray-600 mr-3" />
+                  <ActionIcon className="mr-3 size-5 text-gray-600" />
                   <div className="text-left">
-                    <div className="font-medium text-sm text-gray-900">{action.label}</div>
+                    <div className="text-sm font-medium text-gray-900">{action.label}</div>
                     <div className="text-xs text-gray-500">{action.description}</div>
                   </div>
                 </button>
@@ -482,10 +458,10 @@ const AdminDashboard = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
+        <div className="mt-8 rounded-xl bg-white p-6 shadow-lg">
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex h-64 items-center justify-center">
+              <div className="size-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
             </div>
           ) : (
             renderMainContent()

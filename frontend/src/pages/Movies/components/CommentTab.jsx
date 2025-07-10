@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Send, Star, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Send, Star, Eye, EyeOff } from 'lucide-react';
 import {
   getMovieReviews,
   voteOnReview,
@@ -259,7 +259,7 @@ const CommentTab = ({ movieId }) => {
                 id="spoiler-checkbox-comment"
                 checked={isSpoiler}
                 onChange={e => setIsSpoiler(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800"
+                className="size-4 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800"
               />
               <label htmlFor="spoiler-checkbox-comment" className="text-sm text-gray-300">
                 Chứa spoiler

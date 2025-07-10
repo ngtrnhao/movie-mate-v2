@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
+import moderationCacheService from '../../services/moderationCacheService';
+import { getUnifiedModerationQueue } from '../../api/movieService';
 import {
   ChartBarIcon,
   ClipboardDocumentListIcon,
@@ -19,23 +21,9 @@ import {
   ServerIcon,
   ClockIcon,
   CheckIcon,
-  FlagIcon as FlagIconSolid,
-  UserGroupIcon as UserGroupIconSolid,
-  ArrowUpTrayIcon as ArrowUpTrayIconSolid,
-  NoSymbolIcon as NoSymbolIconSolid,
-  ServerIcon as ServerIconSolid,
   BellIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  ChatBubbleLeftRightIcon,
-  DocumentArrowDownIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  UserIcon,
   ShieldCheckIcon,
-  CogIcon,
   InformationCircleIcon,
   BoltIcon,
   Bars3Icon,
@@ -55,8 +43,6 @@ import DashboardOverview from './components/DashboardOverview';
 import KanbanBoard from './components/KanbanBoard';
 import QueueList from './components/QueueList';
 import ReportsList from './components/ReportsList';
-import BulkActions from './components/BulkActions';
-import SpoilerDetectionPanel from './components/SpoilerDetectionPanel';
 import UserManagement from './components/UserManagement';
 import SystemSettings from './components/SystemSettings';
 import AdminSettings from './components/AdminSettings';
@@ -64,6 +50,7 @@ import Analytics from './components/Analytics';
 import ContentManagement from './components/ContentManagement';
 import ContentModerationDashboard from './components/ContentModerationDashboard';
 import AutoMarkedReviews from './components/AutoMarkedReviews';
+import ModerationDebugPanel from './components/ModerationDebugPanel';
 
 const ModeratorDashboard = () => {
   const [activeView, setActiveView] = useState('overview');
@@ -76,6 +63,20 @@ const ModeratorDashboard = () => {
   const [kanbanViewMode, setKanbanViewMode] = useState('kanban'); // kanban, queue
   const [notifications, setNotifications] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  // Shared data for both KanbanBoard and QueueList
+  const [unifiedModerationData, setUnifiedModerationData] = useState(null);
+  const [unifiedDataLoading, setUnifiedDataLoading] = useState(false);
+
+  // Shared cache for moderation data to prevent duplicate API calls
+  const [moderationCache, setModerationCache] = useState({
+    queueData: null,
+    kanbanData: null,
+    lastFetch: 0,
+    isStale: true,
+  });
+
   const user = useSelector(state => state.auth.user);
   const navigate = useNavigate();
   const location = useLocation();
@@ -89,6 +90,138 @@ const ModeratorDashboard = () => {
 
   const isAdmin = user?.groups?.some(g => g.name === 'Administrators');
   const isModerator = user?.groups?.some(g => g.name === 'Moderators');
+
+  // Fetch unified moderation data for both KanbanBoard and QueueList
+  const fetchUnifiedModerationData = useCallback(async () => {
+    try {
+      setUnifiedDataLoading(true);
+      console.log('🔄 Fetching unified moderation data for both KanbanBoard and QueueList...');
+
+      // Use cache service for unified moderation queue API
+      const data = await moderationCacheService.cachedApiCall(
+        'unified_moderation_queue',
+        async () => await getUnifiedModerationQueue(1, 100),
+        { page: 1, pageSize: 100 }
+      );
+
+      setUnifiedModerationData(data);
+
+      // Process data for both components
+      const now = Date.now();
+
+      // Process for QueueList
+      const queueData = {
+        items: data.tasks || [],
+        totalPages: data.total_pages || 1,
+        stats: data.stats?.priority_stats || {},
+        timestamp: now,
+      };
+
+      // Process for KanbanBoard
+      const kanbanData = data.kanban_data || {};
+      const usedItemIds = new Set();
+
+      const columnsData = {
+        backlog: {
+          id: 'backlog',
+          title: 'Hàng đợi',
+          items: (kanbanData.backlog || []).filter(item => {
+            if (usedItemIds.has(item.id)) return false;
+            usedItemIds.add(item.id);
+            return true;
+          }),
+        },
+        inProgress: {
+          id: 'inProgress',
+          title: 'Đang xử lý',
+          items: (kanbanData.in_progress || []).filter(item => {
+            if (usedItemIds.has(item.id)) return false;
+            usedItemIds.add(item.id);
+            return true;
+          }),
+        },
+        review: {
+          id: 'review',
+          title: 'Đang xem xét',
+          items: (kanbanData.review || []).filter(item => {
+            if (usedItemIds.has(item.id)) return false;
+            usedItemIds.add(item.id);
+            return true;
+          }),
+        },
+        completed: {
+          id: 'completed',
+          title: 'Hoàn thành',
+          items: (kanbanData.completed || []).filter(item => {
+            if (usedItemIds.has(item.id)) return false;
+            usedItemIds.add(item.id);
+            return true;
+          }),
+        },
+      };
+
+      const kanbanProcessedData = {
+        columns: columnsData,
+        timestamp: now,
+      };
+
+      // Update cache
+      setModerationCache(prev => ({
+        ...prev,
+        queueData,
+        kanbanData: kanbanProcessedData,
+        lastFetch: now,
+        isStale: false,
+      }));
+
+      console.log('✅ Unified moderation data loaded:', {
+        totalTasks: data.tasks?.length || 0,
+        totalKanbanItems: Object.values(columnsData).reduce(
+          (sum, col) => sum + col.items.length,
+          0
+        ),
+        fromCache: data.__fromCache || false,
+      });
+    } catch (error) {
+      console.error('Error fetching unified moderation data:', error);
+    } finally {
+      setUnifiedDataLoading(false);
+    }
+  }, []);
+
+  // Fetch data when moderation queue view is active
+  useEffect(() => {
+    if (activeView === 'moderation-queue' || activeView === 'reports') {
+      fetchUnifiedModerationData();
+    }
+  }, [activeView, fetchUnifiedModerationData]);
+
+  // Cache invalidation - mark data as stale after 60 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setModerationCache(prev => {
+        const now = Date.now();
+        if (now - prev.lastFetch > 60000) {
+          // 60 seconds
+          return { ...prev, isStale: true };
+        }
+        return prev;
+      });
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle data fetch from child components (legacy - now handled by unified fetch)
+  const handleQueueDataFetch = useCallback(data => {
+    // This is now handled by unified fetch
+    console.log('💾 Queue data updated via unified fetch');
+  }, []);
+
+  const handleKanbanDataFetch = useCallback(data => {
+    // This is now handled by unified fetch
+    console.log('💾 Kanban data updated via unified fetch');
+  }, []);
 
   // Handle navigation click
   const handleNavigationClick = viewId => {
@@ -424,17 +557,17 @@ const ModeratorDashboard = () => {
           <div>
             {/* Enhanced Toggle Button */}
             <div className="mb-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-white rounded-xl shadow-lg p-1 flex border border-gray-200">
+              <div className="mb-4 flex justify-center">
+                <div className="flex rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
                   <button
                     onClick={() => setKanbanViewMode('kanban')}
-                    className={`px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                    className={`flex items-center rounded-lg px-6 py-3 text-sm font-medium transition-all duration-200 ${
                       kanbanViewMode === 'kanban'
                         ? 'bg-green-100 text-green-700 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
-                    <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />
+                    <ClipboardDocumentListIcon className="mr-2 size-5" />
                     <div className="text-left">
                       <div className="font-semibold">Kanban Board</div>
                       <div className="text-xs opacity-75">Quản lý theo cột</div>
@@ -442,13 +575,13 @@ const ModeratorDashboard = () => {
                   </button>
                   <button
                     onClick={() => setKanbanViewMode('queue')}
-                    className={`px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center ${
+                    className={`flex items-center rounded-lg px-6 py-3 text-sm font-medium transition-all duration-200 ${
                       kanbanViewMode === 'queue'
                         ? 'bg-green-100 text-green-700 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
-                    <DocumentTextIcon className="w-5 h-5 mr-2" />
+                    <DocumentTextIcon className="mr-2 size-5" />
                     <div className="text-left">
                       <div className="font-semibold">Queue List</div>
                       <div className="text-xs opacity-75">Danh sách đơn giản</div>
@@ -458,28 +591,28 @@ const ModeratorDashboard = () => {
               </div>
 
               {/* View-specific stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+              <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-lg border-l-4 border-yellow-500 bg-white p-4 shadow">
                   <div className="flex items-center">
-                    <ClockIcon className="w-6 h-6 text-yellow-600 mr-3" />
+                    <ClockIcon className="mr-3 size-6 text-yellow-600" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Chờ duyệt</p>
                       <p className="text-2xl font-bold text-gray-900">23</p>
                     </div>
                   </div>
                 </div>
-                <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                <div className="rounded-lg border-l-4 border-blue-500 bg-white p-4 shadow">
                   <div className="flex items-center">
-                    <ChartBarIcon className="w-6 h-6 text-blue-600 mr-3" />
+                    <ChartBarIcon className="mr-3 size-6 text-blue-600" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Đang xử lý</p>
                       <p className="text-2xl font-bold text-gray-900">8</p>
                     </div>
                   </div>
                 </div>
-                <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                <div className="rounded-lg border-l-4 border-green-500 bg-white p-4 shadow">
                   <div className="flex items-center">
-                    <CheckIcon className="w-6 h-6 text-green-600 mr-3" />
+                    <CheckIcon className="mr-3 size-6 text-green-600" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Hoàn thành</p>
                       <p className="text-2xl font-bold text-gray-900">156</p>
@@ -489,22 +622,53 @@ const ModeratorDashboard = () => {
               </div>
             </div>
 
+            {/* Loading state for unified data */}
+            {unifiedDataLoading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="size-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Đang tải dữ liệu kiểm duyệt...</span>
+              </div>
+            )}
+
             {/* Content based on view mode */}
-            {kanbanViewMode === 'kanban' ? (
-              <KanbanBoard
-                selectedItems={selectedItems}
-                onSelectItem={handleSelectItem}
-                onBulkAction={handleBulkAction}
-                isAdmin={isAdmin}
-              />
-            ) : (
-              <QueueList
-                selectedItems={selectedItems}
-                onSelectItem={handleSelectItem}
-                onSelectAll={handleSelectAll}
-                onClearSelection={handleClearSelection}
-                isAdmin={isAdmin}
-              />
+            {!unifiedDataLoading && (
+              <>
+                {kanbanViewMode === 'kanban' ? (
+                  <KanbanBoard
+                    selectedItems={selectedItems}
+                    onSelectItem={handleSelectItem}
+                    onBulkAction={handleBulkAction}
+                    isAdmin={isAdmin}
+                    // Pass processed data directly instead of letting component fetch
+                    columns={
+                      moderationCache.kanbanData?.columns || {
+                        backlog: { id: 'backlog', title: 'Hàng đợi', items: [] },
+                        inProgress: { id: 'inProgress', title: 'Đang xử lý', items: [] },
+                        review: { id: 'review', title: 'Đang xem xét', items: [] },
+                        completed: { id: 'completed', title: 'Hoàn thành', items: [] },
+                      }
+                    }
+                    // Disable internal fetching since data is passed via props
+                    disableInternalFetch={true}
+                    onDataFetch={handleKanbanDataFetch}
+                  />
+                ) : (
+                  <QueueList
+                    selectedItems={selectedItems}
+                    onSelectItem={handleSelectItem}
+                    onSelectAll={handleSelectAll}
+                    onClearSelection={handleClearSelection}
+                    isAdmin={isAdmin}
+                    // Pass processed data directly instead of letting component fetch
+                    items={moderationCache.queueData?.items || []}
+                    totalPages={moderationCache.queueData?.totalPages || 1}
+                    stats={moderationCache.queueData?.stats || {}}
+                    // Disable internal fetching since data is passed via props
+                    disableInternalFetch={true}
+                    onDataFetch={handleQueueDataFetch}
+                  />
+                )}
+              </>
             )}
           </div>
         );
@@ -539,9 +703,9 @@ const ModeratorDashboard = () => {
 
   if (!user || !user.groups?.some(g => g.name === 'Moderators' || g.name === 'Administrators')) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Không có quyền truy cập</h1>
+          <h1 className="mb-4 text-2xl font-bold text-gray-900">Không có quyền truy cập</h1>
           <p className="text-gray-600">Bạn cần quyền Moderator hoặc Admin để truy cập trang này.</p>
         </div>
       </div>
@@ -553,57 +717,57 @@ const ModeratorDashboard = () => {
   const dashboardStats = getDashboardStats();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Responsive Header */}
-      <header className="bg-gradient-to-r from-pink-100 via-purple-100 to-amber-100 shadow-md border-b border-pink-200 h-auto flex flex-col md:flex-row md:items-center md:justify-between px-2 sm:px-4 md:px-8 z-20 w-full gap-2 md:gap-0">
-        <div className="flex items-center space-x-2 min-w-0 flex-shrink-0">
-          <div className="flex items-center bg-gradient-to-r from-purple-400 to-pink-300 rounded-xl shadow-md px-2 py-1">
-            <ShieldCheckIcon className="w-6 h-6 text-white" />
+      <header className=" flex h-auto w-full flex-col gap-2 border-b border-pink-200 bg-gradient-to-r from-pink-100 via-purple-100 to-amber-100 px-2 shadow-md sm:px-4 md:flex-row md:items-center md:justify-between md:gap-0 md:px-8">
+        <div className="flex min-w-0 shrink-0 items-center space-x-2">
+          <div className="flex items-center rounded-xl bg-gradient-to-r from-purple-400 to-pink-300 px-2 py-1 shadow-md">
+            <ShieldCheckIcon className="size-6 text-white" />
             {!sidebarCollapsed && (
-              <span className="ml-2 text-base font-bold text-white tracking-wide sm:inline truncate">
+              <span className="ml-2 truncate text-base font-bold tracking-wide text-white sm:inline">
                 Moderator
               </span>
             )}
           </div>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center min-w-0">
-          <h1 className="text-base md:text-lg font-bold text-gray-900 leading-tight truncate">
+        <div className="flex min-w-0 flex-1 flex-col items-center justify-center">
+          <h1 className="truncate text-base font-bold leading-tight text-gray-900 md:text-lg">
             Moderator Dashboard
           </h1>
-          <p className="text-xs text-gray-500 items-center mt-0.5 hidden md:flex truncate">
-            <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+          <p className="mt-0.5 hidden items-center truncate text-xs text-gray-500 md:flex">
+            <span className="mr-2 size-2 animate-pulse rounded-full bg-green-500"></span>
             Hệ thống kiểm duyệt nội dung Movie Recommendation
           </p>
         </div>
-        <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4 min-w-0 flex-shrink-0 mt-2 md:mt-0">
-          <div className="relative hidden sm:block w-28 md:w-48 lg:w-64">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="mt-2 flex min-w-0 shrink-0 items-center space-x-1 sm:space-x-2 md:mt-0 md:space-x-4">
+          <div className="relative hidden w-28 sm:block md:w-48 lg:w-64">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Tìm kiếm..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-full bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full text-sm"
+              className="w-full rounded-full border border-gray-200 bg-gray-50 py-2 pl-10 pr-4 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="relative">
-            <button className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
-              <BellIcon className="w-5 h-5" />
+            <button className="rounded-full p-2 text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600">
+              <BellIcon className="size-5" />
               {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                   {notifications.length}
                 </span>
               )}
             </button>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <span className="size-2 animate-pulse rounded-full bg-green-500"></span>
             <span className="text-xs text-gray-600">Online</span>
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                 isAdmin
-                  ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+                  ? 'border border-purple-200 bg-purple-100 text-purple-800'
+                  : 'border border-blue-200 bg-blue-100 text-blue-800'
               }`}
             >
               {isAdmin ? 'Admin' : 'Moderator'}
@@ -611,39 +775,39 @@ const ModeratorDashboard = () => {
           </div>
           <button
             onClick={() => navigate('/')}
-            className="inline-flex items-center px-2 py-2 border border-transparent text-xs font-medium rounded-full text-white bg-gradient-to-r from-amber-400 to-pink-400 hover:from-amber-500 hover:to-pink-500 transition-all duration-200 shadow-md hover:shadow-lg ml-1"
+            className="ml-1 inline-flex items-center rounded-full border border-transparent bg-gradient-to-r from-amber-400 to-pink-400 p-2 text-xs font-medium text-white shadow-md transition-all duration-200 hover:from-amber-500 hover:to-pink-500 hover:shadow-lg"
           >
-            <HomeIcon className="w-5 h-5" />
+            <HomeIcon className="size-5" />
             <span className="hidden md:inline">Trang chủ</span>
           </button>
         </div>
       </header>
 
       {/* Responsive Layout: Sidebar + Main */}
-      <div className="flex-1 flex w-full min-w-0">
+      <div className="flex w-full min-w-0 flex-1">
         {/* Sidebar: responsive, overlays on mobile, collapses on md+ */}
         <div
           id="moderator-sidebar"
           className={`
-            fixed top-0 left-0 z-30 h-full bg-gradient-to-b from-pink-50 via-amber-50 to-purple-50 shadow-lg border-r border-pink-200 transition-all duration-300
+            fixed left-0 top-0 z-30 h-full border-r border-pink-200 bg-gradient-to-b from-pink-50 via-amber-50 to-purple-50 shadow-lg transition-all duration-300
             ${sidebarMobileOpen ? 'block' : 'hidden'}
             md:static md:block
             ${sidebarCollapsed ? 'w-16' : 'w-64'}
           `}
         >
-          <div className="p-4 flex flex-col h-full gap-2 min-w-0">
+          <div className="flex h-full min-w-0 flex-col gap-2 p-4">
             {/* Sidebar Toggle (sticky on mobile) */}
             <button
               onClick={handleSidebarToggle}
-              className="mb-4 p-2 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400 self-center md:self-start"
+              className="mb-4 self-center rounded-lg p-2 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400 md:self-start"
               aria-label={sidebarCollapsed ? 'Mở sidebar' : 'Ẩn sidebar'}
             >
-              <Bars3Icon className="w-6 h-6 text-blue-600" />
+              <Bars3Icon className="size-6 text-blue-600" />
             </button>
             {/* Stats - Compact */}
             <div className="mb-4 flex flex-col gap-1">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center justify-center md:justify-start">
-                <ChartBarIcon className="w-4 h-4 mr-0 md:mr-2" />
+              <h3 className="mb-2 flex items-center justify-center text-sm font-semibold text-gray-900 md:justify-start">
+                <ChartBarIcon className="mr-0 size-4 md:mr-2" />
                 {!sidebarCollapsed && <span className="truncate">Thống kê hôm nay</span>}
               </h3>
               <div className="space-y-1">
@@ -654,16 +818,16 @@ const ModeratorDashboard = () => {
                       key={index}
                       className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} ${sidebarCollapsed ? 'p-3' : 'p-2'} rounded-lg ${
                         stat.color === 'yellow'
-                          ? 'bg-yellow-50 border border-yellow-200'
+                          ? 'border border-yellow-200 bg-yellow-50'
                           : stat.color === 'green'
-                            ? 'bg-green-50 border border-green-200'
+                            ? 'border border-green-200 bg-green-50'
                             : stat.color === 'red'
-                              ? 'bg-red-50 border border-red-200'
-                              : 'bg-blue-50 border border-blue-200'
+                              ? 'border border-red-200 bg-red-50'
+                              : 'border border-blue-200 bg-blue-50'
                       }`}
                     >
                       <StatIcon
-                        className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-4 h-4'} ${
+                        className={`${sidebarCollapsed ? 'size-6' : 'size-4'} ${
                           stat.color === 'yellow'
                             ? 'text-yellow-600'
                             : stat.color === 'green'
@@ -674,8 +838,8 @@ const ModeratorDashboard = () => {
                         }`}
                       />
                       {!sidebarCollapsed && (
-                        <div className="ml-2 flex-1 min-w-0">
-                          <div className="text-xs font-medium text-gray-700 truncate">
+                        <div className="ml-2 min-w-0 flex-1">
+                          <div className="truncate text-xs font-medium text-gray-700">
                             {stat.title}
                           </div>
                           <div
@@ -706,26 +870,26 @@ const ModeratorDashboard = () => {
                   <button
                     key={item.id}
                     onClick={() => handleNavigationClick(item.id)}
-                    className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} ${sidebarCollapsed ? 'p-4' : 'p-3'} rounded-lg transition-all duration-200 group ${sidebarCollapsed ? 'border-2 border-red-200' : ''}
+                    className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} ${sidebarCollapsed ? 'p-4' : 'p-3'} group rounded-lg transition-all duration-200 ${sidebarCollapsed ? 'border-2 border-red-200' : ''}
                       ${
                         activeView === item.id
-                          ? 'bg-gradient-to-r from-amber-100 to-pink-100 text-pink-700 border border-amber-200'
+                          ? 'border border-amber-200 bg-gradient-to-r from-amber-100 to-pink-100 text-pink-700'
                           : 'text-purple-900 hover:bg-pink-50 hover:text-pink-700'
                       }`}
                   >
                     <IconComponent
-                      className={`${sidebarCollapsed ? 'w-8 h-8 text-blue-600' : 'w-5 h-5 text-pink-400'} flex-shrink-0`}
+                      className={`${sidebarCollapsed ? 'size-8 text-blue-600' : 'size-5 text-pink-400'} shrink-0`}
                       style={sidebarCollapsed ? { color: '#2563eb !important' } : {}}
                     />
                     {/* Ẩn label, badge khi thu nhỏ */}
                     {!sidebarCollapsed && (
-                      <div className="ml-2 flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{item.label}</div>
-                        <div className="text-xs opacity-75 mt-0.5 truncate">{item.description}</div>
+                      <div className="ml-2 min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{item.label}</div>
+                        <div className="mt-0.5 truncate text-xs opacity-75">{item.description}</div>
                       </div>
                     )}
                     {!sidebarCollapsed && item.badge && (
-                      <span className="ml-2 px-2 py-1 text-xs rounded-full font-medium bg-pink-100 text-pink-700 truncate">
+                      <span className="ml-2 truncate rounded-full bg-pink-100 px-2 py-1 text-xs font-medium text-pink-700">
                         {item.badge}
                       </span>
                     )}
@@ -735,8 +899,8 @@ const ModeratorDashboard = () => {
             </div>
             {/* Quick Actions - Compact Layout */}
             <div className="mb-4 flex flex-col gap-1">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center justify-center md:justify-start">
-                <BoltIcon className="w-4 h-4 mr-0 md:mr-2" />
+              <h3 className="mb-2 flex items-center justify-center text-sm font-semibold text-gray-900 md:justify-start">
+                <BoltIcon className="mr-0 size-4 md:mr-2" />
                 {!sidebarCollapsed && <span className="truncate">Hành động nhanh</span>}
               </h3>
               <div className="space-y-1">
@@ -746,11 +910,11 @@ const ModeratorDashboard = () => {
                     <button
                       key={action.id}
                       onClick={() => handleBulkAction(action.id, selectedItems)}
-                      className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} ${sidebarCollapsed ? 'p-3' : 'p-2'} rounded-lg text-left transition-all duration-200 group ${sidebarCollapsed ? 'border border-gray-200' : ''}
-                        hover:bg-gradient-to-r hover:from-${action.color}-50 hover:to-${action.color}-100 hover:border-${action.color}-200`}
+                      className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} ${sidebarCollapsed ? 'p-3' : 'p-2'} group rounded-lg text-left transition-all duration-200 ${sidebarCollapsed ? 'border border-gray-200' : ''}
+                        hover:from- hover:bg-gradient-to-r${action.color}-50 hover:to-${action.color}-100 hover:border-${action.color}-200`}
                     >
                       <ActionIcon
-                        className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-4 h-4'} flex-shrink-0 ${
+                        className={`${sidebarCollapsed ? 'size-6' : 'size-4'} shrink-0 ${
                           action.color === 'green'
                             ? 'text-green-600'
                             : action.color === 'red'
@@ -763,9 +927,9 @@ const ModeratorDashboard = () => {
                         }`}
                       />
                       {!sidebarCollapsed && (
-                        <div className="ml-2 flex-1 min-w-0">
+                        <div className="ml-2 min-w-0 flex-1">
                           <div
-                            className={`font-medium text-xs truncate ${
+                            className={`truncate text-xs font-medium ${
                               action.color === 'green'
                                 ? 'text-green-700'
                                 : action.color === 'red'
@@ -779,7 +943,7 @@ const ModeratorDashboard = () => {
                           >
                             {action.label}
                           </div>
-                          <div className="text-xs text-gray-500 truncate mt-0.5">
+                          <div className="mt-0.5 truncate text-xs text-gray-500">
                             {action.shortcut}
                           </div>
                         </div>
@@ -791,12 +955,12 @@ const ModeratorDashboard = () => {
             </div>
             {/* Moderator Info - Compact */}
             {!sidebarCollapsed && (
-              <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 mt-auto">
-                <h4 className="text-xs font-semibold text-blue-800 mb-1 flex items-center">
-                  <InformationCircleIcon className="w-3 h-3 mr-1" />
+              <div className="mt-auto rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-3">
+                <h4 className="mb-1 flex items-center text-xs font-semibold text-blue-800">
+                  <InformationCircleIcon className="mr-1 size-3" />
                   Quyền Moderator
                 </h4>
-                <div className="text-xs text-blue-700 space-y-0.5">
+                <div className="space-y-0.5 text-xs text-blue-700">
                   <div>• Kiểm duyệt nội dung</div>
                   <div>• Xử lý báo cáo vi phạm</div>
                   <div>• Cảnh báo người dùng</div>
@@ -806,16 +970,16 @@ const ModeratorDashboard = () => {
           </div>
         </div>
         {/* Main Content Area: responsive padding, min-w-0, overflow-x-auto */}
-        <main className="flex-1 p-2 sm:p-4 md:p-6 min-w-0 overflow-x-auto">
+        <main className="min-w-0 flex-1 overflow-x-auto p-2 sm:p-4 md:p-6">
           {/* Enhanced Content Header: responsive */}
           <div className="mb-4 sm:mb-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+            <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center sm:gap-0">
               <div>
-                <h2 className="text-base md:text-xl font-bold text-gray-900 flex items-center truncate">
+                <h2 className="flex items-center truncate text-base font-bold text-gray-900 md:text-xl">
                   {activeView === 'overview' && (
                     <>
                       <ChartBarIcon
-                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-blue-600`}
+                        className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-blue-600`}
                       />
                       Tổng quan kiểm duyệt
                     </>
@@ -823,7 +987,7 @@ const ModeratorDashboard = () => {
                   {activeView === 'moderation-queue' && (
                     <>
                       <ClipboardDocumentListIcon
-                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-orange-600`}
+                        className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-orange-600`}
                       />
                       Queue kiểm duyệt -{' '}
                       {kanbanViewMode === 'kanban' ? 'Kanban Board' : 'Queue List'}
@@ -832,7 +996,7 @@ const ModeratorDashboard = () => {
                   {activeView === 'reports' && (
                     <>
                       <ExclamationTriangleIcon
-                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-red-600`}
+                        className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-red-600`}
                       />
                       Báo cáo vi phạm
                     </>
@@ -840,7 +1004,7 @@ const ModeratorDashboard = () => {
                   {activeView === 'content-review' && (
                     <>
                       <DocumentTextIcon
-                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-green-600`}
+                        className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-green-600`}
                       />
                       Review nội dung
                     </>
@@ -848,7 +1012,7 @@ const ModeratorDashboard = () => {
                   {activeView === 'user-management' && (
                     <>
                       <UsersIcon
-                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-purple-600`}
+                        className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-purple-600`}
                       />
                       Quản lý người dùng
                     </>
@@ -856,7 +1020,7 @@ const ModeratorDashboard = () => {
                   {activeView === 'analytics' && (
                     <>
                       <ChartPieIcon
-                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-indigo-600`}
+                        className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-indigo-600`}
                       />
                       Phân tích
                     </>
@@ -864,7 +1028,7 @@ const ModeratorDashboard = () => {
                   {activeView === 'settings' && (
                     <>
                       <Cog6ToothIcon
-                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-gray-600`}
+                        className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-gray-600`}
                       />
                       Cài đặt
                     </>
@@ -872,13 +1036,13 @@ const ModeratorDashboard = () => {
                   {activeView === 'system-users' && (
                     <>
                       <WrenchScrewdriverIcon
-                        className={`${sidebarCollapsed ? 'w-8 h-8' : 'w-5 h-5'} mr-2 text-yellow-600`}
+                        className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-yellow-600`}
                       />
                       Quản lý hệ thống
                     </>
                   )}
                 </h2>
-                <p className="text-xs text-gray-600 mt-1 truncate">
+                <p className="mt-1 truncate text-xs text-gray-600">
                   {activeView === 'moderation-queue'
                     ? kanbanViewMode === 'kanban'
                       ? 'Quản lý công việc kiểm duyệt theo kanban'
@@ -888,23 +1052,23 @@ const ModeratorDashboard = () => {
               </div>
               {/* Enhanced Bulk Actions Bar: responsive */}
               {selectedItems.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 p-2 sm:p-3 bg-gradient-to-r from-amber-50 to-pink-50 rounded-lg border border-amber-200 shadow-sm">
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-pink-50 p-2 shadow-sm sm:p-3">
                   <div className="flex items-center space-x-2">
-                    <CheckIcon className="w-5 h-5 text-yellow-600" />
-                    <span className="text-xs sm:text-sm font-medium text-yellow-800">
+                    <CheckIcon className="size-5 text-yellow-600" />
+                    <span className="text-xs font-medium text-yellow-800 sm:text-sm">
                       Đã chọn {selectedItems.length} mục
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button className="px-2 sm:px-3 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 transition-colors">
+                    <button className="rounded-md bg-green-600 px-2 py-1 text-xs text-white transition-colors hover:bg-green-700 sm:px-3">
                       Duyệt tất cả
                     </button>
-                    <button className="px-2 sm:px-3 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 transition-colors">
+                    <button className="rounded-md bg-red-600 px-2 py-1 text-xs text-white transition-colors hover:bg-red-700 sm:px-3">
                       Từ chối tất cả
                     </button>
                     <button
                       onClick={handleClearSelection}
-                      className="px-2 sm:px-3 py-1 bg-gray-600 text-white text-xs rounded-md hover:bg-gray-700 transition-colors"
+                      className="rounded-md bg-gray-600 px-2 py-1 text-xs text-white transition-colors hover:bg-gray-700 sm:px-3"
                     >
                       Bỏ chọn
                     </button>
@@ -914,12 +1078,12 @@ const ModeratorDashboard = () => {
             </div>
           </div>
           {/* Enhanced Content Container: responsive */}
-          <div className="bg-white rounded-xl shadow-lg border border-pink-200 overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-pink-200 bg-white shadow-lg">
             <div className="p-2 sm:p-6">
               {loading ? (
-                <div className="flex flex-col items-center justify-center h-40 sm:h-64">
-                  <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600"></div>
-                  <p className="text-gray-600 mt-2 text-xs sm:text-base">Đang xử lý...</p>
+                <div className="flex h-40 flex-col items-center justify-center sm:h-64">
+                  <div className="size-10 animate-spin rounded-full border-b-2 border-blue-600 sm:size-12"></div>
+                  <p className="mt-2 text-xs text-gray-600 sm:text-base">Đang xử lý...</p>
                 </div>
               ) : (
                 renderMainContent()
@@ -928,6 +1092,13 @@ const ModeratorDashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Debug Panel for monitoring API calls */}
+      <ModerationDebugPanel
+        moderationCache={moderationCache}
+        showDebug={showDebugPanel}
+        onToggleDebug={setShowDebugPanel}
+      />
     </div>
   );
 };

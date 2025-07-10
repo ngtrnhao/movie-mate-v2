@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 const SystemSettings = () => {
   const [settings, setSettings] = useState({
@@ -98,8 +98,8 @@ const SystemSettings = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="size-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
       </div>
     );
   }
@@ -107,7 +107,7 @@ const SystemSettings = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Cài đặt hệ thống</h2>
           <p className="text-gray-600">Cấu hình các thông số hệ thống và bảo mật</p>
@@ -115,14 +115,14 @@ const SystemSettings = () => {
         <div className="flex space-x-2">
           <button
             onClick={handleResetSettings}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            className="rounded-md bg-gray-100 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-200"
           >
             Đặt lại mặc định
           </button>
           <button
             onClick={handleSaveSettings}
             disabled={saving}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="rounded-md bg-indigo-600 px-4 py-2 text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
           >
             {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
           </button>
@@ -130,10 +130,10 @@ const SystemSettings = () => {
       </div>
 
       {/* Settings Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Moderation Settings */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
             <span className="mr-2">🛡️</span>
             Cài đặt kiểm duyệt
           </h3>
@@ -154,7 +154,7 @@ const SystemSettings = () => {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block size-4 rounded-full bg-white transition-transform${
                     settings.moderation.autoApprove ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -181,7 +181,7 @@ const SystemSettings = () => {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block size-4 rounded-full bg-white transition-transform${
                     settings.moderation.requireModeration ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -198,7 +198,7 @@ const SystemSettings = () => {
                 onChange={e =>
                   handleSettingChange('moderation', 'maxReportsBeforeBan', parseInt(e.target.value))
                 }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 min="1"
                 max="20"
               />
@@ -214,7 +214,7 @@ const SystemSettings = () => {
                 onChange={e =>
                   handleSettingChange('moderation', 'responseTimeLimit', parseInt(e.target.value))
                 }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 min="1"
                 max="168"
               />
@@ -223,8 +223,8 @@ const SystemSettings = () => {
         </div>
 
         {/* Content Settings */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
             <span className="mr-2">📝</span>
             Cài đặt nội dung
           </h3>
@@ -237,7 +237,7 @@ const SystemSettings = () => {
                 onChange={e =>
                   handleSettingChange('content', 'maxReviewLength', parseInt(e.target.value))
                 }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 min="100"
                 max="5000"
               />
@@ -265,7 +265,7 @@ const SystemSettings = () => {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block size-4 rounded-full bg-white transition-transform${
                     settings.content.allowAnonymousReviews ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -292,7 +292,7 @@ const SystemSettings = () => {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block size-4 rounded-full bg-white transition-transform${
                     settings.content.requireEmailVerification ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -302,8 +302,8 @@ const SystemSettings = () => {
         </div>
 
         {/* System Settings */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
             <span className="mr-2">⚙️</span>
             Cài đặt hệ thống
           </h3>
@@ -322,7 +322,7 @@ const SystemSettings = () => {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block size-4 rounded-full bg-white transition-transform${
                     settings.system.maintenanceMode ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -347,7 +347,7 @@ const SystemSettings = () => {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block size-4 rounded-full bg-white transition-transform${
                     settings.system.enableNotifications ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -359,7 +359,7 @@ const SystemSettings = () => {
               <select
                 value={settings.system.backupFrequency}
                 onChange={e => handleSettingChange('system', 'backupFrequency', e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="hourly">Hàng giờ</option>
                 <option value="daily">Hàng ngày</option>
@@ -376,7 +376,7 @@ const SystemSettings = () => {
                 onChange={e =>
                   handleSettingChange('system', 'logRetentionDays', parseInt(e.target.value))
                 }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 min="1"
                 max="365"
               />
@@ -385,8 +385,8 @@ const SystemSettings = () => {
         </div>
 
         {/* Security Settings */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
             <span className="mr-2">🔒</span>
             Cài đặt bảo mật
           </h3>
@@ -409,7 +409,7 @@ const SystemSettings = () => {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block size-4 rounded-full bg-white transition-transform${
                     settings.security.enableTwoFactor ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -426,7 +426,7 @@ const SystemSettings = () => {
                 onChange={e =>
                   handleSettingChange('security', 'sessionTimeout', parseInt(e.target.value))
                 }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 min="5"
                 max="1440"
               />
@@ -440,7 +440,7 @@ const SystemSettings = () => {
                 onChange={e =>
                   handleSettingChange('security', 'maxLoginAttempts', parseInt(e.target.value))
                 }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 min="3"
                 max="10"
               />
@@ -464,7 +464,7 @@ const SystemSettings = () => {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block size-4 rounded-full bg-white transition-transform${
                     settings.security.enableRateLimiting ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -475,21 +475,21 @@ const SystemSettings = () => {
       </div>
 
       {/* System Status */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Trạng thái hệ thống</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl mb-2">🟢</div>
+      <div className="rounded-lg bg-white p-6 shadow-md">
+        <h3 className="mb-4 text-lg font-semibold text-gray-900">Trạng thái hệ thống</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-lg bg-green-50 p-4 text-center">
+            <div className="mb-2 text-2xl">🟢</div>
             <div className="text-sm font-medium text-gray-700">Database</div>
             <div className="text-xs text-green-600">Connected</div>
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl mb-2">🟢</div>
+          <div className="rounded-lg bg-green-50 p-4 text-center">
+            <div className="mb-2 text-2xl">🟢</div>
             <div className="text-sm font-medium text-gray-700">Cache</div>
             <div className="text-xs text-green-600">Online</div>
           </div>
-          <div className="text-center p-4 bg-yellow-50 rounded-lg">
-            <div className="text-2xl mb-2">🟡</div>
+          <div className="rounded-lg bg-yellow-50 p-4 text-center">
+            <div className="mb-2 text-2xl">🟡</div>
             <div className="text-sm font-medium text-gray-700">Queue</div>
             <div className="text-xs text-yellow-600">Busy</div>
           </div>

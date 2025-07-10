@@ -42,7 +42,7 @@ const InfoSection = ({ movie }) => {
     <div className="relative h-[90vh] w-full overflow-hidden">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(${getBackdropUrl(movie)})`,
           backgroundSize: 'cover',
@@ -59,12 +59,12 @@ const InfoSection = ({ movie }) => {
         }}
       ></div>
       {/* Overlay làm tối */}
-      <div className="absolute inset-0 bg-black/20 z-10"></div>
+      <div className="absolute inset-0 z-10 bg-black/20"></div>
       {/* Dot Grid Overlay */}
       <div className="bg-dot-grid absolute inset-0 z-20"></div>
 
       {/* Content */}
-      <div className="absolute inset-x-0 bottom-20 pr-36 z-30">
+      <div className="absolute inset-x-0 bottom-20 z-30 pr-36">
         <div className="container mx-auto">
           <div className="flex gap-8">
             {/* Poster */}

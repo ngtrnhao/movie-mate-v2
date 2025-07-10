@@ -1,48 +1,11 @@
-import React from 'react';
 import {
-  ClockIcon,
-  ExclamationTriangleIcon,
   CheckCircleIcon,
   XCircleIcon,
-  FlagIcon,
   ChartBarIcon,
   Cog6ToothIcon,
-  DocumentArrowDownIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
-  UserIcon,
-  ChatBubbleLeftRightIcon,
-  ClipboardDocumentListIcon,
-  DocumentTextIcon,
-  UsersIcon,
-  ChartPieIcon,
-  WrenchScrewdriverIcon,
-  CheckIcon,
-  XMarkIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  TrashIcon,
-  PencilIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  ArrowPathIcon,
-  FlagIcon as FlagIconSolid,
-  UserGroupIcon as UserGroupIconSolid,
-  ArrowUpTrayIcon as ArrowUpTrayIconSolid,
-  NoSymbolIcon as NoSymbolIconSolid,
-  ServerIcon as ServerIconSolid,
 } from '@heroicons/react/24/outline';
-import {
-  ChartBarIcon as ChartBarIconSolid,
-  ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
-  ExclamationTriangleIcon as ExclamationTriangleIconSolid,
-  DocumentTextIcon as DocumentTextIconSolid,
-  UsersIcon as UsersIconSolid,
-  ChartPieIcon as ChartPieIconSolid,
-  Cog6ToothIcon as Cog6ToothIconSolid,
-  WrenchScrewdriverIcon as WrenchScrewdriverIconSolid,
-} from '@heroicons/react/24/solid';
 
 const DashboardOverview = ({ isAdmin: _isAdmin, isModerator: _isModerator }) => {
   const stats = [
@@ -115,9 +78,9 @@ const DashboardOverview = ({ isAdmin: _isAdmin, isModerator: _isModerator }) => 
           <div key={index} className={`rounded-lg border p-4 ${getStatusColor(stat.color)}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium opacity-75 text-purple-700">{stat.title}</p>
+                <p className="text-sm font-medium text-purple-700 opacity-75">{stat.title}</p>
                 <p className="mt-2 text-3xl font-bold text-purple-900">{stat.value}</p>
-                <p className="mt-1 text-xs opacity-75 text-gray-600">{stat.description}</p>
+                <p className="mt-1 text-xs text-gray-600 opacity-75">{stat.description}</p>
               </div>
               <div className="flex items-center">
                 {stat.changeType === 'increase' ? (
@@ -132,7 +95,7 @@ const DashboardOverview = ({ isAdmin: _isAdmin, isModerator: _isModerator }) => 
                 >
                   {stat.change}
                 </span>
-                <span className="ml-1 text-xs opacity-75 text-gray-500">so với hôm qua</span>
+                <span className="ml-1 text-xs text-gray-500 opacity-75">so với hôm qua</span>
               </div>
             </div>
           </div>

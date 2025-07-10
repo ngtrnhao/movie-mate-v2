@@ -206,7 +206,7 @@ const SearchBar = () => {
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
-          className="h-10 w-full rounded-lg border-0 bg-gray-800/50 pl-10 pr-10 text-sm text-white placeholder:text-gray-400 focus:bg-gray-800/80 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all duration-200"
+          className="h-10 w-full rounded-lg border-0 bg-gray-800/50 px-10 text-sm text-white transition-all duration-200 placeholder:text-gray-400 focus:bg-gray-800/80 focus:outline-none focus:ring-2 focus:ring-red-500/50"
           placeholder={t('search.placeholder') || 'Search movies...'}
           autoComplete="off"
         />
@@ -225,7 +225,7 @@ const SearchBar = () => {
         {/* Loading indicator */}
         {isLoading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-red-500"></div>
+            <div className="size-4 animate-spin rounded-full border-2 border-gray-400 border-t-red-500"></div>
           </div>
         )}
       </div>
@@ -234,14 +234,14 @@ const SearchBar = () => {
       {showSuggestions && (
         <div
           ref={suggestionsRef}
-          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-96 overflow-y-auto rounded-lg border border-gray-700 bg-gray-800/95 backdrop-blur-sm shadow-xl"
+          className="absolute inset-x-0 top-full z-50 mt-1 max-h-96 overflow-y-auto rounded-lg border border-gray-700 bg-gray-800/95 shadow-xl backdrop-blur-sm"
         >
           {/* Recent Searches */}
           {searchQuery.length < 2 && recentSearches.length > 0 && (
             <div className="border-b border-gray-700 p-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-400 flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1 text-xs font-medium text-gray-400">
+                  <Clock className="size-3" />
                   {t('search.recent') || 'Recent searches'}
                 </span>
                 <button
@@ -257,12 +257,12 @@ const SearchBar = () => {
                   key={`recent-${index}`}
                   type="button"
                   onClick={() => handleSuggestionClick(search)}
-                  className={`w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/50 rounded transition-colors ${
+                  className={`w-full rounded px-3 py-2 text-left text-sm text-gray-300 transition-colors hover:bg-gray-700/50 ${
                     selectedIndex === index ? 'bg-gray-700/50' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Clock className="h-3 w-3 text-gray-500" />
+                    <Clock className="size-3 text-gray-500" />
                     {search}
                   </div>
                 </button>
@@ -273,8 +273,8 @@ const SearchBar = () => {
           {/* Movie Suggestions */}
           {searchQuery.length >= 2 && !isLoading && (
             <div className="p-2">
-              <div className="flex items-center gap-1 mb-2">
-                <TrendingUp className="h-3 w-3 text-gray-400" />
+              <div className="mb-2 flex items-center gap-1">
+                <TrendingUp className="size-3 text-gray-400" />
                 <span className="text-xs font-medium text-gray-400">
                   {t('search.suggestions') || 'Suggestions'}
                 </span>
@@ -285,7 +285,7 @@ const SearchBar = () => {
                     key={`suggestion-${movie.id}`}
                     type="button"
                     onClick={() => handleSuggestionClick(movie)}
-                    className={`w-full text-left px-3 py-3 hover:bg-gray-700/50 rounded transition-colors ${
+                    className={`w-full rounded p-3 text-left transition-colors hover:bg-gray-700/50 ${
                       selectedIndex === index ? 'bg-gray-700/50' : ''
                     }`}
                   >
@@ -298,14 +298,14 @@ const SearchBar = () => {
                           loading="lazy"
                         />
                       ) : (
-                        <div className="h-12 w-8 rounded bg-gray-700 flex items-center justify-center">
+                        <div className="flex h-12 w-8 items-center justify-center rounded bg-gray-700">
                           <span className="text-xs text-gray-400">No image</span>
                         </div>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{movie.title}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-white">{movie.title}</p>
                         {movie.title_en && movie.title_vi && movie.title !== movie.title_en && (
-                          <p className="text-xs text-gray-400 truncate">
+                          <p className="truncate text-xs text-gray-400">
                             {currentLanguage === 'vi' ? movie.title_en : movie.title_vi}
                           </p>
                         )}
@@ -329,7 +329,7 @@ const SearchBar = () => {
 
           {/* No results message */}
           {searchQuery.length >= 2 && !isLoading && suggestions.length === 0 && (
-            <div className="p-4 text-center text-gray-400 text-sm">
+            <div className="p-4 text-center text-sm text-gray-400">
               {t('search.noResults') || 'No movies found'}
             </div>
           )}

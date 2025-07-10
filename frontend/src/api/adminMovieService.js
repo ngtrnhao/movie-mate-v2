@@ -50,10 +50,20 @@ export const getProductionMetrics = async () => {
  */
 export const getAdminMovies = async (params = {}) => {
   try {
+    // Filter out empty string values from filters
+    const cleanFilters = {};
+    if (params.filters) {
+      Object.entries(params.filters).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          cleanFilters[key] = value;
+        }
+      });
+    }
+
     const queryParams = new URLSearchParams({
       page: params.page || 1,
-      page_size: params.pageSize || 5,
-      ...params.filters,
+      page_size: params.pageSize || 50,
+      ...cleanFilters,
     });
 
     if (params.search?.trim()) {
@@ -63,17 +73,17 @@ export const getAdminMovies = async (params = {}) => {
     const response = await axiosInstance.get(`/api/admin/movies/?${queryParams}`);
 
     // Handle both paginated and non-paginated responses
-    if (response.data.results) {
+    if (response.data.status === 'success') {
       return {
-        results: response.data.results,
+        results: response.data.data,
         count: response.data.count,
-        next: response.data.next,
-        previous: response.data.previous,
+        next: response.data.next_after_created_at,
+        previous: response.data.prev_after_created_at,
         totalPages: Math.ceil(response.data.count / (params.pageSize || 20)),
       };
     }
 
-    return response.data.data || [];
+    throw new Error('Invalid response format');
   } catch (error) {
     handleError(error, 'fetch admin movies');
   }

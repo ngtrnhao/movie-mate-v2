@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import MovieTrailerModal from '../../../components/movies/movie-trailer/MovieTrailerModal';
 import { getBackdropUrl } from '../../../utils/imageUtils';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
 
 const HeroSection = ({ movie }) => {
   const [showTrailer, setShowTrailer] = useState(false);

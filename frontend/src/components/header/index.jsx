@@ -11,7 +11,6 @@ import { ChevronLeft } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
 import { selectIsAuthenticated, selectUser } from '../../store/selectors/authSelectors';
 import { getUserType, USER_TYPES } from '../../utils/userPermissions';
-import { motion } from 'framer-motion';
 const Header = () => {
   const { t } = useTranslation('common');
   const navigate = useNavigate();
@@ -77,21 +76,21 @@ const Header = () => {
       }`}
     >
       <div className="mx-auto max-w-[1400px] px-2 sm:px-4">
-        <div className="flex h-16 items-center w-full">
+        <div className="flex h-16 w-full items-center">
           {/* Left: Back button + Logo */}
-          <div className="flex items-center gap-1 sm:gap-3 min-w-0">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-3">
             {isMovieDetailsPage && (
               <button
                 onClick={handleBack}
-                className="relative group flex items-center gap-2 rounded-xl bg-gradient-to-r from-gray-800/80 to-gray-700/80 backdrop-blur-sm border border-gray-600/50 px-2 py-1 sm:px-3 sm:py-2 text-white/90 shadow-lg transition-all duration-300 hover:from-red-600/80 hover:to-red-500/80 hover:border-red-400/50 hover:text-white hover:shadow-red-500/25 hover:scale-105 hover:-translate-x-1 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                className="group relative flex items-center gap-2 rounded-xl border border-gray-600/50 bg-gradient-to-r from-gray-800/80 to-gray-700/80 px-2 py-1 text-white/90 shadow-lg backdrop-blur-sm transition-all duration-300 hover:-translate-x-1 hover:scale-105 hover:border-red-400/50 hover:from-red-600/80 hover:to-red-500/80 hover:text-white hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500/40 sm:px-3 sm:py-2"
                 aria-label="Back"
               >
-                <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
-                <span className="hidden sm:inline text-sm font-medium">Back</span>
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <ChevronLeft className="size-5 transition-transform duration-300 group-hover:-translate-x-0.5 sm:size-4" />
+                <span className="hidden text-sm font-medium sm:inline">Back</span>
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
               </button>
             )}
-            <div className="flex items-center min-w-0">
+            <div className="flex min-w-0 items-center">
               <MovieMateLogo />
             </div>
           </div>
@@ -104,7 +103,7 @@ const Header = () => {
           </div>
 
           {/* Right: Navigation + Profile */}
-          <div className="flex items-center gap-2 sm:gap-4 ml-auto">
+          <div className="ml-auto flex items-center gap-2 sm:gap-4">
             <Navigation />
             <div className="flex items-center gap-2 md:gap-4">
               {isAuthenticated && user?.id ? (
@@ -279,7 +278,7 @@ const Header = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => navigate('/login')}
-                    className="rounded-md border border-red-600 px-3 py-1 sm:px-4 sm:py-2 text-red-600 transition-colors hover:bg-red-600 hover:text-white text-sm sm:text-base"
+                    className="rounded-md border border-red-600 px-3 py-1 text-sm text-red-600 transition-colors hover:bg-red-600 hover:text-white sm:px-4 sm:py-2 sm:text-base"
                   >
                     {t('auth.signIn')}
                   </button>
@@ -289,7 +288,7 @@ const Header = () => {
           </div>
         </div>
         {/* Mobile search bar below header */}
-        <div className="flex sm:hidden w-full py-2">
+        <div className="flex w-full py-2 sm:hidden">
           <div className="w-full">
             <SearchBar />
           </div>

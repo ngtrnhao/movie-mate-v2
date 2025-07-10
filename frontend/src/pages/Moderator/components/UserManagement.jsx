@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -192,8 +192,8 @@ const UserManagement = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="size-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
       </div>
     );
   }
@@ -201,16 +201,16 @@ const UserManagement = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Quản lý người dùng</h2>
           <p className="text-gray-600">Quản lý tài khoản người dùng và phân quyền</p>
         </div>
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+          <button className="rounded-md bg-indigo-600 px-4 py-2 text-white transition-colors hover:bg-indigo-700">
             Thêm người dùng
           </button>
-          <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+          <button className="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700">
             Xuất danh sách
           </button>
         </div>
@@ -223,15 +223,15 @@ const UserManagement = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center ${
+              className={`flex items-center border-b-2 px-1 py-2 text-sm font-medium ${
                 activeTab === tab.id
                   ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
               }`}
             >
               <span className="mr-2">{tab.icon}</span>
               {tab.label}
-              <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
+              <span className="ml-2 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-900">
                 {tab.count}
               </span>
             </button>
@@ -240,15 +240,15 @@ const UserManagement = () => {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div className="flex space-x-4">
-          <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+          <select className="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <option>Tất cả vi phạm</option>
             <option>1-2 vi phạm</option>
             <option>3-4 vi phạm</option>
             <option>5+ vi phạm</option>
           </select>
-          <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+          <select className="rounded-md border border-gray-300 px-3 py-2 text-sm">
             <option>Tất cả thời gian</option>
             <option>Hôm nay</option>
             <option>Tuần này</option>
@@ -258,18 +258,18 @@ const UserManagement = () => {
         <div className="flex space-x-2">
           {selectedUsers.length > 0 && (
             <>
-              <button className="px-4 py-2 bg-yellow-600 text-white rounded-md text-sm hover:bg-yellow-700">
+              <button className="rounded-md bg-yellow-600 px-4 py-2 text-sm text-white hover:bg-yellow-700">
                 Cảnh báo ({selectedUsers.length})
               </button>
-              <button className="px-4 py-2 bg-orange-600 text-white rounded-md text-sm hover:bg-orange-700">
+              <button className="rounded-md bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700">
                 Tạm khóa ({selectedUsers.length})
               </button>
-              <button className="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700">
+              <button className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700">
                 Cấm ({selectedUsers.length})
               </button>
               <button
                 onClick={handleClearSelection}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700"
+                className="rounded-md bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700"
               >
                 Bỏ chọn
               </button>
@@ -279,20 +279,20 @@ const UserManagement = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+        <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Tổng người dùng</p>
               <p className="text-3xl font-bold text-blue-600">{users.length}</p>
             </div>
-            <div className="bg-blue-100 rounded-full p-3">
+            <div className="rounded-full bg-blue-100 p-3">
               <span className="text-2xl">👥</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Đang hoạt động</p>
@@ -300,13 +300,13 @@ const UserManagement = () => {
                 {users.filter(u => u.status === 'active').length}
               </p>
             </div>
-            <div className="bg-green-100 rounded-full p-3">
+            <div className="rounded-full bg-green-100 p-3">
               <span className="text-2xl">✅</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Bị cấm</p>
@@ -314,13 +314,13 @@ const UserManagement = () => {
                 {users.filter(u => u.isBanned).length}
               </p>
             </div>
-            <div className="bg-red-100 rounded-full p-3">
+            <div className="rounded-full bg-red-100 p-3">
               <span className="text-2xl">🚫</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Moderators</p>
@@ -328,7 +328,7 @@ const UserManagement = () => {
                 {users.filter(u => u.role === 'moderator').length}
               </p>
             </div>
-            <div className="bg-purple-100 rounded-full p-3">
+            <div className="rounded-full bg-purple-100 p-3">
               <span className="text-2xl">🛡️</span>
             </div>
           </div>
@@ -336,20 +336,20 @@ const UserManagement = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="rounded-lg bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <input
             type="text"
             placeholder="Tìm kiếm theo username hoặc email..."
             value={filters.searchTerm}
             onChange={e => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
 
           <select
             value={filters.status}
             onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="active">Đang hoạt động</option>
@@ -360,7 +360,7 @@ const UserManagement = () => {
           <select
             value={filters.role}
             onChange={e => setFilters(prev => ({ ...prev, role: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">Tất cả vai trò</option>
             <option value="user">User</option>
@@ -370,7 +370,7 @@ const UserManagement = () => {
 
           <button
             onClick={() => setFilters({ status: 'all', role: 'all', searchTerm: '' })}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            className="rounded-md bg-gray-100 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-200"
           >
             Xóa bộ lọc
           </button>
@@ -378,8 +378,8 @@ const UserManagement = () => {
       </div>
 
       {/* Users List */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-4 border-b border-gray-200">
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">
               {tabs.find(tab => tab.id === activeTab)?.label}
@@ -396,7 +396,7 @@ const UserManagement = () => {
           {filteredUsers.map(user => (
             <div
               key={user.id}
-              className={`p-4 hover:bg-gray-50 transition-colors ${
+              className={`p-4 transition-colors hover:bg-gray-50 ${
                 selectedUsers.includes(user.id) ? 'bg-green-50' : ''
               }`}
             >
@@ -405,14 +405,14 @@ const UserManagement = () => {
                   type="checkbox"
                   checked={selectedUsers.includes(user.id)}
                   onChange={() => handleSelectUser(user.id)}
-                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                  className="size-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                 />
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-lg">
+                <div className="shrink-0">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-gray-200 text-lg">
                     {user.username.charAt(0).toUpperCase()}
                   </div>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-medium text-gray-900">{user.username}</h4>
@@ -420,7 +420,7 @@ const UserManagement = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <span
-                        className={`px-2 py-1 text-xs rounded-full ${getStatusColor(user.status)}`}
+                        className={`rounded-full px-2 py-1 text-xs ${getStatusColor(user.status)}`}
                       >
                         {user.status === 'active'
                           ? 'Đang hoạt động'
@@ -435,7 +435,7 @@ const UserManagement = () => {
                       <span className="font-medium">Lý do:</span>{' '}
                       {user.banReason || 'Không có lý do'}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="mt-1 text-xs text-gray-500">
                       Hoạt động cuối: {formatDate(user.lastLogin)}
                     </p>
                   </div>
@@ -488,9 +488,9 @@ const UserManagement = () => {
 
       {/* Empty State */}
       {filteredUsers.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-gray-400 text-6xl mb-4">👥</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Không tìm thấy người dùng</h3>
+        <div className="py-12 text-center">
+          <div className="mb-4 text-6xl text-gray-400">👥</div>
+          <h3 className="mb-2 text-lg font-medium text-gray-900">Không tìm thấy người dùng</h3>
           <p className="text-gray-600">Thử thay đổi bộ lọc hoặc tìm kiếm khác</p>
         </div>
       )}

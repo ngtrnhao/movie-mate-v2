@@ -17,7 +17,6 @@ import HeroSection from './components/HeroSection';
 import MainContent from './components/MainContent';
 import ActionPanel from './components/ActionPanel';
 import MovieTrailerModal from '../../components/movies/movie-trailer/MovieTrailerModal';
-import FavoritesDebugPanel from '../../components/debug/FavoritesDebugPanel';
 
 const MovieDetailsPage = () => {
   const { movieId } = useParams();

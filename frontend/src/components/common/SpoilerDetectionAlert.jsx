@@ -1,5 +1,4 @@
-import React from 'react';
-import { AlertTriangle, CheckCircle, XCircle, Info, Search, Zap, Brain } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, Info } from 'lucide-react';
 
 const SpoilerDetectionAlert = ({
   detectionResult,
@@ -16,9 +15,9 @@ const SpoilerDetectionAlert = ({
   // Show simple loading state
   if (isAnalyzing) {
     return (
-      <div className={`bg-blue-50 border border-blue-200 rounded-lg p-4 ${className}`}>
+      <div className={`rounded-lg border border-blue-200 bg-blue-50 p-4 ${className}`}>
         <div className="flex items-center space-x-3">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+          <div className="size-5 animate-spin rounded-full border-b-2 border-blue-600"></div>
           <div>
             <p className="text-sm font-medium text-blue-800">Đang phân tích nội dung...</p>
             <p className="text-xs text-blue-600">Kiểm tra spoiler trong nội dung của bạn</p>
@@ -86,16 +85,16 @@ const SpoilerDetectionAlert = ({
   return (
     <div className={`${config.bgColor} border ${config.borderColor} rounded-lg p-4 ${className}`}>
       <div className="flex items-start space-x-3">
-        <IconComponent className={`h-5 w-5 ${config.textColor} flex-shrink-0 mt-0.5`} />
+        <IconComponent className={`size-5 ${config.textColor} mt-0.5 shrink-0`} />
 
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between">
             <h4 className={`text-sm font-medium ${config.textColor}`}>{config.title}</h4>
 
             <div className="flex items-center space-x-2">
               {/* Confidence indicator */}
               <div className="flex items-center space-x-1">
-                <div className="w-16 bg-gray-200 rounded-full h-2">
+                <div className="h-2 w-16 rounded-full bg-gray-200">
                   <div
                     className={`h-2 rounded-full transition-all duration-300 ${
                       confidence > 0.8
@@ -116,9 +115,9 @@ const SpoilerDetectionAlert = ({
               {onDismiss && (
                 <button
                   onClick={onDismiss}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 transition-colors hover:text-gray-600"
                 >
-                  <XCircle className="h-4 w-4" />
+                  <XCircle className="size-4" />
                 </button>
               )}
             </div>
@@ -129,12 +128,12 @@ const SpoilerDetectionAlert = ({
           {/* Show detected indicators if any */}
           {spoiler_indicators && spoiler_indicators.length > 0 && (
             <div className="mt-2">
-              <p className="text-xs text-gray-600 mb-1">Dấu hiệu được phát hiện:</p>
+              <p className="mb-1 text-xs text-gray-600">Dấu hiệu được phát hiện:</p>
               <div className="flex flex-wrap gap-1">
                 {spoiler_indicators.slice(0, 3).map((indicator, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700"
+                    className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700"
                   >
                     {indicator}
                   </span>
@@ -149,11 +148,11 @@ const SpoilerDetectionAlert = ({
           )}
 
           {/* Action buttons */}
-          <div className="flex items-center space-x-2 mt-3">
+          <div className="mt-3 flex items-center space-x-2">
             {config.actionText && confidence > 0.6 && onMarkAsSpoiler && (
               <button
                 onClick={onMarkAsSpoiler}
-                className={`px-3 py-1.5 text-xs font-medium text-white rounded-md transition-colors ${config.actionColor}`}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors ${config.actionColor}`}
               >
                 {config.actionText}
               </button>
@@ -162,14 +161,14 @@ const SpoilerDetectionAlert = ({
             {confidence > 0.4 && confidence <= 0.6 && onReviewContent && (
               <button
                 onClick={onReviewContent}
-                className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-md transition-colors"
+                className="rounded-md bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700 transition-colors hover:bg-yellow-200"
               >
                 {config.actionText}
               </button>
             )}
 
             {confidence <= 0.4 && (
-              <span className="text-xs text-green-600 font-medium">✓ Nội dung an toàn</span>
+              <span className="text-xs font-medium text-green-600">✓ Nội dung an toàn</span>
             )}
           </div>
         </div>

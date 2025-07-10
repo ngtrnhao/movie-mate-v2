@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getModerationConfig,
   updateModerationThresholds,
   toggleLearningSystem,
   getModerationAnalytics,
 } from '../../../api/movieService';
+import moderationCacheService from '../../../services/moderationCacheService';
 import {
   CogIcon,
   AcademicCapIcon,
@@ -21,57 +22,81 @@ import {
 const AdminThresholdConfig = () => {
   const [config, setConfig] = useState(null);
   const [analytics, setAnalytics] = useState(null);
-  const [thresholds, setThresholds] = useState({
-    autoMarkThreshold: 0.8,
-    flagForReviewThreshold: 0.6,
-    suggestWarningThreshold: 0.4,
-  });
-  const [originalThresholds, setOriginalThresholds] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [learningEnabled, setLearningEnabled] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Fetch current configuration
-  const fetchConfig = async () => {
-    setLoading(true);
+  const [thresholds, setThresholds] = useState({
+    autoMarkThreshold: 0.85,
+    flagForReviewThreshold: 0.7,
+    suggestWarningThreshold: 0.6,
+  });
+  const [originalThresholds, setOriginalThresholds] = useState({});
+  const [learningEnabled, setLearningEnabled] = useState(false);
+
+  // Optimized fetch config with caching
+  const fetchConfig = useCallback(async () => {
     try {
-      const response = await getModerationConfig();
+      // Use cache service for moderation config API
+      const response = await moderationCacheService.cachedApiCall(
+        'moderation_config',
+        async () => await getModerationConfig(),
+        {}
+      );
+
       setConfig(response);
 
-      const newThresholds = {
-        autoMarkThreshold: response.auto_mark_threshold,
-        flagForReviewThreshold: response.flag_for_review_threshold,
-        suggestWarningThreshold: response.suggest_warning_threshold,
-      };
+      if (response) {
+        const newThresholds = {
+          autoMarkThreshold: response.auto_mark_threshold || 0.85,
+          flagForReviewThreshold: response.flag_for_review_threshold || 0.7,
+          suggestWarningThreshold: response.suggest_warning_threshold || 0.6,
+        };
+        setThresholds(newThresholds);
+        setOriginalThresholds(newThresholds);
+        setLearningEnabled(response.learning_enabled || false);
+      }
 
-      setThresholds(newThresholds);
-      setOriginalThresholds(newThresholds);
-      setLearningEnabled(response.learning_enabled);
+      console.log('✅ Moderation config loaded:', {
+        learningEnabled: response?.learning_enabled || false,
+        autoMarkThreshold: response?.auto_mark_threshold || 0,
+        fromCache: response.__fromCache || false,
+      });
     } catch (error) {
       console.error('Error fetching config:', error);
       setMessage({ type: 'error', text: 'Không thể tải cấu hình' });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch analytics
-  const fetchAnalytics = async () => {
+  // Optimized fetch analytics with caching
+  const fetchAnalytics = useCallback(async () => {
     try {
-      const response = await getModerationAnalytics(30);
+      // Use cache service for moderation analytics API
+      const response = await moderationCacheService.cachedApiCall(
+        'moderation_analytics',
+        async () => await getModerationAnalytics(30),
+        { days: 30 }
+      );
+
       setAnalytics(response);
+
+      console.log('✅ Moderation analytics loaded:', {
+        totalFeedback: response?.summary?.total_feedback || 0,
+        fromCache: response.__fromCache || false,
+      });
     } catch (error) {
       console.error('Error fetching analytics:', error);
     }
-  };
+  }, []);
 
   // Initial load
   useEffect(() => {
     fetchConfig();
     fetchAnalytics();
-  }, []);
+  }, [fetchConfig, fetchAnalytics]);
 
   // Check for changes
   useEffect(() => {
@@ -125,7 +150,8 @@ const AdminThresholdConfig = () => {
       setOriginalThresholds({ ...thresholds });
       setMessage({ type: 'success', text: 'Cập nhật thresholds thành công' });
 
-      // Refresh config
+      // Invalidate cache and refresh config
+      moderationCacheService.invalidateCache('moderation_config');
       await fetchConfig();
     } catch (error) {
       console.error('Error saving thresholds:', error);
@@ -147,7 +173,8 @@ const AdminThresholdConfig = () => {
         text: `Hệ thống học ${newValue ? 'đã bật' : 'đã tắt'}`,
       });
 
-      // Refresh config
+      // Invalidate cache and refresh config
+      moderationCacheService.invalidateCache('moderation_config');
       await fetchConfig();
     } catch (error) {
       console.error('Error toggling learning:', error);
@@ -216,12 +243,12 @@ const AdminThresholdConfig = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div className="mb-4 h-8 w-1/3 rounded bg-gray-200"></div>
             <div className="space-y-3">
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+              <div className="h-4 w-1/2 rounded bg-gray-200"></div>
+              <div className="h-4 w-2/3 rounded bg-gray-200"></div>
             </div>
           </div>
         </div>
@@ -234,11 +261,11 @@ const AdminThresholdConfig = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <CogIcon className="h-6 w-6 text-blue-600" />
+            <div className="rounded-lg bg-blue-100 p-2">
+              <CogIcon className="size-6 text-blue-600" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Cấu hình Thresholds</h1>
@@ -249,12 +276,14 @@ const AdminThresholdConfig = () => {
           </div>
           <button
             onClick={() => {
+              moderationCacheService.invalidateCache('moderation_config');
+              moderationCacheService.invalidateCache('moderation_analytics');
               fetchConfig();
               fetchAnalytics();
             }}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            className="flex items-center space-x-2 rounded-lg bg-gray-600 px-4 py-2 text-white transition-colors hover:bg-gray-700"
           >
-            <ArrowPathIcon className="h-4 w-4" />
+            <ArrowPathIcon className="size-4" />
             <span>Làm mới</span>
           </button>
         </div>
@@ -263,17 +292,17 @@ const AdminThresholdConfig = () => {
       {/* Message */}
       {message.text && (
         <div
-          className={`p-4 rounded-lg border ${
+          className={`rounded-lg border p-4 ${
             message.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-800'
           }`}
         >
           <div className="flex items-center space-x-2">
             {message.type === 'success' ? (
-              <CheckCircleIcon className="h-5 w-5" />
+              <CheckCircleIcon className="size-5" />
             ) : (
-              <ExclamationTriangleIcon className="h-5 w-5" />
+              <ExclamationTriangleIcon className="size-5" />
             )}
             <span>{message.text}</span>
           </div>
@@ -282,35 +311,35 @@ const AdminThresholdConfig = () => {
 
       {/* Current Performance */}
       {analytics && (
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h3 className="text-lg font-medium mb-4 flex items-center space-x-2">
-            <ChartBarIcon className="h-5 w-5 text-gray-600" />
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
+          <h3 className="mb-4 flex items-center space-x-2 text-lg font-medium">
+            <ChartBarIcon className="size-5 text-gray-600" />
             <span>Hiệu suất hiện tại (30 ngày)</span>
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="rounded-lg bg-blue-50 p-4 text-center">
               <p className="text-2xl font-bold text-blue-600">
                 {(analytics.summary?.overall_accuracy * 100).toFixed(1)}%
               </p>
               <p className="text-sm text-gray-600">Độ chính xác</p>
             </div>
 
-            <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className="rounded-lg bg-green-50 p-4 text-center">
               <p className="text-2xl font-bold text-green-600">
                 {analytics.accuracy_metrics?.precision?.toFixed(3) || '0.000'}
               </p>
               <p className="text-sm text-gray-600">Precision</p>
             </div>
 
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
+            <div className="rounded-lg bg-purple-50 p-4 text-center">
               <p className="text-2xl font-bold text-purple-600">
                 {analytics.accuracy_metrics?.recall?.toFixed(3) || '0.000'}
               </p>
               <p className="text-sm text-gray-600">Recall</p>
             </div>
 
-            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+            <div className="rounded-lg bg-yellow-50 p-4 text-center">
               <p className="text-2xl font-bold text-yellow-600">
                 {analytics.volume_metrics?.auto_marked_reviews || 0}
               </p>
@@ -323,15 +352,15 @@ const AdminThresholdConfig = () => {
       {/* Recommendation */}
       {recommendation && (
         <div
-          className={`p-4 rounded-lg border ${
+          className={`rounded-lg border p-4 ${
             recommendation.type === 'success'
-              ? 'bg-green-50 border-green-200'
-              : 'bg-yellow-50 border-yellow-200'
+              ? 'border-green-200 bg-green-50'
+              : 'border-yellow-200 bg-yellow-50'
           }`}
         >
           <div className="flex items-start space-x-3">
             <BoltIcon
-              className={`h-5 w-5 mt-0.5 ${
+              className={`mt-0.5 size-5 ${
                 recommendation.type === 'success' ? 'text-green-600' : 'text-yellow-600'
               }`}
             />
@@ -344,7 +373,7 @@ const AdminThresholdConfig = () => {
                 Khuyến nghị từ AI
               </p>
               <p
-                className={`text-sm mt-1 ${
+                className={`mt-1 text-sm ${
                   recommendation.type === 'success' ? 'text-green-700' : 'text-yellow-700'
                 }`}
               >
@@ -353,7 +382,7 @@ const AdminThresholdConfig = () => {
               {recommendation.suggestion && (
                 <button
                   onClick={() => applySuggestion(recommendation.suggestion)}
-                  className={`mt-2 px-3 py-1 text-sm rounded ${
+                  className={`mt-2 rounded px-3 py-1 text-sm ${
                     recommendation.type === 'success'
                       ? 'bg-green-600 text-white hover:bg-green-700'
                       : 'bg-yellow-600 text-white hover:bg-yellow-700'
@@ -368,18 +397,18 @@ const AdminThresholdConfig = () => {
       )}
 
       {/* Threshold Configuration */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="flex items-center space-x-3 mb-6">
-          <AdjustmentsHorizontalIcon className="h-6 w-6 text-gray-600" />
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center space-x-3">
+          <AdjustmentsHorizontalIcon className="size-6 text-gray-600" />
           <h3 className="text-lg font-medium">Cấu hình Thresholds</h3>
         </div>
 
         <div className="space-y-6">
           {/* Auto Mark Threshold */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               Auto-mark Threshold
-              <span className="text-gray-500 ml-2">(≥ {thresholds.autoMarkThreshold})</span>
+              <span className="ml-2 text-gray-500">(≥ {thresholds.autoMarkThreshold})</span>
             </label>
             <div className="flex items-center space-x-4">
               <input
@@ -389,7 +418,7 @@ const AdminThresholdConfig = () => {
                 step="0.01"
                 value={thresholds.autoMarkThreshold}
                 onChange={e => handleThresholdChange('autoMarkThreshold', e.target.value)}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                className="slider h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200"
               />
               <input
                 type="number"
@@ -398,19 +427,19 @@ const AdminThresholdConfig = () => {
                 step="0.01"
                 value={thresholds.autoMarkThreshold}
                 onChange={e => handleThresholdChange('autoMarkThreshold', e.target.value)}
-                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
               />
             </div>
-            <p className="text-xs text-gray-600 mt-1">
+            <p className="mt-1 text-xs text-gray-600">
               Reviews với confidence ≥ {thresholds.autoMarkThreshold} sẽ được đánh dấu tự động
             </p>
           </div>
 
           {/* Flag for Review Threshold */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               Flag for Review Threshold
-              <span className="text-gray-500 ml-2">
+              <span className="ml-2 text-gray-500">
                 ({thresholds.flagForReviewThreshold} - {thresholds.autoMarkThreshold})
               </span>
             </label>
@@ -422,7 +451,7 @@ const AdminThresholdConfig = () => {
                 step="0.01"
                 value={thresholds.flagForReviewThreshold}
                 onChange={e => handleThresholdChange('flagForReviewThreshold', e.target.value)}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                className="slider h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200"
               />
               <input
                 type="number"
@@ -431,17 +460,17 @@ const AdminThresholdConfig = () => {
                 step="0.01"
                 value={thresholds.flagForReviewThreshold}
                 onChange={e => handleThresholdChange('flagForReviewThreshold', e.target.value)}
-                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
               />
             </div>
-            <p className="text-xs text-gray-600 mt-1">Reviews sẽ được gắn cờ để user xác nhận</p>
+            <p className="mt-1 text-xs text-gray-600">Reviews sẽ được gắn cờ để user xác nhận</p>
           </div>
 
           {/* Suggest Warning Threshold */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               Suggest Warning Threshold
-              <span className="text-gray-500 ml-2">
+              <span className="ml-2 text-gray-500">
                 ({thresholds.suggestWarningThreshold} - {thresholds.flagForReviewThreshold})
               </span>
             </label>
@@ -453,7 +482,7 @@ const AdminThresholdConfig = () => {
                 step="0.01"
                 value={thresholds.suggestWarningThreshold}
                 onChange={e => handleThresholdChange('suggestWarningThreshold', e.target.value)}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                className="slider h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200"
               />
               <input
                 type="number"
@@ -462,28 +491,28 @@ const AdminThresholdConfig = () => {
                 step="0.01"
                 value={thresholds.suggestWarningThreshold}
                 onChange={e => handleThresholdChange('suggestWarningThreshold', e.target.value)}
-                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
               />
             </div>
-            <p className="text-xs text-gray-600 mt-1">Reviews sẽ được gửi vào queue kiểm duyệt</p>
+            <p className="mt-1 text-xs text-gray-600">Reviews sẽ được gửi vào queue kiểm duyệt</p>
           </div>
         </div>
 
         {/* Visual Threshold Representation */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Minh họa Thresholds</h4>
-          <div className="relative h-8 bg-gradient-to-r from-green-200 via-yellow-200 via-orange-200 to-red-200 rounded">
+        <div className="mt-6 rounded-lg bg-gray-50 p-4">
+          <h4 className="mb-3 text-sm font-medium text-gray-700">Minh họa Thresholds</h4>
+          <div className="relative h-8 rounded bg-gradient-to-r from-green-200 via-orange-200 via-yellow-200 to-red-200">
             {/* Threshold markers */}
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-red-600"
+              className="absolute inset-y-0 w-0.5 bg-red-600"
               style={{ left: `${thresholds.autoMarkThreshold * 100}%` }}
             >
-              <div className="absolute -top-6 -left-8 text-xs font-medium text-red-600">
+              <div className="absolute -left-8 -top-6 text-xs font-medium text-red-600">
                 Auto: {thresholds.autoMarkThreshold}
               </div>
             </div>
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-orange-600"
+              className="absolute inset-y-0 w-0.5 bg-orange-600"
               style={{ left: `${thresholds.flagForReviewThreshold * 100}%` }}
             >
               <div className="absolute -bottom-6 -left-8 text-xs font-medium text-orange-600">
@@ -491,15 +520,15 @@ const AdminThresholdConfig = () => {
               </div>
             </div>
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-yellow-600"
+              className="absolute inset-y-0 w-0.5 bg-yellow-600"
               style={{ left: `${thresholds.suggestWarningThreshold * 100}%` }}
             >
-              <div className="absolute -top-6 -left-10 text-xs font-medium text-yellow-600">
+              <div className="absolute -left-10 -top-6 text-xs font-medium text-yellow-600">
                 Warning: {thresholds.suggestWarningThreshold}
               </div>
             </div>
           </div>
-          <div className="flex justify-between text-xs text-gray-600 mt-8">
+          <div className="mt-8 flex justify-between text-xs text-gray-600">
             <span>0.0 (No Action)</span>
             <span>1.0 (Maximum Confidence)</span>
           </div>
@@ -507,13 +536,13 @@ const AdminThresholdConfig = () => {
       </div>
 
       {/* Learning System Configuration */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="flex items-center space-x-3 mb-6">
-          <AcademicCapIcon className="h-6 w-6 text-gray-600" />
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center space-x-3">
+          <AcademicCapIcon className="size-6 text-gray-600" />
           <h3 className="text-lg font-medium">Hệ thống học (Learning System)</h3>
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
           <div>
             <p className="font-medium text-gray-900">Tự động điều chỉnh thresholds</p>
             <p className="text-sm text-gray-600">
@@ -521,29 +550,29 @@ const AdminThresholdConfig = () => {
             </p>
           </div>
 
-          <label className="relative inline-flex items-center cursor-pointer">
+          <label className="relative inline-flex cursor-pointer items-center">
             <input
               type="checkbox"
               checked={learningEnabled}
               onChange={handleToggleLearning}
               disabled={saving}
-              className="sr-only peer"
+              className="peer sr-only"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:size-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300"></div>
           </label>
         </div>
 
         {config && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="p-3 bg-blue-50 rounded">
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
+            <div className="rounded bg-blue-50 p-3">
               <p className="font-medium text-blue-900">Learning Rate</p>
               <p className="text-blue-700">{config.learning_rate}</p>
             </div>
-            <div className="p-3 bg-green-50 rounded">
+            <div className="rounded bg-green-50 p-3">
               <p className="font-medium text-green-900">Min Feedback Count</p>
               <p className="text-green-700">{config.min_feedback_count}</p>
             </div>
-            <div className="p-3 bg-purple-50 rounded">
+            <div className="rounded bg-purple-50 p-3">
               <p className="font-medium text-purple-900">Accuracy Target</p>
               <p className="text-purple-700">{(config.accuracy_target * 100).toFixed(1)}%</p>
             </div>
@@ -556,12 +585,12 @@ const AdminThresholdConfig = () => {
         <button
           onClick={saveThresholds}
           disabled={!hasChanges || saving || validateThresholds()}
-          className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+          className="flex flex-1 items-center justify-center space-x-2 rounded-lg bg-blue-600 px-6 py-3 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <div className="size-4 animate-spin rounded-full border-b-2 border-white"></div>
           ) : (
-            <ShieldCheckIcon className="h-5 w-5" />
+            <ShieldCheckIcon className="size-5" />
           )}
           <span>{saving ? 'Đang lưu...' : 'Lưu cấu hình'}</span>
         </button>
@@ -569,19 +598,19 @@ const AdminThresholdConfig = () => {
         <button
           onClick={resetThresholds}
           disabled={!hasChanges || saving}
-          className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="rounded-lg bg-gray-600 px-6 py-3 text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Reset
         </button>
       </div>
 
       {/* Information Panel */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
         <div className="flex items-start space-x-3">
-          <InformationCircleIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+          <InformationCircleIcon className="mt-0.5 size-5 text-blue-600" />
           <div className="text-sm text-blue-800">
-            <p className="font-medium mb-2">Hướng dẫn sử dụng:</p>
-            <ul className="space-y-1 list-disc list-inside">
+            <p className="mb-2 font-medium">Hướng dẫn sử dụng:</p>
+            <ul className="list-inside list-disc space-y-1">
               <li>Thresholds cao hơn = ít false positive nhưng có thể bỏ sót spoiler</li>
               <li>Thresholds thấp hơn = phát hiện nhiều hơn nhưng có thể có false positive</li>
               <li>Learning system sẽ tự động điều chỉnh dựa trên feedback của moderator</li>

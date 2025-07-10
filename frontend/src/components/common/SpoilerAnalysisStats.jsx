@@ -1,4 +1,3 @@
-import React from 'react';
 import { TrendingUp, AlertTriangle, CheckCircle, Clock, Zap } from 'lucide-react';
 
 const SpoilerAnalysisStats = ({
@@ -66,13 +65,13 @@ const SpoilerAnalysisStats = ({
   const IconComponent = stage.icon;
 
   return (
-    <div className={`bg-gray-50 border border-gray-200 rounded-lg p-4 ${className}`}>
+    <div className={`rounded-lg border border-gray-200 bg-gray-50 p-4 ${className}`}>
       <div className="space-y-4">
         {/* Analysis Progress */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className={`p-2 rounded-full ${stage.bgColor}`}>
-              <IconComponent className={`h-4 w-4 ${stage.color}`} />
+            <div className={`rounded-full p-2 ${stage.bgColor}`}>
+              <IconComponent className={`size-4 ${stage.color}`} />
             </div>
             <div>
               <h4 className="text-sm font-medium text-gray-900">{stage.title}</h4>
@@ -86,7 +85,7 @@ const SpoilerAnalysisStats = ({
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="h-2 w-full rounded-full bg-gray-200">
           <div
             className={`h-2 rounded-full transition-all duration-500 ease-out ${
               analysisProgress < 30
@@ -108,7 +107,7 @@ const SpoilerAnalysisStats = ({
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">Độ tin cậy:</span>
               <div className="flex items-center space-x-2">
-                <div className="w-16 bg-gray-200 rounded-full h-2">
+                <div className="h-2 w-16 rounded-full bg-gray-200">
                   <div
                     className={`h-2 rounded-full transition-all duration-300 ${
                       confidence > 0.8
@@ -131,7 +130,7 @@ const SpoilerAnalysisStats = ({
             {/* Detected Indicators */}
             {spoilerIndicators.length > 0 && (
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">Dấu hiệu phát hiện:</span>
                   <span className="text-xs text-gray-500">{spoilerIndicators.length} dấu hiệu</span>
                 </div>
@@ -139,7 +138,7 @@ const SpoilerAnalysisStats = ({
                   {spoilerIndicators.slice(0, 5).map((indicator, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-700"
+                      className="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs text-red-700"
                     >
                       {indicator}
                     </span>
@@ -156,7 +155,7 @@ const SpoilerAnalysisStats = ({
             {/* Analysis Status */}
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center space-x-1 text-gray-500">
-                <Clock className="h-3 w-3" />
+                <Clock className="size-3" />
                 <span>
                   {intermediateResults && !detectionResult
                     ? 'Kết quả tạm thời'
@@ -165,7 +164,7 @@ const SpoilerAnalysisStats = ({
               </div>
               {result.is_spoiler && (
                 <div className="flex items-center space-x-1 text-red-600">
-                  <AlertTriangle className="h-3 w-3" />
+                  <AlertTriangle className="size-3" />
                   <span>Nội dung có spoiler</span>
                 </div>
               )}
@@ -175,13 +174,13 @@ const SpoilerAnalysisStats = ({
 
         {/* Analysis Tips */}
         {isAnalyzing && (
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
             <div className="flex items-start space-x-2">
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <div className="shrink-0">
+                <div className="size-2 animate-pulse rounded-full bg-blue-500"></div>
               </div>
               <div className="text-xs text-blue-700">
-                <p className="font-medium mb-1">Mẹo phân tích:</p>
+                <p className="mb-1 font-medium">Mẹo phân tích:</p>
                 <ul className="space-y-1">
                   <li>• Hệ thống đang kiểm tra từ khóa, mẫu câu và ngữ cảnh</li>
                   <li>• Kết quả sẽ được cập nhật theo thời gian thực</li>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 const SpoilerBadge = ({
@@ -40,7 +39,7 @@ const SpoilerBadge = ({
         ${className}
       `}
     >
-      {showIcon && <AlertTriangle className="flex-shrink-0" size={iconSizes[size]} />}
+      {showIcon && <AlertTriangle className="shrink-0" size={iconSizes[size]} />}
       Spoiler
     </span>
   );

@@ -54,7 +54,7 @@ const UserStatsCard = ({ className = '' }) => {
   ];
 
   return (
-    <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 ${className}`}>
+    <div className={`grid grid-cols-2 gap-4 md:grid-cols-4 ${className}`}>
       {stats.map(stat => {
         const IconComponent = stat.icon;
 
@@ -65,8 +65,8 @@ const UserStatsCard = ({ className = '' }) => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-medium">{stat.label}</p>
-                <p className="text-white text-2xl font-bold mt-1">{stat.count}</p>
+                <p className="text-sm font-medium text-gray-400">{stat.label}</p>
+                <p className="mt-1 text-2xl font-bold text-white">{stat.count}</p>
               </div>
               <div className={`${stat.color}`}>
                 <IconComponent size={24} />

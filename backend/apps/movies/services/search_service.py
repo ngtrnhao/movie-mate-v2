@@ -149,23 +149,31 @@ class MovieSearchService:
             # --- ADMIN FILTERS ---
             if admin_mode:
                 # Các filter đặc biệt cho admin
-                if params.get('approval_status'):
+                # Chỉ áp dụng filter nếu có giá trị thực sự (không phải None hoặc empty string)
+                if params.get('approval_status') and params.get('approval_status') != '':
                     search = search.filter('term', approval_status=params['approval_status'])
-                if params.get('admin_featured') is not None:
-                    val = params['admin_featured']
+
+                admin_featured_value = params.get('admin_featured')
+                if admin_featured_value is not None and admin_featured_value != '':
+                    val = admin_featured_value
                     if isinstance(val, str):
                         val = val.lower() == 'true'
                     search = search.filter('term', admin_featured=val)
-                if params.get('visibility_status'):
+
+                if params.get('visibility_status') and params.get('visibility_status') != '':
                     search = search.filter('term', visibility_status=params['visibility_status'])
-                if params.get('is_published') is not None:
-                    val = params['is_published']
+
+                is_published_value = params.get('is_published')
+                if is_published_value is not None and is_published_value != '':
+                    val = is_published_value
                     if isinstance(val, str):
                         val = val.lower() == 'true'
                     search = search.filter('term', is_published=val)
-                if params.get('admin_priority') is not None:
+
+                admin_priority_value = params.get('admin_priority')
+                if admin_priority_value is not None and admin_priority_value != '':
                     try:
-                        search = search.filter('term', admin_priority=int(params['admin_priority']))
+                        search = search.filter('term', admin_priority=int(admin_priority_value))
                     except Exception:
                         pass
                 # Keyset pagination: after_created_at

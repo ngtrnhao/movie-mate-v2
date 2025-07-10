@@ -596,14 +596,14 @@ const MoviesPage = () => {
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
             onClick={scrollToTop}
-            className="fixed bottom-8 right-8 z-[9999] group flex size-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-gray-800/90 to-gray-700/90 backdrop-blur-md border border-gray-600/50 text-white shadow-2xl transition-all duration-300 hover:scale-105 hover:from-red-600/90 hover:to-red-500/90 hover:border-red-400/50 hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-2 focus:ring-offset-gray-900"
+            className="group fixed bottom-8 right-8 z-[9999] flex size-14 items-center justify-center rounded-2xl border border-gray-600/50 bg-gradient-to-tr from-gray-800/90 to-gray-700/90 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-red-400/50 hover:from-red-600/90 hover:to-red-500/90 hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-2 focus:ring-offset-gray-900"
             aria-label="Back to top"
           >
             <ArrowUp
               size={22}
               className="transition-transform duration-300 group-hover:-translate-y-0.5"
             />
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           </motion.button>
         )}
       </AnimatePresence>

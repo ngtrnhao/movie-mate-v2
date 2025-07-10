@@ -2,10 +2,6 @@ import { useState } from 'react';
 import {
   EyeIcon,
   FunnelIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   DocumentTextIcon,
   ChatBubbleLeftRightIcon,
   DocumentIcon,
@@ -142,7 +138,7 @@ const ContentManagement = () => {
       </div>
 
       {/* Filters and Actions */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <FunnelIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
           <select className="rounded-md border border-gray-300 py-2 pl-10 pr-3 text-sm">
@@ -164,11 +160,11 @@ const ContentManagement = () => {
         </div>
         <div className="flex gap-2">
           <button className="flex items-center rounded-md bg-gradient-to-r from-amber-400 to-pink-400 px-4 py-2 text-sm text-white hover:from-amber-500 hover:to-pink-500">
-            <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
+            <DocumentArrowDownIcon className="mr-2 size-4" />
             Xuất
           </button>
           <button className="flex items-center rounded-md bg-gradient-to-r from-pink-400 to-purple-400 px-4 py-2 text-sm text-white hover:from-pink-500 hover:to-purple-500">
-            <ChatBubbleLeftRightIcon className="w-4 h-4 mr-2" />
+            <ChatBubbleLeftRightIcon className="mr-2 size-4" />
             Bulk Action
           </button>
           <button
@@ -181,8 +177,8 @@ const ContentManagement = () => {
       </div>
 
       {/* Content List */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
+      <div className="rounded-lg bg-white shadow">
+        <div className="border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-purple-900">
               {tabs.find(tab => tab.id === activeTab)?.label}
@@ -203,7 +199,7 @@ const ContentManagement = () => {
                   onChange={() => handleSelectItem(item.id)}
                   className="mt-1 size-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
                 />
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
                     <h4 className="truncate text-sm font-medium text-purple-900">{item.title}</h4>
                     <span
@@ -212,7 +208,7 @@ const ContentManagement = () => {
                       {item.status}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-2 mt-1">
+                  <div className="mt-1 flex items-center space-x-2">
                     <span
                       className={`rounded-full px-2 py-1 text-xs ${getPriorityColor(
                         item.priority
@@ -232,15 +228,15 @@ const ContentManagement = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <button className="flex items-center text-xs font-medium text-pink-600 hover:text-pink-700">
-                    <EyeIcon className="w-4 h-4 mr-1" />
+                    <EyeIcon className="mr-1 size-4" />
                     Xem
                   </button>
                   <button className="flex items-center text-xs font-medium text-purple-600 hover:text-purple-700">
-                    <ChatBubbleLeftRightIcon className="w-4 h-4 mr-1" />
+                    <ChatBubbleLeftRightIcon className="mr-1 size-4" />
                     Phản hồi
                   </button>
                   <button className="flex items-center text-xs font-medium text-gray-600 hover:text-gray-700">
-                    <DocumentArrowDownIcon className="w-4 h-4 mr-1" />
+                    <DocumentArrowDownIcon className="mr-1 size-4" />
                     Chi tiết
                   </button>
                 </div>
@@ -250,7 +246,7 @@ const ContentManagement = () => {
         </div>
 
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-gray-200">
+        <div className="border-t border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-700">
               Hiển thị 1-10 của {contentItems.length} kết quả

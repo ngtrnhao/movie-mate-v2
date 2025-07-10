@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getCommunityStats } from '../../../api/movieService';
 
 const ModerationQueue = () => {
@@ -49,10 +49,10 @@ const ModerationQueue = () => {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="mb-6 h-4 w-1/4 rounded bg-gray-200"></div>
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-gray-200 h-32 rounded-lg"></div>
+              <div key={i} className="h-32 rounded-lg bg-gray-200"></div>
             ))}
           </div>
         </div>
@@ -63,10 +63,10 @@ const ModerationQueue = () => {
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4">
           <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <div className="shrink-0">
+              <svg className="size-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -87,13 +87,13 @@ const ModerationQueue = () => {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Hàng đợi kiểm duyệt</h2>
+        <h2 className="mb-2 text-2xl font-bold text-gray-900">Hàng đợi kiểm duyệt</h2>
         <p className="text-gray-600">Review chờ kiểm duyệt (7 ngày gần đây)</p>
       </div>
 
       {reviews.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="mx-auto h-12 w-12 text-gray-400">
+        <div className="py-12 text-center">
+          <div className="mx-auto size-12 text-gray-400">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
@@ -111,12 +111,12 @@ const ModerationQueue = () => {
       ) : (
         <div className="space-y-6">
           {reviews.map(review => (
-            <div key={review.id} className="bg-white border border-gray-200 rounded-lg p-6">
+            <div key={review.id} className="rounded-lg border border-gray-200 bg-white p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-4">
+                  <div className="mb-4 flex items-center space-x-3">
                     <img
-                      className="h-10 w-10 rounded-full"
+                      className="size-10 rounded-full"
                       src={review.user?.avatar_url || '/images/avatar_default.jpg'}
                       alt=""
                     />
@@ -130,12 +130,12 @@ const ModerationQueue = () => {
                     </div>
                     {review.rating && (
                       <div className="flex items-center">
-                        <span className="text-sm text-gray-500 mr-1">Rating:</span>
+                        <span className="mr-1 text-sm text-gray-500">Rating:</span>
                         <div className="flex items-center">
                           {[...Array(5)].map((_, i) => (
                             <svg
                               key={i}
-                              className={`h-4 w-4 ${
+                              className={`size-4 ${
                                 i < review.rating ? 'text-yellow-400' : 'text-gray-300'
                               }`}
                               fill="currentColor"
@@ -150,10 +150,10 @@ const ModerationQueue = () => {
                   </div>
 
                   <div className="mb-4">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    <h3 className="mb-2 text-lg font-medium text-gray-900">
                       {review.title || `Review cho ${review.movie?.title}`}
                     </h3>
-                    <p className="text-gray-700 whitespace-pre-wrap">
+                    <p className="whitespace-pre-wrap text-gray-700">
                       {review.content.length > 300
                         ? `${review.content.substring(0, 300)}...`
                         : review.content}
@@ -164,7 +164,7 @@ const ModerationQueue = () => {
                           setSelectedReview(review);
                           setShowModal(true);
                         }}
-                        className="text-indigo-600 hover:text-indigo-500 text-sm font-medium mt-2"
+                        className="mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-500"
                       >
                         Đọc thêm
                       </button>
@@ -175,7 +175,7 @@ const ModerationQueue = () => {
                     <span>Phim: {review.movie?.title}</span>
                     <span>Ngôn ngữ: {review.language}</span>
                     {review.is_spoiler && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
                         Spoiler
                       </span>
                     )}
@@ -185,10 +185,10 @@ const ModerationQueue = () => {
                 <div className="ml-6 flex flex-col space-y-2">
                   <button
                     onClick={() => handleModerationAction(review.id, 'approve')}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-sm font-medium leading-4 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                   >
                     <svg
-                      className="h-4 w-4 mr-1"
+                      className="mr-1 size-4"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -204,10 +204,10 @@ const ModerationQueue = () => {
                   </button>
                   <button
                     onClick={() => handleModerationAction(review.id, 'reject')}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-3 py-2 text-sm font-medium leading-4 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                   >
                     <svg
-                      className="h-4 w-4 mr-1"
+                      className="mr-1 size-4"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -226,10 +226,10 @@ const ModerationQueue = () => {
                       setSelectedReview(review);
                       setShowModal(true);
                     }}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   >
                     <svg
-                      className="h-4 w-4 mr-1"
+                      className="mr-1 size-4"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -258,16 +258,16 @@ const ModerationQueue = () => {
 
       {/* Review Detail Modal */}
       {showModal && selectedReview && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 z-50 size-full overflow-y-auto bg-gray-600 bg-opacity-50">
+          <div className="relative top-20 mx-auto w-11/12 rounded-md border bg-white p-5 shadow-lg md:w-3/4 lg:w-1/2">
             <div className="mt-3">
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Chi tiết review</h3>
                 <button
                   onClick={() => setShowModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -280,10 +280,10 @@ const ModerationQueue = () => {
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">
+                  <h4 className="mb-2 text-lg font-medium text-gray-900">
                     {selectedReview.title || `Review cho ${selectedReview.movie?.title}`}
                   </h4>
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedReview.content}</p>
+                  <p className="whitespace-pre-wrap text-gray-700">{selectedReview.content}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -307,22 +307,22 @@ const ModerationQueue = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-3 pt-4 border-t">
+                <div className="flex justify-end space-x-3 border-t pt-4">
                   <button
                     onClick={() => setShowModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    className="rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                   >
                     Đóng
                   </button>
                   <button
                     onClick={() => handleModerationAction(selectedReview.id, 'reject')}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    className="rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                   >
                     Từ chối
                   </button>
                   <button
                     onClick={() => handleModerationAction(selectedReview.id, 'approve')}
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    className="rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                   >
                     Phê duyệt
                   </button>

@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSelector } from 'react-redux';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FilmIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  AdjustmentsHorizontalIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
@@ -12,28 +10,18 @@ import {
   EyeSlashIcon,
   StarIcon,
   ChartBarIcon,
-  PlayIcon,
   CalendarIcon,
-  UserIcon,
-  TagIcon,
   ExclamationTriangleIcon,
-  PlusIcon,
-  PencilIcon,
   TrashIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
   PhotoIcon,
-  GlobeAltIcon,
   ShieldCheckIcon,
-  BoltIcon,
-  CogIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   Bars3Icon,
   TableCellsIcon,
   XMarkIcon,
+  DocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, FilmIcon as FilmIconSolid } from '@heroicons/react/24/solid';
+import MovieDetailsModal from '../../../components/common/MovieDetailsModal';
 import {
   getAdminMovies,
   toggleMovieFeatured,
@@ -41,6 +29,7 @@ import {
   rejectMovie,
   updateMoviePriority,
   performBulkAction,
+  getDashboardOverview,
 } from '../../../api/adminMovieService';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useRefreshDashboard } from '../../../hooks/useDashboardData';
@@ -52,50 +41,32 @@ const getAdminField = (movie, field, fallback = null) => {
 };
 
 const getApprovalInfo = movie => {
-  // Use computed approval_info if available, otherwise create from data
-  if (movie.approval_info) {
-    return movie.approval_info;
-  }
-
-  // Fallback: create approval info from available data
-  const status = getAdminField(movie, 'approval_status', 'PENDING');
-  return {
-    status,
-    can_approve: status === 'PENDING' || status === 'NEEDS_REVIEW',
-    can_reject: status === 'PENDING' || status === 'APPROVED' || status === 'NEEDS_REVIEW',
-    requires_review: status === 'NEEDS_REVIEW',
-    approved_by: getAdminField(movie, 'approved_by_username') || movie.approved_by?.username,
-    approved_at: getAdminField(movie, 'approved_at'),
-  };
+  // Use approval_info from API response
+  return (
+    movie?.approval_info || {
+      status: 'PENDING',
+      can_approve: false,
+      can_reject: false,
+      requires_review: false,
+      approved_by: null,
+      approved_at: null,
+    }
+  );
 };
 
 const getProductionMetrics = movie => {
-  // Use new production_metrics structure if available
-  if (movie.production_metrics) {
-    return movie.production_metrics;
-  }
-
-  // Fallback: basic metrics
-  return {
-    homepage_views: 0,
-    detail_views: 0,
-    detail_page_views: 0,
-    trailer_plays: 0,
-    click_through_rate: 0,
-    engagement_rate: 0,
-    performance_score: movie.combined_rating_score || 0,
-    trending_score: 0,
-  };
+  return (
+    movie?.production_metrics || {
+      homepage_views: 0,
+      detail_views: 0,
+      search_appearances: 0,
+      performance_score: 0,
+    }
+  );
 };
 
 const isAdminFeatured = movie => {
-  // Check if featured with active period
-  if (movie.admin_control?.is_featured_active !== undefined) {
-    return movie.admin_control.is_featured_active;
-  }
-
-  // Fallback to basic featured status
-  return getAdminField(movie, 'admin_featured', false);
+  return movie?.admin_featured || false;
 };
 
 const MovieManagement = () => {
@@ -109,6 +80,14 @@ const MovieManagement = () => {
   const [viewMode, setViewMode] = useState('grid'); // grid, table, kanban
   const [showFilters, setShowFilters] = useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [overviewData, setOverviewData] = useState({
+    total_movies: 0,
+    published_movies: 0,
+    pending_approval: 0,
+    admin_featured: 0,
+    quality_issues: 0,
+  });
+  const [selectedMovie, setSelectedMovie] = useState(null);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -135,7 +114,7 @@ const MovieManagement = () => {
       setError(null);
       try {
         const params = {
-          pageSize: 5,
+          pageSize: 50,
           filters: { ...filters, sort_by: '-created_at' },
           search: debouncedSearchQuery,
         };
@@ -161,6 +140,27 @@ const MovieManagement = () => {
     },
     [filters, debouncedSearchQuery, currentAfter, afterStack]
   );
+
+  // Fetch overview data
+  const fetchOverviewData = useCallback(async () => {
+    try {
+      const data = await getDashboardOverview();
+      setOverviewData({
+        total_movies: data.total_movies || 0,
+        published_movies: data.published_movies || 0,
+        pending_approval: data.pending_approval || 0,
+        admin_featured: data.admin_featured || 0,
+        quality_issues: data.quality_issues || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching overview data:', error);
+    }
+  }, []);
+
+  // Fetch data on mount and after actions
+  useEffect(() => {
+    fetchOverviewData();
+  }, [fetchOverviewData]);
 
   // Initial fetch and refetch when filters/search change
   useEffect(() => {
@@ -188,44 +188,46 @@ const MovieManagement = () => {
     }
   };
 
+  // Update overview after actions
+  const handleActionSuccess = useCallback(async () => {
+    await Promise.all([fetchMovies(), fetchOverviewData(), refreshDashboard()]);
+  }, [fetchMovies, fetchOverviewData, refreshDashboard]);
+
   // Movie Actions with Redux
   const toggleFeatured = useCallback(
     async movieId => {
       try {
         await toggleMovieFeatured(movieId);
-        fetchMovies(); // Refresh list
-        refreshDashboard(); // Refresh dashboard data
+        await handleActionSuccess();
       } catch (error) {
         console.error('Error toggling featured:', error);
       }
     },
-    [fetchMovies, refreshDashboard]
+    [handleActionSuccess]
   );
 
   const approveMovieAction = useCallback(
     async movieId => {
       try {
         await approveMovie(movieId);
-        fetchMovies();
-        refreshDashboard();
+        await handleActionSuccess();
       } catch (error) {
         console.error('Error approving movie:', error);
       }
     },
-    [fetchMovies, refreshDashboard]
+    [handleActionSuccess]
   );
 
   const rejectMovieAction = useCallback(
     async (movieId, reason = '') => {
       try {
         await rejectMovie(movieId, reason);
-        fetchMovies();
-        refreshDashboard();
+        await handleActionSuccess();
       } catch (error) {
         console.error('Error rejecting movie:', error);
       }
     },
-    [fetchMovies, refreshDashboard]
+    [handleActionSuccess]
   );
 
   const updatePriorityAction = useCallback(
@@ -285,6 +287,14 @@ const MovieManagement = () => {
     setSelectedMovies(selectedMovies.length === movies.length ? [] : movies.map(m => m.id));
   };
 
+  const handleViewDetails = useCallback(movie => {
+    setSelectedMovie(movie);
+  }, []);
+
+  const handleCloseDetails = useCallback(() => {
+    setSelectedMovie(null);
+  }, []);
+
   // Status Badge Component with Fixed Tailwind Classes
   const getStatusBadge = (status, type = 'approval') => {
     const approvalStatusStyles = {
@@ -341,269 +351,148 @@ const MovieManagement = () => {
 
     return (
       <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.styles}`}
+        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${config.styles}`}
       >
-        <IconComponent className="w-3 h-3 mr-1" />
+        <IconComponent className="mr-1 size-3" />
         {config.label}
       </span>
     );
   };
 
-  // Render Movie Card (Grid View)
-  const renderMovieCard = movie => {
-    const approvalInfo = getApprovalInfo(movie);
-    const productionMetrics = getProductionMetrics(movie);
-    const adminFeatured = isAdminFeatured(movie);
-    const adminPriority = getAdminField(movie, 'admin_priority', 0);
+  // Add renderMovieCard function
+  const renderMovieCard = useCallback(
+    movie => {
+      if (!movie?.id) return null;
 
-    return (
-      <div
-        key={movie.id}
-        className={`bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md ${
-          selectedMovies.includes(movie.id)
-            ? 'ring-2 ring-blue-500 border-blue-300'
-            : 'border-gray-200'
-        }`}
-      >
-        {/* Movie Header */}
-        <div className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                checked={selectedMovies.includes(movie.id)}
-                onChange={() => handleMovieSelect(movie.id)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+      const approvalInfo = getApprovalInfo(movie);
+      const metrics = getProductionMetrics(movie);
+      const isFeatured = isAdminFeatured(movie);
+      const releaseYear = movie?.release_date ? new Date(movie.release_date).getFullYear() : 'N/A';
+      const genres = movie?.genres?.map(g => g.name).join(', ') || 'N/A';
+      const runtime = movie?.runtime ? `${movie.runtime} min` : 'N/A';
+      const qualityScore = movie?.quality_score || 0;
+      const completeness = movie?.content_completeness || 0;
+
+      return (
+        <div
+          key={movie.id}
+          className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+        >
+          {/* Selection Checkbox */}
+          <div className="absolute left-2 top-2 z-10">
+            <input
+              type="checkbox"
+              checked={selectedMovies.includes(movie.id)}
+              onChange={() => handleMovieSelect(movie.id)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Movie Poster */}
+          <div className="relative aspect-[2/3] bg-gray-100">
+            {movie?.poster_path ? (
+              <img
+                src={movie.poster_path}
+                alt={movie?.title || 'Movie poster'}
+                className="size-full object-cover"
+                loading="lazy"
               />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <PhotoIcon className="size-12 text-gray-400" />
+              </div>
+            )}
+            {isFeatured && (
+              <div className="absolute right-2 top-2">
+                <StarIconSolid className="size-6 text-yellow-400 drop-shadow" />
+              </div>
+            )}
+          </div>
 
-              {movie.poster_path ? (
-                <img
-                  src={movie.poster_path}
-                  alt={movie.title}
-                  className="w-12 h-16 object-cover rounded"
-                />
-              ) : (
-                <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">
-                  <FilmIcon className="w-6 h-6 text-gray-400" />
+          {/* Movie Info */}
+          <div className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-medium text-gray-900" title={movie?.title}>
+                  {movie?.title || 'Untitled'}
+                </h3>
+                <div className="mt-1 space-y-1 text-xs text-gray-500">
+                  <p className="truncate">{releaseYear}</p>
+                  <p className="truncate">{genres}</p>
+                  <p className="truncate">{runtime}</p>
                 </div>
-              )}
-
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-medium text-gray-900 truncate">{movie.title}</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  ID: {movie.id} • {movie.release_date || 'Chưa có ngày phát hành'}
-                </p>
-
-                {/* NEW: Admin Control Info */}
-                {movie.admin_control && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    🆕 Normalized Structure • Priority: {adminPriority}
-                  </p>
-                )}
               </div>
             </div>
 
-            {/* ENHANCED: Featured Star with active status */}
-            {adminFeatured && (
-              <div className="flex items-center space-x-1">
-                <StarIconSolid className="w-5 h-5 text-yellow-500" />
-                {movie.admin_control?.is_featured_active && (
-                  <span className="text-xs text-green-600 font-medium">Active</span>
-                )}
+            <div className="mt-4 space-y-2">
+              {approvalInfo?.status && getStatusBadge(approvalInfo.status, 'approval')}
+              {getStatusBadge(movie?.visibility_status || 'DRAFT', 'visibility')}
+            </div>
+
+            {/* Quality Metrics */}
+            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+              <div className="flex items-center text-gray-500">
+                <ChartBarIcon className="mr-1 size-4" />
+                {(metrics?.performance_score || 0).toFixed(1)}
               </div>
-            )}
-          </div>
-
-          {/* Status Badges */}
-          <div className="flex flex-wrap gap-2 mb-3">
-            {getStatusBadge(approvalInfo.status, 'approval')}
-            {getStatusBadge(getAdminField(movie, 'visibility_status'), 'visibility')}
-
-            {getAdminField(movie, 'is_published') && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                <EyeIcon className="w-3 h-3 mr-1" />
-                Đã xuất bản
-              </span>
-            )}
-
-            {/* Enhanced approval info */}
-            {approvalInfo.approved_by && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                <UserIcon className="w-3 h-3 mr-1" />
-                by {approvalInfo.approved_by}
-              </span>
-            )}
-          </div>
-
-          {/* Quality Metrics */}
-          <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-            <div className="flex items-center text-gray-600">
-              <ChartBarIcon className="w-3 h-3 mr-1 text-blue-500" />
-              <span className="text-gray-700">
-                Chất lượng:{' '}
-                <span className="font-medium text-gray-900">{movie.quality_score || 'N/A'}</span>
-              </span>
-            </div>
-            <div className="flex items-center text-gray-600">
-              <BoltIcon className="w-3 h-3 mr-1 text-green-500" />
-              <span className="text-gray-700">
-                Hoàn thiện:{' '}
-                <span className="font-medium text-gray-900">
-                  {movie.content_completeness || 0}%
-                </span>
-              </span>
-            </div>
-          </div>
-
-          {/* Priority & Rating Info */}
-          <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-            <div className="text-gray-600">
-              <span className="text-gray-500">Priority:</span>{' '}
-              <span
-                className={`font-medium ${adminPriority > 0 ? 'text-yellow-600' : 'text-gray-700'}`}
-              >
-                {adminPriority || 0}
-              </span>
-            </div>
-            <div className="text-gray-600">
-              <span className="text-gray-500">Rating:</span>{' '}
-              <span className="font-medium text-gray-700">
-                {movie.combined_rating_score || 'N/A'}
-              </span>
-            </div>
-          </div>
-
-          {/* Quality Standards Indicator */}
-          {movie.minimum_quality_met !== undefined && (
-            <div className="mb-3">
-              {movie.minimum_quality_met ? (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                  <CheckCircleIcon className="w-3 h-3 mr-1" />
-                  Đạt chuẩn
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                  <XCircleIcon className="w-3 h-3 mr-1" />
-                  Chưa đạt chuẩn
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Production Metrics */}
-          <div className="grid grid-cols-3 gap-2 text-xs mb-3">
-            <div className="text-gray-600">
-              <span className="text-gray-500">Homepage:</span>{' '}
-              <span className="font-medium text-gray-700">{productionMetrics.homepage_views}</span>
-            </div>
-            <div className="text-gray-600">
-              <span className="text-gray-500">Detail:</span>{' '}
-              <span className="font-medium text-gray-700">
-                {productionMetrics.detail_page_views || productionMetrics.detail_views || 0}
-              </span>
-            </div>
-            <div className="text-gray-600">
-              <span className="text-gray-500">Score:</span>{' '}
-              <span className="font-medium text-gray-700">
-                {productionMetrics.performance_score}
-              </span>
-            </div>
-          </div>
-
-          {/* Additional metrics from new structure */}
-          {productionMetrics.trailer_plays > 0 && (
-            <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-              <div className="text-gray-600">
-                <PlayIcon className="w-3 h-3 inline mr-1 text-purple-500" />
-                <span className="text-gray-500">Trailers:</span>{' '}
-                <span className="font-medium text-gray-700">{productionMetrics.trailer_plays}</span>
-              </div>
-              <div className="text-gray-600">
-                <span className="text-gray-500">CTR:</span>{' '}
-                <span className="font-medium text-gray-700">
-                  {productionMetrics.click_through_rate}%
-                </span>
+              <div className="flex items-center text-gray-500">
+                <DocumentCheckIcon className="mr-1 size-4" />
+                {(completeness || 0).toFixed(1)}%
               </div>
             </div>
-          )}
 
-          {/* Scheduling Information */}
-          {(movie.featured_from || movie.featured_until) && (
-            <div className="text-xs text-gray-500 mb-3">
-              <ClockIcon className="w-3 h-3 inline mr-1" />
-              Featured: {movie.featured_from} → {movie.featured_until}
-            </div>
-          )}
-
-          {/* Performance Metrics */}
-          {movie.production_metrics && (
-            <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-              <div className="text-gray-600">
-                <span className="text-gray-500">Views:</span>{' '}
-                <span className="font-medium text-gray-700">
-                  {movie.production_metrics.homepage_views}
-                </span>
+            {/* View Metrics */}
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+              <div className="flex items-center text-gray-500">
+                <EyeIcon className="mr-1 size-4" />
+                {metrics?.homepage_views || 0}
               </div>
-              <div className="text-gray-600">
-                <span className="text-gray-500">Score:</span>{' '}
-                <span className="font-medium text-gray-700">
-                  {movie.production_metrics.performance_score}
-                </span>
+              <div className="flex items-center text-gray-500">
+                <MagnifyingGlassIcon className="mr-1 size-4" />
+                {metrics?.search_appearances || 0}
               </div>
             </div>
-          )}
 
-          {/* Quick Actions */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-            <div className="flex space-x-2">
-              {approvalInfo.can_approve && (
+            {/* Actions */}
+            <div className="mt-4 space-y-2">
+              {/* Primary Actions Row */}
+              <div className="flex items-center space-x-2">
                 <button
                   onClick={() => approveMovieAction(movie.id)}
-                  className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-                  title="Duyệt phim"
+                  disabled={!approvalInfo?.can_approve}
+                  className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <CheckCircleIcon className="w-3 h-3 mr-1" />
+                  <CheckCircleIcon className="mr-1.5 size-4" />
                   Duyệt
                 </button>
-              )}
-
-              {approvalInfo.can_reject && (
                 <button
-                  onClick={() => rejectMovieAction(movie.id)}
-                  className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-                  title="Từ chối"
+                  onClick={() => handleViewDetails(movie)}
+                  className="inline-flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  <XCircleIcon className="w-3 h-3 mr-1" />
-                  Từ chối
+                  <EyeIcon className="mr-1.5 size-4" />
+                  Chi tiết
                 </button>
-              )}
-            </div>
+              </div>
 
-            <div className="flex space-x-1">
+              {/* Secondary Action */}
               <button
                 onClick={() => toggleFeatured(movie.id)}
-                className={`p-1 rounded transition-colors ${
-                  adminFeatured
-                    ? 'text-yellow-600 hover:text-yellow-700'
-                    : 'text-gray-400 hover:text-yellow-500'
-                }`}
-                title={adminFeatured ? 'Bỏ featured' : 'Đặt featured'}
+                className={`inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium ${
+                  isFeatured
+                    ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                } transition-colors`}
               >
-                <StarIcon className="w-4 h-4" />
-              </button>
-
-              <button
-                className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
-                title="Chỉnh sửa"
-              >
-                <PencilIcon className="w-4 h-4" />
+                <StarIcon className="mr-1.5 size-4" />
+                {isFeatured ? 'Bỏ Featured' : 'Đánh dấu Featured'}
               </button>
             </div>
           </div>
         </div>
-      </div>
-    );
-  };
+      );
+    },
+    [selectedMovies, toggleFeatured, approveMovieAction, handleMovieSelect, handleViewDetails]
+  );
 
   // Active filter indicator
   const hasActiveFilters = useMemo(() => {
@@ -615,14 +504,14 @@ const MovieManagement = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <FilmIconSolid className="w-8 h-8 text-blue-600 mr-3" />
+            <h1 className="flex items-center text-2xl font-bold text-gray-900">
+              <FilmIconSolid className="mr-3 size-8 text-blue-600" />
               Quản lý phim
             </h1>
-            <p className="text-gray-600 mt-2">
+            <p className="mt-2 text-gray-600">
               Quản lý nội dung phim và điều khiển hiển thị trên production
             </p>
           </div>
@@ -630,16 +519,16 @@ const MovieManagement = () => {
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`inline-flex items-center px-4 py-2 border rounded-md text-sm font-medium transition-colors ${
+              className={`inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
                 showFilters || hasActiveFilters
-                  ? 'border-blue-300 text-blue-700 bg-blue-50'
-                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                  ? 'border-blue-300 bg-blue-50 text-blue-700'
+                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <FunnelIcon className="w-4 h-4 mr-2" />
+              <FunnelIcon className="mr-2 size-4" />
               Bộ lọc
               {hasActiveFilters && (
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
                   Đang lọc
                 </span>
               )}
@@ -648,85 +537,85 @@ const MovieManagement = () => {
             <div className="flex rounded-md shadow-sm">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`px-3 py-2 text-sm font-medium border ${
+                className={`border px-3 py-2 text-sm font-medium ${
                   viewMode === 'grid'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                 } rounded-l-md transition-colors`}
               >
-                <Bars3Icon className="w-4 h-4" />
+                <Bars3Icon className="size-4" />
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`px-3 py-2 text-sm font-medium border-t border-b ${
+                className={`border-y px-3 py-2 text-sm font-medium ${
                   viewMode === 'table'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                 } rounded-r-md transition-colors`}
               >
-                <TableCellsIcon className="w-4 h-4" />
+                <TableCellsIcon className="size-4" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-5">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
             <div className="flex items-center">
-              <FilmIcon className="w-8 h-8 text-blue-600" />
+              <FilmIcon className="size-8 text-blue-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-blue-900">Tổng phim</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {/* overviewData.total_movies.toLocaleString() */}
+                  {(overviewData?.total_movies || 0).toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+          <div className="rounded-lg border border-green-100 bg-green-50 p-4">
             <div className="flex items-center">
-              <EyeIcon className="w-8 h-8 text-green-600" />
+              <EyeIcon className="size-8 text-green-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-green-900">Đã xuất bản</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {/* overviewData.published_movies.toLocaleString() */}
+                  {(overviewData?.published_movies || 0).toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-100">
+          <div className="rounded-lg border border-yellow-100 bg-yellow-50 p-4">
             <div className="flex items-center">
-              <ClockIcon className="w-8 h-8 text-yellow-600" />
+              <ClockIcon className="size-8 text-yellow-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-yellow-900">Chờ duyệt</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {/* overviewData.pending_approval.toLocaleString() */}
+                  {(overviewData?.pending_approval || 0).toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+          <div className="rounded-lg border border-purple-100 bg-purple-50 p-4">
             <div className="flex items-center">
-              <StarIcon className="w-8 h-8 text-purple-600" />
+              <StarIcon className="size-8 text-purple-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-purple-900">Featured</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {/* overviewData.admin_featured.toLocaleString() */}
+                  {(overviewData?.admin_featured || 0).toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-red-50 rounded-lg p-4 border border-red-100">
+          <div className="rounded-lg border border-red-100 bg-red-50 p-4">
             <div className="flex items-center">
-              <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
+              <ExclamationTriangleIcon className="size-8 text-red-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-red-900">Vấn đề chất lượng</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {/* overviewData.quality_issues.toLocaleString() */}
+                  {(overviewData?.quality_issues || 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -735,25 +624,25 @@ const MovieManagement = () => {
 
         {/* Search and Bulk Actions */}
         <div className="flex items-center justify-between">
-          <div className="flex-1 max-w-md">
+          <div className="max-w-md flex-1">
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <MagnifyingGlassIcon className="size-5 text-gray-400" />
               </div>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 text-gray-900 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full rounded-md border border-gray-300 bg-white py-2 pl-10 pr-3 leading-5 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:placeholder:text-gray-400"
                 placeholder="Tìm kiếm theo tên phim..."
               />
               {searchQuery && (
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                   <button
                     onClick={() => setSearchQuery('')}
                     className="text-gray-400 hover:text-gray-500"
                   >
-                    <XMarkIcon className="h-4 w-4" />
+                    <XMarkIcon className="size-4" />
                   </button>
                 </div>
               )}
@@ -762,32 +651,32 @@ const MovieManagement = () => {
 
           {selectedMovies.length > 0 && (
             <div className="flex items-center space-x-3">
-              <span className="text-sm text-gray-600 font-medium">
+              <span className="text-sm font-medium text-gray-600">
                 Đã chọn {selectedMovies.length} phim
               </span>
 
               <div className="flex space-x-2">
                 <button
                   onClick={() => bulkAction('approve', selectedMovies)}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                  className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                 >
-                  <CheckCircleIcon className="w-4 h-4 mr-1" />
+                  <CheckCircleIcon className="mr-1 size-4" />
                   Duyệt
                 </button>
 
                 <button
                   onClick={() => bulkAction('feature', selectedMovies)}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors"
+                  className="inline-flex items-center rounded-md border border-transparent bg-yellow-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
                 >
-                  <StarIcon className="w-4 h-4 mr-1" />
+                  <StarIcon className="mr-1 size-4" />
                   Featured
                 </button>
 
                 <button
                   onClick={() => bulkAction('publish', selectedMovies)}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
-                  <EyeIcon className="w-4 h-4 mr-1" />
+                  <EyeIcon className="mr-1 size-4" />
                   Xuất bản
                 </button>
               </div>
@@ -798,16 +687,16 @@ const MovieManagement = () => {
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 Trạng thái duyệt
               </label>
               <select
                 value={filters.approval_status}
                 onChange={e => handleFilterChange('approval_status', e.target.value)}
-                className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               >
                 <option value="">Tất cả</option>
                 <option value="APPROVED">Đã duyệt</option>
@@ -818,11 +707,11 @@ const MovieManagement = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Hiển thị</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Hiển thị</label>
               <select
                 value={filters.visibility_status}
                 onChange={e => handleFilterChange('visibility_status', e.target.value)}
-                className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               >
                 <option value="">Tất cả</option>
                 <option value="PUBLISHED">Công khai</option>
@@ -834,11 +723,11 @@ const MovieManagement = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Xuất bản</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Xuất bản</label>
               <select
                 value={filters.is_published}
                 onChange={e => handleFilterChange('is_published', e.target.value)}
-                className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               >
                 <option value="">Tất cả</option>
                 <option value="true">Đã xuất bản</option>
@@ -847,11 +736,11 @@ const MovieManagement = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Featured</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Featured</label>
               <select
                 value={filters.admin_featured}
                 onChange={e => handleFilterChange('admin_featured', e.target.value)}
-                className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               >
                 <option value="">Tất cả</option>
                 <option value="true">Featured</option>
@@ -860,11 +749,11 @@ const MovieManagement = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Chất lượng</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Chất lượng</label>
               <select
                 value={filters.minimum_quality_met}
                 onChange={e => handleFilterChange('minimum_quality_met', e.target.value)}
-                className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               >
                 <option value="">Tất cả</option>
                 <option value="true">Đạt chuẩn</option>
@@ -873,11 +762,11 @@ const MovieManagement = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Sắp xếp</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Sắp xếp</label>
               <select
                 value={filters.sort_by}
                 onChange={e => handleFilterChange('sort_by', e.target.value)}
-                className="block w-full border-gray-300 rounded-md shadow-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               >
                 <option value="-created_at">Mới nhất</option>
                 <option value="created_at">Cũ nhất</option>
@@ -906,13 +795,13 @@ const MovieManagement = () => {
                 });
                 setSearchQuery('');
               }}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
               Xóa tất cả bộ lọc
             </button>
             <button
               onClick={() => setShowFilters(false)}
-              className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Áp dụng
             </button>
@@ -921,29 +810,29 @@ const MovieManagement = () => {
       )}
 
       {/* Movies Grid/Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="size-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
             <span className="ml-3 text-gray-600">Đang tải...</span>
           </div>
         ) : error ? (
-          <div className="text-center py-12">
-            <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-400" />
+          <div className="py-12 text-center">
+            <ExclamationTriangleIcon className="mx-auto size-12 text-red-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Có lỗi xảy ra</h3>
             <p className="mt-1 text-sm text-gray-500">{error}</p>
             <div className="mt-6">
               <button
                 onClick={fetchMovies}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Thử lại
               </button>
             </div>
           </div>
         ) : movies.length === 0 ? (
-          <div className="text-center py-12">
-            <FilmIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <div className="py-12 text-center">
+            <FilmIcon className="mx-auto size-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có phim nào</h3>
             <p className="mt-1 text-sm text-gray-500">
               {debouncedSearchQuery || Object.values(filters).some(v => v && v !== '-created_at')
@@ -966,7 +855,7 @@ const MovieManagement = () => {
                     });
                     setSearchQuery('');
                   }}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+                  className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                 >
                   Xóa bộ lọc và tìm kiếm
                 </button>
@@ -978,7 +867,7 @@ const MovieManagement = () => {
             {/* Grid View */}
             {viewMode === 'grid' && (
               <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <input
                       type="checkbox"
@@ -999,25 +888,25 @@ const MovieManagement = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {movies.map(renderMovieCard)}
                 </div>
               </div>
             )}
 
             {/* Pagination */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4">
               <button
                 onClick={handlePrevPage}
                 disabled={!hasPrevious}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Trước
               </button>
               <button
                 onClick={handleNextPage}
                 disabled={!hasNext}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Sau
               </button>
@@ -1025,6 +914,13 @@ const MovieManagement = () => {
           </>
         )}
       </div>
+
+      {/* Movie Details Modal */}
+      <MovieDetailsModal
+        movie={selectedMovie}
+        open={!!selectedMovie}
+        onClose={handleCloseDetails}
+      />
     </div>
   );
 };

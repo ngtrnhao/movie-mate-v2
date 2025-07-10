@@ -7,19 +7,19 @@ const FavoriteButton = ({
   size = 'sm',
   showText = false,
   className = '',
-  variant = 'overlay' // 'overlay', 'solid', 'ghost'
+  variant = 'overlay', // 'overlay', 'solid', 'ghost'
 }) => {
   const {
     isFavorited,
     toggleFavorite,
     loading: globalLoading,
     error,
-    isAuthenticated
+    isAuthenticated,
   } = useFavorites();
 
   const [isToggling, setIsToggling] = useState(false);
 
-  const handleToggle = async (e) => {
+  const handleToggle = async e => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -44,7 +44,7 @@ const FavoriteButton = ({
     xs: { icon: 12, padding: 'p-1', text: 'text-xs' },
     sm: { icon: 16, padding: 'p-2', text: 'text-sm' },
     md: { icon: 20, padding: 'p-3', text: 'text-base' },
-    lg: { icon: 24, padding: 'p-4', text: 'text-lg' }
+    lg: { icon: 24, padding: 'p-4', text: 'text-lg' },
   };
 
   const config = sizeConfig[size] || sizeConfig.sm;
@@ -65,7 +65,7 @@ const FavoriteButton = ({
       isLiked
         ? 'text-pink-500 hover:text-pink-600 hover:bg-pink-50'
         : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-    }`
+    }`,
   };
 
   return (
@@ -92,11 +92,8 @@ const FavoriteButton = ({
         `}
       />
       {showText && (
-        <span className={`${config.text} font-medium whitespace-nowrap`}>
-          {loading
-            ? (isLiked ? 'Removing...' : 'Adding...')
-            : (isLiked ? 'Favorited' : 'Favorite')
-          }
+        <span className={`${config.text} whitespace-nowrap font-medium`}>
+          {loading ? (isLiked ? 'Removing...' : 'Adding...') : isLiked ? 'Favorited' : 'Favorite'}
         </span>
       )}
     </button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 const BulkActions = ({ selectedCount, onBulkAction, selectedItems, onClearSelection, isAdmin }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -85,7 +85,7 @@ const BulkActions = ({ selectedCount, onBulkAction, selectedItems, onClearSelect
             </span>
             <button
               onClick={onClearSelection}
-              className="text-sm text-indigo-600 hover:text-indigo-800 underline"
+              className="text-sm text-indigo-600 underline hover:text-indigo-800"
             >
               Xóa lựa chọn
             </button>
@@ -98,9 +98,9 @@ const BulkActions = ({ selectedCount, onBulkAction, selectedItems, onClearSelect
               key={action.id}
               onClick={() => handleActionClick(action)}
               disabled={loading}
-              className={`inline-flex items-center px-3 py-2 text-sm font-medium text-white rounded-md transition-colors ${
+              className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors ${
                 action.color
-              } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${loading ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               <span className="mr-2">{action.icon}</span>
               {action.label}
@@ -111,27 +111,27 @@ const BulkActions = ({ selectedCount, onBulkAction, selectedItems, onClearSelect
 
       {/* Confirmation Modal */}
       {showConfirmation && confirmationAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center mb-4">
-              <div className="flex-shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6">
+            <div className="mb-4 flex items-center">
+              <div className="shrink-0">
                 <span className="text-3xl">{confirmationAction.icon}</span>
               </div>
               <div className="ml-3">
                 <h3 className="text-lg font-medium text-gray-900">Xác nhận thao tác</h3>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="mt-1 text-sm text-gray-600">
                   {confirmationAction.confirmMessage.replace('{count}', selectedCount)}
                 </p>
               </div>
             </div>
 
             {/* Action Details */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="mb-4 rounded-lg bg-gray-50 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Thao tác:</span>
                 <span className="text-sm text-gray-900">{confirmationAction.label}</span>
               </div>
-              <div className="flex items-center justify-between mt-2">
+              <div className="mt-2 flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Số lượng:</span>
                 <span className="text-sm text-gray-900">{selectedCount} items</span>
               </div>
@@ -140,10 +140,10 @@ const BulkActions = ({ selectedCount, onBulkAction, selectedItems, onClearSelect
             {/* Additional Options for specific actions */}
             {confirmationAction.id === 'assign' && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Phân công cho:
                 </label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <select className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <option value="">Chọn người được phân công</option>
                   <option value="moderator-a">Moderator A</option>
                   <option value="moderator-b">Moderator B</option>
@@ -155,11 +155,11 @@ const BulkActions = ({ selectedCount, onBulkAction, selectedItems, onClearSelect
 
             {confirmationAction.id === 'reject' && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Lý do từ chối:
                 </label>
                 <textarea
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   rows={3}
                   placeholder="Nhập lý do từ chối (tùy chọn)"
                 />
@@ -171,20 +171,20 @@ const BulkActions = ({ selectedCount, onBulkAction, selectedItems, onClearSelect
               <button
                 onClick={handleCancelAction}
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
               >
                 Hủy
               </button>
               <button
                 onClick={handleConfirmAction}
                 disabled={loading}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md transition-colors ${
+                className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors ${
                   confirmationAction.color
-                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${loading ? 'cursor-not-allowed opacity-50' : ''}`}
               >
                 {loading ? (
                   <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <div className="mr-2 size-4 animate-spin rounded-full border-b-2 border-white"></div>
                     Đang xử lý...
                   </div>
                 ) : (
@@ -197,19 +197,19 @@ const BulkActions = ({ selectedCount, onBulkAction, selectedItems, onClearSelect
       )}
 
       {/* Quick Stats */}
-      <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
+      <div className="mt-4 rounded-lg bg-indigo-50 p-3">
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
-              <span className="text-indigo-600 font-medium">Tổng:</span>
+              <span className="font-medium text-indigo-600">Tổng:</span>
               <span className="ml-1 text-indigo-800">{selectedCount}</span>
             </div>
             <div className="flex items-center">
-              <span className="text-indigo-600 font-medium">Có thể duyệt:</span>
+              <span className="font-medium text-indigo-600">Có thể duyệt:</span>
               <span className="ml-1 text-green-600">{Math.floor(selectedCount * 0.8)}</span>
             </div>
             <div className="flex items-center">
-              <span className="text-indigo-600 font-medium">Cần xem xét:</span>
+              <span className="font-medium text-indigo-600">Cần xem xét:</span>
               <span className="ml-1 text-yellow-600">{Math.floor(selectedCount * 0.2)}</span>
             </div>
           </div>

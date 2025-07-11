@@ -249,7 +249,7 @@ function App() {
         </I18nProvider>
       </GoogleOAuthProvider>
       <Toaster
-        position="top-right"
+        position="bottom-right"
         toastOptions={{
           duration: 2000,
           style: {

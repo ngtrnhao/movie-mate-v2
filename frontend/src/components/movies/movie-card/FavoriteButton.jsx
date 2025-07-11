@@ -1,6 +1,7 @@
-import { useState } from 'react';
 import { Heart } from 'lucide-react';
-import { useFavorites } from '../../../hooks/useFavorites';
+import { useSelector } from 'react-redux';
+import { useFavoritesState } from '../../../hooks/useFavoritesState';
+import { useFavoritesActions } from '../../../hooks/useFavoritesActions';
 import { useUserLimits } from '../../../hooks/useUserLimits';
 import { toast } from 'react-toastify';
 
@@ -11,16 +12,13 @@ const FavoriteButton = ({
   className = '',
   variant = 'overlay', // 'overlay', 'solid', 'ghost'
 }) => {
-  const {
-    isFavorited,
-    toggleFavorite,
-    loading: globalLoading,
-    error,
-    isAuthenticated,
-  } = useFavorites();
+  const { isFavorited, loading: globalLoading, error } = useFavoritesState();
+  const { addToFavorites, removeFromFavorites } = useFavoritesActions();
+
+  // Get authentication status from Redux
+  const { isAuthenticated } = useSelector(state => state.auth);
 
   const { canPerformAction, getUpgradeMessage, shouldShowUpgrade } = useUserLimits();
-  const [isToggling, setIsToggling] = useState(false);
 
   const handleToggle = async e => {
     e.preventDefault();
@@ -38,11 +36,11 @@ const FavoriteButton = ({
       return;
     }
 
-    if (isToggling) return;
-
-    setIsToggling(true);
-    const result = await toggleFavorite(movie.id, movie);
-    setIsToggling(false);
+    // Toggle favorite logic
+    const isCurrentlyFavorited = isFavorited(movie.id);
+    const result = isCurrentlyFavorited
+      ? await removeFromFavorites(movie.id)
+      : await addToFavorites(movie.id, movie);
 
     // Show upgrade message if limit exceeded
     if (!result.success && shouldShowUpgrade('add_favorite')) {
@@ -51,7 +49,7 @@ const FavoriteButton = ({
   };
 
   const isLiked = isFavorited(movie.id);
-  const loading = isToggling || globalLoading;
+  const loading = globalLoading;
 
   // Size configurations
   const sizeConfig = {

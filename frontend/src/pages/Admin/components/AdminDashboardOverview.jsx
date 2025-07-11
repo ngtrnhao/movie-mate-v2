@@ -214,6 +214,7 @@ const AdminDashboardOverview = () => {
                 {stats.contentStats.totalMovies?.toLocaleString() || '0'}
               </p>
             </div>
+            {console.log(stats.contentStats.totalMovies)}
             <div className="rounded-full bg-blue-100 p-3">
               <span className="text-2xl">🎬</span>
             </div>
@@ -296,6 +297,7 @@ const AdminDashboardOverview = () => {
           ) : (
             <p className="py-4 text-center text-gray-500">Không có hoạt động gần đây</p>
           )}
+          {console.log(recentActivity)}
         </div>
       </div>
 

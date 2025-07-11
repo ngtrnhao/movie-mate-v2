@@ -77,6 +77,7 @@ const initialState = {
   favoriteIds: new Set(),
   favoriteRecordIds: new Map(), // Map of movieId -> favoriteId
   loading: false,
+  loadingMovies: new Set(), // Track loading state for individual movies
   error: null,
   initialized: false,
 };
@@ -92,6 +93,7 @@ const favoritesSlice = createSlice({
       state.items = [];
       state.favoriteIds = new Set();
       state.favoriteRecordIds = new Map();
+      state.loadingMovies = new Set();
       state.initialized = false;
     },
     // Optimistic updates
@@ -100,6 +102,7 @@ const favoritesSlice = createSlice({
       console.log('🔄 Optimistic add favorite:', { movieId, movieData });
       if (!state.favoriteIds.has(movieId)) {
         state.favoriteIds.add(movieId);
+        state.loadingMovies.add(movieId); // Add to loading set
         const tempId = `temp-${movieId}`;
         state.favoriteRecordIds.set(movieId, tempId);
         state.items.push({
@@ -117,6 +120,7 @@ const favoritesSlice = createSlice({
       console.log('🔄 Optimistic remove favorite:', { movieId });
       state.favoriteIds.delete(movieId);
       state.favoriteRecordIds.delete(movieId);
+      state.loadingMovies.add(movieId); // Add to loading set
       state.items = state.items.filter(item => (item.movie_id || item.movie?.id) !== movieId);
     },
   },

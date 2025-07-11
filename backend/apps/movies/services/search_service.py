@@ -124,7 +124,9 @@ class MovieSearchService:
                     # Convert genre IDs to names
                     genre_names = list(Genre.objects.filter(id__in=genre_list).values_list('name', flat=True))
                     if genre_names:
-                        search = search.filter('terms', genres=genre_names)
+                        # Filter by nested field genres.name since genres is a NestedField
+                        logger.info(f"Filtering by genres: {genre_names}")
+                        search = search.filter('nested', path='genres', query=Q('terms', **{'genres.name': genre_names}))
                     else:
                         logger.warning(f"No genre names found for IDs: {genre_list}")
                 except (ValueError, TypeError) as e:
@@ -206,8 +208,16 @@ class MovieSearchService:
             else:
                 search = search.sort({'created_at': {'order': 'desc'}}, {'id': {'order': 'desc'}})
 
-            # Keyset pagination với search_after
-            if params.get('search_after'):
+            # Pagination logic - hỗ trợ cả search_after và after_created_at
+            page_size = min(int(params.get('page_size', 50)), 100)
+
+            # Admin mode: sử dụng after_created_at cho keyset pagination
+            if admin_mode and params.get('after_created_at'):
+                search = search.filter('range', created_at={'lt': params['after_created_at']})
+                search = search[:page_size]
+                logger.info(f"Admin mode: Using after_created_at pagination with value: {params['after_created_at']}")
+            # Frontend mode: sử dụng search_after cho keyset pagination
+            elif params.get('search_after'):
                 # Xử lý search_after có thể là string hoặc list
                 search_after_value = params['search_after']
                 if isinstance(search_after_value, str):
@@ -218,14 +228,14 @@ class MovieSearchService:
                     search_after_value = [search_after_value]
 
                 search = search.extra(search_after=search_after_value)
-                page_size = min(int(params.get('page_size', 50)), 100)
                 search = search[:page_size]
+                logger.info(f"Frontend mode: Using search_after pagination with value: {search_after_value}")
             else:
                 # Offset-based fallback (trang đầu)
                 page = int(params.get('page', 1))
-                page_size = min(int(params.get('page_size', 50)), 100)
                 start = (page - 1) * page_size
                 search = search[start:start + page_size]
+                logger.info(f"Using offset-based pagination: page={page}, start={start}, size={page_size}")
 
             # Execute search with error handling
             logger.info(f"Executing Elasticsearch query: {search.to_dict()}")
@@ -265,54 +275,70 @@ class MovieSearchService:
 
             logger.info(f"Successfully serialized {len(ordered_movies)} movies from Elasticsearch results")
 
-            # Keyset pagination: trả về next_search_after cho frontend
+            # Pagination response - hỗ trợ cả search_after và after_created_at
             next_search_after = None
+            next_after_created_at = None
+
             logger.info(f"DEBUG: response.hits count: {len(response.hits) if response.hits else 0}, page_size: {page_size}")
+
             if response.hits and len(response.hits) == page_size:
                 last_hit = response.hits[-1]
-                logger.info(f"DEBUG: Creating next_search_after for sort_field: {sort_field}")
-                # Lấy giá trị các trường sort đúng thứ tự sort
-                # Nếu sort theo popularity và id
-                sort_fields = []
-                if sort_field:
-                    # popularity, rating, release_date, title, runtime, vote_count, created_at, admin_priority, approval_status
-                    if sort_field.lstrip('-') == 'popularity':
-                        sort_fields.append(getattr(last_hit, 'popularity', None))
-                    elif sort_field.lstrip('-') == 'vote_average':
-                        sort_fields.append(getattr(last_hit, 'vote_average', None))
-                    elif sort_field.lstrip('-') == 'release_date':
-                        sort_fields.append(getattr(last_hit, 'release_date', None))
-                    elif sort_field.lstrip('-') == 'title_en.raw':
-                        sort_fields.append(getattr(last_hit, 'title_en', None))
-                    elif sort_field.lstrip('-') == 'title_vi.raw':
-                        sort_fields.append(getattr(last_hit, 'title_vi', None))
-                    elif sort_field.lstrip('-') == 'runtime':
-                        sort_fields.append(getattr(last_hit, 'runtime', None))
-                    elif sort_field.lstrip('-') == 'vote_count':
-                        sort_fields.append(getattr(last_hit, 'vote_count', None))
-                    elif sort_field.lstrip('-') == 'created_at':
-                        sort_fields.append(getattr(last_hit, 'created_at', None))
-                    elif sort_field.lstrip('-') == 'admin_priority':
-                        sort_fields.append(getattr(last_hit, 'admin_priority', None))
-                    elif sort_field.lstrip('-') == 'approval_status':
-                        sort_fields.append(getattr(last_hit, 'approval_status', None))
+
+                # Admin mode: trả về next_after_created_at
+                if admin_mode:
+                    next_after_created_at = getattr(last_hit, 'created_at', None)
+                    logger.info(f"Admin mode: Created next_after_created_at: {next_after_created_at}")
+                # Frontend mode: trả về next_search_after
+                else:
+                    logger.info(f"Frontend mode: Creating next_search_after for sort_field: {sort_field}")
+                    # Lấy giá trị các trường sort đúng thứ tự sort
+                    sort_fields = []
+                    if sort_field:
+                        # popularity, rating, release_date, title, runtime, vote_count, created_at, admin_priority, approval_status
+                        if sort_field.lstrip('-') == 'popularity':
+                            sort_fields.append(getattr(last_hit, 'popularity', None))
+                        elif sort_field.lstrip('-') == 'vote_average':
+                            sort_fields.append(getattr(last_hit, 'vote_average', None))
+                        elif sort_field.lstrip('-') == 'release_date':
+                            sort_fields.append(getattr(last_hit, 'release_date', None))
+                        elif sort_field.lstrip('-') == 'title_en.raw':
+                            sort_fields.append(getattr(last_hit, 'title_en', None))
+                        elif sort_field.lstrip('-') == 'title_vi.raw':
+                            sort_fields.append(getattr(last_hit, 'title_vi', None))
+                        elif sort_field.lstrip('-') == 'runtime':
+                            sort_fields.append(getattr(last_hit, 'runtime', None))
+                        elif sort_field.lstrip('-') == 'vote_count':
+                            sort_fields.append(getattr(last_hit, 'vote_count', None))
+                        elif sort_field.lstrip('-') == 'created_at':
+                            sort_fields.append(getattr(last_hit, 'created_at', None))
+                        elif sort_field.lstrip('-') == 'admin_priority':
+                            sort_fields.append(getattr(last_hit, 'admin_priority', None))
+                        elif sort_field.lstrip('-') == 'approval_status':
+                            sort_fields.append(getattr(last_hit, 'approval_status', None))
+                        else:
+                            sort_fields.append(getattr(last_hit, 'created_at', None))
                     else:
                         sort_fields.append(getattr(last_hit, 'created_at', None))
-                else:
-                    sort_fields.append(getattr(last_hit, 'created_at', None))
-                # Luôn thêm id vào cuối
-                sort_fields.append(int(last_hit.meta.id))
-                next_search_after = sort_fields
-                logger.info(f"DEBUG: Created next_search_after: {next_search_after}")
+                    # Luôn thêm id vào cuối
+                    sort_fields.append(int(last_hit.meta.id))
+                    next_search_after = sort_fields
+                    logger.info(f"Frontend mode: Created next_search_after: {next_search_after}")
             else:
-                logger.info(f"DEBUG: Not creating next_search_after - hits: {len(response.hits) if response.hits else 0}, page_size: {page_size}")
+                logger.info(f"DEBUG: Not creating pagination tokens - hits: {len(response.hits) if response.hits else 0}, page_size: {page_size}")
 
-            return {
+            # Trả về response phù hợp với mode
+            response_data = {
                 'total': total_hits,
                 'results': serializer.data,
                 'search_engine': 'elasticsearch',
-                'next_search_after': next_search_after,
             }
+
+            if admin_mode:
+                response_data['next_after_created_at'] = next_after_created_at
+            else:
+                response_data['next_search_after'] = next_search_after
+
+            return response_data
 
         except Exception as e:
             logger.error(f"Elasticsearch search error: {str(e)}")

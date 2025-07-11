@@ -1,5 +1,5 @@
-import { useEffect, useCallback, useRef } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import {
   loadFavorites,
@@ -9,57 +9,16 @@ import {
   optimisticRemoveFavorite,
   clearError,
 } from '../store/slices/favoritesSlice';
-import {
-  selectFavoriteItems,
-  selectFavoritesLoading,
-  selectFavoritesError,
-  selectFavoritesInitialized,
-  selectFavoriteMovieIds,
-  selectFavoritesCount,
-  selectFavoriteRecordIds,
-} from '../store/selectors/favoritesSelectors';
+import { selectFavoriteRecordIds } from '../store/selectors/favoritesSelectors';
 
-// Singleton để track favorites loading state
-let favoritesLoadingPromise = null;
-let favoritesLoaded = false;
-
-export const useFavorites = () => {
+/**
+ * Hook cho favorites actions
+ * Sử dụng cho các component cần thực hiện actions
+ */
+export const useFavoritesActions = () => {
   const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector(state => state.auth);
-
-  // Redux state
-  const favorites = useSelector(selectFavoriteItems);
-  const loading = useSelector(selectFavoritesLoading);
-  const error = useSelector(selectFavoritesError);
-  const initialized = useSelector(selectFavoritesInitialized);
-  const favoritesCount = useSelector(selectFavoritesCount);
-  const favoriteMovieIds = useSelector(selectFavoriteMovieIds);
   const favoriteRecordIds = useSelector(selectFavoriteRecordIds);
-
-  // Debug logging
-  console.log('🔍 useFavorites Debug:', {
-    isAuthenticated,
-    user,
-    favoritesCount,
-    initialized,
-    loading,
-    error,
-    favoriteRecordIds: Array.from(favoriteRecordIds.entries()),
-    token: localStorage.getItem('token') ? 'exists' : 'missing',
-  });
-
-  // Load user's favorites on mount - chỉ load một lần duy nhất
-  useEffect(() => {
-    if (isAuthenticated && user?.id && !initialized && !favoritesLoaded) {
-      console.log('🔄 [useFavorites] Loading favorites for user:', user.id);
-
-      // Tạo singleton promise để tránh multiple API calls
-      if (!favoritesLoadingPromise) {
-        favoritesLoadingPromise = dispatch(loadFavorites(user.id));
-        favoritesLoaded = true;
-      }
-    }
-  }, [dispatch, isAuthenticated, user?.id, initialized]);
 
   const loadFavoritesList = useCallback(() => {
     if (!isAuthenticated || !user?.id) return;
@@ -177,51 +136,14 @@ export const useFavorites = () => {
     [dispatch, isAuthenticated, user, loadFavoritesList, favoriteRecordIds]
   );
 
-  const toggleFavorite = useCallback(
-    async (movieId, movieData = null) => {
-      console.log('🔄 toggleFavorite called:', { movieId, movieData, isAuthenticated });
-
-      if (!isAuthenticated) {
-        toast.error('Please login to manage favorites');
-        console.warn('❌ Not authenticated - cannot toggle favorites');
-        return { success: false, error: 'Please login to manage favorites' };
-      }
-
-      const isFavorited = favoriteMovieIds.has(movieId);
-      console.log('📊 Current favorite status:', { movieId, isFavorited });
-
-      if (isFavorited) {
-        return await removeFromFavorites(movieId);
-      } else {
-        return await addToFavorites(movieId, movieData);
-      }
-    },
-    [isAuthenticated, favoriteMovieIds, addToFavorites, removeFromFavorites]
-  );
-
-  const isFavorited = useCallback(
-    movieId => {
-      return favoriteMovieIds.has(movieId);
-    },
-    [favoriteMovieIds]
-  );
-
   const clearFavoritesError = useCallback(() => {
     dispatch(clearError());
   }, [dispatch]);
 
   return {
-    favorites,
-    loading,
-    error,
-    initialized,
-    favoritesCount,
-    isFavorited,
     addToFavorites,
     removeFromFavorites,
-    toggleFavorite,
     loadFavorites: loadFavoritesList,
     clearError: clearFavoritesError,
-    isAuthenticated,
   };
 };

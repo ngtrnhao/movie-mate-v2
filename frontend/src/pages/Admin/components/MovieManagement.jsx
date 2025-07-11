@@ -114,7 +114,7 @@ const MovieManagement = () => {
       setError(null);
       try {
         const params = {
-          pageSize: 50,
+          pageSize: 30,
           filters: { ...filters, sort_by: '-created_at' },
           search: debouncedSearchQuery,
         };

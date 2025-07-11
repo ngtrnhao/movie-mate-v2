@@ -433,7 +433,7 @@ class UserStatsView(generics.RetrieveAPIView):
                 days_since_last_activity = (timezone.now() - last_activity.created_at).days
 
             # Total watch time (estimate based on watched movies runtime)
-            total_watch_time = self.calculate_total_watch_time(user)
+            # total_watch_time = self.calculate_total_watch_time(user)
 
             # Recent activity
             week_ago = timezone.now() - timedelta(days=7)
@@ -492,7 +492,7 @@ class UserStatsView(generics.RetrieveAPIView):
                 'lowest_rating': lowest_rating,
                 'streak_days': streak_days,
                 'days_since_last_activity': days_since_last_activity,
-                'total_watch_time': total_watch_time,
+                # 'total_watch_time': total_w atch_time,
                 'rating_distribution': rating_distribution,
                 'reviews_this_week': reviews_this_week,
                 'reviews_this_month': reviews_this_month,
@@ -551,20 +551,20 @@ class UserStatsView(generics.RetrieveAPIView):
 
         return streak
 
-    def calculate_total_watch_time(self, user):
-        """Calculate total watch time based on watched movies runtime"""
-        from apps.movies.models import Movie
+    # def calculate_total_watch_time(self, user):
+    #     """Calculate total watch time based on watched movies runtime"""
+    #     from apps.movies.models import Movie
 
-        # Get watched movies with runtime
-        watched_movies = Movie.objects.filter(
-            watchlistitem__watchlist__user=user,
-            watchlistitem__status='WATCHED',
-            runtime__isnull=False
-        ).values_list('runtime', flat=True)
+    #     # Get watched movies with runtime
+    #     watched_movies = Movie.objects.filter(
+    #         watchlistitem__watchlist__user=user,
+    #         watchlistitem__status='WATCHED',
+    #         runtime__isnull=False
+    #     ).values_list('runtime', flat=True)
 
-        # Sum up runtime (convert to minutes if needed)
-        total_minutes = sum(watched_movies) if watched_movies else 0
-        return total_minutes
+    #     # Sum up runtime (convert to minutes if needed)
+    #     total_minutes = sum(watched_movies) if watched_movies else 0
+    #     return total_minutes
 
 class UserReviewsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]

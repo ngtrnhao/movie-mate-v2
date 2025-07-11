@@ -5,6 +5,7 @@ import Actions from './Actions';
 import Badge from './Badge';
 import Info from './Info';
 import Poster from './Poster';
+import FavoriteButton from './FavoriteButton';
 import Rating from './Rating';
 import RecommendedInfo from './RecommendedInfo';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
@@ -142,6 +143,10 @@ const MovieCard = memo(
                 priority={priority}
                 onLoadDone={() => setPosterLoaded(true)}
               />
+              {/* Favorite button overlay */}
+              <div className="absolute top-2 right-2">
+                <FavoriteButton movie={movieData} size="xs" variant="overlay" />
+              </div>
               {/* Simplified title overlay */}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                 <h3 className="line-clamp-1 text-sm font-medium text-white">{movieData.title}</h3>
@@ -239,7 +244,10 @@ const MovieCard = memo(
                   </button>
                 )}
               </div>
-              <Actions movie={movieData} onlyBookmark />
+              <div className="flex items-center gap-2">
+                <FavoriteButton movie={movieData} size="sm" variant="ghost" />
+                <Actions movie={movieData} onlyBookmark />
+              </div>
             </div>
           </div>
         </motion.div>

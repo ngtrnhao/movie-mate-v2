@@ -138,13 +138,13 @@ const StatsCard = ({ stats }) => {
       color: 'text-blue-400',
       showLimit: false,
     },
-    {
-      label: 'Total Watch Time',
-      value: stats?.total_watch_time ? `${Math.round(stats.total_watch_time / 60)}h` : '0h',
-      icon: <Star className="text-indigo-400" />,
-      color: 'text-indigo-400',
-      showLimit: false,
-    },
+    // {
+    //   label: 'Total Watch Time',
+    //   value: stats?.total_watch_time ? `${Math.round(stats.total_watch_time / 60)}h` : '0h',
+    //   icon: <Star className="text-indigo-400" />,
+    //   color: 'text-indigo-400',
+    //   showLimit: false,
+    // },
     {
       label: 'Reviews This Week',
       value: stats?.reviews_this_week || 0,

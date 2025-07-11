@@ -687,7 +687,141 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    @action(detail=True, methods=['get'])
+    def details_complete(self, request, pk=None):
+        """
+        Consolidated API endpoint for complete movie details page
+        Returns all data needed in a single request for optimal performance
+        """
+        try:
+            # Cache key for complete details
+            cache_key = f'movie_details_complete_v3_{pk}'  # v2 to bust old cache
+            cached_data = cache.get(cache_key)
 
+            if cached_data:
+                logger.info(f"Returning cached complete details for movie {pk}")
+                return Response(cached_data)
+
+            # Get movie with all related data in single query - simplified for performance
+            movie = Movie.objects.select_related(
+                'moviemetadata'
+            ).prefetch_related(
+                Prefetch('cast', queryset=MovieCast.objects.select_related().order_by('order', 'role')[:10],
+                        to_attr='prefetched_cast'),
+                Prefetch('genres', to_attr='prefetched_genres'),
+                Prefetch('trailers', to_attr='prefetched_trailers'),
+                # Add images prefetch for media gallery
+                Prefetch('movieimage_set', to_attr='prefetched_images')
+            ).get(id=pk)
+
+            # Serialize movie with enhanced serializer
+            movie_serializer = MovieDetailSerializer(movie)
+            movie_data = movie_serializer.data
+
+            # Get similar movies with simplified query (cached)
+            similar_movies = []
+            try:
+                if movie_data.get('genres') and len(movie_data['genres']) > 0:
+                    # Use first genre only for performance
+                    primary_genre_id = movie_data['genres'][0]['id']
+                    similar_cache_key = f'similar_movies_v3_{pk}_{primary_genre_id}'
+                    similar_movies = cache.get(similar_cache_key)
+
+                    if not similar_movies:
+                        from django.utils import timezone
+                        from datetime import timedelta
+
+                        # Get movie's release year for context
+                        movie_year = None
+                        if movie.release_date:
+                            movie_year = movie.release_date.year
+
+                        # Build query for similar movies with better relevance
+                        similar_query = Movie.objects.filter(
+                            genres=primary_genre_id,
+                            poster_url__isnull=False,
+                        ).exclude(id=pk)
+
+                        # Prefer movies with ratings and from similar time period
+                        if movie_year and movie_year >= 2000:
+                            # For modern movies, prefer recent movies (last 20 years)
+                            recent_cutoff = timezone.now().date() - timedelta(days=20*365)
+                            similar_query = similar_query.filter(
+                                release_date__gte=recent_cutoff
+                            )
+                        elif movie_year and movie_year >= 1980:
+                            # For 80s-90s movies, prefer movies from 1980-2010
+                            similar_query = similar_query.filter(
+                                release_date__year__gte=1980,
+                                release_date__year__lte=2010
+                            )
+
+                        # Order by relevance: rating first, then popularity
+                        similar_queryset = similar_query.order_by(
+                            '-cached_imdb_rating',  # Movies with IMDB ratings first
+                            '-is_popular',          # Popular movies next
+                            '-release_date'         # More recent movies preferred
+                        ).select_related('moviemetadata')[:6]
+
+                        # Use basic serializer for similar movies with better data
+                        similar_data = []
+                        for similar_movie in similar_queryset:
+                            similar_data.append({
+                                'id': similar_movie.id,
+                                'title': similar_movie.title_en or similar_movie.title,
+                                'title_en': similar_movie.title_en,
+                                'title_vi': similar_movie.title_vi,
+                                'original_title': similar_movie.original_title,
+                                'poster_url': similar_movie.poster_url,
+                                'backdrop_url': similar_movie.backdrop_url,
+                                'rating': float(similar_movie.cached_imdb_rating) if similar_movie.cached_imdb_rating else None,
+                                'release_date': similar_movie.release_date.isoformat() if similar_movie.release_date else None,
+                                'overview': similar_movie.overview_en or similar_movie.overview_vi,
+                                'overview_en': similar_movie.overview_en,
+                                'overview_vi': similar_movie.overview_vi,
+                                'runtime': similar_movie.runtime
+                            })
+
+                        similar_movies = similar_data
+                        # Cache similar movies for 2 hours
+                        cache.set(similar_cache_key, similar_movies, timeout=7200)
+
+            except Exception as e:
+                logger.error(f"Error getting similar movies for {pk}: {str(e)}")
+                similar_movies = []
+
+            # Build consolidated response
+            response_data = {
+                'status': 'success',
+                'data': {
+                    'movie': movie_data,
+                    'similar_movies': similar_movies,
+                    'stats': {
+                        'cast_count': len(movie_data.get('cast', [])),
+                        'director_count': len(movie_data.get('directors', [])),
+                        'genre_count': len(movie_data.get('genres', [])),
+                        'trailer_count': len(movie_data.get('trailers', []))
+                    }
+                }
+            }
+
+            # Cache complete response for 30 minutes
+            cache.set(cache_key, response_data, timeout=1800)
+            logger.info(f"Cached complete details for movie {pk}")
+
+            return Response(response_data)
+
+        except Movie.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Movie not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error in details_complete endpoint: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': f'Internal server error: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     @action(detail=False, methods=['get'])
     def search(self, request):
         """Enhanced search endpoint using Elasticsearch with ORM fallback"""
@@ -3463,7 +3597,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             if hasattr(request.GET, '_mutable'):
                 request.GET._mutable = True
             request.GET = request.GET.copy()
-            request.GET['page_size'] = 50
+            request.GET['page_size'] = 30
             if mutable is not None:
                 request.GET._mutable = mutable
 

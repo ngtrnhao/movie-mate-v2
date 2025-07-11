@@ -138,7 +138,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
             'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
-            'subscription_start_date', 'subscription_end_date', 'groups'
+            'subscription_start_date', 'subscription_end_date', 'groups','date_joined'
         ]
 
     def get_groups(self, obj):
@@ -197,7 +197,7 @@ class UserStatsSerializer(serializers.Serializer):
     # Activity statistics
     streak_days = serializers.IntegerField()
     days_since_last_activity = serializers.IntegerField()
-    total_watch_time = serializers.IntegerField()  # in minutes
+    # total_watch_time = serializers.IntegerField()  # in minutes
 
     # Rating distribution
     rating_distribution = serializers.DictField()

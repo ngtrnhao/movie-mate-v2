@@ -41,7 +41,7 @@ const MovieDetails = () => {
         if (movieData?.data?.genres?.length || movieData?.genres?.length) {
           try {
             const genres = movieData?.data?.genres || movieData?.genres || [];
-            const similarData = await getSimilarMovies(movieId, genres, 6);
+            const similarData = await getSimilarMovies.data(movieId, genres, 6);
             console.log('Similar movies data:', similarData);
             setSimilarMovies(similarData?.data || []);
           } catch (similarError) {

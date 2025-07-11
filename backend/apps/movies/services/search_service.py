@@ -28,9 +28,27 @@ class MovieSearchService:
                     basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
                 )
                 logger.info("Using Elasticsearch Cloud configuration")
+            elif hasattr(settings, 'ELASTICSEARCH_DSL') and settings.ELASTICSEARCH_DSL:
+                # Use DSL configuration (production settings)
+                es_config = settings.ELASTICSEARCH_DSL['default']
+                self.client = Elasticsearch(
+                    hosts=es_config['hosts'],
+                    http_auth=es_config.get('http_auth'),
+                    use_ssl=es_config.get('use_ssl', False),
+                    verify_certs=es_config.get('verify_certs', True),
+                    timeout=es_config.get('timeout', 30),
+                    retry_on_timeout=es_config.get('retry_on_timeout', True),
+                    max_retries=es_config.get('max_retries', 3),
+                    sniff_on_start=es_config.get('sniff_on_start', False),
+                    sniff_on_connection_fail=es_config.get('sniff_on_connection_fail', False),
+                    ca_certs=es_config.get('ca_certs'),
+                    client_cert=es_config.get('client_cert'),
+                    client_key=es_config.get('client_key'),
+                )
+                logger.info(f"Using Elasticsearch DSL configuration: {es_config['hosts']}")
             else:
                 # Fall back to local Elasticsearch configuration
-                hosts = [settings.ELASTICSEARCH_DSL['default']['hosts'][0]] if hasattr(settings, 'ELASTICSEARCH_DSL') else ['localhost:9200']
+                hosts = ['localhost:9200']
                 self.client = Elasticsearch(hosts=hosts)
                 logger.info(f"Using local Elasticsearch configuration: {hosts}")
 

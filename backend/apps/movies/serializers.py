@@ -5,7 +5,8 @@ from .models import (
     Movie, MovieRating, MovieAward, MovieCast,
     MovieReview, MovieBoxOffice, MovieMetadata,
     MovieGenre, MovieTrailer, MovieImage, MovieNews,
-    ReviewReport, MovieAdminControl
+    ReviewReport, MovieAdminControl, MovieQualityMetrics,
+    MovieScheduling, ProductionMetrics
 )
 import logging
 
@@ -38,6 +39,7 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
     poster_path = serializers.CharField(source='poster_url', allow_null=True)
     backdrop_path = serializers.CharField(source='backdrop_url', allow_null=True)
     trailers = serializers.SerializerMethodField()
+    popularity = serializers.SerializerMethodField()
 
     class Meta:
         model = Movie
@@ -45,7 +47,7 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
             'id', 'slug', 'title', 'title_en', 'title_vi', 'original_title', 'overview_en', 'overview_vi', 'release_date',
             'poster_path', 'backdrop_path', 'runtime', 'status', 'genres',
             'rating', 'vote_average', 'vote_count', 'is_popular',
-            'is_top_rated', 'is_upcoming', 'overviews', 'trailers'
+            'is_top_rated', 'is_upcoming', 'overviews', 'trailers', 'popularity'
         ]
 
     def get_genres(self, obj):
@@ -194,6 +196,12 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'prefetched_trailers'):
             return MovieTrailerSerializer(obj.prefetched_trailers, many=True).data
         return MovieTrailerSerializer(obj.trailers.all(), many=True).data
+
+    def get_popularity(self, obj):
+        # Always return a float, never None
+        if obj.combined_rating_score is not None:
+            return float(obj.combined_rating_score)
+        return 0.0
 
 # Keep the old serializer for backward compatibility
 class MovieListSerializer(OptimizedMovieListSerializer):
@@ -994,6 +1002,92 @@ class ModerationQueueReviewSerializer(serializers.ModelSerializer):
 
 # 🆕 NEW SERIALIZERS FOR NORMALIZED STRUCTURE
 
+class MovieQualityMetricsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for MovieQualityMetrics model - handles quality assessment data
+    """
+    overall_quality_rating = serializers.CharField(read_only=True)
+    completion_status = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = MovieQualityMetrics
+        fields = [
+            # Core quality scores
+            'quality_score', 'content_completeness', 'minimum_quality_met',
+
+            # Quality breakdown
+            'basic_info_score', 'visual_assets_score', 'metadata_richness_score', 'rating_validity_score',
+
+            # Quality details
+            'quality_issues', 'quality_suggestions', 'last_quality_check',
+
+            # Automation
+            'auto_calculated', 'calculation_version',
+
+            # Computed fields
+            'overall_quality_rating', 'completion_status',
+
+            # Timestamps
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'overall_quality_rating', 'completion_status']
+
+
+class MovieSchedulingSerializer(serializers.ModelSerializer):
+    """
+    Serializer for MovieScheduling model - handles scheduling and campaign data
+    """
+    is_published_now = serializers.BooleanField(read_only=True)
+    is_featured_now = serializers.BooleanField(read_only=True)
+    has_active_campaign = serializers.BooleanField(read_only=True)
+    next_action_info = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MovieScheduling
+        fields = [
+            # Publication scheduling
+            'publish_date', 'unpublish_date', 'auto_publish', 'auto_unpublish',
+
+            # Featured scheduling
+            'featured_from', 'featured_until', 'auto_feature', 'auto_unfeature',
+
+            # Recurring & advanced
+            'recurring_pattern', 'timezone',
+
+            # Status tracking
+            'next_scheduled_action', 'next_action_date', 'last_action_executed', 'last_action_date',
+
+            # Campaign info
+            'campaign_name', 'campaign_type', 'campaign_priority',
+
+            # Computed fields
+            'is_published_now', 'is_featured_now', 'has_active_campaign', 'next_action_info',
+
+            # Timestamps
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'is_published_now', 'is_featured_now', 'has_active_campaign']
+
+    def get_next_action_info(self, obj):
+        """Get information about next scheduled action"""
+        action, date = obj.get_next_scheduled_action()
+        return {
+            'action': action,
+            'date': date,
+            'description': self._get_action_description(action)
+        }
+
+    def _get_action_description(self, action):
+        """Get human-readable description for action"""
+        descriptions = {
+            'publish': 'Tự động xuất bản',
+            'unpublish': 'Tự động ngừng hiển thị',
+            'feature': 'Tự động đánh dấu featured',
+            'unfeature': 'Tự động bỏ featured'
+        }
+        return descriptions.get(action, action)
+
+
 class AdminControlSerializer(serializers.ModelSerializer):
     """
     Serializer for MovieAdminControl model - handles all admin workflow logic
@@ -1064,40 +1158,42 @@ class AdminMovieListSerializer(OptimizedMovieListSerializer):
     """
     🆕 UPDATED: Lightweight admin serializer using new normalized structure
     """
-    # Use nested serializer for admin control
+    # NEW: Nested serializers for normalized data
     admin_control = AdminControlSerializer(read_only=True)
+    quality_metrics = MovieQualityMetricsSerializer(read_only=True)
+    scheduling = MovieSchedulingSerializer(read_only=True)
+    production_metrics = serializers.SerializerMethodField()
 
-    # Keep some direct fields for backwards compatibility during transition
+    # Keep direct fields for backwards compatibility during transition
     approval_status = serializers.CharField(source='admin_control.approval_status', read_only=True)
     visibility_status = serializers.CharField(source='admin_control.visibility_status', read_only=True)
     admin_featured = serializers.BooleanField(source='admin_control.admin_featured', read_only=True)
     admin_priority = serializers.IntegerField(source='admin_control.admin_priority', read_only=True)
 
-    # Quality and production fields (these will be moved later)
-    minimum_quality_met = serializers.BooleanField(read_only=True)
-    quality_score = serializers.IntegerField(read_only=True)
-    content_completeness = serializers.IntegerField(read_only=True)
+    # Legacy quality fields (with fallbacks to new structure)
+    minimum_quality_met = serializers.SerializerMethodField()
+    quality_score = serializers.SerializerMethodField()
+    content_completeness = serializers.SerializerMethodField()
     combined_rating_score = serializers.DecimalField(max_digits=3, decimal_places=1, read_only=True)
 
-    # Legacy fields for scheduling (will be moved to scheduling table later)
-    publish_date = serializers.DateTimeField(read_only=True)
-    unpublish_date = serializers.DateTimeField(read_only=True)
-    featured_from = serializers.DateTimeField(read_only=True)
-    featured_until = serializers.DateTimeField(read_only=True)
+    # Legacy scheduling fields (with fallbacks to new structure)
+    publish_date = serializers.SerializerMethodField()
+    unpublish_date = serializers.SerializerMethodField()
+    featured_from = serializers.SerializerMethodField()
+    featured_until = serializers.SerializerMethodField()
 
-    # Enhanced serializer methods
+    # Enhanced computed fields
     approval_info = serializers.SerializerMethodField()
-    production_metrics = serializers.SerializerMethodField()
 
     class Meta(OptimizedMovieListSerializer.Meta):
         fields = OptimizedMovieListSerializer.Meta.fields + [
-            # NEW: Nested admin control
-            'admin_control',
+            # NEW: Nested normalized structure
+            'admin_control', 'quality_metrics', 'scheduling',
 
             # BACKWARDS COMPATIBILITY: Direct access fields
             'approval_status', 'visibility_status', 'admin_featured', 'admin_priority',
 
-            # LEGACY: Will be moved to other tables later
+            # LEGACY: With smart fallbacks to normalized structure
             'minimum_quality_met', 'quality_score', 'content_completeness',
             'publish_date', 'unpublish_date', 'featured_from', 'featured_until',
             'combined_rating_score',
@@ -1105,6 +1201,49 @@ class AdminMovieListSerializer(OptimizedMovieListSerializer):
             # Computed fields
             'approval_info', 'production_metrics'
         ]
+
+    # Smart getters with fallbacks to normalized structure
+    def get_minimum_quality_met(self, obj):
+        """Get minimum_quality_met with fallback to normalized structure"""
+        if hasattr(obj, 'quality_metrics') and obj.quality_metrics:
+            return obj.quality_metrics.minimum_quality_met
+        return getattr(obj, 'minimum_quality_met', True)
+
+    def get_quality_score(self, obj):
+        """Get quality_score with fallback to normalized structure"""
+        if hasattr(obj, 'quality_metrics') and obj.quality_metrics:
+            return obj.quality_metrics.quality_score
+        return getattr(obj, 'quality_score', None)
+
+    def get_content_completeness(self, obj):
+        """Get content_completeness with fallback to normalized structure"""
+        if hasattr(obj, 'quality_metrics') and obj.quality_metrics:
+            return obj.quality_metrics.content_completeness
+        return getattr(obj, 'content_completeness', 0)
+
+    def get_publish_date(self, obj):
+        """Get publish_date with fallback to normalized structure"""
+        if hasattr(obj, 'scheduling') and obj.scheduling:
+            return obj.scheduling.publish_date
+        return getattr(obj, 'publish_date', None)
+
+    def get_unpublish_date(self, obj):
+        """Get unpublish_date with fallback to normalized structure"""
+        if hasattr(obj, 'scheduling') and obj.scheduling:
+            return obj.scheduling.unpublish_date
+        return getattr(obj, 'unpublish_date', None)
+
+    def get_featured_from(self, obj):
+        """Get featured_from with fallback to normalized structure"""
+        if hasattr(obj, 'scheduling') and obj.scheduling:
+            return obj.scheduling.featured_from
+        return getattr(obj, 'featured_from', None)
+
+    def get_featured_until(self, obj):
+        """Get featured_until with fallback to normalized structure"""
+        if hasattr(obj, 'scheduling') and obj.scheduling:
+            return obj.scheduling.featured_until
+        return getattr(obj, 'featured_until', None)
 
     def get_approval_info(self, obj):
         """Enhanced approval information using new structure"""
@@ -1127,12 +1266,22 @@ class AdminMovieListSerializer(OptimizedMovieListSerializer):
         }
 
     def get_production_metrics(self, obj):
-        """Enhanced production metrics - will use ProductionMetrics table"""
+        """Enhanced production metrics using ProductionMetrics model"""
+        # Initialize with defaults
         base_metrics = {
             'homepage_views': 0,
-            'detail_views': 0,
+            'detail_page_views': 0,
+            'trailer_plays': 0,
             'search_appearances': 0,
-            'performance_score': float(obj.combined_rating_score) if obj.combined_rating_score else 0
+            'click_through_rate': 0.0,
+            'engagement_rate': 0.0,
+            'performance_score': 0.0,
+            'trending_score': 0.0,
+            'last_metrics_update': None,
+            'total_featured_days': 0,
+            'review_count': 0,
+            'average_user_rating': None,
+            'positive_review_ratio': 0.0
         }
 
         # Use ProductionMetrics if available
@@ -1142,11 +1291,21 @@ class AdminMovieListSerializer(OptimizedMovieListSerializer):
                 'homepage_views': metrics.homepage_views,
                 'detail_page_views': metrics.detail_page_views,
                 'trailer_plays': metrics.trailer_plays,
-                'click_through_rate': float(metrics.click_through_rate) if metrics.click_through_rate else 0,
-                'engagement_rate': float(metrics.engagement_rate) if metrics.engagement_rate else 0,
-                'performance_score': float(metrics.performance_score) if metrics.performance_score else 0,
-                'trending_score': float(metrics.trending_score) if metrics.trending_score else 0
+                'search_appearances': metrics.search_appearances,
+                'click_through_rate': float(metrics.click_through_rate),
+                'engagement_rate': float(metrics.engagement_rate),
+                'performance_score': float(metrics.performance_score),
+                'trending_score': float(metrics.trending_score),
+                'last_metrics_update': metrics.last_metrics_update,
+                'total_featured_days': metrics.total_featured_days,
+                'review_count': metrics.review_count,
+                'average_user_rating': float(metrics.average_user_rating) if metrics.average_user_rating else None,
+                'positive_review_ratio': float(metrics.positive_review_ratio)
             })
+        else:
+            # Fallback: use combined_rating_score as performance_score
+            if hasattr(obj, 'combined_rating_score') and obj.combined_rating_score:
+                base_metrics['performance_score'] = float(obj.combined_rating_score)
 
         return base_metrics
 

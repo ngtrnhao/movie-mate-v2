@@ -12,7 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import (
-    Genre,
+    # Genre,
     Movie,
     MovieBoxOffice,
     MovieCast,

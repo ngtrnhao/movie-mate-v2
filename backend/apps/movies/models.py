@@ -1872,3 +1872,458 @@ class MovieAdminControl(models.Model):
             self.last_modified_by = user
         if commit:
             self.save()
+
+class MovieQualityMetrics(models.Model):
+    """
+    Quality assessment and completeness metrics for movies
+    Extracted from Movie model for better separation of concerns
+    """
+    # Core relationship
+    movie = models.OneToOneField(
+        Movie,
+        on_delete=models.CASCADE,
+        related_name='quality_metrics'
+    )
+
+    # 📊 QUALITY SCORES
+    quality_score = models.DecimalField(
+        max_digits=3, decimal_places=1,
+        null=True, blank=True,
+        help_text="Điểm chất lượng content (0.0-10.0)"
+    )
+    content_completeness = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        default=0,
+        help_text="% hoàn thiện content (0.00-100.00)"
+    )
+    minimum_quality_met = models.BooleanField(
+        default=True,
+        help_text="Đạt tiêu chuẩn chất lượng tối thiểu"
+    )
+
+    # 🔍 QUALITY BREAKDOWN (for future calculation services)
+    basic_info_score = models.DecimalField(
+        max_digits=3, decimal_places=1, default=0,
+        help_text="Điểm thông tin cơ bản (title, overview, date)"
+    )
+    visual_assets_score = models.DecimalField(
+        max_digits=3, decimal_places=1, default=0,
+        help_text="Điểm tài sản hình ảnh (poster, backdrop)"
+    )
+    metadata_richness_score = models.DecimalField(
+        max_digits=3, decimal_places=1, default=0,
+        help_text="Điểm độ phong phú metadata (cast, trailer, keywords)"
+    )
+    rating_validity_score = models.DecimalField(
+        max_digits=3, decimal_places=1, default=0,
+        help_text="Điểm tính hợp lệ của rating"
+    )
+
+    # 📝 QUALITY DETAILS
+    quality_issues = models.JSONField(
+        default=list, blank=True,
+        help_text="Danh sách các vấn đề chất lượng được phát hiện"
+    )
+    quality_suggestions = models.JSONField(
+        default=list, blank=True,
+        help_text="Gợi ý cải thiện chất lượng"
+    )
+    last_quality_check = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Lần kiểm tra chất lượng cuối cùng"
+    )
+
+    # 🤖 AUTOMATION FLAGS
+    auto_calculated = models.BooleanField(
+        default=True,
+        help_text="Được tính toán tự động bởi hệ thống"
+    )
+    calculation_version = models.CharField(
+        max_length=10, default='1.0',
+        help_text="Phiên bản thuật toán tính toán"
+    )
+
+    # ⏰ TIMESTAMPS
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "movies_quality_metrics"
+        verbose_name = "Movie Quality Metrics"
+        verbose_name_plural = "Movie Quality Metrics"
+
+        indexes = [
+            # Primary quality indexes
+            models.Index(fields=['quality_score'], name='idx_quality_score'),
+            models.Index(fields=['content_completeness'], name='idx_quality_completeness'),
+            models.Index(fields=['minimum_quality_met'], name='idx_quality_minimum_met'),
+
+            # Quality breakdown indexes
+            models.Index(fields=['basic_info_score'], name='idx_quality_basic_info'),
+            models.Index(fields=['visual_assets_score'], name='idx_quality_visual'),
+            models.Index(fields=['metadata_richness_score'], name='idx_quality_metadata'),
+            models.Index(fields=['rating_validity_score'], name='idx_quality_rating'),
+
+            # Composite indexes for quality analysis
+            models.Index(fields=['quality_score', 'content_completeness'],
+                        name='idx_quality_score_completeness'),
+            models.Index(fields=['minimum_quality_met', 'quality_score'],
+                        name='idx_quality_met_score'),
+
+            # Automation tracking
+            models.Index(fields=['auto_calculated'], name='idx_quality_auto_calc'),
+            models.Index(fields=['last_quality_check'], name='idx_quality_last_check'),
+            models.Index(fields=['calculation_version'], name='idx_quality_calc_version'),
+
+            # Temporal indexes
+            models.Index(fields=['updated_at'], name='idx_quality_updated'),
+            models.Index(fields=['created_at'], name='idx_quality_created'),
+        ]
+
+        constraints = [
+            # Ensure quality scores are within valid ranges
+            models.CheckConstraint(
+                check=models.Q(quality_score__gte=0.0) & models.Q(quality_score__lte=10.0),
+                name='check_quality_score_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(content_completeness__gte=0.0) & models.Q(content_completeness__lte=100.0),
+                name='check_content_completeness_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(basic_info_score__gte=0.0) & models.Q(basic_info_score__lte=10.0),
+                name='check_basic_info_score_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(visual_assets_score__gte=0.0) & models.Q(visual_assets_score__lte=10.0),
+                name='check_visual_assets_score_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(metadata_richness_score__gte=0.0) & models.Q(metadata_richness_score__lte=10.0),
+                name='check_metadata_richness_score_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(rating_validity_score__gte=0.0) & models.Q(rating_validity_score__lte=10.0),
+                name='check_rating_validity_score_range'
+            ),
+        ]
+
+    def __str__(self):
+        return f"QualityMetrics for {self.movie.title} (Score: {self.quality_score or 'N/A'})"
+
+    @property
+    def overall_quality_rating(self):
+        """Calculate overall quality rating based on individual scores"""
+        if not self.quality_score:
+            return 'Not Assessed'
+
+        if self.quality_score >= 8.0:
+            return 'Excellent'
+        elif self.quality_score >= 6.0:
+            return 'Good'
+        elif self.quality_score >= 4.0:
+            return 'Fair'
+        else:
+            return 'Poor'
+
+    @property
+    def completion_status(self):
+        """Get completion status based on content_completeness"""
+        if self.content_completeness >= 90:
+            return 'Complete'
+        elif self.content_completeness >= 70:
+            return 'Nearly Complete'
+        elif self.content_completeness >= 50:
+            return 'Partial'
+        else:
+            return 'Incomplete'
+
+    def calculate_quality_score(self):
+        """Calculate overall quality score from individual components"""
+        # Weight factors for different quality aspects
+        weights = {
+            'basic_info': 0.3,
+            'visual_assets': 0.2,
+            'metadata_richness': 0.3,
+            'rating_validity': 0.2
+        }
+
+        total_score = (
+            (self.basic_info_score * weights['basic_info']) +
+            (self.visual_assets_score * weights['visual_assets']) +
+            (self.metadata_richness_score * weights['metadata_richness']) +
+            (self.rating_validity_score * weights['rating_validity'])
+        )
+
+        self.quality_score = round(total_score, 1)
+        return self.quality_score
+
+    @classmethod
+    def get_low_quality_movies(cls, threshold=5.0, limit=50):
+        """Get movies with quality scores below threshold"""
+        return cls.objects.filter(
+            quality_score__lt=threshold,
+            quality_score__isnull=False
+        ).select_related('movie').order_by('quality_score')[:limit]
+
+    @classmethod
+    def get_incomplete_movies(cls, threshold=70.0, limit=50):
+        """Get movies with low content completeness"""
+        return cls.objects.filter(
+            content_completeness__lt=threshold
+        ).select_related('movie').order_by('content_completeness')[:limit]
+
+
+class MovieScheduling(models.Model):
+    """
+    Scheduling and campaign management for movies
+    Extracted from Movie model for better separation of concerns
+    """
+    # Core relationship
+    movie = models.OneToOneField(
+        Movie,
+        on_delete=models.CASCADE,
+        related_name='scheduling'
+    )
+
+    # 📅 PUBLICATION SCHEDULING
+    publish_date = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Thời gian xuất bản"
+    )
+    unpublish_date = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Thời gian ngừng hiển thị"
+    )
+    auto_publish = models.BooleanField(
+        default=False,
+        help_text="Tự động xuất bản vào thời điểm đã lên lịch"
+    )
+    auto_unpublish = models.BooleanField(
+        default=False,
+        help_text="Tự động ngừng hiển thị vào thời điểm đã lên lịch"
+    )
+
+    # ⭐ FEATURED SCHEDULING
+    featured_from = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Bắt đầu featured"
+    )
+    featured_until = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Kết thúc featured"
+    )
+    auto_feature = models.BooleanField(
+        default=False,
+        help_text="Tự động featured vào thời điểm đã lên lịch"
+    )
+    auto_unfeature = models.BooleanField(
+        default=False,
+        help_text="Tự động bỏ featured vào thời điểm đã lên lịch"
+    )
+
+    # 🔄 RECURRING SCHEDULES (for future features)
+    recurring_pattern = models.JSONField(
+        default=dict, blank=True,
+        help_text="Mẫu lặp lại cho nội dung theo mùa"
+    )
+    timezone = models.CharField(
+        max_length=50, default='UTC',
+        help_text="Múi giờ cho lịch trình"
+    )
+
+    # 📊 STATUS TRACKING
+    next_scheduled_action = models.CharField(
+        max_length=50, null=True, blank=True,
+        help_text="Hành động được lên lịch tiếp theo (publish, unpublish, feature, unfeature)"
+    )
+    next_action_date = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Thời gian thực hiện hành động tiếp theo"
+    )
+    last_action_executed = models.CharField(
+        max_length=50, null=True, blank=True,
+        help_text="Hành động cuối cùng được thực hiện"
+    )
+    last_action_date = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Thời gian thực hiện hành động cuối cùng"
+    )
+
+    # 🎯 CAMPAIGN INFO (for future marketing features)
+    campaign_name = models.CharField(
+        max_length=255, null=True, blank=True,
+        help_text="Tên chiến dịch marketing"
+    )
+    campaign_type = models.CharField(
+        max_length=50, null=True, blank=True,
+        choices=[
+            ('marketing', 'Marketing Campaign'),
+            ('seasonal', 'Seasonal Campaign'),
+            ('special', 'Special Event'),
+            ('promotion', 'Promotion'),
+            ('launch', 'Movie Launch'),
+        ],
+        help_text="Loại chiến dịch"
+    )
+    campaign_priority = models.IntegerField(
+        default=0,
+        help_text="Độ ưu tiên chiến dịch (0-10)"
+    )
+
+    # ⏰ TIMESTAMPS
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "movies_scheduling"
+        verbose_name = "Movie Scheduling"
+        verbose_name_plural = "Movie Scheduling"
+
+        indexes = [
+                        # Publication scheduling indexes
+            models.Index(fields=['publish_date'], name='idx_sched_publish_date'),
+            models.Index(fields=['unpublish_date'], name='idx_sched_unpublish_date'),
+            models.Index(fields=['auto_publish'], name='idx_sched_auto_publish'),
+            models.Index(fields=['auto_unpublish'], name='idx_sched_auto_unpublish'),
+
+            # Featured scheduling indexes
+            models.Index(fields=['featured_from'], name='idx_sched_featured_from'),
+            models.Index(fields=['featured_until'], name='idx_sched_featured_until'),
+            models.Index(fields=['auto_feature'], name='idx_sched_auto_feature'),
+            models.Index(fields=['auto_unfeature'], name='idx_sched_auto_unfeature'),
+
+            # Action tracking indexes
+            models.Index(fields=['next_action_date'], name='idx_sched_next_action'),
+            models.Index(fields=['next_scheduled_action'], name='idx_sched_next_act_type'),
+            models.Index(fields=['last_action_date'], name='idx_sched_last_action'),
+
+                        # Campaign indexes
+            models.Index(fields=['campaign_name'], name='idx_sched_campaign'),
+            models.Index(fields=['campaign_type'], name='idx_sched_campaign_type'),
+            models.Index(fields=['campaign_priority'], name='idx_sched_camp_priority'),
+
+            # Composite indexes for common queries
+            models.Index(fields=['publish_date', 'unpublish_date'],
+                        name='idx_sched_publish_window'),
+            models.Index(fields=['featured_from', 'featured_until'],
+                        name='idx_sched_featured_window'),
+            models.Index(fields=['campaign_type', 'campaign_priority'],
+                        name='idx_sched_camp_type_pri'),
+
+            # Temporal indexes
+            models.Index(fields=['updated_at'], name='idx_sched_updated'),
+            models.Index(fields=['created_at'], name='idx_sched_created'),
+        ]
+
+        constraints = [
+            # Ensure campaign priority is within valid range
+            models.CheckConstraint(
+                check=models.Q(campaign_priority__gte=0) & models.Q(campaign_priority__lte=10),
+                name='check_campaign_priority_range'
+            ),
+            # Ensure publish_date is before unpublish_date if both are set
+            models.CheckConstraint(
+                check=models.Q(publish_date__isnull=True) |
+                      models.Q(unpublish_date__isnull=True) |
+                      models.Q(publish_date__lt=models.F('unpublish_date')),
+                name='check_publish_unpublish_order'
+            ),
+            # Ensure featured_from is before featured_until if both are set
+            models.CheckConstraint(
+                check=models.Q(featured_from__isnull=True) |
+                      models.Q(featured_until__isnull=True) |
+                      models.Q(featured_from__lt=models.F('featured_until')),
+                name='check_featured_from_until_order'
+            ),
+        ]
+
+    def __str__(self):
+        return f"Scheduling for {self.movie.title}"
+
+    @property
+    def is_published_now(self):
+        """Check if movie should be published right now"""
+        from django.utils import timezone
+        now = timezone.now()
+
+        # Check if within publish window
+        if self.publish_date and now < self.publish_date:
+            return False
+        if self.unpublish_date and now > self.unpublish_date:
+            return False
+        return True
+
+    @property
+    def is_featured_now(self):
+        """Check if movie should be featured right now"""
+        from django.utils import timezone
+        now = timezone.now()
+
+        # Check if within featured window
+        if self.featured_from and now < self.featured_from:
+            return False
+        if self.featured_until and now > self.featured_until:
+            return False
+        return True
+
+    @property
+    def has_active_campaign(self):
+        """Check if movie has an active campaign"""
+        return bool(self.campaign_name and self.campaign_type)
+
+    def get_next_scheduled_action(self):
+        """Calculate the next scheduled action"""
+        from django.utils import timezone
+        now = timezone.now()
+
+        actions = []
+
+        # Check publish actions
+        if self.auto_publish and self.publish_date and self.publish_date > now:
+            actions.append(('publish', self.publish_date))
+        if self.auto_unpublish and self.unpublish_date and self.unpublish_date > now:
+            actions.append(('unpublish', self.unpublish_date))
+
+        # Check feature actions
+        if self.auto_feature and self.featured_from and self.featured_from > now:
+            actions.append(('feature', self.featured_from))
+        if self.auto_unfeature and self.featured_until and self.featured_until > now:
+            actions.append(('unfeature', self.featured_until))
+
+        # Return earliest action
+        if actions:
+            actions.sort(key=lambda x: x[1])
+            return actions[0]
+        return None, None
+
+    @classmethod
+    def get_pending_actions(cls, hours_ahead=24):
+        """Get all movies with pending scheduled actions"""
+        from django.utils import timezone
+        now = timezone.now()
+        future_time = now + timezone.timedelta(hours=hours_ahead)
+
+        return cls.objects.filter(
+            models.Q(
+                auto_publish=True,
+                publish_date__gte=now,
+                publish_date__lte=future_time
+            ) |
+            models.Q(
+                auto_unpublish=True,
+                unpublish_date__gte=now,
+                unpublish_date__lte=future_time
+            ) |
+            models.Q(
+                auto_feature=True,
+                featured_from__gte=now,
+                featured_from__lte=future_time
+            ) |
+            models.Q(
+                auto_unfeature=True,
+                featured_until__gte=now,
+                featured_until__lte=future_time
+            )
+        ).select_related('movie')
+

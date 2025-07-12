@@ -876,12 +876,35 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             if params.get('year_to'):
                 queryset = queryset.filter(release_date__year__lte=params['year_to'])
 
-            # Apply sorting
+            # Apply sorting with field mapping for ORM fallback
             sort_field = params.get('sort_by', '-combined_rating_score')
+
+            # Map Elasticsearch fields to ORM fields
+            field_mapping = {
+                'popularity': 'combined_rating_score',
+                'vote_average': 'combined_rating_score',
+                'rating': 'combined_rating_score',
+                'vote_count': 'cached_imdb_votes',
+                'title': 'title_en',
+                'runtime': 'runtime',
+                'release_date': 'release_date',
+                'created_at': 'created_at',
+                'admin_priority': 'admin_priority',
+                'approval_status': 'approval_status'
+            }
+
+            # Apply field mapping
+            clean_sort_field = sort_field.lstrip('-')
+            if clean_sort_field in field_mapping:
+                mapped_field = field_mapping[clean_sort_field]
+                sort_field = sort_field.replace(clean_sort_field, mapped_field)
+
+            # Handle order
             if params.get('order') == 'asc':
                 sort_field = sort_field.lstrip('-')
             elif not sort_field.startswith('-'):
                 sort_field = f'-{sort_field}'
+
             queryset = queryset.order_by(sort_field)
 
             # Apply pagination
@@ -3586,7 +3609,6 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             'admin_control__admin_priority', 'admin_control__created_at',
             'admin_control__updated_at'
         )
-        # ... existing code ...
         return qs
 
     def list(self, request, *args, **kwargs):
@@ -3597,7 +3619,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             if hasattr(request.GET, '_mutable'):
                 request.GET._mutable = True
             request.GET = request.GET.copy()
-            request.GET['page_size'] = 30
+            request.GET['page_size'] = 40
             if mutable is not None:
                 request.GET._mutable = mutable
 
@@ -3625,7 +3647,9 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         page_size = int(params.get('page_size', 5))
         search_service = MovieSearchService()
         es_params = {k: params.get(k) for k in params}
-        es_params['page'] = 1
+        # Remove page parameter for keyset pagination
+        if 'page' in es_params:
+            del es_params['page']
         es_params['page_size'] = page_size
         for f in admin_filters:
             param_value = params.get(f)
@@ -3634,6 +3658,9 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 es_params[f] = param_value
         if after_created_at:
             es_params['after_created_at'] = after_created_at
+            logger.info(f"[ADMIN MOVIE LIST] Using keyset pagination with after_created_at: {after_created_at}")
+        else:
+            logger.info("[ADMIN MOVIE LIST] Initial page load (no after_created_at)")
         if params.get('ordering'):
             es_params['sort_by'] = params['ordering'].lstrip('-')
             es_params['order'] = 'desc' if params['ordering'].startswith('-') else 'asc'

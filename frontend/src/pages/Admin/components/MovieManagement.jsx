@@ -109,7 +109,8 @@ const MovieManagement = () => {
 
   // Fetch Movies (keyset)
   const fetchMovies = useCallback(
-    async (direction = 'init') => {
+    async (direction = 'init', afterValue = null) => {
+      const effectiveAfter = afterValue || currentAfter;
       setLoading(true);
       setError(null);
       try {
@@ -118,9 +119,13 @@ const MovieManagement = () => {
           filters: { ...filters, sort_by: '-created_at' },
           search: debouncedSearchQuery,
         };
-        if (currentAfter) params.filters.after_created_at = currentAfter;
+        if (effectiveAfter) {
+          params.filters.after_created_at = effectiveAfter;
+        }
+
         const data = await getAdminMovies(params);
         setMovies(data.results || []);
+
         // Keyset logic
         if (direction === 'next') {
           setAfterStack(prev => [...prev, currentAfter]);
@@ -131,7 +136,10 @@ const MovieManagement = () => {
           setAfterStack([]);
           setHasPrevious(false);
         }
-        setHasNext((data.results || []).length === 5); // Có thể còn trang sau nếu đủ 5 bản ghi
+
+        // Store next_after_created_at from API response
+        const nextAfterCreatedAt = data.next;
+        setHasNext(nextAfterCreatedAt);
       } catch (error) {
         setError('Không thể tải danh sách phim. Vui lòng thử lại.');
       } finally {
@@ -171,19 +179,20 @@ const MovieManagement = () => {
 
   // Next page
   const handleNextPage = () => {
-    if (movies.length > 0) {
-      const lastCreatedAt = movies[movies.length - 1].created_at;
-      setCurrentAfter(lastCreatedAt);
-      fetchMovies('next');
+    if (hasNext && typeof hasNext === 'string') {
+      setCurrentAfter(hasNext);
+      fetchMovies('next', hasNext);
     }
   };
+
   // Prev page
   const handlePrevPage = () => {
     if (afterStack.length > 0) {
       const prevStack = [...afterStack];
       prevStack.pop();
       setAfterStack(prevStack);
-      setCurrentAfter(prevStack[prevStack.length - 1] || null);
+      const newCurrentAfter = prevStack[prevStack.length - 1] || null;
+      setCurrentAfter(newCurrentAfter);
       fetchMovies('prev');
     }
   };
@@ -259,22 +268,21 @@ const MovieManagement = () => {
   // Event Handlers
   const handleSearchChange = e => {
     setSearchQuery(e.target.value);
-    setFilters(prev => ({ ...prev, page: 1 }));
+    // Reset pagination when search changes
+    setCurrentAfter(null);
+    setAfterStack([]);
+    setHasPrevious(false);
   };
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({
       ...prev,
       [key]: value,
-      page: 1,
     }));
-  };
-
-  const handlePageChange = newPage => {
-    setFilters(prev => ({
-      ...prev,
-      page: newPage,
-    }));
+    // Reset pagination when filters change
+    setCurrentAfter(null);
+    setAfterStack([]);
+    setHasPrevious(false);
   };
 
   const handleMovieSelect = movieId => {
@@ -791,9 +799,12 @@ const MovieManagement = () => {
                   minimum_quality_met: '',
                   category: '',
                   sort_by: '-created_at',
-                  page: 1,
                 });
                 setSearchQuery('');
+                // Reset pagination
+                setCurrentAfter(null);
+                setAfterStack([]);
+                setHasPrevious(false);
               }}
               className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
@@ -851,9 +862,12 @@ const MovieManagement = () => {
                       minimum_quality_met: '',
                       category: '',
                       sort_by: '-created_at',
-                      page: 1,
                     });
                     setSearchQuery('');
+                    // Reset pagination
+                    setCurrentAfter(null);
+                    setAfterStack([]);
+                    setHasPrevious(false);
                   }}
                   className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                 >

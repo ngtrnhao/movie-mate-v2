@@ -1,5 +1,8 @@
 import axiosInstance from './axios';
 
+// Request deduplication cache
+const pendingRequests = new Map();
+
 // Helper function to handle API responses
 const handleResponse = response => {
   if (response.data.status === 'success') {
@@ -46,7 +49,7 @@ export const getProductionMetrics = async () => {
 // === MOVIE MANAGEMENT ===
 
 /**
- * Get movies list with pagination, search, and filters
+ * Get movies list with keyset pagination, search, and filters
  */
 export const getAdminMovies = async (params = {}) => {
   try {
@@ -61,7 +64,6 @@ export const getAdminMovies = async (params = {}) => {
     }
 
     const queryParams = new URLSearchParams({
-      page: params.page || 1,
       page_size: params.pageSize || 30,
       ...cleanFilters,
     });
@@ -70,20 +72,40 @@ export const getAdminMovies = async (params = {}) => {
       queryParams.append('search', params.search.trim());
     }
 
-    const response = await axiosInstance.get(`/api/admin/movies/?${queryParams}`);
+    const requestKey = `/api/admin/movies/?${queryParams}`;
 
-    // Handle both paginated and non-paginated responses
-    if (response.data.status === 'success') {
-      return {
-        results: response.data.data,
-        count: response.data.count,
-        next: response.data.next_after_created_at,
-        previous: response.data.prev_after_created_at,
-        totalPages: Math.ceil(response.data.count / (params.pageSize || 20)),
-      };
+    // Check if there's already a pending request with the same parameters
+    if (pendingRequests.has(requestKey)) {
+      return await pendingRequests.get(requestKey);
     }
 
-    throw new Error('Invalid response format');
+    // Create new request promise
+    const requestPromise = (async () => {
+      try {
+        const response = await axiosInstance.get(requestKey);
+
+        // Handle both paginated and non-paginated responses
+        if (response.data.status === 'success') {
+          return {
+            results: response.data.data || response.data.results, // Support both formats
+            count: response.data.count,
+            next: response.data.next_after_created_at,
+            previous: response.data.prev_after_created_at,
+            totalPages: Math.ceil(response.data.count / (params.pageSize || 30)),
+          };
+        }
+
+        throw new Error('Invalid response format');
+      } finally {
+        // Remove from pending requests after completion
+        pendingRequests.delete(requestKey);
+      }
+    })();
+
+    // Store the promise in pending requests
+    pendingRequests.set(requestKey, requestPromise);
+
+    return await requestPromise;
   } catch (error) {
     handleError(error, 'fetch admin movies');
   }
@@ -335,6 +357,14 @@ export const bulkRemoveUpcomingMovies = async movieIds => {
 export const clearAdminMovieCache = () => {
   // Future implementation for caching admin data
   console.log('Admin movie cache cleared');
+};
+
+/**
+ * Clear pending requests cache
+ */
+export const clearPendingRequests = () => {
+  pendingRequests.clear();
+  console.log('Pending requests cache cleared');
 };
 
 // Export all functions as default object for easier importing

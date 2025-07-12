@@ -228,12 +228,18 @@ class MovieSearchService:
 
             # Pagination logic - hỗ trợ cả search_after và after_created_at
             page_size = min(int(params.get('page_size', 50)), 100)
+            logger.info(f"Pagination: page_size={page_size}, admin_mode={admin_mode}")
 
             # Admin mode: sử dụng after_created_at cho keyset pagination
-            if admin_mode and params.get('after_created_at'):
-                search = search.filter('range', created_at={'lt': params['after_created_at']})
-                search = search[:page_size]
-                logger.info(f"Admin mode: Using after_created_at pagination with value: {params['after_created_at']}")
+            if admin_mode:
+                if params.get('after_created_at'):
+                    # Đã filter ở trên rồi, chỉ cần limit
+                    search = search[:page_size]
+                    logger.info(f"Admin mode: Using after_created_at pagination with value: {params['after_created_at']}")
+                else:
+                    # Admin mode trang đầu: chỉ limit, không dùng offset
+                    search = search[:page_size]
+                    logger.info(f"Admin mode: Initial page load (no after_created_at), limiting to {page_size} results")
             # Frontend mode: sử dụng search_after cho keyset pagination
             elif params.get('search_after'):
                 # Xử lý search_after có thể là string hoặc list

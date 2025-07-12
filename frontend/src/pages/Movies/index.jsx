@@ -149,7 +149,7 @@ const MoviesPage = () => {
   // Auto infinite scroll trigger với scroll awareness
   const { ref: infiniteScrollRef, inView } = useInView({
     threshold: 0.1,
-    rootMargin: '600px 0px', // Trigger sớm hơn để load trước khi user scroll đến cuối
+    rootMargin: '900px 0px', // Trigger sớm hơn để load trước khi user scroll đến cuối
     skip: isFastScrolling, // Skip auto-loading khi scroll quá nhanh
   });
 

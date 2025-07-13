@@ -22,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, FilmIcon as FilmIconSolid } from '@heroicons/react/24/solid';
 import MovieDetailsModal from '../../../components/common/MovieDetailsModal';
+import AdvancedAdminFilters from './AdvancedAdminFilters';
 import {
   getAdminMovies,
   toggleMovieFeatured,
@@ -92,6 +93,7 @@ const MovieManagement = () => {
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 500); // 500ms debounce
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState({
     approval_status: 'NEEDS_REVIEW', // Mặc định luôn có filter hợp lệ cho ES
     visibility_status: '',
@@ -100,6 +102,22 @@ const MovieManagement = () => {
     minimum_quality_met: '',
     category: '',
     sort_by: '-created_at',
+    // Advanced filters
+    quality_score_min: null,
+    quality_score_max: null,
+    content_completeness_min: null,
+    overall_quality_rating: null,
+    completion_status: null,
+    campaign_type: null,
+    campaign_priority_min: null,
+    is_published_now: null,
+    is_featured_now: null,
+    performance_score_min: null,
+    trending_score_min: null,
+    trending_category: null,
+    engagement_rate_min: null,
+    homepage_views_min: null,
+    user_favorites_min: null,
   });
   // Keyset pagination state
   const [afterStack, setAfterStack] = useState([]); // Stack of after_created_at for prev
@@ -283,6 +301,47 @@ const MovieManagement = () => {
     setCurrentAfter(null);
     setAfterStack([]);
     setHasPrevious(false);
+  };
+
+  const handleAdvancedFilterChange = (key, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+    // Reset pagination when filters change
+    setCurrentAfter(null);
+    setAfterStack([]);
+    setHasPrevious(false);
+  };
+
+  const handleResetAdvancedFilters = () => {
+    setFilters(prev => ({
+      ...prev,
+      // Reset only advanced filters, keep basic ones
+      quality_score_min: null,
+      quality_score_max: null,
+      content_completeness_min: null,
+      overall_quality_rating: null,
+      completion_status: null,
+      campaign_type: null,
+      campaign_priority_min: null,
+      is_published_now: null,
+      is_featured_now: null,
+      performance_score_min: null,
+      trending_score_min: null,
+      trending_category: null,
+      engagement_rate_min: null,
+      homepage_views_min: null,
+      user_favorites_min: null,
+    }));
+    // Reset pagination
+    setCurrentAfter(null);
+    setAfterStack([]);
+    setHasPrevious(false);
+  };
+
+  const toggleAdvancedFilters = () => {
+    setShowAdvancedFilters(prev => !prev);
   };
 
   const handleMovieSelect = movieId => {
@@ -504,9 +563,40 @@ const MovieManagement = () => {
 
   // Active filter indicator
   const hasActiveFilters = useMemo(() => {
-    return (
-      Object.values(filters).some(value => value && value !== '-created_at') || debouncedSearchQuery
+    const basicFilters = [
+      'approval_status',
+      'visibility_status',
+      'is_published',
+      'admin_featured',
+      'minimum_quality_met',
+      'category',
+    ];
+    const advancedFilterKeys = [
+      'quality_score_min',
+      'quality_score_max',
+      'content_completeness_min',
+      'overall_quality_rating',
+      'completion_status',
+      'campaign_type',
+      'campaign_priority_min',
+      'is_published_now',
+      'is_featured_now',
+      'performance_score_min',
+      'trending_score_min',
+      'trending_category',
+      'engagement_rate_min',
+      'homepage_views_min',
+      'user_favorites_min',
+    ];
+
+    const hasBasicFilters = basicFilters.some(
+      key => filters[key] && filters[key] !== '-created_at'
     );
+    const hasAdvancedFilters = advancedFilterKeys.some(
+      key => filters[key] !== null && filters[key] !== undefined && filters[key] !== ''
+    );
+
+    return hasBasicFilters || hasAdvancedFilters || debouncedSearchQuery;
   }, [filters, debouncedSearchQuery]);
 
   return (
@@ -819,6 +909,15 @@ const MovieManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Advanced Filters */}
+      <AdvancedAdminFilters
+        filters={filters}
+        onFilterChange={handleAdvancedFilterChange}
+        onResetFilters={handleResetAdvancedFilters}
+        showAdvanced={showAdvancedFilters}
+        onToggleAdvanced={toggleAdvancedFilters}
+      />
 
       {/* Movies Grid/Table */}
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm">

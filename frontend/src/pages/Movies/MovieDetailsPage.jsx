@@ -187,21 +187,23 @@ const MovieDetailsPage = () => {
       <HeroSection movie={movie} />
 
       {/* Movie Info and Main Content Section */}
-      <div className="relative w-full px-4 pb-8 pt-0">
+      <div className="relative w-full px-2 pb-8 pt-0 sm:px-4 md:px-6 lg:px-8">
         {/* Gradient overlay từ section lên backdrop */}
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-32"
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 sm:h-24 md:h-32"
           style={{
             background:
               'linear-gradient(0deg, #18181b 0%, rgba(24,24,27,0.9) 40%, rgba(24,24,27,0.3) 70%, rgba(24,24,27,0.0) 100%)',
           }}
         />
-        <div className="relative z-20 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Left Side: Movie Info Card (1/4 width) */}
-          <div className="ml-4 lg:col-span-1">
-            <div className="space-y-4 rounded-lg bg-gray-800/50 p-6 text-white backdrop-blur-sm">
-              {/* Poster */}
-              <div className="relative">
+
+        {/* Responsive Grid Layout */}
+        <div className="relative z-20 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3 xl:gap-8">
+          {/* Left Side: Movie Info Card - Responsive Layout */}
+          <div className="order-2 lg:order-1 lg:col-span-1">
+            <div className="mx-auto max-w-sm space-y-4 rounded-lg bg-gray-800/50 p-4 text-white backdrop-blur-sm sm:max-w-md sm:p-6 lg:mx-0 lg:max-w-none">
+              {/* Poster - Responsive sizing */}
+              <div className="relative mx-auto w-48 sm:w-56 md:w-64 lg:w-full">
                 <img
                   src={movie.poster_url || movie.poster_path}
                   alt={movie.title}
@@ -213,28 +215,32 @@ const MovieDetailsPage = () => {
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/50 to-transparent"></div>
               </div>
 
-              {/* Movie Details */}
+              {/* Movie Details - Responsive text sizing */}
               <div className="space-y-3">
-                {/* Title */}
+                {/* Title - Responsive font sizes */}
                 <div>
-                  <h1 className="mb-1 text-2xl font-bold">
+                  <h1 className="mb-1 text-xl font-bold sm:text-2xl lg:text-2xl">
                     {getDisplayTitle(movie, currentLanguage)}
                   </h1>
                   {/* Show alternative title if different from main title */}
                   {currentLanguage === 'vi' &&
                     movie.original_title &&
                     movie.original_title !== movie.title_vi && (
-                      <h2 className="text-sm italic text-gray-300">{movie.original_title}</h2>
+                      <h2 className="text-xs italic text-gray-300 sm:text-sm">
+                        {movie.original_title}
+                      </h2>
                     )}
                   {currentLanguage === 'en' &&
                     movie.original_title &&
                     movie.original_title !== movie.title_en && (
-                      <h2 className="text-sm italic text-gray-300">{movie.original_title}</h2>
+                      <h2 className="text-xs italic text-gray-300 sm:text-sm">
+                        {movie.original_title}
+                      </h2>
                     )}
                 </div>
 
-                {/* Quick Info Badges */}
-                <div className="flex flex-wrap gap-2">
+                {/* Quick Info Badges - Responsive flex layout */}
+                <div className="flex flex-wrap gap-1 sm:gap-2">
                   {/* Rating Badge - Using Shared Rating Utility */}
                   {(() => {
                     const ratingInfo = getPrimaryRating(movie);
@@ -253,21 +259,21 @@ const MovieDetailsPage = () => {
 
                   {/* Age Rating Badge */}
                   {movie.is_adult !== undefined && (
-                    <div className="rounded-full bg-white px-3 py-1 text-xs font-bold text-black">
+                    <div className="rounded-full bg-white px-2 py-1 text-xs font-bold text-black sm:px-3">
                       {movie.is_adult ? t('details.age18') : t('details.age16')}
                     </div>
                   )}
 
                   {/* Year Badge */}
                   {movie.release_date && (
-                    <div className="rounded-full bg-gray-600 px-3 py-1 text-xs font-semibold text-white">
+                    <div className="rounded-full bg-gray-600 px-2 py-1 text-xs font-semibold text-white sm:px-3">
                       {new Date(movie.release_date).getFullYear()}
                     </div>
                   )}
 
                   {/* Runtime Badge */}
                   {movie.runtime && (
-                    <div className="flex items-center gap-1 rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white">
+                    <div className="flex items-center gap-1 rounded-full bg-blue-500 px-2 py-1 text-xs font-semibold text-white sm:px-3">
                       <span>🕐</span>
                       <span>
                         {Math.floor(movie.runtime / 60)}h {movie.runtime % 60}m
@@ -276,8 +282,8 @@ const MovieDetailsPage = () => {
                   )}
                 </div>
 
-                {/* Detailed Information */}
-                <div className="space-y-3 text-sm">
+                {/* Detailed Information - Responsive layout */}
+                <div className="space-y-2 text-xs sm:space-y-3 sm:text-sm">
                   {/* Thời lượng */}
                   {movie.runtime && (
                     <div className="flex items-center justify-between">
@@ -293,7 +299,7 @@ const MovieDetailsPage = () => {
                     movie.production_countries?.length > 0) && (
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-300">{t('details.country')}:</span>
-                      <span className="text-white">
+                      <span className="max-w-24 text-right text-white sm:max-w-32">
                         {movie.production_info?.production_countries?.[0]?.name ||
                           movie.production_info?.production_countries?.[0] ||
                           movie.production_countries?.[0]?.name ||
@@ -336,7 +342,7 @@ const MovieDetailsPage = () => {
                     movie.production_companies?.length > 0) && (
                     <div className="flex items-start justify-between">
                       <span className="font-medium text-gray-300">{t('details.production')}:</span>
-                      <span className="max-w-32 text-right text-white">
+                      <span className="max-w-24 text-right text-white sm:max-w-32">
                         {(
                           movie.production_info?.production_companies ||
                           movie.production_companies ||
@@ -353,7 +359,7 @@ const MovieDetailsPage = () => {
                   {movie.directors && movie.directors.length > 0 && (
                     <div className="flex items-start justify-between">
                       <span className="font-medium text-gray-300">{t('details.directors')}:</span>
-                      <span className="max-w-32 text-right text-white">
+                      <span className="max-w-24 text-right text-white sm:max-w-32">
                         {movie.directors
                           .slice(0, 2)
                           .map(director => director.name || director)
@@ -363,7 +369,7 @@ const MovieDetailsPage = () => {
                   )}
                 </div>
 
-                {/* Genres */}
+                {/* Genres - Responsive flex layout */}
                 {filteredGenres.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {filteredGenres.slice(0, 3).map((genre, index) => (
@@ -377,9 +383,9 @@ const MovieDetailsPage = () => {
                   </div>
                 )}
 
-                {/* Overview */}
+                {/* Overview - Responsive text sizing */}
                 {(movie.overview_vi || movie.overview_en || movie.overview) && (
-                  <p className=" text-sm leading-relaxed text-gray-200">
+                  <p className="text-xs leading-relaxed text-gray-200 sm:text-sm">
                     {getDisplayOverview(movie, currentLanguage)}
                   </p>
                 )}
@@ -387,13 +393,13 @@ const MovieDetailsPage = () => {
             </div>
           </div>
 
-          {/* Right Side: Main Content Card (3/4 width) */}
-          <div className="lg:col-span-2">
-            <div className="mr-8 space-x-2 rounded-lg bg-gray-800/50 p-6 backdrop-blur-sm">
-              {/* Action Buttons at the top */}
+          {/* Right Side: Main Content Card - Responsive Layout */}
+          <div className="order-1 lg:order-2 lg:col-span-2">
+            <div className="space-y-4 rounded-lg bg-gray-800/50 p-4 backdrop-blur-sm sm:p-6 lg:mr-8">
+              {/* Action Buttons at the top - Responsive layout */}
               <ActionPanel movie={movie} onTrailerClick={handleTrailerClick} />
 
-              {/* Main Content with filtered tabs */}
+              {/* Main Content with filtered tabs - Responsive spacing */}
               <MainContent
                 movie={movie}
                 cast={cast}

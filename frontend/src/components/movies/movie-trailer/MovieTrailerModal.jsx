@@ -2,12 +2,71 @@ import { X, Play, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import useUserTracking from '../../../hooks/useUserTracking';
 
 const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [embedUrl, setEmbedUrl] = useState(null);
   const iframeRef = useRef(null);
+  const [startTime, setStartTime] = useState(null);
+  const [watchedDuration, setWatchedDuration] = useState(0);
+  const watchTimer = useRef(null);
+
+  const { trackTrailerView } = useUserTracking();
+
+  // Track trailer viewing duration
+  useEffect(() => {
+    if (isOpen && movie && !startTime) {
+      // Only track once when modal opens
+      const start = Date.now();
+      setStartTime(start);
+
+      // Start timer to track viewing duration
+      watchTimer.current = setInterval(() => {
+        const elapsed = Date.now() - start;
+        setWatchedDuration(elapsed);
+      }, 1000);
+
+      // Track trailer view start - only once when modal opens
+      trackTrailerView(movie.id, {
+        action: 'trailer_start',
+        timestamp: start,
+        url: trailerUrl,
+      });
+
+      return () => {
+        if (watchTimer.current) {
+          clearInterval(watchTimer.current);
+        }
+      };
+    }
+  }, [isOpen, movie, trailerUrl, trackTrailerView, startTime]); // Added startTime to deps
+
+  // Track trailer completion on close
+  useEffect(() => {
+    return () => {
+      if (startTime && watchedDuration > 0 && movie) {
+        const completionPercentage = Math.min((watchedDuration / 1000 / 120) * 100, 100); // Assuming 2min average trailer
+
+        // Track completion if watched more than 80%
+        if (completionPercentage >= 80) {
+          trackTrailerView(movie.id, {
+            action: 'trailer_completion',
+            duration: watchedDuration,
+            completion_percentage: completionPercentage,
+          });
+        }
+
+        // Always track end event
+        trackTrailerView(movie.id, {
+          action: 'trailer_end',
+          duration: watchedDuration,
+          completion_percentage: completionPercentage,
+        });
+      }
+    };
+  }, [movie, startTime, watchedDuration, trackTrailerView]);
 
   useEffect(() => {
     if (isOpen) {
@@ -48,6 +107,13 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
 
   const handleClose = () => {
     console.log('MovieTrailerModal - Closing modal');
+
+    // Clear watch timer
+    if (watchTimer.current) {
+      clearInterval(watchTimer.current);
+      watchTimer.current = null;
+    }
+
     onClose();
   };
 
@@ -132,7 +198,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4"
           onClick={handleClose}
         >
           <motion.div
@@ -140,37 +206,39 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: 'spring', duration: 0.5 }}
-            className="relative mx-4 w-full max-w-4xl rounded-lg bg-gray-900 shadow-2xl"
+            className="relative w-full max-w-4xl rounded-lg bg-gray-900 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-800 p-4">
-              <div className="flex items-center gap-3">
-                <Play className="size-5 text-red-600" />
-                <h2 className="text-xl font-semibold text-white">{movie?.title} - Trailer</h2>
+            {/* Header - Responsive */}
+            <div className="flex items-center justify-between border-b border-gray-800 p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Play className="size-4 text-red-600 sm:size-5" />
+                <h2 className="text-sm font-semibold text-white sm:text-xl">
+                  {movie?.title} - Trailer
+                </h2>
               </div>
               <button
                 onClick={handleClose}
                 className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
               >
-                <X className="size-6" />
+                <X className="size-5 sm:size-6" />
               </button>
             </div>
 
-            {/* Content */}
+            {/* Content - Responsive aspect ratio */}
             <div className="relative aspect-video w-full">
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                  <Loader2 className="size-8 animate-spin text-red-600" />
+                  <Loader2 className="size-6 animate-spin text-red-600 sm:size-8" />
                 </div>
               )}
 
               {error ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-900 text-white">
-                  <p className="text-lg font-medium text-red-500">{error}</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-900 text-white p-4">
+                  <p className="text-base font-medium text-red-500 sm:text-lg">{error}</p>
                   <button
                     onClick={handleClose}
-                    className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                    className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 sm:px-4"
                   >
                     Close
                   </button>
@@ -179,7 +247,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
                 <iframe
                   ref={iframeRef}
                   src={embedUrl}
-                  style={{ border: 'none', minHeight: 300, minWidth: 400 }}
+                  style={{ border: 'none', minHeight: 200, minWidth: 300 }}
                   className="size-full rounded-b-lg"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
@@ -190,10 +258,10 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
               )}
             </div>
 
-            {/* Footer */}
-            <div className="border-t border-gray-800 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-gray-400">
-                <div className="flex items-center gap-4">
+            {/* Footer - Responsive */}
+            <div className="border-t border-gray-800 p-3 sm:p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400 sm:gap-4 sm:text-sm">
+                <div className="flex items-center gap-2 sm:gap-4">
                   <span>{movie?.release_date?.split('-')[0]}</span>
                   {movie?.runtime && (
                     <span>
@@ -201,7 +269,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <span className="text-yellow-500">★</span>
                   <span>{movie?.vote_average?.toFixed(1)}</span>
                 </div>

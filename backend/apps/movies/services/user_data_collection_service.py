@@ -476,7 +476,7 @@ class UserDataCollectionService:
                 ]
 
                 production_metrics.performance_score = sum(performance_factors) / len(performance_factors)
-                production_metrics.last_metrics_update = timezone.now()
+                production_metrics.last_calculated_at = timezone.now()
                 production_metrics.save()
 
                 # 🔥 INTEGRATION: Trigger ProductionMetricsService full calculation periodically
@@ -646,7 +646,7 @@ class UserDataCollectionService:
             else:
                 production_metrics.trending_category = 'stable'
 
-            production_metrics.last_metrics_update = timezone.now()
+            production_metrics.last_calculated_at = timezone.now()
             production_metrics.save()
 
         except Exception as e:

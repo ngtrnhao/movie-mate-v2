@@ -80,6 +80,9 @@ class ProductionMetricsService:
             # Get trending information (enhanced with interaction data)
             trending_info = self._calculate_trending_metrics(movie, current_metrics, interaction_metrics)
 
+            # Calculate trailer completion rate
+            trailer_completion_rate = self._calculate_trailer_completion_rate(movie)
+
             # Prepare metrics data
             metrics_data = {
                 **current_metrics,
@@ -87,6 +90,7 @@ class ProductionMetricsService:
                 **engagement_rates,
                 'overall_performance_score': overall_performance,
                 **trending_info,
+                'trailer_completion_rate': trailer_completion_rate,
                 'last_calculated_at': timezone.now(),
                 'auto_calculated': True,
                 'calculation_version': self.calculation_version,
@@ -96,6 +100,8 @@ class ProductionMetricsService:
             # Save to database if requested
             if save:
                 self._save_production_metrics(production_metrics, metrics_data)
+                # Update featured date after saving metrics
+                self._update_featured_date(movie, production_metrics)
 
             logger.info(f"🔥 Production metrics calculated for movie {movie.id}: {overall_performance:.1f}/10.0 (v{self.calculation_version})")
             return metrics_data
@@ -221,7 +227,6 @@ class ProductionMetricsService:
             'detail_page_views': detail_page_views,
             'total_views': total_views,
             'trailer_plays': production_metrics.trailer_plays,
-            'search_appearances': production_metrics.search_appearances,
             'mobile_views': interaction_metrics.get('interaction_mobile_count', production_metrics.mobile_views),
             'desktop_views': interaction_metrics.get('interaction_desktop_count', production_metrics.desktop_views),
             'tablet_views': interaction_metrics.get('interaction_tablet_count', production_metrics.tablet_views),
@@ -256,7 +261,7 @@ class ProductionMetricsService:
         # Content quality performance (from quality metrics)
         content_quality_score = 0.0
         if hasattr(movie, 'quality_metrics') and movie.quality_metrics:
-            content_quality_score = movie.quality_metrics.quality_score or 0.0
+            content_quality_score = float(movie.quality_metrics.quality_score or 0.0)
 
         # Freshness score (based on recent activity)
         freshness_score = 0.0
@@ -291,7 +296,7 @@ class ProductionMetricsService:
 
         # Calculate rates (avoid division by zero)
         if total_views > 0:
-            favorites_rate = (current_metrics['estimated_favorites_count'] / total_views) * 100
+            favorites_rate = (current_metrics['favorites_count'] / total_views) * 100
             reviews_rate = (current_metrics['reviews_count'] / total_views) * 100
             trailer_play_rate = (current_metrics['trailer_plays'] / total_views) * 100
         else:
@@ -309,6 +314,53 @@ class ProductionMetricsService:
             'trailer_play_rate': round(trailer_play_rate, 4),
             'detail_conversion_rate': round(detail_conversion_rate, 4)
         }
+
+    def _calculate_trailer_completion_rate(self, movie: Movie) -> float:
+        """Tính toán trailer completion rate từ user interactions"""
+        try:
+            from ..models import UserInteraction
+
+            # Lấy trailer play events
+            trailer_plays = UserInteraction.objects.filter(
+                movie=movie,
+                action='trailer_view'
+            ).count()
+
+            # Lấy trailer completion events (giả sử có duration field trong metadata)
+            trailer_completions = UserInteraction.objects.filter(
+                movie=movie,
+                action='trailer_view',
+                metadata__duration__gte=80  # 80% completion threshold
+            ).count()
+
+            if trailer_plays > 0:
+                completion_rate = (trailer_completions / trailer_plays) * 100
+                return round(completion_rate, 2)
+            else:
+                return 0.0
+
+        except Exception as e:
+            logger.warning(f"Error calculating trailer completion rate for movie {movie.id}: {e}")
+            return 0.0
+
+    def _update_featured_date(self, movie: Movie, production_metrics: ProductionMetrics) -> None:
+        """Cập nhật last_featured_date khi movie được featured"""
+        try:
+            # Check if movie is currently featured (high trending score or admin featured)
+            if (production_metrics.trending_score >= 70 or
+                production_metrics.performance_score >= 80 or
+                getattr(movie, 'is_featured', False)):
+
+                # Update last_featured_date if not already set today
+                from django.utils import timezone
+                today = timezone.now().date()
+
+                if (not production_metrics.last_featured_date or
+                    production_metrics.last_featured_date.date() != today):
+                    production_metrics.last_featured_date = timezone.now()
+
+        except Exception as e:
+            logger.warning(f"Error updating featured date for movie {movie.id}: {e}")
 
     def _calculate_overall_performance(self, current_metrics: Dict, performance_scores: Dict) -> float:
         """Tính toán overall performance score"""

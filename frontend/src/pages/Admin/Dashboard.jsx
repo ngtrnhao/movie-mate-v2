@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import useUserTracking from '../../hooks/useUserTracking';
 import {
   ChartBarIcon,
   UsersIcon,
@@ -11,15 +10,12 @@ import {
   ChartPieIcon,
   CircleStackIcon,
   CpuChipIcon,
-  ClockIcon,
-  ExclamationCircleIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   FilmIcon,
-  FlagIcon,
   EyeIcon,
   PlusIcon,
   DocumentArrowDownIcon,
+  ChartBarSquareIcon,
 } from '@heroicons/react/24/outline';
 import {
   ChartBarIcon as ChartBarIconSolid,
@@ -30,6 +26,8 @@ import {
   Cog6ToothIcon as Cog6ToothIconSolid,
   FilmIcon as FilmIconSolid,
   EyeIcon as EyeIconSolid,
+  ChartBarSquareIcon as ChartBarSquareIconSolid,
+  ArrowTrendingUpIcon as ArrowTrendingUpIconSolid,
 } from '@heroicons/react/24/solid';
 
 import UserAnalytics from './components/UserAnalytics';
@@ -41,7 +39,15 @@ import QueueList from '../Moderator/components/QueueList';
 import AdminDashboardOverview from './components/AdminDashboardOverview';
 import VisibilityControl from './components/VisibilityControl';
 import MovieManagement from './components/MovieManagement';
+import UserInteractionAnalytics from './components/UserInteractionAnalytics';
+import TrendingAnalytics from './components/TrendingAnalytics';
+import RealTimeCharts from './components/RealTimeCharts';
+import AutoProcessingStatus from './components/AutoProcessingStatus';
+import AdminSidebar from './components/AdminSidebar';
+import AdminHeader from './components/AdminHeader';
+import AdminStatsCards from './components/AdminStatsCards';
 import { useDashboardData } from '../../hooks/useDashboardData';
+import { useRealTimeMetrics } from '../../hooks/useProductionMetrics';
 
 const AdminDashboard = () => {
   const dispatch = useDispatch();
@@ -52,20 +58,9 @@ const AdminDashboard = () => {
   const [viewMode, setViewMode] = useState('dashboard'); // dashboard, kanban, queue
 
   const { data: dashboardData } = useDashboardData();
+  const { data: realTimeMetrics, isStale } = useRealTimeMetrics();
   const user = useSelector(state => state.auth.user);
   const navigate = useNavigate();
-  const { trackInteraction } = useUserTracking();
-
-  // Track admin dashboard page view
-  useEffect(() => {
-    trackInteraction({
-      action: 'page_view',
-      metadata: {
-        page: 'admin_dashboard',
-        timestamp: new Date().toISOString(),
-      },
-    });
-  }, [trackInteraction]);
 
   // Check if user is admin
   useEffect(() => {
@@ -74,86 +69,142 @@ const AdminDashboard = () => {
     }
   }, [user, navigate]);
 
-  // Admin-specific navigation items - Professional design
+  // Navigation configuration with improved grouping
   const getNavigationItems = () => {
     return [
       {
         id: 'overview',
-        label: 'Tổng quan hệ thống',
+        label: 'Tổng quan',
         icon: ChartBarIcon,
         iconSolid: ChartBarIconSolid,
         color: 'blue',
-        description: 'Thống kê tổng quan và hiệu suất hệ thống',
+        group: 'main',
         priority: 'high',
+        description: 'Dashboard tổng quan với metrics thời gian thực',
       },
       {
-        id: 'users',
-        label: 'Quản lý người dùng',
-        icon: UsersIcon,
-        iconSolid: UsersIconSolid,
-        color: 'green',
-        description: 'Quản lý tài khoản và phân quyền người dùng',
+        id: 'realtime_analytics',
+        label: 'Analytics Real-time',
+        icon: ChartBarSquareIcon,
+        iconSolid: ChartBarSquareIconSolid,
+        color: 'indigo',
+        group: 'main',
         priority: 'high',
+        description: 'Biểu đồ và thống kê thời gian thực',
+      },
+      {
+        id: 'auto_processing',
+        label: 'Auto-Processing',
+        icon: Cog6ToothIcon,
+        iconSolid: Cog6ToothIconSolid,
+        color: 'emerald',
+        group: 'main',
+        priority: 'high',
+        description: 'Trạng thái tự động xử lý dữ liệu và metrics',
       },
       {
         id: 'movies',
         label: 'Quản lý phim',
         icon: FilmIcon,
         iconSolid: FilmIconSolid,
-        color: 'blue',
-        description: 'Quản lý nội dung phim và production control',
+        color: 'purple',
+        group: 'content',
         priority: 'high',
+        description: 'Quản lý nội dung và production metrics',
       },
       {
         id: 'visibility',
-        label: 'Quản lý hiện thị',
+        label: 'Hiển thị',
         icon: EyeIcon,
         iconSolid: EyeIconSolid,
-        color: 'blue',
-        description: 'Quản lý hiện thị phim và production control',
+        color: 'indigo',
+        group: 'content',
+        priority: 'high',
+        description: 'Điều khiển hiển thị và featured content',
       },
       {
-        id: 'content',
-        label: 'Phân tích nội dung',
-        icon: DocumentTextIcon,
-        iconSolid: DocumentTextIconSolid,
-        color: 'purple',
-        description: 'Thống kê và phân tích nội dung hệ thống',
-        priority: 'medium',
+        id: 'users',
+        label: 'Người dùng',
+        icon: UsersIcon,
+        iconSolid: UsersIconSolid,
+        color: 'green',
+        group: 'management',
+        priority: 'high',
+        description: 'Quản lý người dùng và phân quyền',
       },
       {
         id: 'moderation',
-        label: 'Công cụ kiểm duyệt',
+        label: 'Kiểm duyệt',
         icon: ShieldCheckIcon,
         iconSolid: ShieldCheckIconSolid,
         color: 'orange',
-        description: 'Quản lý và cấu hình hệ thống kiểm duyệt',
+        group: 'management',
         priority: 'high',
+        description: 'Hệ thống kiểm duyệt và workflow',
+      },
+      {
+        id: 'user_interactions',
+        label: 'Tương tác',
+        icon: UsersIcon,
+        iconSolid: UsersIconSolid,
+        color: 'teal',
+        group: 'analytics',
+        priority: 'medium',
+        description: 'Phân tích tương tác người dùng',
+      },
+      {
+        id: 'trending_analytics',
+        label: 'Xu hướng',
+        icon: ArrowTrendingUpIcon,
+        iconSolid: ArrowTrendingUpIconSolid,
+        color: 'rose',
+        group: 'analytics',
+        priority: 'medium',
+        description: 'Phân tích xu hướng và trending',
+      },
+      {
+        id: 'content',
+        label: 'Nội dung',
+        icon: DocumentTextIcon,
+        iconSolid: DocumentTextIconSolid,
+        color: 'purple',
+        group: 'analytics',
+        priority: 'medium',
+        description: 'Thống kê nội dung và chất lượng',
       },
       {
         id: 'reports',
-        label: 'Báo cáo & Thống kê',
+        label: 'Báo cáo',
         icon: ChartPieIcon,
         iconSolid: ChartPieIconSolid,
         color: 'indigo',
-        description: 'Báo cáo chi tiết và thống kê hệ thống',
+        group: 'analytics',
         priority: 'medium',
+        description: 'Báo cáo tổng hợp và insights',
       },
       {
-        id: 'system',
-        label: 'Cài đặt hệ thống',
+        id: 'settings',
+        label: 'Cài đặt',
         icon: Cog6ToothIcon,
         iconSolid: Cog6ToothIconSolid,
         color: 'gray',
-        description: 'Cấu hình và quản lý hệ thống',
+        group: 'system',
         priority: 'low',
+        description: 'Cấu hình hệ thống và tùy chỉnh',
       },
     ];
   };
 
-  // Admin-specific quick actions - Professional design
+  // Enhanced quick actions with production metrics focus
   const getQuickActions = () => {
     return [
+      {
+        id: 'refresh_metrics',
+        label: 'Làm mới Metrics',
+        icon: ArrowTrendingUpIcon,
+        color: 'blue',
+        description: 'Cập nhật production metrics',
+      },
       {
         id: 'add_user',
         label: 'Thêm người dùng',
@@ -180,8 +231,19 @@ const AdminDashboard = () => {
         label: 'Xuất dữ liệu',
         icon: DocumentArrowDownIcon,
         color: 'purple',
-        description: 'Xuất báo cáo và dữ liệu',
+        description: 'Xuất báo cáo và dữ liệu metrics',
       },
+    ];
+  };
+
+  // Get breadcrumbs with more context
+  const getBreadcrumbs = () => {
+    const navigationItems = getNavigationItems();
+    const currentItem = navigationItems.find(item => item.id === activeView);
+    return [
+      { name: 'Admin', href: '#' },
+      { name: currentItem?.label || 'Dashboard', href: '#' },
+      ...(isStale ? [{ name: '⚠️ Dữ liệu cũ', href: '#' }] : []),
     ];
   };
 
@@ -192,56 +254,92 @@ const AdminDashboard = () => {
     );
   }, []);
 
-  const handleSelectAll = useCallback(items => {
-    setSelectedItems(items.map(item => item.id));
+  // Handle select all
+  const handleSelectAll = useCallback(() => {
+    // This would be implemented based on the current view
+    console.log('Select all items');
   }, []);
 
+  // Handle clear selection
   const handleClearSelection = useCallback(() => {
     setSelectedItems([]);
   }, []);
 
-  // Handle bulk actions with admin privileges
-  const handleBulkAction = useCallback(async (actionType, itemIds) => {
-    setLoading(true);
+  // Enhanced bulk actions with production metrics
+  const handleBulkAction = useCallback(async (action, items) => {
     try {
-      console.log('Admin bulk action:', actionType, 'Items:', itemIds);
+      setLoading(true);
+      console.log(`Performing bulk action: ${action} on items:`, items);
 
-      // Admin-specific actions
-      switch (actionType) {
-        case 'ban_users':
-          // Implement permanent ban logic
-          console.log('Permanently banning users:', itemIds);
-          break;
-        case 'promote_moderators':
-          // Implement promote to moderator logic
-          console.log('Promoting users to moderators:', itemIds);
-          break;
-        case 'system_backup':
-          // Implement system backup logic
-          console.log('Creating system backup');
-          break;
-        default:
-          // Standard moderation actions
-          console.log('Standard moderation action:', actionType);
+      // Special handling for metrics refresh
+      if (action === 'refresh_metrics') {
+        // Trigger metrics refresh
+        window.location.reload(); // Temporary solution
+        return;
       }
 
-      // API calls would go here
-      // await adminAPI.bulkAction(actionType, itemIds);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Clear selection after action
       setSelectedItems([]);
+
+      // Show success message
+      alert(`Đã thực hiện hành động: ${action}`);
     } catch (error) {
-      console.error('Admin bulk action failed:', error);
-      // Show error notification
+      console.error('Bulk action error:', error);
+      alert('Có lỗi xảy ra khi thực hiện hành động');
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Enhanced render main content with new real-time analytics
   const renderMainContent = () => {
     switch (activeView) {
       case 'overview':
         return <AdminDashboardOverview />;
+      case 'realtime_analytics':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Real-time Analytics Dashboard</h2>
+                <p className="text-gray-600 mt-1">
+                  Biểu đồ và thống kê thời gian thực cho user tracking và production metrics
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-500">Live Data</span>
+                {isStale && (
+                  <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
+                    Dữ liệu cũ
+                  </span>
+                )}
+              </div>
+            </div>
+            <RealTimeCharts />
+          </div>
+        );
+      case 'auto_processing':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Auto-Processing Status</h2>
+                <p className="text-gray-600 mt-1">
+                  Trạng thái và điều khiển hệ thống tự động xử lý dữ liệu
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-500">Automation Active</span>
+              </div>
+            </div>
+            <AutoProcessingStatus />
+          </div>
+        );
       case 'users':
         return <UserManagement />;
       case 'movies':
@@ -272,6 +370,10 @@ const AdminDashboard = () => {
             filterType="reports"
           />
         );
+      case 'user_interactions':
+        return <UserInteractionAnalytics />;
+      case 'trending_analytics':
+        return <TrendingAnalytics />;
       case 'settings':
         return <SystemSettings />;
       default:
@@ -292,194 +394,67 @@ const AdminDashboard = () => {
 
   const navigationItems = getNavigationItems();
   const quickActions = getQuickActions();
+  const breadcrumbs = getBreadcrumbs();
+
+  // Group navigation items
+  const groupedNavigation = navigationItems.reduce((acc, item) => {
+    if (!acc[item.group]) {
+      acc[item.group] = [];
+    }
+    acc[item.group].push(item);
+    return acc;
+  }, {});
+
+  const groupLabels = {
+    main: 'Tổng quan & Analytics',
+    content: 'Quản lý nội dung',
+    management: 'Quản lý hệ thống',
+    analytics: 'Phân tích & Báo cáo',
+    system: 'Cài đặt hệ thống',
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Admin Header */}
-      <div className="mb-8 rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 p-6 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-            <p className="mt-1 text-blue-100">Quản lý hệ thống Movie Recommendation</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="size-2 animate-pulse rounded-full bg-green-400"></div>
-              <span className="text-sm text-blue-100">Hệ thống hoạt động</span>
-            </div>
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-              Administrator
-            </span>
-            <button
-              onClick={() => navigate('/')}
-              className="inline-flex items-center rounded-md border border-transparent bg-white px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50"
-            >
-              Về trang chủ
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <AdminSidebar
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
+        activeView={activeView}
+        setActiveView={setActiveView}
+        navigationItems={navigationItems}
+        groupedNavigation={groupedNavigation}
+        groupLabels={groupLabels}
+      />
 
-      {/* System Stats */}
-      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Tổng người dùng</p>
-              <p className="text-3xl font-bold text-gray-900">1,234</p>
-              <p className="mt-1 flex items-center text-sm text-green-600">
-                <ArrowTrendingUpIcon className="mr-1 size-4" />
-                +12% so với tháng trước
-              </p>
-            </div>
-            <div className="rounded-lg bg-blue-100 p-3">
-              <UsersIcon className="size-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Header */}
+        <AdminHeader
+          breadcrumbs={breadcrumbs}
+          quickActions={quickActions}
+          handleBulkAction={handleBulkAction}
+          selectedItems={selectedItems}
+        />
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Tổng phim</p>
-              <p className="text-3xl font-bold text-gray-900">8,934</p>
-              <p className="mt-1 flex items-center text-sm text-green-600">
-                <ArrowTrendingUpIcon className="mr-1 size-4" />
-                +5% so với tháng trước
-              </p>
-            </div>
-            <div className="rounded-lg bg-green-100 p-3">
-              <FilmIcon className="size-6 text-green-600" />
-            </div>
-          </div>
-        </div>
+        {/* Content Area */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {/* Enhanced System Stats Cards with Real-time Data */}
+          <AdminStatsCards realTimeMetrics={realTimeMetrics} />
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Nội dung chờ duyệt</p>
-              <p className="text-3xl font-bold text-gray-900">47</p>
-              <p className="mt-1 flex items-center text-sm text-red-600">
-                <ArrowTrendingDownIcon className="mr-1 size-4" />
-                -8% so với tuần trước
-              </p>
-            </div>
-            <div className="rounded-lg bg-yellow-100 p-3">
-              <ClockIcon className="size-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Báo cáo vi phạm</p>
-              <p className="text-3xl font-bold text-gray-900">23</p>
-              <p className="mt-1 flex items-center text-sm text-orange-600">
-                <ExclamationCircleIcon className="mr-1 size-4" />
-                Cần xử lý
-              </p>
-            </div>
-            <div className="rounded-lg bg-red-100 p-3">
-              <FlagIcon className="size-6 text-red-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Admin Main Content - Grid Layout */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        {/* Navigation Cards */}
-        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {navigationItems.map(item => {
-            const IconComponent = activeView === item.id ? item.iconSolid : item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveView(item.id)}
-                className={`rounded-xl border p-6 text-left transition-all duration-200 hover:shadow-lg ${
-                  activeView === item.id
-                    ? 'border-blue-200 bg-blue-50 shadow-md'
-                    : 'border-gray-200 bg-white hover:border-blue-300'
-                }`}
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <div
-                    className={`rounded-lg p-3 ${
-                      activeView === item.id ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}
-                  >
-                    <IconComponent
-                      className={`size-6 ${
-                        activeView === item.id ? 'text-blue-600' : 'text-gray-600'
-                      }`}
-                    />
-                  </div>
-                  {/* Priority indicator */}
-                  <div
-                    className={`rounded-full px-2 py-1 text-xs ${
-                      item.priority === 'high'
-                        ? 'bg-orange-100 text-orange-700'
-                        : item.priority === 'medium'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {item.priority === 'high' ? '⚡' : item.priority === 'medium' ? '📌' : '📋'}
-                  </div>
+          {/* Main Content */}
+          <div className="rounded-lg bg-white shadow-sm border border-gray-200">
+            {loading ? (
+              <div className="flex h-64 items-center justify-center">
+                <div className="text-center">
+                  <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Đang xử lý...</p>
                 </div>
-                <h3
-                  className={`mb-2 text-lg font-semibold ${
-                    activeView === item.id ? 'text-blue-900' : 'text-gray-900'
-                  }`}
-                >
-                  {item.label}
-                </h3>
-                <p
-                  className={`text-sm ${
-                    activeView === item.id ? 'text-blue-700' : 'text-gray-600'
-                  }`}
-                >
-                  {item.description}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900">Hành động nhanh</h3>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {quickActions.map(action => {
-              const ActionIcon = action.icon;
-              return (
-                <button
-                  key={action.id}
-                  onClick={() => handleBulkAction(action.id, selectedItems)}
-                  className="flex items-center rounded-lg border border-gray-200 p-4 transition-all duration-200 hover:border-blue-300 hover:bg-blue-50"
-                >
-                  <ActionIcon className="mr-3 size-5 text-gray-600" />
-                  <div className="text-left">
-                    <div className="text-sm font-medium text-gray-900">{action.label}</div>
-                    <div className="text-xs text-gray-500">{action.description}</div>
-                  </div>
-                </button>
-              );
-            })}
+              </div>
+            ) : (
+              <div className="p-6">{renderMainContent()}</div>
+            )}
           </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="mt-8 rounded-xl bg-white p-6 shadow-lg">
-          {loading ? (
-            <div className="flex h-64 items-center justify-center">
-              <div className="size-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-            </div>
-          ) : (
-            renderMainContent()
-          )}
-        </div>
+        </main>
       </div>
     </div>
   );

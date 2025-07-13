@@ -1371,7 +1371,7 @@ class AdminMovieSerializer(MovieDetailSerializer):
             'trending_category': 'stable',
             'trailer_completion_rate': 0,
             'last_featured_date': None,
-            'last_metrics_update': None
+            'last_calculated_at': None
         }
 
     def get_approval_info(self, obj):

@@ -1721,16 +1721,16 @@ class ProductionMetrics(models.Model):
         metrics = cls.objects.all()
 
         for metric in metrics:
-            if metric.trending_score >=80:
-                metric.trending_category='viral'
-            elif metric.trending_score >=60:
-                metric.trending_category='hot'
-            elif metric.trending_category >= 30:
-                metric.trending_cateogry= 'rising'
+            if metric.trending_score >= 80:
+                metric.trending_category = 'viral'
+            elif metric.trending_score >= 60:
+                metric.trending_category = 'hot'
+            elif metric.trending_score >= 30:
+                metric.trending_category = 'rising'
             else:
                 metric.trending_category = 'stable'
 
-        cls.objects.bulk_update(metrics,['trending_category'])
+        cls.objects.bulk_update(metrics, ['trending_category'])
 
 # 🆕 NEW NORMALIZED TABLES FOR MOVIE MANAGEMENT
 

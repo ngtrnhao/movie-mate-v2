@@ -41,7 +41,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
         }
       };
     }
-  }, [isOpen, movie, trailerUrl, trackTrailerView, startTime]); // Added startTime to deps
+  }, [isOpen, movie, trailerUrl, trackTrailerView]); // Removed startTime from deps
 
   // Track trailer completion on close
   useEffect(() => {

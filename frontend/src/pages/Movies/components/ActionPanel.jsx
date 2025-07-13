@@ -164,7 +164,6 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             }`}
           >
             <Plus
-              size={12}
               className={`transition-transform duration-200 group-hover:scale-110 sm:size-10 ${
                 isTogglingWatchlist ? 'animate-pulse' : ''
               } ${isInList ? 'rotate-45' : ''}`}

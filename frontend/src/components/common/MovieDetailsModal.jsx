@@ -159,11 +159,11 @@ const MovieDetailsModal = ({ movie, open, onClose }) => {
                 label="Lượt xem trang chủ"
                 value={production_metrics?.homepage_views?.toLocaleString() || 0}
               />
-              <MetricItem
+              {/* <MetricItem
                 icon={MagnifyingGlassIcon}
                 label="Lượt xuất hiện tìm kiếm"
                 value={production_metrics?.search_appearances?.toLocaleString() || 0}
-              />
+              /> */}
             </div>
           </div>
 

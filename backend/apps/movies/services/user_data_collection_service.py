@@ -369,7 +369,8 @@ class UserDataCollectionService:
             logger.info(f"✅ Processed {processed_count} interactions for {movies_processed} movies")
             return {
                 'processed_interactions': processed_count,
-                'movies_processed': movies_processed
+                'movies_processed': movies_processed,
+                'movie_ids': [movie.id for movie in movies_interactions.keys()]  # Return actual movie IDs
             }
 
         except Exception as e:

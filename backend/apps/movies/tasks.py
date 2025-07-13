@@ -842,12 +842,14 @@ def process_user_interactions_auto(self, hours=1):
 
         processed_interactions = result.get('processed_interactions', 0)
         movies_processed = result.get('movies_processed', 0)
+        movie_ids = result.get('movie_ids', [])  # Get actual movie IDs
 
         # Cache result for admin dashboard
         cache.set('last_auto_processing_result', {
             'timestamp': timezone.now().isoformat(),
             'processed_interactions': processed_interactions,
             'movies_processed': movies_processed,
+            'movie_ids': movie_ids,  # Include actual movie IDs in cache
             'hours': hours
         }, timeout=7200)  # 2 hours
 
@@ -857,16 +859,22 @@ def process_user_interactions_auto(self, hours=1):
         logger.info(f"✅ Auto-processed {processed_interactions} interactions for {movies_processed} movies")
 
         # Trigger metrics calculation if significant activity
-        if movies_processed > 0:
+        if movies_processed > 0 and movie_ids and len(movie_ids) > 0:
+            logger.info(f"🎯 Triggering metrics calculation for {len(movie_ids)} movies: {movie_ids[:10]}...")
             calculate_production_metrics_auto.apply_async(
-                args=[list(range(1, min(movies_processed + 1, 100)))],  # Simple movie ID list
+                args=[movie_ids],  # Pass actual movie IDs instead of hardcoded range
                 countdown=300  # Wait 5 minutes
             )
+        elif movies_processed > 0:
+            logger.warning(f"⚠️ No movie IDs returned from processing, skipping metrics calculation")
+        else:
+            logger.info(f"ℹ️ No movies processed, skipping metrics calculation")
 
         return {
             'status': 'success',
             'processed_interactions': processed_interactions,
-            'movies_processed': movies_processed
+            'movies_processed': movies_processed,
+            'movie_ids': movie_ids
         }
 
     except Exception as exc:
@@ -890,14 +898,17 @@ def calculate_production_metrics_auto(self, movie_ids=None):
 
         production_service = ProductionMetricsService()
 
-        if movie_ids:
-            movies = Movie.objects.filter(id__in=movie_ids[:50])  # Limit for performance
+        if movie_ids and len(movie_ids) > 0:
+            # Use provided movie IDs, limit to 50 for performance
+            movies = Movie.objects.filter(id__in=movie_ids[:50])
+            logger.info(f"🎯 Processing {len(movies)} movies with provided IDs: {movie_ids[:10]}...")
         else:
             # Fallback: process movies with recent activity
             recent_threshold = timezone.now() - timedelta(hours=24)
             movies = Movie.objects.filter(
                 user_interactions__timestamp__gte=recent_threshold
             ).distinct()[:50]  # Limit for performance
+            logger.info(f"🎯 Processing {len(movies)} movies with recent activity (fallback)")
 
         processed_count = 0
         error_count = 0

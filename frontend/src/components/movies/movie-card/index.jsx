@@ -157,6 +157,8 @@ const MovieCard = memo(
 
     // Setup intersection observer for homepage view tracking
     useEffect(() => {
+      let timeoutId = null;
+
       if (cardRef.current && movieData.id && !minimal) {
         // Create observer directly without using createViewObserver from hook
         // to avoid dependency issues
@@ -164,8 +166,13 @@ const MovieCard = memo(
           entries => {
             entries.forEach(entry => {
               if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                // Clear any existing timeout to prevent multiple calls
+                if (timeoutId) {
+                  clearTimeout(timeoutId);
+                }
+
                 // Use timeout to avoid too frequent calls
-                setTimeout(() => {
+                timeoutId = setTimeout(() => {
                   trackHomepageViewMemoized(movieData.id, {
                     component: 'movie_card',
                     position: index,
@@ -186,6 +193,11 @@ const MovieCard = memo(
       }
 
       return () => {
+        // Clear timeout to prevent memory leaks and tracking calls for unmounted components
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
         if (viewObserverRef.current) {
           viewObserverRef.current.disconnect();
         }

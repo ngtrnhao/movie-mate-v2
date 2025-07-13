@@ -120,7 +120,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             className="group relative flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-red-600 via-red-500 to-pink-500 px-4 py-2 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-red-500 hover:to-pink-400 hover:shadow-xl sm:w-auto sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
           >
             <div className="flex size-5 items-center justify-center rounded-full bg-white/20 transition-all duration-300 group-hover:bg-white/30 sm:size-6">
-              <Play size={12} fill="white" className="ml-0.5 sm:size-14" />
+              <Play className="ml-0.5 size-3 sm:size-4" fill="white" />
             </div>
             <span className="relative z-10 font-bold">{t('details.watchTrailer')}</span>
           </button>
@@ -137,9 +137,8 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             }`}
           >
             <Heart
-              size={12}
               fill={isLiked ? 'currentColor' : 'none'}
-              className={`transition-transform duration-200 group-hover:scale-110 sm:size-6 ${
+              className={`size-3 transition-transform duration-200 group-hover:scale-110 sm:size-4 ${
                 isTogglingFavorite ? 'animate-pulse' : ''
               }`}
             />
@@ -164,7 +163,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             }`}
           >
             <Plus
-              className={`transition-transform duration-200 group-hover:scale-110 sm:size-10 ${
+              className={`transition-transform duration-200 group-hover:scale-110 sm:size-10
                 isTogglingWatchlist ? 'animate-pulse' : ''
               } ${isInList ? 'rotate-45' : ''}`}
             />
@@ -185,10 +184,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             onClick={handleShare}
             className="group flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-white transition-all duration-200 hover:text-red-500 sm:px-3 sm:py-2"
           >
-            <Share
-              size={12}
-              className="transition-transform duration-200 group-hover:scale-110 sm:size-6"
-            />
+            <Share className="size-3 transition-transform duration-200 group-hover:scale-110 sm:size-4" />
             <span className="hidden sm:inline">{t('details.share')}</span>
             <span className="sm:hidden">Share</span>
           </button>

@@ -51,7 +51,7 @@ class ProductionMetricsService:
                     'homepage_views': 0,
                     'detail_page_views': 0,
                     'trailer_plays': 0,
-                    'search_appearances': 0,
+                    # 'search_appearances': 0,
                     'mobile_views': 0,
                     'desktop_views': 0,
                     'tablet_views': 0,
@@ -554,7 +554,6 @@ class ProductionMetricsService:
                     'homepage_views': 0,
                     'detail_page_views': 0,
                     'trailer_plays': 0,
-                    'search_appearances': 0,
                     'created_at': timezone.now(),
                     'updated_at': timezone.now()
                 }

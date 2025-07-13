@@ -35,6 +35,14 @@ from apps.movies.models import MovieReview, Movie
 from apps.users.models import UserActivityLog, SearchHistory
 from apps.movies.serializers import MovieReviewSerializer
 from django.db import models
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Count, Avg, Q
+from apps.movies.models import Movie, ProductionMetrics
+from apps.movies.services.user_data_collection_service import UserDataCollectionService
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -961,3 +969,242 @@ class UserUsageStatsView(generics.RetrieveAPIView):
             'status': 'success',
             'data': usage_stats
         }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def user_interactions(request):
+    """
+    API endpoint to receive user interactions from frontend
+    No authentication required for basic interaction tracking
+    """
+    try:
+        interactions = request.data.get('interactions', [])
+
+        if not interactions:
+            return Response({
+                'status': 'error',
+                'message': 'No interactions provided'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Initialize user data collection service
+        user_data_service = UserDataCollectionService()
+
+        processed_count = 0
+        error_count = 0
+
+        for interaction in interactions:
+            try:
+                movie_id = interaction.get('movie_id')
+                action = interaction.get('action')
+                user_id = interaction.get('user_id')
+                session_id = interaction.get('session_id')
+                metadata = interaction.get('metadata', {})
+
+                # Validate required fields
+                if not action:
+                    error_count += 1
+                    continue
+
+                # Some actions don't require movie_id (like search)
+                if not movie_id and action not in ['search']:
+                    error_count += 1
+                    continue
+
+                # Collect the interaction
+                user_data_service.collect_movie_interactions(
+                    movie_id=movie_id,
+                    action=action,
+                    user_id=user_id,
+                    session_id=session_id,
+                    metadata=metadata
+                )
+
+                processed_count += 1
+
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Error processing interaction: {str(e)}")
+                continue
+
+        return Response({
+            'status': 'success',
+            'message': f'Processed {processed_count} interactions, {error_count} errors',
+            'data': {
+                'processed': processed_count,
+                'errors': error_count,
+                'total': len(interactions)
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error in user_interactions: {str(e)}")
+        return Response({
+            'status': 'error',
+            'message': f'Error processing user interactions: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_interaction_stats(request):
+    """
+    🔥 ENHANCED: API endpoint to get user interaction statistics from UserInteraction model
+    For admin dashboard and monitoring with real data
+    """
+    try:
+        from apps.movies.models import UserInteraction
+        from apps.movies.services.user_data_collection_service import UserDataCollectionService
+        from datetime import timedelta
+        from django.db import models
+
+        user_data_service = UserDataCollectionService()
+
+        # Get time ranges
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_start = today_start - timedelta(days=1)
+        last_7_days = now - timedelta(days=7)
+        last_30_days = now - timedelta(days=30)
+
+        # 🔥 REAL INTERACTION STATISTICS
+
+        # Today's interactions
+        today_interactions = UserInteraction.objects.filter(timestamp__gte=today_start)
+        today_count = today_interactions.count()
+        today_unique_users = today_interactions.filter(user__isnull=False).values('user').distinct().count()
+        today_unique_sessions = today_interactions.filter(session_id__isnull=False).values('session_id').distinct().count()
+
+        # Yesterday's interactions for comparison
+        yesterday_interactions = UserInteraction.objects.filter(
+            timestamp__gte=yesterday_start,
+            timestamp__lt=today_start
+        )
+        yesterday_count = yesterday_interactions.count()
+
+        # Last 7 days interactions
+        week_interactions = UserInteraction.objects.filter(timestamp__gte=last_7_days)
+
+        # Top actions today
+        top_actions_today = today_interactions.values('action').annotate(
+            count=models.Count('id')
+        ).order_by('-count')[:5]
+
+        # Top actions this week
+        top_actions_week = week_interactions.values('action').annotate(
+            count=models.Count('id')
+        ).order_by('-count')[:10]
+
+        # Device breakdown (today)
+        device_stats = {
+            'mobile': today_interactions.filter(user_agent__icontains='Mobile').count(),
+            'tablet': today_interactions.filter(user_agent__icontains='Tablet').count(),
+        }
+        device_stats['desktop'] = today_count - device_stats['mobile'] - device_stats['tablet']
+
+        # Hourly distribution (today)
+        hourly_stats = []
+        for hour in range(24):
+            hour_start = today_start.replace(hour=hour)
+            hour_end = hour_start + timedelta(hours=1)
+            hour_count = today_interactions.filter(
+                timestamp__gte=hour_start,
+                timestamp__lt=hour_end
+            ).count()
+            hourly_stats.append({
+                'hour': hour,
+                'count': hour_count
+            })
+
+        # Daily trends (last 7 days)
+        daily_trends = []
+        for i in range(7):
+            day_start = today_start - timedelta(days=i)
+            day_end = day_start + timedelta(days=1)
+            day_count = UserInteraction.objects.filter(
+                timestamp__gte=day_start,
+                timestamp__lt=day_end
+            ).count()
+            daily_trends.append({
+                'date': day_start.strftime('%Y-%m-%d'),
+                'count': day_count
+            })
+
+        # Most active movies (this week)
+        top_movies = week_interactions.values('movie__id', 'movie__title').annotate(
+            interaction_count=models.Count('id')
+        ).order_by('-interaction_count')[:10]
+
+        # Average session duration
+        avg_duration = today_interactions.filter(
+            duration_seconds__isnull=False
+        ).aggregate(avg_duration=models.Avg('duration_seconds'))['avg_duration'] or 0
+
+        # Change percentage calculation
+        change_percentage = 0
+        if yesterday_count > 0:
+            change_percentage = ((today_count - yesterday_count) / yesterday_count) * 100
+
+        # Get overall production metrics statistics
+        total_movies = Movie.objects.count()
+        movies_with_production = ProductionMetrics.objects.count()
+
+        production_stats = ProductionMetrics.objects.aggregate(
+            avg_homepage_views=models.Avg('homepage_views'),
+            avg_detail_views=models.Avg('detail_page_views'),
+            avg_engagement=models.Avg('engagement_rate'),
+            total_views=models.Count('id')
+        )
+
+        # Trending categories
+        trending_distribution = ProductionMetrics.objects.values('trending_category').annotate(
+            count=models.Count('id')
+        ).order_by('-count')
+
+        return Response({
+            'status': 'success',
+            'message': '🔥 Real user interaction statistics retrieved successfully',
+            'data': {
+                'overview': {
+                    'total_movies': total_movies,
+                    'movies_with_production': movies_with_production,
+                    'production_coverage': round((movies_with_production / total_movies) * 100, 2) if total_movies > 0 else 0
+                },
+                'today_stats': {
+                    'total_interactions': today_count,
+                    'unique_users': today_unique_users,
+                    'unique_sessions': today_unique_sessions,
+                    'change_from_yesterday': round(change_percentage, 1),
+                    'avg_session_duration': round(float(avg_duration), 2)
+                },
+                'recent_interactions': {
+                    'today': today_count,
+                    'yesterday': yesterday_count,
+                    'last_7_days': week_interactions.count(),
+                    'top_actions_today': list(top_actions_today),
+                    'top_actions_week': list(top_actions_week)
+                },
+                'device_breakdown': device_stats,
+                'hourly_distribution': hourly_stats,
+                'daily_trends': daily_trends,
+                'top_movies_this_week': [
+                    {
+                        'movie_id': movie['movie__id'],
+                        'movie_title': movie['movie__title'],
+                        'interaction_count': movie['interaction_count']
+                    }
+                    for movie in top_movies
+                ],
+                'production_stats': {
+                    'avg_homepage_views': round(production_stats['avg_homepage_views'] or 0, 2),
+                    'avg_detail_views': round(production_stats['avg_detail_views'] or 0, 2),
+                    'avg_engagement': round(production_stats['avg_engagement'] or 0, 4),
+                    'total_movies_tracked': production_stats['total_views'] or 0
+                },
+                'trending_distribution': list(trending_distribution)
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error in enhanced user_interaction_stats: {str(e)}")
+        return Response({
+            'status': 'error',
+            'message': f'Error getting user interaction stats: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -5,7 +5,7 @@ from django.core.cache import cache
 import logging
 from apps.metadata.models import Genre
 from ..serializers import OptimizedMovieListSerializer
-from ..models import Movie
+from ..models import Movie, MovieQualityMetrics, MovieScheduling
 from django.db.models import Prefetch
 from ..models import MovieTrailer
 
@@ -31,20 +31,32 @@ class MovieSearchService:
             elif hasattr(settings, 'ELASTICSEARCH_DSL') and settings.ELASTICSEARCH_DSL:
                 # Use DSL configuration (production settings)
                 es_config = settings.ELASTICSEARCH_DSL['default']
-                self.client = Elasticsearch(
-                    hosts=es_config['hosts'],
-                    http_auth=es_config.get('http_auth'),
-                    use_ssl=es_config.get('use_ssl', False),
-                    verify_certs=es_config.get('verify_certs', True),
-                    timeout=es_config.get('timeout', 30),
-                    retry_on_timeout=es_config.get('retry_on_timeout', True),
-                    max_retries=es_config.get('max_retries', 3),
-                    sniff_on_start=es_config.get('sniff_on_start', False),
-                    sniff_on_connection_fail=es_config.get('sniff_on_connection_fail', False),
-                    ca_certs=es_config.get('ca_certs'),
-                    client_cert=es_config.get('client_cert'),
-                    client_key=es_config.get('client_key'),
-                )
+
+                # Build connection parameters
+                connection_params = {
+                    'hosts': es_config['hosts'],
+                    'timeout': es_config.get('timeout', 30),
+                    'retry_on_timeout': es_config.get('retry_on_timeout', True),
+                    'max_retries': es_config.get('max_retries', 3),
+                }
+
+                # Add authentication if available
+                if es_config.get('http_auth'):
+                    connection_params['http_auth'] = es_config['http_auth']
+
+                # Add SSL configuration if available (using newer parameter names)
+                if es_config.get('use_ssl', False):
+                    connection_params['scheme'] = 'https'
+                    if es_config.get('verify_certs') is not None:
+                        connection_params['verify_certs'] = es_config['verify_certs']
+                    if es_config.get('ca_certs'):
+                        connection_params['ca_certs'] = es_config['ca_certs']
+                    if es_config.get('client_cert'):
+                        connection_params['client_cert'] = es_config['client_cert']
+                    if es_config.get('client_key'):
+                        connection_params['client_key'] = es_config['client_key']
+
+                self.client = Elasticsearch(**connection_params)
                 logger.info(f"Using Elasticsearch DSL configuration: {es_config['hosts']}")
             else:
                 # Fall back to local Elasticsearch configuration
@@ -65,7 +77,7 @@ class MovieSearchService:
             self.connection_available = False
 
     def search(self, params, admin_mode=False):
-        """Search movies with Elasticsearch, hỗ trợ admin_mode cho filter đặc biệt"""
+        """Search movies with Elasticsearch with enhanced quality and scheduling filters"""
         if not self.connection_available or not self.client:
             logger.warning("Elasticsearch connection not available, falling back to database search")
             return None
@@ -73,83 +85,78 @@ class MovieSearchService:
         try:
             search = Search(using=self.client, index=self.index)
 
-            # Search query with enhanced fuzzy matching
+            # 🔍 Enhanced search query with quality scoring
             if params.get('q'):
                 query_text = params['q'].strip()
-                if params.get('language') == 'vi':
-                    search = search.query(
-                        'bool',
-                        should=[
-                            {
-                                'multi_match': {
-                                    'query': query_text,
-                                    'fields': ['title_vi^4', 'title_en^3', 'title^2'],
-                                    'type': 'cross_fields',
-                                    'operator': 'or',
-                                    'minimum_should_match': '60%',
-                                    'analyzer': 'vietnamese_analyzer'
-                                }
-                            },
-                            {
-                                'multi_match': {
-                                    'query': query_text,
-                                    'fields': ['overview_vi^2', 'overview_en^1'],
-                                    'type': 'best_fields',
-                                    'operator': 'or',
-                                    'minimum_should_match': '50%',
-                                    'analyzer': 'vietnamese_analyzer'
-                                }
-                            }
-                        ]
-                    )
-                else:
-                    search = search.query(
-                        'bool',
-                        should=[
-                            {
-                                'multi_match': {
-                                    'query': query_text,
-                                    'fields': ['title_en^4', 'title^3', 'title_vi^2'],
-                                    'type': 'cross_fields',
-                                    'operator': 'or',
-                                    'minimum_should_match': '60%',
-                                    'analyzer': 'english'
-                                }
-                            },
-                            {
-                                'multi_match': {
-                                    'query': query_text,
-                                    'fields': ['overview_en^2', 'overview_vi^1'],
-                                    'type': 'best_fields',
-                                    'operator': 'or',
-                                    'minimum_should_match': '50%',
-                                    'analyzer': 'english'
-                                }
-                            }
-                        ]
-                    )
+                search = self._build_enhanced_query(search, query_text, params)
 
-            # Apply filters
+            # 📊 QUALITY FILTERS (new normalized fields)
+            if params.get('quality_score_min'):
+                search = search.filter('range', quality_score={'gte': float(params['quality_score_min'])})
+
+            if params.get('quality_score_max'):
+                search = search.filter('range', quality_score={'lte': float(params['quality_score_max'])})
+
+            if params.get('content_completeness_min'):
+                search = search.filter('range', content_completeness={'gte': float(params['content_completeness_min'])})
+
+            if params.get('overall_quality_rating'):
+                search = search.filter('terms', overall_quality_rating=params['overall_quality_rating'])
+
+            if params.get('completion_status'):
+                search = search.filter('terms', completion_status=params['completion_status'])
+
+            if params.get('minimum_quality_met') is not None:
+                search = search.filter('term', minimum_quality_met=params['minimum_quality_met'])
+
+            # 📅 SCHEDULING FILTERS (new normalized fields)
+            if params.get('campaign_type'):
+                search = search.filter('terms', campaign_type=params['campaign_type'])
+
+            if params.get('campaign_priority_min'):
+                search = search.filter('range', campaign_priority={'gte': int(params['campaign_priority_min'])})
+
+            if params.get('is_published_now') is not None:
+                search = search.filter('term', is_published_now=params['is_published_now'])
+
+            if params.get('is_featured_now') is not None:
+                search = search.filter('term', is_featured_now=params['is_featured_now'])
+
+            if params.get('is_scheduled_for_publish') is not None:
+                search = search.filter('term', is_scheduled_for_publish=params['is_scheduled_for_publish'])
+
+            if params.get('is_scheduled_for_feature') is not None:
+                search = search.filter('term', is_scheduled_for_feature=params['is_scheduled_for_feature'])
+
+            if params.get('auto_publish') is not None:
+                search = search.filter('term', auto_publish=params['auto_publish'])
+
+            if params.get('auto_feature') is not None:
+                search = search.filter('term', auto_feature=params['auto_feature'])
+
+            # 📈 PRODUCTION METRICS FILTERS (enhanced performance filtering)
+            if params.get('performance_score_min'):
+                search = search.filter('range', performance_score={'gte': float(params['performance_score_min'])})
+
+            if params.get('trending_score_min'):
+                search = search.filter('range', trending_score={'gte': float(params['trending_score_min'])})
+
+            if params.get('trending_category'):
+                search = search.filter('terms', trending_category=params['trending_category'])
+
+            if params.get('engagement_rate_min'):
+                search = search.filter('range', engagement_rate={'gte': float(params['engagement_rate_min'])})
+
+            if params.get('homepage_views_min'):
+                search = search.filter('range', homepage_views={'gte': int(params['homepage_views_min'])})
+
+            if params.get('user_favorites_min'):
+                search = search.filter('range', user_favorites_count={'gte': int(params['user_favorites_min'])})
+
+            # EXISTING FILTERS (preserved for backward compatibility)
             if params.get('genres'):
-                try:
-                    # Convert genres to list if it's a string
-                    genre_list = params['genres']
-                    if isinstance(genre_list, str):
-                        genre_list = [int(g) for g in genre_list.split(',') if g.strip()]
-                    elif not isinstance(genre_list, list):
-                        genre_list = [int(genre_list)]
-
-                    # Convert genre IDs to names
-                    genre_names = list(Genre.objects.filter(id__in=genre_list).values_list('name', flat=True))
-                    if genre_names:
-                        # Filter by nested field genres.name since genres is a NestedField
-                        logger.info(f"Filtering by genres: {genre_names}")
-                        search = search.filter('nested', path='genres', query=Q('terms', **{'genres.name': genre_names}))
-                    else:
-                        logger.warning(f"No genre names found for IDs: {genre_list}")
-                except (ValueError, TypeError) as e:
-                    logger.error(f"Error processing genres: {str(e)}")
-                    # Don't return None here, continue with search without genre filter
+                genre_names = params['genres'] if isinstance(params['genres'], list) else [params['genres']]
+                search = search.filter('nested', path='genres', query=Q('terms', genres__name=genre_names))
 
             if params.get('year_from'):
                 search = search.filter('range', release_date={'gte': f"{params['year_from']}-01-01"})
@@ -157,215 +164,509 @@ class MovieSearchService:
             if params.get('year_to'):
                 search = search.filter('range', release_date={'lte': f"{params['year_to']}-12-31"})
 
-            if params.get('country'):
-                search = search.filter('terms', production_countries=[params['country']])
+            if params.get('rating_min'):
+                search = search.filter('range', combined_rating_score={'gte': float(params['rating_min'])})
+
+            if params.get('rating_max'):
+                search = search.filter('range', combined_rating_score={'lte': float(params['rating_max'])})
+
+            if params.get('runtime_min'):
+                search = search.filter('range', runtime={'gte': int(params['runtime_min'])})
+
+            if params.get('runtime_max'):
+                search = search.filter('range', runtime={'lte': int(params['runtime_max'])})
 
             if params.get('status'):
-                search = search.filter('term', status=params['status'])
+                search = search.filter('terms', status=params['status'])
 
-            if params.get('adult') == 'false':
-                search = search.filter('term', is_adult=False)
+            if params.get('countries'):
+                search = search.filter('terms', production_countries=params['countries'])
 
-            # --- ADMIN FILTERS ---
+            if params.get('adult') is not None:
+                search = search.filter('term', is_adult=params['adult'])
+
+            # 🎯 ADMIN MODE FILTERS (enhanced for normalized structure)
             if admin_mode:
-                # Các filter đặc biệt cho admin
-                # Chỉ áp dụng filter nếu có giá trị thực sự (không phải None hoặc empty string)
-                if params.get('approval_status') and params.get('approval_status') != '':
-                    search = search.filter('term', approval_status=params['approval_status'])
+                if params.get('approval_status'):
+                    search = search.filter('terms', approval_status=params['approval_status'])
 
-                admin_featured_value = params.get('admin_featured')
-                if admin_featured_value is not None and admin_featured_value != '':
-                    val = admin_featured_value
-                    if isinstance(val, str):
-                        val = val.lower() == 'true'
-                    search = search.filter('term', admin_featured=val)
+                if params.get('visibility_status'):
+                    search = search.filter('terms', visibility_status=params['visibility_status'])
 
-                if params.get('visibility_status') and params.get('visibility_status') != '':
-                    search = search.filter('term', visibility_status=params['visibility_status'])
+                if params.get('admin_featured') is not None:
+                    search = search.filter('term', admin_featured=params['admin_featured'])
 
-                is_published_value = params.get('is_published')
-                if is_published_value is not None and is_published_value != '':
-                    val = is_published_value
-                    if isinstance(val, str):
-                        val = val.lower() == 'true'
-                    search = search.filter('term', is_published=val)
+                if params.get('admin_priority_min'):
+                    search = search.filter('range', admin_priority={'gte': int(params['admin_priority_min'])})
 
-                admin_priority_value = params.get('admin_priority')
-                if admin_priority_value is not None and admin_priority_value != '':
-                    try:
-                        search = search.filter('term', admin_priority=int(admin_priority_value))
-                    except Exception:
-                        pass
-                # Keyset pagination: after_created_at
-                if params.get('after_created_at'):
-                    search = search.filter('range', created_at={'lt': params['after_created_at']})
+                if params.get('is_published') is not None:
+                    search = search.filter('term', is_published=params['is_published'])
 
-            # Sorting with enhanced options
-            sort_mapping = {
-                'popularity': '-popularity',
-                'rating': '-vote_average',
-                'release_date': '-release_date',
-                'title': 'title_en.raw' if params.get('language') == 'en' else 'title_vi.raw',
-                'runtime': '-runtime',
-                'vote_count': '-vote_count',
-                # Admin sort
-                'created_at': '-created_at',
-                'admin_priority': '-admin_priority',
-                'approval_status': 'approval_status',
-            }
-            sort_field = sort_mapping.get(params.get('sort_by', 'created_at'))
-            # Đảm bảo sort là duy nhất cho search_after
-            if sort_field:
-                if params.get('order') == 'asc':
-                    sort_field = sort_field.lstrip('-')
-                # Luôn sort theo created_at và id để dùng search_after
-                search = search.sort(
-                    {sort_field.lstrip('-'): {'order': 'asc' if not sort_field.startswith('-') else 'desc'}},
-                    {'id': {'order': 'desc'}}
+                # Enhanced admin filters for quality control
+                if params.get('has_quality_issues'):
+                    if params['has_quality_issues']:
+                        search = search.filter('exists', field='quality_issues')
+                    else:
+                        search = search.filter('bool', must_not=[{'exists': {'field': 'quality_issues'}}])
+
+                if params.get('needs_quality_review'):
+                    # Movies that haven't been quality checked recently or have low scores
+                    search = search.filter('bool', should=[
+                        {'range': {'last_quality_check': {'lte': 'now-7d'}}},
+                        {'range': {'quality_score': {'lt': 6.0}}},
+                        {'bool': {'must_not': [{'exists': {'field': 'last_quality_check'}}]}}
+                    ])
+
+                if params.get('scheduled_actions_pending'):
+                    search = search.filter('range', next_action_date={'gte': 'now/d', 'lte': 'now+7d'})
+
+            # 📊 ENHANCED SORTING with new fields
+            sort_by = params.get('sort_by', 'relevance')
+            order = params.get('order', 'desc')
+
+            if sort_by == 'quality_score':
+                search = search.sort({f'quality_score': {'order': order}})
+            elif sort_by == 'content_completeness':
+                search = search.sort({f'content_completeness': {'order': order}})
+            elif sort_by == 'performance_score':
+                search = search.sort({f'performance_score': {'order': order}})
+            elif sort_by == 'trending_score':
+                search = search.sort({f'trending_score': {'order': order}})
+            elif sort_by == 'engagement_rate':
+                search = search.sort({f'engagement_rate': {'order': order}})
+            elif sort_by == 'homepage_views':
+                search = search.sort({f'homepage_views': {'order': order}})
+            elif sort_by == 'user_favorites':
+                search = search.sort({f'user_favorites_count': {'order': order}})
+            elif sort_by == 'campaign_priority':
+                search = search.sort({f'campaign_priority': {'order': order}})
+            # Existing sorting options
+            elif sort_by == 'popularity':
+                search = search.sort({f'combined_rating_score': {'order': order}})
+            elif sort_by == 'rating':
+                search = search.sort({f'combined_rating_score': {'order': order}})
+            elif sort_by == 'date':
+                search = search.sort({f'release_date': {'order': order}})
+            elif sort_by == 'title':
+                search = search.sort({f'title.raw': {'order': order}})
+            elif sort_by == 'runtime':
+                search = search.sort({f'runtime': {'order': order}})
+            elif sort_by == 'vote_count':
+                search = search.sort({f'vote_count': {'order': order}})
+            elif sort_by == 'created_at':
+                search = search.sort({f'created_at': {'order': order}})
+
+            # 🚀 ENHANCED FUNCTION SCORE for quality-weighted results
+            if params.get('q') and params.get('quality_weighted', True):
+                search = search.query(
+                    'function_score',
+                    query=search.query,
+                    functions=[
+                        # Boost high-quality content
+                        {
+                            'filter': {'range': {'quality_score': {'gte': 8.0}}},
+                            'weight': 2.0
+                        },
+                        # Boost complete content
+                        {
+                            'filter': {'range': {'content_completeness': {'gte': 90.0}}},
+                            'weight': 1.5
+                        },
+                        # Boost trending content
+                        {
+                            'filter': {'range': {'trending_score': {'gte': 7.0}}},
+                            'weight': 1.3
+                        },
+                        # Boost engaged content
+                        {
+                            'filter': {'range': {'engagement_rate': {'gte': 0.1}}},
+                            'weight': 1.2
+                        }
+                    ],
+                    score_mode='multiply',
+                    boost_mode='multiply'
                 )
-            else:
-                search = search.sort({'created_at': {'order': 'desc'}}, {'id': {'order': 'desc'}})
 
-            # Pagination logic - hỗ trợ cả search_after và after_created_at
-            page_size = min(int(params.get('page_size', 50)), 100)
-            logger.info(f"Pagination: page_size={page_size}, admin_mode={admin_mode}")
+            # Pagination
+            page = params.get('page', 1)
+            page_size = params.get('page_size', 20)
+            start = (page - 1) * page_size
 
-            # Admin mode: sử dụng after_created_at cho keyset pagination
-            if admin_mode:
-                if params.get('after_created_at'):
-                    # Đã filter ở trên rồi, chỉ cần limit
-                    search = search[:page_size]
-                    logger.info(f"Admin mode: Using after_created_at pagination with value: {params['after_created_at']}")
-                else:
-                    # Admin mode trang đầu: chỉ limit, không dùng offset
-                    search = search[:page_size]
-                    logger.info(f"Admin mode: Initial page load (no after_created_at), limiting to {page_size} results")
-            # Frontend mode: sử dụng search_after cho keyset pagination
-            elif params.get('search_after'):
-                # Xử lý search_after có thể là string hoặc list
-                search_after_value = params['search_after']
-                if isinstance(search_after_value, str):
-                    # Nếu là string, chuyển thành list
-                    search_after_value = [search_after_value]
-                elif not isinstance(search_after_value, list):
-                    # Nếu không phải list, chuyển thành list
-                    search_after_value = [search_after_value]
+            search = search[start:start + page_size]
 
-                search = search.extra(search_after=search_after_value)
-                search = search[:page_size]
-                logger.info(f"Frontend mode: Using search_after pagination with value: {search_after_value}")
-            else:
-                # Offset-based fallback (trang đầu)
-                page = int(params.get('page', 1))
-                start = (page - 1) * page_size
-                search = search[start:start + page_size]
-                logger.info(f"Using offset-based pagination: page={page}, start={start}, size={page_size}")
-
-            # Execute search with error handling
-            logger.info(f"Executing Elasticsearch query: {search.to_dict()}")
+            # Execute search
             response = search.execute()
 
-            # Get total hits
-            total_hits = response.hits.total.value
-
-            # Extract movie IDs from Elasticsearch results while preserving order
-            movie_ids = [int(hit.meta.id) for hit in response.hits]
-
-            # Fetch movies from database with proper prefetching
-            movies_dict = {}
-            movies = Movie.objects.select_related(
-                'moviemetadata'
-            ).prefetch_related(
-                Prefetch('ratings', to_attr='prefetched_ratings'),
-                Prefetch('genres', to_attr='prefetched_genres'),
-                Prefetch(
-                    'trailers',
-                    queryset=MovieTrailer.objects.filter(type='TRAILER'),
-                    to_attr='prefetched_trailers'
-                ),
-                Prefetch('cast', to_attr='prefetched_cast'),
-                Prefetch('movieimage_set', to_attr='prefetched_images')
-            ).filter(id__in=movie_ids)
-
-            # Create a dictionary for O(1) lookup while preserving ES order
-            for movie in movies:
-                movies_dict[movie.id] = movie
-
-            # Maintain Elasticsearch result order
-            ordered_movies = [movies_dict[movie_id] for movie_id in movie_ids if movie_id in movies_dict]
-
-            # Serialize using OptimizedMovieListSerializer
-            serializer = OptimizedMovieListSerializer(ordered_movies, many=True)
-
-            logger.info(f"Successfully serialized {len(ordered_movies)} movies from Elasticsearch results")
-
-            # Pagination response - hỗ trợ cả search_after và after_created_at
-            next_search_after = None
-            next_after_created_at = None
-
-            logger.info(f"DEBUG: response.hits count: {len(response.hits) if response.hits else 0}, page_size: {page_size}")
-
-            if response.hits and len(response.hits) == page_size:
-                last_hit = response.hits[-1]
-
-                # Admin mode: trả về next_after_created_at
-                if admin_mode:
-                    next_after_created_at = getattr(last_hit, 'created_at', None)
-                    logger.info(f"Admin mode: Created next_after_created_at: {next_after_created_at}")
-                # Frontend mode: trả về next_search_after
-                else:
-                    logger.info(f"Frontend mode: Creating next_search_after for sort_field: {sort_field}")
-                    # Lấy giá trị các trường sort đúng thứ tự sort
-                    sort_fields = []
-                    if sort_field:
-                        # popularity, rating, release_date, title, runtime, vote_count, created_at, admin_priority, approval_status
-                        if sort_field.lstrip('-') == 'popularity':
-                            sort_fields.append(getattr(last_hit, 'popularity', None))
-                        elif sort_field.lstrip('-') == 'vote_average':
-                            sort_fields.append(getattr(last_hit, 'vote_average', None))
-                        elif sort_field.lstrip('-') == 'release_date':
-                            sort_fields.append(getattr(last_hit, 'release_date', None))
-                        elif sort_field.lstrip('-') == 'title_en.raw':
-                            sort_fields.append(getattr(last_hit, 'title_en', None))
-                        elif sort_field.lstrip('-') == 'title_vi.raw':
-                            sort_fields.append(getattr(last_hit, 'title_vi', None))
-                        elif sort_field.lstrip('-') == 'runtime':
-                            sort_fields.append(getattr(last_hit, 'runtime', None))
-                        elif sort_field.lstrip('-') == 'vote_count':
-                            sort_fields.append(getattr(last_hit, 'vote_count', None))
-                        elif sort_field.lstrip('-') == 'created_at':
-                            sort_fields.append(getattr(last_hit, 'created_at', None))
-                        elif sort_field.lstrip('-') == 'admin_priority':
-                            sort_fields.append(getattr(last_hit, 'admin_priority', None))
-                        elif sort_field.lstrip('-') == 'approval_status':
-                            sort_fields.append(getattr(last_hit, 'approval_status', None))
-                        else:
-                            sort_fields.append(getattr(last_hit, 'created_at', None))
-                    else:
-                        sort_fields.append(getattr(last_hit, 'created_at', None))
-                    # Luôn thêm id vào cuối
-                    sort_fields.append(int(last_hit.meta.id))
-                    next_search_after = sort_fields
-                    logger.info(f"Frontend mode: Created next_search_after: {next_search_after}")
-            else:
-                logger.info(f"DEBUG: Not creating pagination tokens - hits: {len(response.hits) if response.hits else 0}, page_size: {page_size}")
-
-            # Trả về response phù hợp với mode
-            response_data = {
-                'total': total_hits,
-                'results': serializer.data,
+            return {
+                'total_count': response.hits.total.value,
+                'results': [hit.to_dict() for hit in response.hits],
                 'search_engine': 'elasticsearch',
+                'took': response.took,
+                'max_score': response.hits.max_score
             }
 
-            if admin_mode:
-                response_data['next_after_created_at'] = next_after_created_at
-            else:
-                response_data['next_search_after'] = next_search_after
+        except Exception as e:
+            logger.error(f"Elasticsearch search failed: {str(e)}")
+            return None
 
-            return response_data
+    def _build_enhanced_query(self, search, query_text, params):
+        """Build enhanced search query with quality and relevance scoring"""
+        try:
+            language = params.get('language', 'en')
+
+            if language == 'vi':
+                # Vietnamese-optimized search
+                    search = search.query(
+                        'bool',
+                        should=[
+                        # Title search with high boost
+                            {
+                                'multi_match': {
+                                    'query': query_text,
+                                'fields': ['title_vi^5', 'title_en^4', 'title^3'],
+                                    'type': 'cross_fields',
+                                    'operator': 'or',
+                                    'minimum_should_match': '60%',
+                                    'analyzer': 'vietnamese_analyzer'
+                                }
+                            },
+                        # Overview search
+                            {
+                                'multi_match': {
+                                    'query': query_text,
+                                'fields': ['overview_vi^3', 'overview_en^2'],
+                                    'type': 'best_fields',
+                                    'operator': 'or',
+                                    'minimum_should_match': '50%',
+                                    'analyzer': 'vietnamese_analyzer'
+                                }
+                        },
+                        # Quality-weighted content search
+                        {
+                            'multi_match': {
+                                'query': query_text,
+                                'fields': ['quality_issues^1', 'quality_suggestions^1'],
+                                'type': 'phrase_prefix',
+                                'boost': 0.5
+                            }
+                        },
+                        # Campaign and scheduling search
+                        {
+                            'multi_match': {
+                                'query': query_text,
+                                'fields': ['campaign_name^2', 'campaign_type^1'],
+                                'type': 'phrase_prefix',
+                                'boost': 0.3
+                            }
+                            }
+                        ]
+                    )
+            else:
+                # English-optimized search
+                    search = search.query(
+                        'bool',
+                        should=[
+                        # Title search with high boost
+                            {
+                                'multi_match': {
+                                    'query': query_text,
+                                'fields': ['title_en^5', 'title_vi^3', 'title^4', 'original_title^3'],
+                                    'type': 'cross_fields',
+                                    'operator': 'or',
+                                    'minimum_should_match': '60%',
+                                    'analyzer': 'english'
+                                }
+                            },
+                        # Overview search
+                            {
+                                'multi_match': {
+                                    'query': query_text,
+                                'fields': ['overview_en^3', 'overview_vi^2'],
+                                    'type': 'best_fields',
+                                    'operator': 'or',
+                                    'minimum_should_match': '50%',
+                                    'analyzer': 'english'
+                                }
+                        },
+                        # Fuzzy search for typos
+                        {
+                            'multi_match': {
+                                'query': query_text,
+                                'fields': ['title_en^3', 'title_vi^2'],
+                                'type': 'most_fields',
+                                'fuzziness': 'AUTO',
+                                'prefix_length': 2,
+                                'boost': 0.7
+                            }
+                        },
+                        # Quality-weighted content search
+                        {
+                            'multi_match': {
+                                'query': query_text,
+                                'fields': ['quality_issues^1', 'quality_suggestions^1'],
+                                'type': 'phrase_prefix',
+                                'boost': 0.5
+                            }
+                        },
+                        # Campaign and scheduling search
+                        {
+                            'multi_match': {
+                                'query': query_text,
+                                'fields': ['campaign_name^2', 'campaign_type^1'],
+                                'type': 'phrase_prefix',
+                                'boost': 0.3
+                            }
+                        }
+                    ]
+                )
+
+            return search
 
         except Exception as e:
-            logger.error(f"Elasticsearch search error: {str(e)}")
+            logger.error(f"Error building enhanced query: {str(e)}")
+            # Fallback to simple query
+            return search.query('multi_match', query=query_text, fields=['title_en^3', 'title_vi^3', 'overview_en^1'])
+
+    def advanced_search(self, params):
+        """Advanced search with quality and performance analytics"""
+        if not self.connection_available or not self.client:
+            return None
+
+        try:
+            search = Search(using=self.client, index=self.index)
+
+            # Quality analytics aggregations
+            search.aggs.bucket('quality_distribution', 'range', field='quality_score', ranges=[
+                {'from': 0, 'to': 3, 'key': 'poor'},
+                {'from': 3, 'to': 6, 'key': 'fair'},
+                {'from': 6, 'to': 8, 'key': 'good'},
+                {'from': 8, 'to': 10, 'key': 'excellent'}
+            ])
+
+            # Content completeness analytics
+            search.aggs.bucket('completeness_distribution', 'range', field='content_completeness', ranges=[
+                {'from': 0, 'to': 50, 'key': 'incomplete'},
+                {'from': 50, 'to': 70, 'key': 'partial'},
+                {'from': 70, 'to': 90, 'key': 'nearly_complete'},
+                {'from': 90, 'to': 100, 'key': 'complete'}
+            ])
+
+            # Performance analytics
+            search.aggs.bucket('performance_distribution', 'range', field='performance_score', ranges=[
+                {'from': 0, 'to': 3, 'key': 'low'},
+                {'from': 3, 'to': 6, 'key': 'medium'},
+                {'from': 6, 'to': 8, 'key': 'high'},
+                {'from': 8, 'to': 10, 'key': 'excellent'}
+            ])
+
+            # Trending categories
+            search.aggs.bucket('trending_categories', 'terms', field='trending_category', size=10)
+
+            # Campaign types
+            search.aggs.bucket('campaign_types', 'terms', field='campaign_type', size=10)
+
+            # Apply filters
+            if params.get('q'):
+                search = self._build_enhanced_query(search, params['q'], params)
+
+            # Execute search
+            response = search.execute()
+
+            return {
+                'total_count': response.hits.total.value,
+                'results': [hit.to_dict() for hit in response.hits],
+                'analytics': {
+                    'quality_distribution': response.aggregations.quality_distribution.buckets,
+                    'completeness_distribution': response.aggregations.completeness_distribution.buckets,
+                    'performance_distribution': response.aggregations.performance_distribution.buckets,
+                    'trending_categories': response.aggregations.trending_categories.buckets,
+                    'campaign_types': response.aggregations.campaign_types.buckets
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Advanced search failed: {str(e)}")
+            return None
+
+    def get_quality_insights(self, params=None):
+        """Get quality insights for admin dashboard"""
+        if not self.connection_available or not self.client:
+            return None
+
+        try:
+            search = Search(using=self.client, index=self.index)
+            search = search.filter('match_all')
+
+            # Quality insights aggregations
+            search.aggs.metric('avg_quality_score', 'avg', field='quality_score')
+            search.aggs.metric('avg_content_completeness', 'avg', field='content_completeness')
+            search.aggs.bucket('quality_issues_count', 'filter', {'exists': {'field': 'quality_issues'}})
+            search.aggs.bucket('minimum_quality_not_met', 'filter', {'term': {'minimum_quality_met': False}})
+            search.aggs.bucket('needs_quality_review', 'filter', {
+                'bool': {
+                    'should': [
+                        {'range': {'last_quality_check': {'lte': 'now-7d'}}},
+                        {'range': {'quality_score': {'lt': 6.0}}},
+                        {'bool': {'must_not': [{'exists': {'field': 'last_quality_check'}}]}}
+                    ]
+                }
+            })
+
+            # Performance insights
+            search.aggs.metric('avg_performance_score', 'avg', field='performance_score')
+            search.aggs.metric('avg_engagement_rate', 'avg', field='engagement_rate')
+            search.aggs.bucket('high_performing_content', 'filter', {'range': {'performance_score': {'gte': 8.0}}})
+
+            # Scheduling insights
+            search.aggs.bucket('scheduled_for_publish', 'filter', {'term': {'is_scheduled_for_publish': True}})
+            search.aggs.bucket('scheduled_for_feature', 'filter', {'term': {'is_scheduled_for_feature': True}})
+            search.aggs.bucket('pending_actions', 'filter', {'range': {'next_action_date': {'gte': 'now/d', 'lte': 'now+7d'}}})
+
+            # Limit results since we only need aggregations
+            search = search[:0]
+
+            response = search.execute()
+
+            return {
+                'quality_insights': {
+                    'avg_quality_score': response.aggregations.avg_quality_score.value,
+                    'avg_content_completeness': response.aggregations.avg_content_completeness.value,
+                    'quality_issues_count': response.aggregations.quality_issues_count.doc_count,
+                    'minimum_quality_not_met': response.aggregations.minimum_quality_not_met.doc_count,
+                    'needs_quality_review': response.aggregations.needs_quality_review.doc_count
+                },
+                'performance_insights': {
+                    'avg_performance_score': response.aggregations.avg_performance_score.value,
+                    'avg_engagement_rate': response.aggregations.avg_engagement_rate.value,
+                    'high_performing_content': response.aggregations.high_performing_content.doc_count
+                },
+                'scheduling_insights': {
+                    'scheduled_for_publish': response.aggregations.scheduled_for_publish.doc_count,
+                    'scheduled_for_feature': response.aggregations.scheduled_for_feature.doc_count,
+                    'pending_actions': response.aggregations.pending_actions.doc_count
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Quality insights failed: {str(e)}")
+            return None
+
+    def fallback_search(self, params, admin_mode=False):
+        """Fallback database search with optimized queries for normalized structure"""
+        try:
+            logger.info("Using fallback database search with normalized structure")
+
+            # Enhanced queryset with normalized relationships
+            queryset = Movie.objects.select_related(
+                'moviemetadata',
+                'quality_metrics',  # NEW: Include quality metrics
+                'scheduling',       # NEW: Include scheduling
+                'production_metrics'  # NEW: Include production metrics
+            ).prefetch_related(
+                'genres',
+                'ratings',
+                Prefetch('trailers', queryset=MovieTrailer.objects.filter(type='TRAILER'))
+            )
+
+            # Basic filtering
+            if params.get('q'):
+                query_text = params['q']
+                queryset = queryset.filter(
+                    Q(title_en__icontains=query_text) |
+                    Q(title_vi__icontains=query_text) |
+                    Q(overview_en__icontains=query_text) |
+                    Q(overview_vi__icontains=query_text)
+                )
+
+            # Quality filters (NEW)
+            if params.get('quality_score_min'):
+                queryset = queryset.filter(quality_metrics__quality_score__gte=params['quality_score_min'])
+
+            if params.get('content_completeness_min'):
+                queryset = queryset.filter(quality_metrics__content_completeness__gte=params['content_completeness_min'])
+
+            if params.get('minimum_quality_met') is not None:
+                queryset = queryset.filter(quality_metrics__minimum_quality_met=params['minimum_quality_met'])
+
+            # Scheduling filters (NEW)
+            if params.get('is_published_now') is not None:
+                queryset = queryset.filter(scheduling__is_published_now=params['is_published_now'])
+
+            if params.get('is_featured_now') is not None:
+                queryset = queryset.filter(scheduling__is_featured_now=params['is_featured_now'])
+
+            if params.get('campaign_type'):
+                queryset = queryset.filter(scheduling__campaign_type__in=params['campaign_type'])
+
+            # Performance filters (NEW)
+            if params.get('performance_score_min'):
+                queryset = queryset.filter(production_metrics__performance_score__gte=params['performance_score_min'])
+
+            if params.get('trending_category'):
+                queryset = queryset.filter(production_metrics__trending_category__in=params['trending_category'])
+
+            # Existing filters
+            if params.get('genres'):
+                genre_names = params['genres'] if isinstance(params['genres'], list) else [params['genres']]
+                queryset = queryset.filter(genres__name__in=genre_names)
+
+            if params.get('year_from'):
+                queryset = queryset.filter(release_date__year__gte=params['year_from'])
+
+            if params.get('year_to'):
+                queryset = queryset.filter(release_date__year__lte=params['year_to'])
+
+            if params.get('rating_min'):
+                queryset = queryset.filter(combined_rating_score__gte=params['rating_min'])
+
+            if params.get('adult') is not None:
+                queryset = queryset.filter(is_adult=params['adult'])
+
+            # Enhanced sorting with new fields
+            sort_mapping = {
+                'quality_score': 'quality_metrics__quality_score',
+                'content_completeness': 'quality_metrics__content_completeness',
+                'performance_score': 'production_metrics__performance_score',
+                'trending_score': 'production_metrics__trending_score',
+                'engagement_rate': 'production_metrics__engagement_rate',
+                'campaign_priority': 'scheduling__campaign_priority',
+                'popularity': 'combined_rating_score',
+                'rating': 'combined_rating_score',
+                'date': 'release_date',
+                'title': 'title_en',
+                'runtime': 'runtime',
+                'vote_count': 'cached_imdb_votes',
+                'created_at': 'created_at'
+            }
+
+            sort_by = params.get('sort_by', 'popularity')
+            order = params.get('order', 'desc')
+
+            if sort_by in sort_mapping:
+                order_prefix = '-' if order == 'desc' else ''
+                queryset = queryset.order_by(f"{order_prefix}{sort_mapping[sort_by]}")
+
+            # Pagination
+            page = params.get('page', 1)
+            page_size = params.get('page_size', 20)
+            start = (page - 1) * page_size
+            end = start + page_size
+
+            total_count = queryset.count()
+            results = queryset[start:end]
+
+            # Serialize results
+            serializer = OptimizedMovieListSerializer(results, many=True)
+
+            return {
+                'total_count': total_count,
+                'results': serializer.data,
+                'search_engine': 'django_orm_fallback',
+                'enhanced_with_normalized_data': True
+            }
+
+        except Exception as e:
+            logger.error(f"Fallback search failed: {str(e)}")
             return None
 
     def get_suggestions(self, query, language='en', limit=5):
@@ -545,16 +846,6 @@ class MovieSearchService:
             info = client.info()
             logger.info(f"Successfully connected to Elasticsearch cluster: {info.get('cluster_name')}")
             logger.info(f"Elasticsearch version: {info.get('version', {}).get('number')}")
-
-            # Check index existence
-            if not client.indices.exists(index=self.index):
-                logger.warning(f"Index '{self.index}' does not exist")
-                return False
-
-            # Get index stats
-            stats = client.indices.stats(index=self.index)
-            doc_count = stats['indices'][self.index]['total']['docs']['count']
-            logger.info(f"Index '{self.index}' contains {doc_count} documents")
 
             return True
         except Exception as e:

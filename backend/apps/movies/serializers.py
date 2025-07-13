@@ -6,7 +6,7 @@ from .models import (
     MovieReview, MovieBoxOffice, MovieMetadata,
     MovieGenre, MovieTrailer, MovieImage, MovieNews,
     ReviewReport, MovieAdminControl, MovieQualityMetrics,
-    MovieScheduling, ProductionMetrics
+    MovieScheduling, ProductionMetrics, UserInteraction
 )
 import logging
 
@@ -1519,3 +1519,77 @@ class AdminDashboardMovieSerializer(serializers.ModelSerializer):
             'homepage_views': 0,  # Placeholder - avoid additional queries
             'performance_score': 0,
         }
+
+class UserInteractionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for UserInteraction model
+    Dùng cho analytics và reporting
+    """
+    user_identifier = serializers.CharField(read_only=True)
+    movie_title = serializers.CharField(source='movie.title', read_only=True)
+    movie_poster = serializers.URLField(source='movie.poster_url', read_only=True)
+
+    class Meta:
+        model = UserInteraction
+        fields = [
+            'id', 'movie', 'movie_title', 'movie_poster', 'user', 'user_identifier',
+            'session_id', 'action', 'interaction_type', 'page_url', 'referrer',
+            'user_agent', 'screen_resolution', 'viewport_size', 'metadata',
+            'timestamp', 'processed_at', 'duration_seconds', 'is_unique_session'
+        ]
+        read_only_fields = ['id', 'timestamp', 'processed_at', 'user_identifier', 'movie_title', 'movie_poster']
+
+class UserInteractionCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating UserInteraction
+    Dùng cho API endpoints
+    """
+
+    class Meta:
+        model = UserInteraction
+        fields = [
+            'movie', 'user', 'session_id', 'action', 'interaction_type',
+            'page_url', 'referrer', 'user_agent', 'screen_resolution',
+            'viewport_size', 'metadata', 'duration_seconds'
+        ]
+
+    def validate(self, data):
+        """Validate interaction data"""
+        # Ensure either user or session_id is provided
+        if not data.get('user') and not data.get('session_id'):
+            raise serializers.ValidationError("Either user or session_id must be provided")
+
+        # Validate action
+        if not data.get('action'):
+            raise serializers.ValidationError("Action is required")
+
+        return data
+
+class UserInteractionStatsSerializer(serializers.Serializer):
+    """
+    Serializer for user interaction statistics
+    """
+    total_interactions = serializers.IntegerField()
+    unique_users = serializers.IntegerField()
+    unique_sessions = serializers.IntegerField()
+    top_actions = serializers.ListField(child=serializers.DictField())
+    hourly_distribution = serializers.ListField(child=serializers.DictField())
+    daily_trends = serializers.ListField(child=serializers.DictField())
+    device_breakdown = serializers.DictField()
+    avg_session_duration = serializers.FloatField()
+
+class MovieInteractionSummarySerializer(serializers.Serializer):
+    """
+    Serializer for movie interaction summary
+    """
+    movie_id = serializers.IntegerField()
+    movie_title = serializers.CharField()
+    total_interactions = serializers.IntegerField()
+    unique_users = serializers.IntegerField()
+    homepage_views = serializers.IntegerField()
+    detail_views = serializers.IntegerField()
+    favorites = serializers.IntegerField()
+    shares = serializers.IntegerField()
+    avg_engagement_rate = serializers.FloatField()
+    trending_score = serializers.FloatField()
+    last_activity = serializers.DateTimeField()

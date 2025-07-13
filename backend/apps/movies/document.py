@@ -1,6 +1,6 @@
 from django_elasticsearch_dsl import Document, fields
 from django_elasticsearch_dsl.registries import registry
-from .models import Movie
+from .models import Movie, MovieQualityMetrics, MovieScheduling
 import logging
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ class MovieDocument(Document):
     approval_status = fields.KeywordField()
     visibility_status = fields.KeywordField()
 
-    # Scheduling fields
+    # LEGACY Scheduling fields (for backward compatibility)
     publish_date = fields.DateField()
     unpublish_date = fields.DateField()
     featured_from = fields.DateField()
@@ -80,6 +80,64 @@ class MovieDocument(Document):
     # Admin fields
     admin_featured = fields.BooleanField()
     admin_priority = fields.IntegerField()
+
+    # 📊 NEW: Quality Metrics Fields (from MovieQualityMetrics)
+    quality_score = fields.FloatField()
+    content_completeness = fields.FloatField()
+    basic_info_score = fields.FloatField()
+    visual_assets_score = fields.FloatField()
+    metadata_richness_score = fields.FloatField()
+    rating_validity_score = fields.FloatField()
+    quality_issues = fields.TextField()  # JSON as text for search
+    quality_suggestions = fields.TextField()  # JSON as text for search
+    last_quality_check = fields.DateField()
+    auto_calculated = fields.BooleanField()
+    calculation_version = fields.KeywordField()
+
+    # Quality metrics for filtering and sorting
+    overall_quality_rating = fields.KeywordField()  # Excellent, Good, Fair, Poor
+    completion_status = fields.KeywordField()  # Complete, Nearly Complete, Partial, Incomplete
+
+    # 📅 NEW: Scheduling Fields (from MovieScheduling)
+    scheduling_publish_date = fields.DateField()
+    scheduling_unpublish_date = fields.DateField()
+    scheduling_featured_from = fields.DateField()
+    scheduling_featured_until = fields.DateField()
+    auto_publish = fields.BooleanField()
+    auto_unpublish = fields.BooleanField()
+    auto_feature = fields.BooleanField()
+    auto_unfeature = fields.BooleanField()
+
+    # Campaign fields
+    campaign_name = fields.KeywordField()
+    campaign_type = fields.KeywordField()
+    campaign_priority = fields.IntegerField()
+    campaign_budget = fields.FloatField()
+    campaign_start_date = fields.DateField()
+    campaign_end_date = fields.DateField()
+
+    # Scheduling status
+    is_published_now = fields.BooleanField()
+    is_featured_now = fields.BooleanField()
+    is_scheduled_for_publish = fields.BooleanField()
+    is_scheduled_for_feature = fields.BooleanField()
+
+    # Next action tracking
+    next_action_date = fields.DateField()
+    next_scheduled_action = fields.KeywordField()
+
+    # 📈 NEW: Production Metrics Fields (for enhanced search scoring)
+    performance_score = fields.FloatField()
+    trending_score = fields.FloatField()
+    engagement_rate = fields.FloatField()
+    click_through_rate = fields.FloatField()
+    homepage_views = fields.IntegerField()
+    detail_page_views = fields.IntegerField()
+    user_favorites_count = fields.IntegerField()
+    user_watchlist_count = fields.IntegerField()
+
+    # Trending category
+    trending_category = fields.KeywordField()  # viral, hot, rising, stable
 
     # Relationship fields
     genres = fields.NestedField(properties={
@@ -117,7 +175,441 @@ class MovieDocument(Document):
         fields = [
             'id'
         ]
+        related_models = [MovieQualityMetrics, MovieScheduling]
 
+    def get_instances_from_related(self, related_instance):
+        """Update document when related models change"""
+        if isinstance(related_instance, (MovieQualityMetrics, MovieScheduling)):
+            return related_instance.movie
+
+    # 📊 QUALITY METRICS PREPARE METHODS
+    def prepare_quality_score(self, instance):
+        """Prepare quality score from MovieQualityMetrics"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return float(instance.quality_metrics.quality_score or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing quality_score for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_content_completeness(self, instance):
+        """Prepare content completeness from MovieQualityMetrics"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return float(instance.quality_metrics.content_completeness or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing content_completeness for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_basic_info_score(self, instance):
+        """Prepare basic info score from MovieQualityMetrics"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return float(instance.quality_metrics.basic_info_score or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing basic_info_score for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_visual_assets_score(self, instance):
+        """Prepare visual assets score from MovieQualityMetrics"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return float(instance.quality_metrics.visual_assets_score or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing visual_assets_score for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_metadata_richness_score(self, instance):
+        """Prepare metadata richness score from MovieQualityMetrics"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return float(instance.quality_metrics.metadata_richness_score or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing metadata_richness_score for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_rating_validity_score(self, instance):
+        """Prepare rating validity score from MovieQualityMetrics"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return float(instance.quality_metrics.rating_validity_score or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing rating_validity_score for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_quality_issues(self, instance):
+        """Prepare quality issues as searchable text"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                issues = instance.quality_metrics.quality_issues
+                if issues and isinstance(issues, list):
+                    return ' '.join(issues)
+            return ''
+        except Exception as e:
+            logger.warning(f"Error preparing quality_issues for movie {instance.id}: {e}")
+            return ''
+
+    def prepare_quality_suggestions(self, instance):
+        """Prepare quality suggestions as searchable text"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                suggestions = instance.quality_metrics.quality_suggestions
+                if suggestions and isinstance(suggestions, list):
+                    return ' '.join(suggestions)
+            return ''
+        except Exception as e:
+            logger.warning(f"Error preparing quality_suggestions for movie {instance.id}: {e}")
+            return ''
+
+    def prepare_last_quality_check(self, instance):
+        """Prepare last quality check date"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return instance.quality_metrics.last_quality_check
+            return None
+        except Exception as e:
+            logger.warning(f"Error preparing last_quality_check for movie {instance.id}: {e}")
+            return None
+
+    def prepare_auto_calculated(self, instance):
+        """Prepare auto calculated flag"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return instance.quality_metrics.auto_calculated
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing auto_calculated for movie {instance.id}: {e}")
+            return False
+
+    def prepare_calculation_version(self, instance):
+        """Prepare calculation version"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return instance.quality_metrics.calculation_version
+            return '1.0'
+        except Exception as e:
+            logger.warning(f"Error preparing calculation_version for movie {instance.id}: {e}")
+            return '1.0'
+
+    def prepare_overall_quality_rating(self, instance):
+        """Prepare overall quality rating category"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return instance.quality_metrics.overall_quality_rating
+            return 'Not Assessed'
+        except Exception as e:
+            logger.warning(f"Error preparing overall_quality_rating for movie {instance.id}: {e}")
+            return 'Not Assessed'
+
+    def prepare_completion_status(self, instance):
+        """Prepare completion status category"""
+        try:
+            if hasattr(instance, 'quality_metrics') and instance.quality_metrics:
+                return instance.quality_metrics.completion_status
+            return 'Incomplete'
+        except Exception as e:
+            logger.warning(f"Error preparing completion_status for movie {instance.id}: {e}")
+            return 'Incomplete'
+
+    # 📅 SCHEDULING PREPARE METHODS
+    def prepare_scheduling_publish_date(self, instance):
+        """Prepare publish date from MovieScheduling"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.publish_date
+            return None
+        except Exception as e:
+            logger.warning(f"Error preparing scheduling_publish_date for movie {instance.id}: {e}")
+            return None
+
+    def prepare_scheduling_unpublish_date(self, instance):
+        """Prepare unpublish date from MovieScheduling"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.unpublish_date
+            return None
+        except Exception as e:
+            logger.warning(f"Error preparing scheduling_unpublish_date for movie {instance.id}: {e}")
+            return None
+
+    def prepare_scheduling_featured_from(self, instance):
+        """Prepare featured from date from MovieScheduling"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.featured_from
+            return None
+        except Exception as e:
+            logger.warning(f"Error preparing scheduling_featured_from for movie {instance.id}: {e}")
+            return None
+
+    def prepare_scheduling_featured_until(self, instance):
+        """Prepare featured until date from MovieScheduling"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.featured_until
+            return None
+        except Exception as e:
+            logger.warning(f"Error preparing scheduling_featured_until for movie {instance.id}: {e}")
+            return None
+
+    def prepare_auto_publish(self, instance):
+        """Prepare auto publish flag"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.auto_publish
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing auto_publish for movie {instance.id}: {e}")
+            return False
+
+    def prepare_auto_unpublish(self, instance):
+        """Prepare auto unpublish flag"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.auto_unpublish
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing auto_unpublish for movie {instance.id}: {e}")
+            return False
+
+    def prepare_auto_feature(self, instance):
+        """Prepare auto feature flag"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.auto_feature
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing auto_feature for movie {instance.id}: {e}")
+            return False
+
+    def prepare_auto_unfeature(self, instance):
+        """Prepare auto unfeature flag"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.auto_unfeature
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing auto_unfeature for movie {instance.id}: {e}")
+            return False
+
+    def prepare_campaign_name(self, instance):
+        """Prepare campaign name"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.campaign_name or ''
+            return ''
+        except Exception as e:
+            logger.warning(f"Error preparing campaign_name for movie {instance.id}: {e}")
+            return ''
+
+    def prepare_campaign_type(self, instance):
+        """Prepare campaign type"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.campaign_type or ''
+            return ''
+        except Exception as e:
+            logger.warning(f"Error preparing campaign_type for movie {instance.id}: {e}")
+            return ''
+
+    def prepare_campaign_priority(self, instance):
+        """Prepare campaign priority"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.campaign_priority or 0
+            return 0
+        except Exception as e:
+            logger.warning(f"Error preparing campaign_priority for movie {instance.id}: {e}")
+            return 0
+
+    def prepare_campaign_budget(self, instance):
+        """Prepare campaign budget"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return float(instance.scheduling.campaign_budget or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing campaign_budget for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_campaign_start_date(self, instance):
+        """Prepare campaign start date"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.campaign_start_date
+            return None
+        except Exception as e:
+            logger.warning(f"Error preparing campaign_start_date for movie {instance.id}: {e}")
+            return None
+
+    def prepare_campaign_end_date(self, instance):
+        """Prepare campaign end date"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.campaign_end_date
+            return None
+        except Exception as e:
+            logger.warning(f"Error preparing campaign_end_date for movie {instance.id}: {e}")
+            return None
+
+    def prepare_is_published_now(self, instance):
+        """Prepare is published now status"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.is_published_now
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing is_published_now for movie {instance.id}: {e}")
+            return False
+
+    def prepare_is_featured_now(self, instance):
+        """Prepare is featured now status"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.is_featured_now
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing is_featured_now for movie {instance.id}: {e}")
+            return False
+
+    def prepare_is_scheduled_for_publish(self, instance):
+        """Prepare is scheduled for publish status"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.is_scheduled_for_publish
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing is_scheduled_for_publish for movie {instance.id}: {e}")
+            return False
+
+    def prepare_is_scheduled_for_feature(self, instance):
+        """Prepare is scheduled for feature status"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.is_scheduled_for_feature
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing is_scheduled_for_feature for movie {instance.id}: {e}")
+            return False
+
+    def prepare_next_action_date(self, instance):
+        """Prepare next action date"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.next_action_date
+            return None
+        except Exception as e:
+            logger.warning(f"Error preparing next_action_date for movie {instance.id}: {e}")
+            return None
+
+    def prepare_next_scheduled_action(self, instance):
+        """Prepare next scheduled action"""
+        try:
+            if hasattr(instance, 'scheduling') and instance.scheduling:
+                return instance.scheduling.next_scheduled_action or ''
+            return ''
+        except Exception as e:
+            logger.warning(f"Error preparing next_scheduled_action for movie {instance.id}: {e}")
+            return ''
+
+    # 📈 PRODUCTION METRICS PREPARE METHODS
+    def prepare_performance_score(self, instance):
+        """Prepare performance score from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return float(instance.production_metrics.performance_score or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing performance_score for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_trending_score(self, instance):
+        """Prepare trending score from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return float(instance.production_metrics.trending_score or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing trending_score for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_engagement_rate(self, instance):
+        """Prepare engagement rate from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return float(instance.production_metrics.engagement_rate or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing engagement_rate for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_click_through_rate(self, instance):
+        """Prepare click through rate from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return float(instance.production_metrics.click_through_rate or 0)
+            return 0.0
+        except Exception as e:
+            logger.warning(f"Error preparing click_through_rate for movie {instance.id}: {e}")
+            return 0.0
+
+    def prepare_homepage_views(self, instance):
+        """Prepare homepage views from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return instance.production_metrics.homepage_views or 0
+            return 0
+        except Exception as e:
+            logger.warning(f"Error preparing homepage_views for movie {instance.id}: {e}")
+            return 0
+
+    def prepare_detail_page_views(self, instance):
+        """Prepare detail page views from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return instance.production_metrics.detail_page_views or 0
+            return 0
+        except Exception as e:
+            logger.warning(f"Error preparing detail_page_views for movie {instance.id}: {e}")
+            return 0
+
+    def prepare_user_favorites_count(self, instance):
+        """Prepare user favorites count from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return instance.production_metrics.user_favorites_count or 0
+            return 0
+        except Exception as e:
+            logger.warning(f"Error preparing user_favorites_count for movie {instance.id}: {e}")
+            return 0
+
+    def prepare_user_watchlist_count(self, instance):
+        """Prepare user watchlist count from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return instance.production_metrics.user_watchlist_count or 0
+            return 0
+        except Exception as e:
+            logger.warning(f"Error preparing user_watchlist_count for movie {instance.id}: {e}")
+            return 0
+
+    def prepare_trending_category(self, instance):
+        """Prepare trending category from ProductionMetrics"""
+        try:
+            if hasattr(instance, 'production_metrics') and instance.production_metrics:
+                return instance.production_metrics.trending_category or 'stable'
+            return 'stable'
+        except Exception as e:
+            logger.warning(f"Error preparing trending_category for movie {instance.id}: {e}")
+            return 'stable'
+
+    # EXISTING PREPARE METHODS (preserved for backward compatibility)
     def prepare_genres(self, instance):
         """Prepare data for genres field"""
         try:
@@ -201,62 +693,73 @@ class MovieDocument(Document):
             if instance.overview_vi and instance.overview_vi.strip():
                 score += 1
 
-            # Rating data
-            if instance.cached_imdb_rating:
-                score += 3
-            if instance.cached_tmdb_rating:
-                score += 2
+            # Metadata
+            if instance.release_date:
+                score += 1
+            if instance.runtime and instance.runtime > 0:
+                score += 1
+            if instance.status and instance.status != 'UNKNOWN':
+                score += 1
 
-            # Additional content
-            if instance.trailers.filter(type='TRAILER').exists():
-                score += 3
+            # Relationships
             if instance.genres.exists():
+                score += 1
+            if instance.trailers.exists():
                 score += 1
 
             return score
         except Exception as e:
-            logger.warning(f"Error calculating completeness score for movie {instance.id}: {e}")
+            logger.warning(f"Error calculating data completeness score for movie {instance.id}: {e}")
             return 0
 
     def prepare_title(self, instance):
-        """Ensure title is not empty"""
-        return instance.title or instance.original_title or f"Movie {instance.id}"
+        """Prepare title field"""
+        return instance.title_en or instance.title_vi or instance.title or ""
 
     def prepare_cached_imdb_rating(self, instance):
-        """Safely prepare IMDB rating"""
+        """Prepare cached IMDB rating"""
         try:
-            return float(instance.cached_imdb_rating) if instance.cached_imdb_rating else None
-        except (ValueError, TypeError):
-            return None
+            return instance.cached_imdb_rating or 0
+        except Exception as e:
+            logger.warning(f"Error preparing cached_imdb_rating for movie {instance.id}: {e}")
+            return 0
 
     def prepare_cached_tmdb_rating(self, instance):
-        """Safely prepare TMDB rating"""
+        """Prepare cached TMDB rating"""
         try:
-            return float(instance.cached_tmdb_rating) if instance.cached_tmdb_rating else None
-        except (ValueError, TypeError):
-            return None
+            return instance.cached_tmdb_rating or 0
+        except Exception as e:
+            logger.warning(f"Error preparing cached_tmdb_rating for movie {instance.id}: {e}")
+            return 0
 
     def prepare_combined_rating_score(self, instance):
-        """Safely prepare combined rating score"""
+        """Prepare combined rating score"""
         try:
-            return float(instance.combined_rating_score) if instance.combined_rating_score else None
-        except (ValueError, TypeError):
-            return None
+            return instance.combined_rating_score or 0
+        except Exception as e:
+            logger.warning(f"Error preparing combined_rating_score for movie {instance.id}: {e}")
+            return 0
 
     def prepare_approval_status(self, instance):
-        return instance.admin_control.approval_status if hasattr(instance, 'admin_control') and instance.admin_control else None
+        """Prepare approval status"""
+        return getattr(instance, 'approval_status', 'PENDING')
 
     def prepare_admin_featured(self, instance):
-        return instance.admin_control.admin_featured if hasattr(instance, 'admin_control') and instance.admin_control else False
+        """Prepare admin featured flag"""
+        return getattr(instance, 'admin_featured', False)
 
     def prepare_visibility_status(self, instance):
-        return instance.admin_control.visibility_status if hasattr(instance, 'admin_control') and instance.admin_control else None
+        """Prepare visibility status"""
+        return getattr(instance, 'visibility_status', 'DRAFT')
 
     def prepare_is_published(self, instance):
-        return instance.admin_control.is_published if hasattr(instance, 'admin_control') and instance.admin_control else False
+        """Prepare is published flag"""
+        return getattr(instance, 'is_published', False)
 
     def prepare_admin_priority(self, instance):
-        return instance.admin_control.admin_priority if hasattr(instance, 'admin_control') and instance.admin_control else 0
+        """Prepare admin priority"""
+        return getattr(instance, 'admin_priority', 0)
 
     def prepare_created_at(self, instance):
+        """Prepare created at timestamp"""
         return instance.created_at

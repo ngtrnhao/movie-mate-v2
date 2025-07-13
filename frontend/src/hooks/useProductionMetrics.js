@@ -40,7 +40,7 @@ export const useProductionMetrics = (options = {}) => {
           avg_trending_score: metricsResponse.avg_trending_score || 0,
           total_homepage_views: metricsResponse.total_homepage_views || 0,
           total_detail_views: metricsResponse.total_detail_views || 0,
-          total_search_appearances: metricsResponse.total_search_appearances || 0,
+          // total_search_appearances: metricsResponse.total_search_appearances || 0,
           avg_user_favorites: metricsResponse.avg_user_favorites || 0,
           avg_session_duration: metricsResponse.avg_session_duration || 0,
           bounce_rate: metricsResponse.bounce_rate || 0,

@@ -60,7 +60,7 @@ const getProductionMetrics = movie => {
     movie?.production_metrics || {
       homepage_views: 0,
       detail_views: 0,
-      search_appearances: 0,
+      // search_appearances: 0,
       performance_score: 0,
     }
   );
@@ -516,7 +516,7 @@ const MovieManagement = () => {
               </div>
               <div className="flex items-center text-gray-500">
                 <MagnifyingGlassIcon className="mr-1 size-4" />
-                {metrics?.search_appearances || 0}
+                {metrics?.detail_page_views || 0}
               </div>
             </div>
 

@@ -429,30 +429,27 @@ class MovieDocument(Document):
             return 0
 
     def prepare_campaign_budget(self, instance):
-        """Prepare campaign budget"""
+        """Prepare campaign budget - NOT IMPLEMENTED IN MODEL YET"""
         try:
-            if hasattr(instance, 'scheduling') and instance.scheduling:
-                return float(instance.scheduling.campaign_budget or 0)
+            # Return 0 as fallback since campaign_budget field doesn't exist in MovieScheduling model yet
             return 0.0
         except Exception as e:
             logger.warning(f"Error preparing campaign_budget for movie {instance.id}: {e}")
             return 0.0
 
     def prepare_campaign_start_date(self, instance):
-        """Prepare campaign start date"""
+        """Prepare campaign start date - NOT IMPLEMENTED IN MODEL YET"""
         try:
-            if hasattr(instance, 'scheduling') and instance.scheduling:
-                return instance.scheduling.campaign_start_date
+            # Return None as fallback since campaign_start_date field doesn't exist in MovieScheduling model yet
             return None
         except Exception as e:
             logger.warning(f"Error preparing campaign_start_date for movie {instance.id}: {e}")
             return None
 
     def prepare_campaign_end_date(self, instance):
-        """Prepare campaign end date"""
+        """Prepare campaign end date - NOT IMPLEMENTED IN MODEL YET"""
         try:
-            if hasattr(instance, 'scheduling') and instance.scheduling:
-                return instance.scheduling.campaign_end_date
+            # Return None as fallback since campaign_end_date field doesn't exist in MovieScheduling model yet
             return None
         except Exception as e:
             logger.warning(f"Error preparing campaign_end_date for movie {instance.id}: {e}")
@@ -463,17 +460,17 @@ class MovieDocument(Document):
         try:
             if hasattr(instance, 'scheduling') and instance.scheduling:
                 return instance.scheduling.is_published_now
-            return False
+            return instance.is_published if hasattr(instance, 'is_published') else True
         except Exception as e:
             logger.warning(f"Error preparing is_published_now for movie {instance.id}: {e}")
-            return False
+            return True
 
     def prepare_is_featured_now(self, instance):
         """Prepare is featured now status"""
         try:
             if hasattr(instance, 'scheduling') and instance.scheduling:
                 return instance.scheduling.is_featured_now
-            return False
+            return instance.admin_featured if hasattr(instance, 'admin_featured') else False
         except Exception as e:
             logger.warning(f"Error preparing is_featured_now for movie {instance.id}: {e}")
             return False
@@ -482,7 +479,11 @@ class MovieDocument(Document):
         """Prepare is scheduled for publish status"""
         try:
             if hasattr(instance, 'scheduling') and instance.scheduling:
-                return instance.scheduling.is_scheduled_for_publish
+                # Check if there's a future publish date with auto_publish enabled
+                from django.utils import timezone
+                now = timezone.now()
+                if instance.scheduling.auto_publish and instance.scheduling.publish_date:
+                    return instance.scheduling.publish_date > now
             return False
         except Exception as e:
             logger.warning(f"Error preparing is_scheduled_for_publish for movie {instance.id}: {e}")
@@ -492,7 +493,11 @@ class MovieDocument(Document):
         """Prepare is scheduled for feature status"""
         try:
             if hasattr(instance, 'scheduling') and instance.scheduling:
-                return instance.scheduling.is_scheduled_for_feature
+                # Check if there's a future feature date with auto_feature enabled
+                from django.utils import timezone
+                now = timezone.now()
+                if instance.scheduling.auto_feature and instance.scheduling.featured_from:
+                    return instance.scheduling.featured_from > now
             return False
         except Exception as e:
             logger.warning(f"Error preparing is_scheduled_for_feature for movie {instance.id}: {e}")

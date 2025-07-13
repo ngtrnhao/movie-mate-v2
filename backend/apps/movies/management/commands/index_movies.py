@@ -6,6 +6,7 @@ from elasticsearch.helpers import bulk
 from elasticsearch_dsl import connections
 import logging
 import time
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Force reindexing even if document already exists'
         )
+        parser.add_argument(
+            '--all-movies',
+            action='store_true',
+            help='Index ALL movies including those without poster/tmdb_id (717,981 total)'
+        )
 
     def handle(self, *args, **options):
         batch_size = options.get('batch_size', 500)
@@ -70,9 +76,15 @@ class Command(BaseCommand):
         start_id = options.get('start_id')
         end_id = options.get('end_id')
         force = options.get('force', False)
+        all_movies = options.get('all_movies', False)
+
+        # Set internal flag for filtering
+        self._index_all_movies = all_movies
 
         self.stdout.write(self.style.SUCCESS('🚀 Enhanced Movie Indexing with Normalized Structure'))
         self.stdout.write(f'📊 Batch size: {batch_size}')
+        if all_movies:
+            self.stdout.write(self.style.WARNING('🌍 ALL MOVIES MODE: Indexing all 717,981 movies'))
 
         # Check Elasticsearch connection
         try:
@@ -104,7 +116,7 @@ class Command(BaseCommand):
         )
 
         total = movies_queryset.count()
-        self.stdout.write(f'📊 Found {total} movies to index')
+        self.stdout.write(f'📊 Found {total:,} movies to index')
 
         if total == 0:
             self.stdout.write(self.style.WARNING('⚠️ No movies found to index'))
@@ -139,10 +151,10 @@ class Command(BaseCommand):
                 remaining = max(0, estimated_total - elapsed)
 
                 self.stdout.write(
-                    f'📈 Progress: {progress:.1f}% ({batch_end}/{total}) - '
-                    f'✅ Indexed: {indexed_count} | '
-                    f'❌ Errors: {error_count} | '
-                    f'⏭️ Skipped: {skipped_count} | '
+                    f'📈 Progress: {progress:.1f}% ({batch_end:,}/{total:,}) - '
+                    f'✅ Indexed: {indexed_count:,} | '
+                    f'❌ Errors: {error_count:,} | '
+                    f'⏭️ Skipped: {skipped_count:,} | '
                     f'⏰ ETA: {remaining:.0f}s'
                 )
 
@@ -157,9 +169,9 @@ class Command(BaseCommand):
         total_time = time.time() - start_time
         self.stdout.write(self.style.SUCCESS(f'🎉 Indexing completed in {total_time:.1f}s'))
         self.stdout.write(f'📊 Final stats:')
-        self.stdout.write(f'  ✅ Successfully indexed: {indexed_count}')
-        self.stdout.write(f'  ❌ Errors: {error_count}')
-        self.stdout.write(f'  ⏭️ Skipped: {skipped_count}')
+        self.stdout.write(f'  ✅ Successfully indexed: {indexed_count:,}')
+        self.stdout.write(f'  ❌ Errors: {error_count:,}')
+        self.stdout.write(f'  ⏭️ Skipped: {skipped_count:,}')
         self.stdout.write(f'  🚀 Rate: {indexed_count/total_time:.1f} docs/sec')
 
         # Verify index integrity
@@ -188,14 +200,14 @@ class Command(BaseCommand):
             'movieimage_set'
         )
 
-        # Filter by essential data for quality indexing
-        queryset = queryset.filter(
-            poster_url__isnull=False,
-            title__isnull=False,
-        ).exclude(
-            poster_url__exact='',
-            title__exact=''
-        )
+        # Minimal filter - only exclude movies without basic title or completely empty titles
+        # This allows indexing of ALL movies (717,981 total)
+        if not self._index_all_movies:
+            queryset = queryset.filter(
+                title__isnull=False,
+            ).exclude(
+                title__exact=''
+            )
 
         # Quality metrics filtering
         if quality_metrics_only:
@@ -292,7 +304,14 @@ class Command(BaseCommand):
 
     def _should_skip_movie(self, movie):
         """Determine if a movie should be skipped during indexing"""
-        # Skip movies without essential data
+        # If --all-movies flag is used, skip very few movies
+        if hasattr(self, '_index_all_movies') and self._index_all_movies:
+            # Only skip movies with completely empty titles
+            if not movie.title or movie.title.strip() == '':
+                return True
+            return False
+        
+        # Default behavior: Skip movies without essential data
         if not movie.poster_url or not movie.title:
             return True
 

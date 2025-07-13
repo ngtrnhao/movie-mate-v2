@@ -112,7 +112,7 @@ class Command(BaseCommand):
             self.stdout.write(f'  • Homepage Views: {metrics_data["homepage_views"]:,}')
             self.stdout.write(f'  • Detail Page Views: {metrics_data["detail_page_views"]:,}')
             self.stdout.write(f'  • Trailer Plays: {metrics_data["trailer_plays"]:,}')
-            self.stdout.write(f'  • Estimated Favorites: {metrics_data["estimated_favorites_count"]:,}')
+            self.stdout.write(f'  • Estimated Favorites: {metrics_data["favorites_count"]:,}')
             self.stdout.write(f'  • Reviews Count: {metrics_data["reviews_count"]:,}')
             self.stdout.write(f'  • Total Engagement: {metrics_data["total_engagement_count"]:,}')
 
@@ -156,7 +156,7 @@ class Command(BaseCommand):
             # Only movies without production metrics or with outdated metrics
             queryset = Movie.objects.filter(
                 models.Q(production_metrics__isnull=True) |
-                models.Q(production_metrics__last_metrics_update__isnull=True)
+                models.Q(production_metrics__last_calculated_at__isnull=True)
             )
             description = "movies without production metrics"
 

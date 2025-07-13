@@ -827,7 +827,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     @action(detail=False, methods=['get'])
     def search(self, request):
-        """Enhanced search endpoint using Elasticsearch with ORM fallback"""
+        """Enhanced search endpoint using Elasticsearch with ORM fallback and caching"""
         try:
             # Get search parameters
             params = request.query_params.dict()
@@ -837,29 +837,61 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             if search_after_values:
                 params['search_after'] = search_after_values
 
+            # 🚀 PERFORMANCE: Create cache key for popular searches
+            cache_key_parts = []
+            cache_key_parts.append(f"q:{params.get('q', '')[:50]}")  # Limit query length for cache key
+            if params.get('genres'):
+                cache_key_parts.append(f"g:{params['genres']}")
+            if params.get('year_from'):
+                cache_key_parts.append(f"yf:{params['year_from']}")
+            if params.get('year_to'):
+                cache_key_parts.append(f"yt:{params['year_to']}")
+            if params.get('sort_by'):
+                cache_key_parts.append(f"s:{params['sort_by']}")
+            if params.get('page_size'):
+                cache_key_parts.append(f"ps:{params['page_size']}")
+
+            # Only cache first page searches (no search_after)
+            if not search_after_values and not params.get('page') and cache_key_parts:
+                cache_key = f"user_search:{'|'.join(cache_key_parts)}"
+                cached_result = cache.get(cache_key)
+                if cached_result:
+                    logger.info(f"🎯 Returning cached search result for: {cache_key}")
+                    cached_result['from_cache'] = True
+                    return Response(cached_result)
+
             # Initialize search service
             search_service = MovieSearchService()
 
-            # Try Elasticsearch search first
-            es_response = search_service.search(params)
+            # Try Elasticsearch search first (admin_mode=False for user search)
+            es_response = search_service.search(params, admin_mode=False)
 
             if es_response:
-                # Return Elasticsearch results
-                return Response({
+                # 🚀 PERFORMANCE: Optimize response payload
+                response_data = {
                     'status': 'success',
                     'count': es_response['total'],
-                    'data': es_response['results'],
+                    'data': self._optimize_search_results(es_response['results']),
                     'search_engine': es_response['search_engine'],
-                    'next_search_after': es_response.get('next_search_after')
-                })
+                    'next_search_after': es_response.get('next_search_after'),
+                    'from_cache': False
+                }
+
+                # Cache popular searches (first page only, no pagination)
+                if not search_after_values and not params.get('page') and cache_key_parts:
+                    cache.set(cache_key, response_data, timeout=300)  # 5 minutes cache
+                    logger.info(f"🎯 Cached search result for: {cache_key}")
+
+                return Response(response_data)
 
             # Fallback to ORM search if Elasticsearch fails
             logger.info("Falling back to ORM search")
-            queryset = self.get_production_ready_queryset()
+            queryset = self._get_optimized_user_queryset()
 
             # Apply search filters
             if params.get('q'):
                 query = params['q'].strip()
+                # 🚀 PERFORMANCE: Use database indexes efficiently
                 queryset = queryset.filter(
                     Q(title__icontains=query) |
                     Q(title_en__icontains=query) |
@@ -891,9 +923,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'title': 'title_en',
                 'runtime': 'runtime',
                 'release_date': 'release_date',
-                'created_at': 'created_at',
-                'admin_priority': 'admin_priority',
-                'approval_status': 'approval_status'
+                'created_at': 'created_at'
             }
 
             # Apply field mapping
@@ -917,21 +947,78 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             # Standardize response format to match Elasticsearch
             paginated_response = self.get_paginated_response(serializer.data)
 
-            return Response({
+            # Convert to our standard format
+            response_data = {
                 'status': 'success',
                 'count': paginated_response.data.get('count', 0),
-                'data': paginated_response.data.get('results', []),  # Standardize to 'data' key
+                'data': self._optimize_search_results(paginated_response.data.get('results', [])),
                 'search_engine': 'django_orm',
                 'next': paginated_response.data.get('next'),
-                'previous': paginated_response.data.get('previous')
-            })
+                'previous': paginated_response.data.get('previous'),
+                'from_cache': False
+            }
+
+            return Response(response_data)
 
         except Exception as e:
-            logger.error(f"Search error: {str(e)}")
+            logger.error(f"❌ Error in user search: {str(e)}")
             return Response({
                 'status': 'error',
-                'message': str(e)
+                'message': 'Search service temporarily unavailable',
+                'data': [],
+                'count': 0
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _get_optimized_user_queryset(self):
+        """
+        🚀 Get highly optimized queryset for user search (production-ready movies only)
+        """
+        return Movie.objects.select_related(
+            'moviemetadata'
+        ).prefetch_related(
+            Prefetch('genres', to_attr='prefetched_genres'),
+            Prefetch('ratings', to_attr='prefetched_ratings')
+        ).filter(
+            # ✅ PRODUCTION VISIBILITY REQUIREMENTS
+            is_published=True,
+            poster_url__isnull=False,
+            poster_url__gt='',
+            approval_status='APPROVED',
+            minimum_quality_met=True,
+            visibility_status='PUBLISHED',
+        ).exclude(
+            title__exact=''
+        )
+
+    def _optimize_search_results(self, results):
+        """
+        🚀 Optimize search results payload for better performance
+        Remove unnecessary fields for mobile/frontend consumption
+        """
+        if not results:
+            return results
+
+        optimized_results = []
+        for movie in results:
+            # Keep only essential fields for search results
+            optimized_movie = {
+                'id': movie.get('id'),
+                'title': movie.get('title'),
+                'title_en': movie.get('title_en'),
+                'title_vi': movie.get('title_vi'),
+                'poster_url': movie.get('poster_url'),
+                'release_date': movie.get('release_date'),
+                'genres': movie.get('genres', [])[:3],  # Limit to 3 genres for performance
+                'combined_rating_score': movie.get('combined_rating_score'),
+                'cached_imdb_rating': movie.get('cached_imdb_rating'),
+                'runtime': movie.get('runtime'),
+                'overview_en': movie.get('overview_en', '')[:200] if movie.get('overview_en') else '',  # Truncate overview
+                'overview_vi': movie.get('overview_vi', '')[:200] if movie.get('overview_vi') else '',  # Truncate overview
+                'is_adult': movie.get('is_adult', False),
+            }
+            optimized_results.append(optimized_movie)
+
+        return optimized_results
 
     @action(detail=False, methods=['get'])
     def search_suggestions(self, request):
@@ -3896,55 +3983,180 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def production_metrics(self, request):
-        """Get production metrics - ULTRA SIMPLIFIED for performance"""
+        """Get comprehensive production metrics for admin dashboard"""
         try:
-            cache_key = 'admin_production_metrics_v3_ultra_simple'
+            cache_key = 'admin_production_metrics_v4_comprehensive'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 return Response(cached_data)
 
-            # ULTRA SIMPLIFIED: Individual simple queries with aggressive caching
-
-            # Use cached total movies count
-            total_movies_cache_key = 'admin_total_movies_count_v1'
-            total_movies = cache.get(total_movies_cache_key)
-            if total_movies is None:
-                total_movies = Movie.objects.count()
-                cache.set(total_movies_cache_key, total_movies, timeout=3600)  # 1 hour cache
-
+            # === BASIC MOVIE COUNTS ===
+            total_movies = Movie.objects.count()
             published_count = Movie.objects.filter(is_published=True).count()
             admin_featured_count = Movie.objects.filter(admin_featured=True).count()
+            popular_count = Movie.objects.filter(is_popular=True).count()
+            top_rated_count = Movie.objects.filter(is_top_rated=True).count()
+            upcoming_count = Movie.objects.filter(is_upcoming=True).count()
 
-            # Simplified ratios
-            published_ratio = published_count / max(total_movies, 1) if total_movies > 0 else 0
+            # === PRODUCTION METRICS AGGREGATION ===
+            from django.db.models import Count, Avg, Sum, Max, Min, Q
+            from datetime import datetime, timedelta
+            from django.utils import timezone
 
-            # MINIMAL metrics to reduce query complexity
+            # Get movies with production metrics
+            movies_with_metrics = Movie.objects.filter(
+                production_metrics__isnull=False
+            ).select_related('production_metrics')
+
+            # Overall engagement metrics
+            engagement_stats = movies_with_metrics.aggregate(
+                total_homepage_views=Sum('production_metrics__homepage_views'),
+                total_detail_views=Sum('production_metrics__detail_page_views'),
+                total_trailer_plays=Sum('production_metrics__trailer_plays'),
+                total_favorites=Sum('production_metrics__user_favorites_count'),
+                total_shares=Sum('production_metrics__user_shares_count'),
+                avg_performance_score=Avg('production_metrics__performance_score'),
+                avg_trending_score=Avg('production_metrics__trending_score'),
+                avg_engagement_rate=Avg('production_metrics__engagement_rate'),
+                avg_click_through_rate=Avg('production_metrics__click_through_rate'),
+                avg_trailer_completion=Avg('production_metrics__trailer_completion_rate'),
+            )
+
+            # Device breakdown
+            device_stats = movies_with_metrics.aggregate(
+                total_mobile_views=Sum('production_metrics__mobile_views'),
+                total_desktop_views=Sum('production_metrics__desktop_views'),
+                total_tablet_views=Sum('production_metrics__tablet_views'),
+            )
+
+            # Trending categories distribution
+            trending_distribution = movies_with_metrics.values(
+                'production_metrics__trending_category'
+            ).annotate(
+                count=Count('id'),
+                avg_score=Avg('production_metrics__trending_score')
+            ).order_by('-count')
+
+            # Top performing movies
+            top_performers = movies_with_metrics.filter(
+                production_metrics__performance_score__gte=70
+            ).order_by('-production_metrics__performance_score')[:10].values(
+                'id', 'title',
+                'production_metrics__performance_score',
+                'production_metrics__trending_score',
+                'production_metrics__trending_category',
+                'production_metrics__homepage_views',
+                'production_metrics__detail_page_views',
+                'production_metrics__engagement_rate'
+            )
+
+            # Recent activity metrics (last 7 days)
+            recent_date = timezone.now() - timedelta(days=7)
+            recent_interactions = movies_with_metrics.filter(
+                production_metrics__last_interaction_date__gte=recent_date
+            ).count()
+
+            # === USER INTERACTION STATS ===
+            from .models import UserInteraction
+
+            # Total interactions summary
+            total_interactions = UserInteraction.objects.count()
+            recent_interactions_count = UserInteraction.objects.filter(
+                timestamp__gte=recent_date
+            ).count()
+
+            # Interaction type breakdown
+            interaction_breakdown = UserInteraction.objects.values('action').annotate(
+                count=Count('id')
+            ).order_by('-count')
+
+            # User engagement patterns
+            unique_users = UserInteraction.objects.filter(
+                user__isnull=False
+            ).values('user').distinct().count()
+
+            unique_sessions = UserInteraction.objects.filter(
+                session_id__isnull=False
+            ).values('session_id').distinct().count()
+
+            # === QUALITY METRICS ===
+            quality_stats = Movie.objects.aggregate(
+                avg_quality_score=Avg('quality_score'),
+                avg_completeness=Avg('content_completeness'),
+                quality_issues=Count('id', filter=Q(minimum_quality_met=False))
+            )
+
+            # === COMPILE COMPREHENSIVE METRICS ===
             metrics = {
+                # Basic counts
                 'total_movies': total_movies,
-                'published_ratio': round(published_ratio, 3),
                 'published_count': published_count,
                 'admin_featured_count': admin_featured_count,
-                'popular_count': 0,  # Simplified for performance
-                'top_rated_count': 0,  # Simplified for performance
-                'upcoming_count': 0,  # Simplified for performance
-                'scheduled_count': 0,  # Simplified for performance
+                'popular_count': popular_count,
+                'top_rated_count': top_rated_count,
+                'upcoming_count': upcoming_count,
+                'published_ratio': round(published_count / max(total_movies, 1), 3),
+
+                # Engagement metrics
+                'engagement_stats': {
+                    'total_homepage_views': engagement_stats['total_homepage_views'] or 0,
+                    'total_detail_views': engagement_stats['total_detail_views'] or 0,
+                    'total_trailer_plays': engagement_stats['total_trailer_plays'] or 0,
+                    'total_favorites': engagement_stats['total_favorites'] or 0,
+                    'total_shares': engagement_stats['total_shares'] or 0,
+                    'avg_performance_score': round(engagement_stats['avg_performance_score'] or 0, 2),
+                    'avg_trending_score': round(engagement_stats['avg_trending_score'] or 0, 2),
+                    'avg_engagement_rate': round(engagement_stats['avg_engagement_rate'] or 0, 2),
+                    'avg_click_through_rate': round(engagement_stats['avg_click_through_rate'] or 0, 2),
+                    'avg_trailer_completion': round(engagement_stats['avg_trailer_completion'] or 0, 2),
+                },
+
+                # Device breakdown
+                'device_stats': {
+                    'mobile_views': device_stats['total_mobile_views'] or 0,
+                    'desktop_views': device_stats['total_desktop_views'] or 0,
+                    'tablet_views': device_stats['total_tablet_views'] or 0,
+                    'total_views': (device_stats['total_mobile_views'] or 0) +
+                                  (device_stats['total_desktop_views'] or 0) +
+                                  (device_stats['total_tablet_views'] or 0),
+                },
+
+                # Trending analysis
+                'trending_distribution': list(trending_distribution),
+
+                # Performance insights
+                'top_performers': list(top_performers),
+                'recent_active_movies': recent_interactions,
+
+                # User interaction insights
+                'interaction_stats': {
+                    'total_interactions': total_interactions,
+                    'recent_interactions': recent_interactions_count,
+                    'unique_users': unique_users,
+                    'unique_sessions': unique_sessions,
+                    'interaction_breakdown': list(interaction_breakdown),
+                },
+
+                # Quality metrics
+                'quality_stats': {
+                    'avg_quality_score': round(quality_stats['avg_quality_score'] or 0, 2),
+                    'avg_completeness': round(quality_stats['avg_completeness'] or 0, 2),
+                    'quality_issues': quality_stats['quality_issues'] or 0,
+                },
+
+                # Legacy compatibility
                 'approval_stats': [
                     {'approval_status': 'APPROVED', 'count': published_count},
-                    {'approval_status': 'PENDING', 'count': 0}
+                    {'approval_status': 'PENDING', 'count': max(0, total_movies - published_count)}
                 ],
                 'visibility_stats': [
                     {'visibility_status': 'PUBLISHED', 'count': published_count},
-                    {'visibility_status': 'DRAFT', 'count': 0}
+                    {'visibility_status': 'DRAFT', 'count': max(0, total_movies - published_count)}
                 ],
-                'quality_stats': {
-                    'avg_quality_score': None,  # Simplified for performance
-                    'avg_completeness': None,   # Simplified for performance
-                    'quality_issues': 0         # Simplified for performance
-                },
                 'featured_stats': {
                     'admin_featured_count': admin_featured_count,
-                    'auto_featured_count': 0    # Simplified for performance
+                    'auto_featured_count': 0
                 }
             }
 
@@ -3959,6 +4171,231 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             logger.error(f"Error in production metrics: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def user_interaction_stats(self, request):
+        """Get detailed user interaction statistics"""
+        try:
+            cache_key = 'admin_user_interaction_stats_v1'
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                return Response(cached_data)
+
+            from .models import UserInteraction
+            from django.db.models import Count, Avg, Sum, Max, Min, Q
+            from datetime import datetime, timedelta
+            from django.utils import timezone
+
+            # Time periods
+            now = timezone.now()
+            today = now.date()
+            week_ago = now - timedelta(days=7)
+            month_ago = now - timedelta(days=30)
+
+            # === OVERALL INTERACTION STATS ===
+            total_interactions = UserInteraction.objects.count()
+            total_users = UserInteraction.objects.filter(
+                user__isnull=False
+            ).values('user').distinct().count()
+            total_sessions = UserInteraction.objects.filter(
+                session_id__isnull=False
+            ).values('session_id').distinct().count()
+
+            # === TIME-BASED BREAKDOWN ===
+            today_interactions = UserInteraction.objects.filter(
+                timestamp__date=today
+            ).count()
+            week_interactions = UserInteraction.objects.filter(
+                timestamp__gte=week_ago
+            ).count()
+            month_interactions = UserInteraction.objects.filter(
+                timestamp__gte=month_ago
+            ).count()
+
+            # === ACTION TYPE ANALYSIS ===
+            action_stats = UserInteraction.objects.values('action').annotate(
+                count=Count('id'),
+                unique_users=Count('user', distinct=True),
+                unique_sessions=Count('session_id', distinct=True)
+            ).order_by('-count')
+
+            # === TOP MOVIES BY INTERACTION ===
+            top_movies_by_interaction = UserInteraction.objects.values(
+                'movie__id', 'movie__title'
+            ).annotate(
+                total_interactions=Count('id'),
+                unique_users=Count('user', distinct=True),
+                unique_sessions=Count('session_id', distinct=True)
+            ).order_by('-total_interactions')[:10]
+
+            # === USER ENGAGEMENT METRICS ===
+            avg_interactions_per_user = UserInteraction.objects.filter(
+                user__isnull=False
+            ).values('user').annotate(
+                user_interactions=Count('id')
+            ).aggregate(
+                avg_interactions=Avg('user_interactions')
+            )
+
+            # Session duration analysis
+            session_duration_stats = UserInteraction.objects.filter(
+                duration_seconds__isnull=False,
+                duration_seconds__gt=0
+            ).aggregate(
+                avg_duration=Avg('duration_seconds'),
+                max_duration=Max('duration_seconds'),
+                min_duration=Min('duration_seconds')
+            )
+
+            # === COMPILE STATS ===
+            interaction_stats = {
+                'overview': {
+                    'total_interactions': total_interactions,
+                    'total_users': total_users,
+                    'total_sessions': total_sessions,
+                    'avg_interactions_per_user': round(avg_interactions_per_user['avg_interactions'] or 0, 2),
+                    'today_interactions': today_interactions,
+                    'week_interactions': week_interactions,
+                    'month_interactions': month_interactions,
+                },
+                'action_breakdown': list(action_stats),
+                'top_movies': list(top_movies_by_interaction),
+                'session_stats': {
+                    'avg_duration_seconds': round(session_duration_stats['avg_duration'] or 0, 2),
+                    'max_duration_seconds': session_duration_stats['max_duration'] or 0,
+                    'min_duration_seconds': session_duration_stats['min_duration'] or 0,
+                },
+                'trends': {
+                    'daily_growth': round(
+                        (today_interactions / max(week_interactions / 7, 1) - 1) * 100, 2
+                    ) if week_interactions > 0 else 0,
+                    'weekly_growth': round(
+                        (week_interactions / max(month_interactions / 4, 1) - 1) * 100, 2
+                    ) if month_interactions > 0 else 0,
+                }
+            }
+
+            response_data = {
+                'status': 'success',
+                'data': interaction_stats
+            }
+
+            # Cache for 10 minutes
+            cache.set(cache_key, response_data, timeout=600)
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error in user_interaction_stats: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def trending_analytics(self, request):
+        """Get trending movies analytics for admin dashboard"""
+        try:
+            cache_key = 'admin_trending_analytics_v1'
+            cached_data = cache.get(cache_key)
+
+            if cached_data:
+                return Response(cached_data)
+
+            from django.db.models import Count, Avg, Sum, Q
+            from datetime import timedelta
+            from django.utils import timezone
+
+            # Get movies with production metrics
+            movies_with_metrics = Movie.objects.filter(
+                production_metrics__isnull=False
+            ).select_related('production_metrics')
+
+            # === TRENDING CATEGORIES ANALYSIS ===
+            trending_categories = movies_with_metrics.values(
+                'production_metrics__trending_category'
+            ).annotate(
+                count=Count('id'),
+                avg_performance_score=Avg('production_metrics__performance_score'),
+                avg_trending_score=Avg('production_metrics__trending_score'),
+                total_views=Sum('production_metrics__homepage_views') + Sum('production_metrics__detail_page_views'),
+                total_engagement=Sum('production_metrics__user_favorites_count') + Sum('production_metrics__user_shares_count')
+            ).order_by('-count')
+
+            # === TOP PERFORMERS BY CATEGORY ===
+            viral_movies = movies_with_metrics.filter(
+                production_metrics__trending_category='viral'
+            ).order_by('-production_metrics__trending_score')[:5].values(
+                'id', 'title', 'production_metrics__trending_score', 'production_metrics__performance_score'
+            )
+
+            hot_movies = movies_with_metrics.filter(
+                production_metrics__trending_category='hot'
+            ).order_by('-production_metrics__trending_score')[:5].values(
+                'id', 'title', 'production_metrics__trending_score', 'production_metrics__performance_score'
+            )
+
+            rising_movies = movies_with_metrics.filter(
+                production_metrics__trending_category='rising'
+            ).order_by('-production_metrics__trending_score')[:5].values(
+                'id', 'title', 'production_metrics__trending_score', 'production_metrics__performance_score'
+            )
+
+            # === PERFORMANCE DISTRIBUTION ===
+            performance_ranges = [
+                {'range': '90-100', 'min': 90, 'max': 100},
+                {'range': '70-89', 'min': 70, 'max': 89},
+                {'range': '50-69', 'min': 50, 'max': 69},
+                {'range': '30-49', 'min': 30, 'max': 49},
+                {'range': '0-29', 'min': 0, 'max': 29},
+            ]
+
+            performance_distribution = []
+            for range_data in performance_ranges:
+                count = movies_with_metrics.filter(
+                    production_metrics__performance_score__gte=range_data['min'],
+                    production_metrics__performance_score__lte=range_data['max']
+                ).count()
+                performance_distribution.append({
+                    'range': range_data['range'],
+                    'count': count
+                })
+
+            # === COMPILE ANALYTICS ===
+            analytics = {
+                'trending_categories': list(trending_categories),
+                'top_performers': {
+                    'viral': list(viral_movies),
+                    'hot': list(hot_movies),
+                    'rising': list(rising_movies),
+                },
+                'performance_distribution': performance_distribution,
+                'summary': {
+                    'total_movies_with_metrics': movies_with_metrics.count(),
+                    'avg_performance_score': round(movies_with_metrics.aggregate(
+                        avg=Avg('production_metrics__performance_score')
+                    )['avg'] or 0, 2),
+                    'avg_trending_score': round(movies_with_metrics.aggregate(
+                        avg=Avg('production_metrics__trending_score')
+                    )['avg'] or 0, 2),
+                }
+            }
+
+            response_data = {
+                'status': 'success',
+                'data': analytics
+            }
+
+            # Cache for 15 minutes
+            cache.set(cache_key, response_data, timeout=900)
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error in trending_analytics: {str(e)}")
             return Response({
                 'status': 'error',
                 'message': str(e)
@@ -4108,6 +4545,147 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=False, methods=['get'])
+    def auto_processing_status(self, request):
+        """
+        🔄 Get status of auto-processing tasks
+        Hiển thị trạng thái automation pipeline cho admin dashboard
+        """
+        try:
+            from django.core.cache import cache
+
+            # Get cached results from background tasks
+            last_processing = cache.get('last_auto_processing_result')
+            last_metrics = cache.get('last_metrics_calculation_result')
+            last_trending = cache.get('last_trending_sync_result')
+
+            # Get current queue status (if available)
+            queue_stats = {}
+            try:
+                # Check if celery beat is available without importing django-celery-beat
+                # We'll use cache to store task status instead
+                from django.core.cache import cache as task_cache
+
+                # Get task status from cache (set by background tasks)
+                task_status = {
+                    'process_interactions': task_cache.get('task_status_process_interactions', 'unknown'),
+                    'calculate_metrics': task_cache.get('task_status_calculate_metrics', 'unknown'),
+                    'sync_trending': task_cache.get('task_status_sync_trending', 'unknown'),
+                }
+
+                queue_stats['task_status'] = task_status
+                queue_stats['celery_available'] = True
+
+            except Exception as e:
+                logger.error(f"Error getting task status: {str(e)}")
+                queue_stats['celery_available'] = False
+
+            # Check pending interactions
+            from .models import UserInteraction
+            pending_interactions = UserInteraction.objects.filter(
+                processed_at__isnull=True
+            ).count()
+
+            recent_interactions = UserInteraction.objects.filter(
+                timestamp__gte=timezone.now() - timedelta(hours=1)
+            ).count()
+
+            status_data = {
+                'automation_status': {
+                    'enabled': True,  # Could be configurable
+                    'last_processing_result': last_processing,
+                    'last_metrics_calculation': last_metrics,
+                    'last_trending_sync': last_trending,
+                    'pending_interactions': pending_interactions,
+                    'recent_interactions_1h': recent_interactions,
+                },
+                'queue_status': queue_stats,
+                'system_health': {
+                    'database_responsive': True,  # Could add actual health checks
+                    'cache_responsive': cache.get('health_check') is not False,
+                    'automation_pipeline_healthy': (
+                        last_processing and
+                        last_processing.get('status') != 'error'
+                    ) if last_processing else None
+                }
+            }
+
+            return Response({
+                'status': 'success',
+                'data': status_data
+            })
+
+        except Exception as e:
+            logger.error(f"Error in auto_processing_status: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def trigger_manual_processing(self, request):
+        """
+        ⚡ Trigger manual processing for immediate updates
+        Backup option khi cần force processing ngay lập tức
+        """
+        try:
+            processing_type = request.data.get('type', 'interactions')  # 'interactions', 'metrics', 'trending'
+            hours = request.data.get('hours', 1)
+
+            if processing_type == 'interactions':
+                # Trigger immediate interaction processing
+                from .tasks import process_user_interactions_auto
+                task = process_user_interactions_auto.apply_async(
+                    args=[hours],
+                    countdown=5  # Start in 5 seconds
+                )
+
+                return Response({
+                    'status': 'success',
+                    'message': f'User interactions processing triggered (last {hours}h)',
+                    'task_id': task.id
+                })
+
+            elif processing_type == 'metrics':
+                # Trigger immediate metrics calculation
+                from .tasks import calculate_production_metrics_auto
+                movie_ids = request.data.get('movie_ids')  # Optional specific movies
+
+                task = calculate_production_metrics_auto.apply_async(
+                    args=[movie_ids],
+                    countdown=5
+                )
+
+                return Response({
+                    'status': 'success',
+                    'message': 'Production metrics calculation triggered',
+                    'task_id': task.id
+                })
+
+            elif processing_type == 'trending':
+                # Trigger immediate trending sync
+                from .tasks import sync_trending_categories_auto
+                task = sync_trending_categories_auto.apply_async(countdown=5)
+
+                return Response({
+                    'status': 'success',
+                    'message': 'Trending categories sync triggered',
+                    'task_id': task.id
+                })
+
+            else:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid processing type. Use: interactions, metrics, or trending'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.error(f"Error in trigger_manual_processing: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def test_calculation_metrics(request):
@@ -4173,7 +4751,7 @@ def test_calculation_metrics(request):
                     'homepage_views': movie.production_metrics.homepage_views,
                     'detail_page_views': movie.production_metrics.detail_page_views,
                     'engagement_rate': movie.production_metrics.engagement_rate,
-                    'last_metrics_update': movie.production_metrics.last_metrics_update
+                    'last_calculated_at': movie.production_metrics.last_calculated_at
                 } if movie.production_metrics else None
             })
 

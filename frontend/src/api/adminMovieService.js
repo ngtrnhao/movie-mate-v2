@@ -46,6 +46,30 @@ export const getProductionMetrics = async () => {
   }
 };
 
+/**
+ * Get user interaction statistics for admin dashboard
+ */
+export const getUserInteractionStats = async () => {
+  try {
+    const response = await axiosInstance.get('/api/admin/movies/user_interaction_stats/');
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'fetch user interaction stats');
+  }
+};
+
+/**
+ * Get trending analytics for admin dashboard
+ */
+export const getTrendingAnalytics = async () => {
+  try {
+    const response = await axiosInstance.get('/api/admin/movies/trending_analytics/');
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'fetch trending analytics');
+  }
+};
+
 // === MOVIE MANAGEMENT ===
 
 /**
@@ -354,6 +378,31 @@ export const bulkRemoveUpcomingMovies = async movieIds => {
 /**
  * Clear admin movie cache (if implemented)
  */
+
+/**
+ * 🔄 Get auto-processing status for admin dashboard
+ */
+export const getAutoProcessingStatus = async () => {
+  try {
+    const response = await axiosInstance.get('/api/admin/movies/auto_processing_status/');
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'fetch auto-processing status');
+  }
+};
+
+/**
+ * ⚡ Trigger manual processing (interactions, metrics, trending)
+ */
+export const triggerManualProcessing = async data => {
+  try {
+    const response = await axiosInstance.post('/api/admin/movies/trigger_manual_processing/', data);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'trigger manual processing');
+  }
+};
+
 export const clearAdminMovieCache = () => {
   // Future implementation for caching admin data
   console.log('Admin movie cache cleared');
@@ -372,6 +421,8 @@ export default {
   // Dashboard
   getDashboardOverview,
   getProductionMetrics,
+  getUserInteractionStats,
+  getTrendingAnalytics,
 
   // Movie Management
   getAdminMovies,
@@ -404,6 +455,10 @@ export default {
   bulkRemoveTopRatedMovies,
   bulkSetUpcomingMovies,
   bulkRemoveUpcomingMovies,
+
+  // Auto-Processing
+  getAutoProcessingStatus,
+  triggerManualProcessing,
 
   // Cache
   clearAdminMovieCache,

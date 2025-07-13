@@ -1,4 +1,4 @@
-import { memo, useMemo, useCallback, useState, useRef, useEffect } from 'react';
+import React, { memo, useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Actions from './Actions';
@@ -12,6 +12,7 @@ import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { getDisplayTitle, getDisplayOverview } from '../../../utils/titleUtils';
 import animationCache from '../../../utils/animationCache';
 import useUserTracking from '../../../hooks/useUserTracking';
+import userInteractionService from '../../../services/userInteractionService';
 
 // Slide up animation variants
 const posterVariants = {
@@ -34,9 +35,14 @@ const MovieCard = memo(
     const cardRef = useRef(null);
     const viewObserverRef = useRef(null);
 
-    // Initialize user tracking
-    const { trackHomepageView, trackMovieClick, trackTrailerView, createViewObserver } =
-      useUserTracking();
+    // Initialize user tracking with memoized functions
+    const { trackMovieClick, trackTrailerView } = useUserTracking();
+
+    // Memoize trackHomepageView to prevent unnecessary useEffect re-runs
+    const trackHomepageViewMemoized = useCallback((movieId, metadata) => {
+      if (!movieId) return;
+      userInteractionService.trackHomepageView(movieId, metadata);
+    }, []);
 
     // Memoize stable movie data to prevent re-calculations
     const movieData = useMemo(
@@ -151,20 +157,52 @@ const MovieCard = memo(
 
     // Setup intersection observer for homepage view tracking
     useEffect(() => {
+      let timeoutId = null;
+
       if (cardRef.current && movieData.id && !minimal) {
-        viewObserverRef.current = createViewObserver(cardRef.current, movieData.id, {
-          component: 'movie_card',
-          position: index,
-          page_type: 'homepage',
-        });
+        // Create observer directly without using createViewObserver from hook
+        // to avoid dependency issues
+        const observer = new IntersectionObserver(
+          entries => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                // Clear any existing timeout to prevent multiple calls
+                if (timeoutId) {
+                  clearTimeout(timeoutId);
+                }
+
+                // Use timeout to avoid too frequent calls
+                timeoutId = setTimeout(() => {
+                  trackHomepageViewMemoized(movieData.id, {
+                    component: 'movie_card',
+                    position: index,
+                    page_type: 'homepage',
+                  });
+                }, 1000); // 1 second delay
+              }
+            });
+          },
+          {
+            threshold: 0.5,
+            rootMargin: '0px 0px -10% 0px',
+          }
+        );
+
+        observer.observe(cardRef.current);
+        viewObserverRef.current = observer;
       }
 
       return () => {
+        // Clear timeout to prevent memory leaks and tracking calls for unmounted components
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
         if (viewObserverRef.current) {
           viewObserverRef.current.disconnect();
         }
       };
-    }, [movieData.id, index, minimal, createViewObserver]);
+    }, [movieData.id, index, minimal, trackHomepageViewMemoized]); // Removed createViewObserver from deps
 
     // Minimal rendering cho fast scroll - chỉ hiển thị poster và title
     if (minimal) {

@@ -369,7 +369,8 @@ class UserDataCollectionService:
             logger.info(f"✅ Processed {processed_count} interactions for {movies_processed} movies")
             return {
                 'processed_interactions': processed_count,
-                'movies_processed': movies_processed
+                'movies_processed': movies_processed,
+                'movie_ids': [movie.id for movie in movies_interactions.keys()]  # Return actual movie IDs
             }
 
         except Exception as e:
@@ -476,7 +477,7 @@ class UserDataCollectionService:
                 ]
 
                 production_metrics.performance_score = sum(performance_factors) / len(performance_factors)
-                production_metrics.last_metrics_update = timezone.now()
+                production_metrics.last_calculated_at = timezone.now()
                 production_metrics.save()
 
                 # 🔥 INTEGRATION: Trigger ProductionMetricsService full calculation periodically
@@ -646,7 +647,7 @@ class UserDataCollectionService:
             else:
                 production_metrics.trending_category = 'stable'
 
-            production_metrics.last_metrics_update = timezone.now()
+            production_metrics.last_calculated_at = timezone.now()
             production_metrics.save()
 
         except Exception as e:

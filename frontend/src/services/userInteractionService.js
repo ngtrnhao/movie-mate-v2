@@ -7,7 +7,15 @@ class UserInteractionService {
     this.isProcessing = false;
     this.batchSize = 10;
     this.flushInterval = 5000; // 5 seconds
+
+    // Add deduplication tracking
+    this.recentInteractions = new Map(); // action_movieId -> timestamp
+    this.deduplicationWindow = 30000; // 30 seconds
+    this.viewTrackingCooldown = new Map(); // movieId -> lastTrackedTime
+    this.viewCooldownPeriod = 60000; // 1 minute for view actions
+
     this.startAutoFlush();
+    this.startCleanupTimer();
   }
 
   generateSessionId() {
@@ -22,6 +30,12 @@ class UserInteractionService {
    */
   trackInteraction(movieId, action, metadata = {}) {
     if (!action) return;
+
+    // Check for deduplication
+    if (this.shouldDeduplicateInteraction(movieId, action)) {
+      console.log(`🔄 Deduplicated interaction: ${action} for movie ${movieId}`);
+      return;
+    }
 
     const interaction = {
       movie_id: movieId,
@@ -43,7 +57,11 @@ class UserInteractionService {
       interaction.user_id = user.id;
     }
 
+    // Record for deduplication
+    this.recordInteractionForDeduplication(movieId, action);
+
     this.queue.push(interaction);
+    console.log(`✅ Tracked interaction: ${action} for movie ${movieId}`);
 
     // Flush if queue is full
     if (this.queue.length >= this.batchSize) {
@@ -266,6 +284,74 @@ class UserInteractionService {
       batchSize: this.batchSize,
       flushInterval: this.flushInterval,
     };
+  }
+
+  /**
+   * Start cleanup timer for deduplication maps
+   */
+  startCleanupTimer() {
+    setInterval(() => {
+      this.cleanupDeduplicationMaps();
+    }, 60000); // Clean every minute
+  }
+
+  /**
+   * Clean up old entries from deduplication maps
+   */
+  cleanupDeduplicationMaps() {
+    const now = Date.now();
+
+    // Clean recent interactions
+    for (const [key, timestamp] of this.recentInteractions.entries()) {
+      if (now - timestamp > this.deduplicationWindow) {
+        this.recentInteractions.delete(key);
+      }
+    }
+
+    // Clean view tracking cooldown
+    for (const [movieId, lastTracked] of this.viewTrackingCooldown.entries()) {
+      if (now - lastTracked > this.viewCooldownPeriod) {
+        this.viewTrackingCooldown.delete(movieId);
+      }
+    }
+  }
+
+  /**
+   * Check if interaction should be deduplicated
+   */
+  shouldDeduplicateInteraction(movieId, action) {
+    const key = `${action}_${movieId || 'null'}`;
+    const now = Date.now();
+    const lastTracked = this.recentInteractions.get(key);
+
+    if (lastTracked && now - lastTracked < this.deduplicationWindow) {
+      return true; // Should deduplicate
+    }
+
+    // Special handling for view actions
+    if ((action === 'homepage_view' || action === 'detail_view') && movieId) {
+      const lastViewTracked = this.viewTrackingCooldown.get(movieId);
+      if (lastViewTracked && now - lastViewTracked < this.viewCooldownPeriod) {
+        return true; // Should deduplicate
+      }
+    }
+
+    return false; // Don't deduplicate
+  }
+
+  /**
+   * Record interaction for deduplication
+   */
+  recordInteractionForDeduplication(movieId, action) {
+    const key = `${action}_${movieId || 'null'}`;
+    const now = Date.now();
+
+    this.recentInteractions.set(key, now);
+
+    // Special tracking for view actions
+    if ((action === 'homepage_view' || action === 'detail_view') && movieId) {
+      this.viewTrackingCooldown.set(movieId, now);
+    }
   }
 }
 

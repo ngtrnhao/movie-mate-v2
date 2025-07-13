@@ -1486,21 +1486,20 @@ class ProductionMetrics(models.Model):
     """
     Track production performance metrics for movies
     Used for analytics and admin decision making
+    CLEANED VERSION: Only essential, actively used fields
     """
     movie = models.OneToOneField(Movie, on_delete=models.CASCADE,
                                 related_name='production_metrics')
 
-    # 📈 ENGAGEMENT METRICS
+    # 📈 CORE ENGAGEMENT METRICS
     homepage_views = models.IntegerField(default=0,
                                         help_text="Views on homepage/landing page")
     detail_page_views = models.IntegerField(default=0,
                                            help_text="Views on movie detail page")
     trailer_plays = models.IntegerField(default=0,
                                        help_text="Number of trailer plays")
-    search_appearances = models.IntegerField(default=0,
-                                           help_text="Times appeared in search results")
 
-    # 🎯 CONVERSION METRICS
+    # 🎯 PERFORMANCE METRICS
     click_through_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
                                            help_text="CTR from homepage to detail page (%)")
     engagement_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
@@ -1508,61 +1507,57 @@ class ProductionMetrics(models.Model):
     trailer_completion_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
                                                  help_text="Trailer completion rate (%)")
 
-    # 📱 DEVICE/PLATFORM BREAKDOWN
+    # 📱 DEVICE BREAKDOWN
     mobile_views = models.IntegerField(default=0, help_text="Views from mobile devices")
     desktop_views = models.IntegerField(default=0, help_text="Views from desktop")
     tablet_views = models.IntegerField(default=0, help_text="Views from tablet")
 
-    # 🗓️ TIME TRACKING
-    last_featured_date = models.DateTimeField(null=True, blank=True,
-                                             help_text="Last time movie was featured")
-    total_featured_days = models.IntegerField(default=0,
-                                            help_text="Total days movie was featured")
-    first_published_date = models.DateTimeField(null=True, blank=True,
-                                               help_text="First time movie was published")
-
-    # 📊 PERFORMANCE SCORE
+    # 📊 CALCULATED SCORES
     performance_score = models.DecimalField(max_digits=4, decimal_places=2, default=0,
                                           help_text="Calculated performance score (0-100)")
     trending_score = models.DecimalField(max_digits=4, decimal_places=2, default=0,
                                        help_text="Trending score based on recent activity")
-
-    # 🌍 REGIONAL METRICS
-    region_performance = models.JSONField(default=dict, blank=True,
-                                        help_text="Performance breakdown by region")
-    language_preferences = models.JSONField(default=dict, blank=True,
-                                          help_text="User language preferences for this movie")
+    trending_category = models.CharField(
+        max_length=20,
+        choices=[
+            ('viral','Viral'),
+            ('hot','Hot'),
+            ('rising','Rising'),
+            ('stable','Stable'),
+        ],
+        default='stable',
+        db_index=True,
+        help_text="Trending category based on recent activity"
+    )
 
     # 📝 CONTENT METRICS
     review_count = models.IntegerField(default=0, help_text="Total user reviews")
     average_user_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True,
                                             help_text="Average user rating")
-    positive_review_ratio = models.DecimalField(max_digits=5, decimal_places=2, default=0,
-                                              help_text="Percentage of positive reviews")
 
-    # 🎯 USER ENGAGEMENT METRICS
+    # 🎯 USER ACTIONS
     user_favorites_count = models.IntegerField(default=0, help_text="Number of users who favorited this movie")
     user_watchlist_count = models.IntegerField(default=0, help_text="Number of users who added to watchlist")
     user_shares_count = models.IntegerField(default=0, help_text="Number of times movie was shared")
     user_likes_count = models.IntegerField(default=0, help_text="Number of user likes")
 
-    # 📊 ADDITIONAL ENGAGEMENT METRICS
-    bounce_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
-                                     help_text="Percentage of users who left quickly")
-    session_duration_avg = models.DecimalField(max_digits=6, decimal_places=2, default=0,
-                                              help_text="Average session duration in seconds")
-    return_visitor_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
-                                             help_text="Percentage of returning visitors")
-
-    # 🌐 INTERACTION TRACKING
+    # 🌐 TRACKING
     last_interaction_date = models.DateTimeField(null=True, blank=True,
                                                 help_text="Last time there was user interaction")
+    last_featured_date = models.DateTimeField(null=True, blank=True,
+                                             help_text="Last time movie was featured")
 
     # ⏰ TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    last_metrics_update = models.DateTimeField(null=True, blank=True,
+    last_calculated_at = models.DateTimeField(null=True, blank=True,
                                              help_text="Last time metrics were calculated")
+
+    # 🤖 AUTOMATION
+    auto_calculated = models.BooleanField(default=True,
+                                         help_text="Whether metrics were calculated automatically")
+    calculation_version = models.CharField(max_length=10, default='2.0',
+                                         help_text="Version of calculation algorithm used")
 
     class Meta:
         db_table = "movies_production_metrics"
@@ -1570,19 +1565,44 @@ class ProductionMetrics(models.Model):
             models.Index(fields=["movie"]),
             models.Index(fields=["performance_score"], name="idx_metrics_performance"),
             models.Index(fields=["trending_score"], name="idx_metrics_trending"),
+            models.Index(fields=["trending_category"], name="idx_metrics_trending_cat"),
             models.Index(fields=["click_through_rate"], name="idx_metrics_ctr"),
             models.Index(fields=["engagement_rate"], name="idx_metrics_engagement"),
             models.Index(fields=["last_featured_date"], name="idx_metrics_last_featured"),
-            models.Index(fields=["total_featured_days"], name="idx_metrics_featured_days"),
             models.Index(fields=["homepage_views"], name="idx_metrics_homepage_views"),
             models.Index(fields=["detail_page_views"], name="idx_metrics_detail_views"),
             models.Index(fields=["updated_at"], name="idx_metrics_updated"),
+            models.Index(fields=["last_calculated_at"], name="idx_metrics_last_calculated"),
 
             # Composite indexes for common queries
             models.Index(fields=["performance_score", "trending_score"],
                         name="idx_metrics_scores"),
-                        models.Index(fields=["homepage_views", "click_through_rate"],
+            models.Index(fields=["homepage_views", "click_through_rate"],
                         name="idx_metrics_homepage"),
+            models.Index(fields=["trending_category", "trending_score"],
+                        name="idx_metrics_trending_combo"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(performance_score__gte=0, performance_score__lte=100),
+                name='performance_score_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(trending_score__gte=0, trending_score__lte=100),
+                name='trending_score_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(click_through_rate__gte=0, click_through_rate__lte=100),
+                name='ctr_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(engagement_rate__gte=0, engagement_rate__lte=100),
+                name='engagement_rate_range'
+            ),
+            models.CheckConstraint(
+                check=models.Q(trailer_completion_rate__gte=0, trailer_completion_rate__lte=100),
+                name='trailer_completion_rate_range'
+            ),
         ]
         verbose_name = "Production Metrics"
         verbose_name_plural = "Production Metrics"
@@ -1661,11 +1681,21 @@ class ProductionMetrics(models.Model):
             self.calculate_performance_score()
 
             # Update timestamp
-            self.last_metrics_update = timezone.now()
+            self.last_calculated_at = timezone.now()
             self.save()
 
         except Exception as e:
             logger.error(f"Error updating metrics for movie {self.movie.id}: {str(e)}")
+
+    def get_trending_category_display_with_emoji(self):
+        """Get trending category with emoji for UI display"""
+        emoji_map = {
+            'viral': '🔥 Viral',
+            'hot': '🌟 Hot',
+            'rising': '📈 Rising',
+            'stable': '😐 Stable',
+        }
+        return emoji_map.get(self.trending_category, '😐 Stable')
 
     @classmethod
     def get_top_performers(cls, days=30, limit=10):
@@ -1674,7 +1704,7 @@ class ProductionMetrics(models.Model):
         """
         cutoff_date = timezone.now() - timedelta(days=days)
         return cls.objects.filter(
-            last_metrics_update__gte=cutoff_date
+                            last_calculated_at__gte=cutoff_date
         ).order_by('-performance_score', '-trending_score')[:limit]
 
     @classmethod
@@ -1685,6 +1715,22 @@ class ProductionMetrics(models.Model):
         return cls.objects.filter(
             trending_score__gt=0
         ).order_by('-trending_score', '-performance_score')[:limit]
+    @classmethod
+    def update_trending_categories(cls):
+        """Bulk update trending categories for all metrics"""
+        metrics = cls.objects.all()
+
+        for metric in metrics:
+            if metric.trending_score >= 80:
+                metric.trending_category = 'viral'
+            elif metric.trending_score >= 60:
+                metric.trending_category = 'hot'
+            elif metric.trending_score >= 30:
+                metric.trending_category = 'rising'
+            else:
+                metric.trending_category = 'stable'
+
+        cls.objects.bulk_update(metrics, ['trending_category'])
 
 # 🆕 NEW NORMALIZED TABLES FOR MOVIE MANAGEMENT
 

@@ -90,70 +90,7 @@ class MovieSearchService:
                 query_text = params['q'].strip()
                 search = self._build_enhanced_query(search, query_text, params)
 
-            # 📊 QUALITY FILTERS (new normalized fields)
-            if params.get('quality_score_min'):
-                search = search.filter('range', quality_score={'gte': float(params['quality_score_min'])})
-
-            if params.get('quality_score_max'):
-                search = search.filter('range', quality_score={'lte': float(params['quality_score_max'])})
-
-            if params.get('content_completeness_min'):
-                search = search.filter('range', content_completeness={'gte': float(params['content_completeness_min'])})
-
-            if params.get('overall_quality_rating'):
-                search = search.filter('terms', overall_quality_rating=params['overall_quality_rating'])
-
-            if params.get('completion_status'):
-                search = search.filter('terms', completion_status=params['completion_status'])
-
-            if params.get('minimum_quality_met') is not None:
-                search = search.filter('term', minimum_quality_met=params['minimum_quality_met'])
-
-            # 📅 SCHEDULING FILTERS (new normalized fields)
-            if params.get('campaign_type'):
-                search = search.filter('terms', campaign_type=params['campaign_type'])
-
-            if params.get('campaign_priority_min'):
-                search = search.filter('range', campaign_priority={'gte': int(params['campaign_priority_min'])})
-
-            if params.get('is_published_now') is not None:
-                search = search.filter('term', is_published_now=params['is_published_now'])
-
-            if params.get('is_featured_now') is not None:
-                search = search.filter('term', is_featured_now=params['is_featured_now'])
-
-            if params.get('is_scheduled_for_publish') is not None:
-                search = search.filter('term', is_scheduled_for_publish=params['is_scheduled_for_publish'])
-
-            if params.get('is_scheduled_for_feature') is not None:
-                search = search.filter('term', is_scheduled_for_feature=params['is_scheduled_for_feature'])
-
-            if params.get('auto_publish') is not None:
-                search = search.filter('term', auto_publish=params['auto_publish'])
-
-            if params.get('auto_feature') is not None:
-                search = search.filter('term', auto_feature=params['auto_feature'])
-
-            # 📈 PRODUCTION METRICS FILTERS (enhanced performance filtering)
-            if params.get('performance_score_min'):
-                search = search.filter('range', performance_score={'gte': float(params['performance_score_min'])})
-
-            if params.get('trending_score_min'):
-                search = search.filter('range', trending_score={'gte': float(params['trending_score_min'])})
-
-            if params.get('trending_category'):
-                search = search.filter('terms', trending_category=params['trending_category'])
-
-            if params.get('engagement_rate_min'):
-                search = search.filter('range', engagement_rate={'gte': float(params['engagement_rate_min'])})
-
-            if params.get('homepage_views_min'):
-                search = search.filter('range', homepage_views={'gte': int(params['homepage_views_min'])})
-
-            if params.get('user_favorites_min'):
-                search = search.filter('range', user_favorites_count={'gte': int(params['user_favorites_min'])})
-
-            # EXISTING FILTERS (preserved for backward compatibility)
+            # EXISTING FILTERS (preserved for both user and admin)
             if params.get('genres'):
                 genre_names = params['genres'] if isinstance(params['genres'], list) else [params['genres']]
                 search = search.filter('nested', path='genres', query=Q('terms', genres__name=genre_names))
@@ -187,6 +124,7 @@ class MovieSearchService:
 
             # 🎯 ADMIN MODE FILTERS (enhanced for normalized structure)
             if admin_mode:
+                # Basic admin filters
                 if params.get('approval_status'):
                     search = search.filter('terms', approval_status=params['approval_status'])
 
@@ -201,6 +139,69 @@ class MovieSearchService:
 
                 if params.get('is_published') is not None:
                     search = search.filter('term', is_published=params['is_published'])
+
+                # 📊 ADVANCED QUALITY FILTERS (admin only)
+                if params.get('quality_score_min'):
+                    search = search.filter('range', quality_score={'gte': float(params['quality_score_min'])})
+
+                if params.get('quality_score_max'):
+                    search = search.filter('range', quality_score={'lte': float(params['quality_score_max'])})
+
+                if params.get('content_completeness_min'):
+                    search = search.filter('range', content_completeness={'gte': float(params['content_completeness_min'])})
+
+                if params.get('overall_quality_rating'):
+                    search = search.filter('terms', overall_quality_rating=params['overall_quality_rating'])
+
+                if params.get('completion_status'):
+                    search = search.filter('terms', completion_status=params['completion_status'])
+
+                if params.get('minimum_quality_met') is not None:
+                    search = search.filter('term', minimum_quality_met=params['minimum_quality_met'])
+
+                # 📅 ADVANCED SCHEDULING FILTERS (admin only)
+                if params.get('campaign_type'):
+                    search = search.filter('terms', campaign_type=params['campaign_type'])
+
+                if params.get('campaign_priority_min'):
+                    search = search.filter('range', campaign_priority={'gte': int(params['campaign_priority_min'])})
+
+                if params.get('is_published_now') is not None:
+                    search = search.filter('term', is_published_now=params['is_published_now'])
+
+                if params.get('is_featured_now') is not None:
+                    search = search.filter('term', is_featured_now=params['is_featured_now'])
+
+                if params.get('is_scheduled_for_publish') is not None:
+                    search = search.filter('term', is_scheduled_for_publish=params['is_scheduled_for_publish'])
+
+                if params.get('is_scheduled_for_feature') is not None:
+                    search = search.filter('term', is_scheduled_for_feature=params['is_scheduled_for_feature'])
+
+                if params.get('auto_publish') is not None:
+                    search = search.filter('term', auto_publish=params['auto_publish'])
+
+                if params.get('auto_feature') is not None:
+                    search = search.filter('term', auto_feature=params['auto_feature'])
+
+                # 📈 ADVANCED PRODUCTION METRICS FILTERS (admin only)
+                if params.get('performance_score_min'):
+                    search = search.filter('range', performance_score={'gte': float(params['performance_score_min'])})
+
+                if params.get('trending_score_min'):
+                    search = search.filter('range', trending_score={'gte': float(params['trending_score_min'])})
+
+                if params.get('trending_category'):
+                    search = search.filter('terms', trending_category=params['trending_category'])
+
+                if params.get('engagement_rate_min'):
+                    search = search.filter('range', engagement_rate={'gte': float(params['engagement_rate_min'])})
+
+                if params.get('homepage_views_min'):
+                    search = search.filter('range', homepage_views={'gte': int(params['homepage_views_min'])})
+
+                if params.get('user_favorites_min'):
+                    search = search.filter('range', user_favorites_count={'gte': int(params['user_favorites_min'])})
 
                 # Enhanced admin filters for quality control
                 if params.get('has_quality_issues'):

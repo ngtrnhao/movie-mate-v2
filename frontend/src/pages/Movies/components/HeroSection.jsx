@@ -50,8 +50,8 @@ const HeroSection = ({ movie }) => {
 
   return (
     <>
-      {/* Backdrop Only */}
-      <div className="relative h-[90vh] w-full overflow-hidden">
+      {/* Backdrop Only - Responsive height */}
+      <div className="relative h-[60vh] w-full overflow-hidden sm:h-[70vh] md:h-[80vh] lg:h-[90vh]">
         <div
           className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
           style={{
@@ -62,7 +62,7 @@ const HeroSection = ({ movie }) => {
           }}
         />
 
-        {/* Gradient phủ hai bên */}
+        {/* Gradient phủ hai bên - Responsive */}
         <div
           className="pointer-events-none absolute inset-0 z-20"
           style={{
@@ -71,7 +71,7 @@ const HeroSection = ({ movie }) => {
           }}
         />
 
-        {/* Gradient từ trên xuống dưới - kết nối với section */}
+        {/* Gradient từ trên xuống dưới - kết nối với section - Responsive */}
         <div
           className="pointer-events-none absolute inset-0 z-30"
           style={{

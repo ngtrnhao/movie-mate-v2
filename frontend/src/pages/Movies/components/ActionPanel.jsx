@@ -110,82 +110,90 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
   const isInList = isInWatchlist(movieId);
 
   return (
-    <div className="space-y-6">
-      {/* All Action Buttons in One Row */}
-      <div className="flex flex-wrap items-center gap-4">
-        {/* Trailer Button - Prominent but in same row */}
+    <div className="space-y-3 sm:space-y-5">
+      {/* All Action Buttons - Responsive Layout */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        {/* Trailer Button - Prominent but responsive */}
         {trailers.length > 0 && (
           <button
             onClick={handleWatchNow}
-            className="group relative flex items-center gap-3 rounded-full bg-gradient-to-r from-red-600 via-red-500 to-pink-500 px-6 py-3 text-base font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-red-500 hover:to-pink-400 hover:shadow-xl"
+            className="group relative flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-red-600 via-red-500 to-pink-500 px-4 py-2 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-red-500 hover:to-pink-400 hover:shadow-xl sm:w-auto sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
           >
-            <div className="flex size-8 items-center justify-center rounded-full bg-white/20 transition-all duration-300 group-hover:bg-white/30">
-              <Play size={18} fill="white" className="ml-0.5" />
+            <div className="flex size-5 items-center justify-center rounded-full bg-white/20 transition-all duration-300 group-hover:bg-white/30 sm:size-6">
+              <Play className="ml-0.5 size-3 sm:size-4" fill="white" />
             </div>
             <span className="relative z-10 font-bold">{t('details.watchTrailer')}</span>
           </button>
         )}
 
-        {/* Add to Favorites */}
-        <button
-          onClick={handleToggleFavorite}
-          disabled={isTogglingFavorite || favoritesLoading}
-          className={`group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
-            isLiked ? 'text-pink-500 hover:text-pink-600' : 'text-white hover:text-red-500'
-          }`}
-        >
-          <Heart
-            size={16}
-            fill={isLiked ? 'currentColor' : 'none'}
-            className={`transition-transform duration-200 group-hover:scale-110 ${
-              isTogglingFavorite ? 'animate-pulse' : ''
+        {/* Secondary Action Buttons - Responsive grid on mobile, flex on larger screens */}
+        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
+          {/* Add to Favorites */}
+          <button
+            onClick={handleToggleFavorite}
+            disabled={isTogglingFavorite || favoritesLoading}
+            className={`group flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2 sm:text-xs ${
+              isLiked ? 'text-pink-500 hover:text-pink-600' : 'text-white hover:text-red-500'
             }`}
-          />
-          <span>
-            {isTogglingFavorite
-              ? isLiked
-                ? 'Removing...'
-                : 'Adding...'
-              : t('details.addToFavorites')}
-          </span>
-        </button>
+          >
+            <Heart
+              fill={isLiked ? 'currentColor' : 'none'}
+              className={`size-3 transition-transform duration-200 group-hover:scale-110 sm:size-4 ${
+                isTogglingFavorite ? 'animate-pulse' : ''
+              }`}
+            />
+            <span className="hidden sm:inline">
+              {isTogglingFavorite
+                ? isLiked
+                  ? 'Removing...'
+                  : 'Adding...'
+                : t('details.addToFavorites')}
+            </span>
+            <span className="sm:hidden">
+              {isTogglingFavorite ? (isLiked ? 'Removing...' : 'Adding...') : 'Favorites'}
+            </span>
+          </button>
 
-        {/* Add to Watchlist */}
-        <button
-          onClick={handleToggleWatchlist}
-          disabled={isTogglingWatchlist || watchlistLoading}
-          className={`group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
-            isInList ? 'text-green-500 hover:text-green-600' : 'text-white hover:text-red-500'
-          }`}
-        >
-          <Plus
-            size={16}
-            className={`transition-transform duration-200 group-hover:scale-110 ${
-              isTogglingWatchlist ? 'animate-pulse' : ''
-            } ${isInList ? 'rotate-45' : ''}`}
-          />
-          <span>
-            {isTogglingWatchlist
-              ? isInList
-                ? 'Removing...'
-                : 'Adding...'
-              : t('details.addToWatchlist')}
-          </span>
-        </button>
+          {/* Add to Watchlist */}
+          <button
+            onClick={handleToggleWatchlist}
+            disabled={isTogglingWatchlist || watchlistLoading}
+            className={`group flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2 sm:text-xs ${
+              isInList ? 'text-green-500 hover:text-green-600' : 'text-white hover:text-red-500'
+            }`}
+          >
+            <Plus
+              className={`size-3 transition-transform duration-200 group-hover:scale-110 sm:size-4 ${
+                isTogglingWatchlist ? 'animate-pulse' : ''
+              } ${isInList ? 'rotate-45' : ''}`}
+            />
+            <span className="hidden sm:inline">
+              {isTogglingWatchlist
+                ? isInList
+                  ? 'Removing...'
+                  : 'Adding...'
+                : t('details.addToWatchlist')}
+            </span>
+            <span className="sm:hidden">
+              {isTogglingWatchlist ? (isInList ? 'Removing...' : 'Adding...') : 'Watchlist'}
+            </span>
+          </button>
 
-        {/* Share Button */}
-        <button
-          onClick={handleShare}
-          className="group flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:text-red-500"
-        >
-          <Share size={16} className="transition-transform duration-200 group-hover:scale-110" />
-          <span>{t('details.share')}</span>
-        </button>
+          {/* Share Button */}
+          <button
+            onClick={handleShare}
+            className="group flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-white transition-all duration-200 hover:text-red-500 sm:px-3 sm:py-2"
+          >
+            <Share className="size-3 transition-transform duration-200 group-hover:scale-110 sm:size-4" />
+            <span className="hidden sm:inline">{t('details.share')}</span>
+            <span className="sm:hidden">Share</span>
+          </button>
+        </div>
       </div>
 
-      {/* Error Message */}
+      {/* Error Message - Responsive text sizing */}
       {(actionError || favoritesError) && (
-        <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+        <div className="mt-2 rounded-lg border border-red-500/20 bg-red-500/10 p-2 text-xs text-red-400 sm:mt-3 sm:text-sm">
           {actionError || favoritesError}
         </div>
       )}

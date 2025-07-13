@@ -21,13 +21,13 @@ class UserInteractionService {
    * @param {object} metadata - Additional metadata
    */
   trackInteraction(movieId, action, metadata = {}) {
-    if (!movieId || !action) return;
+    if (!action) return;
 
     const interaction = {
       movie_id: movieId,
       action: action,
       session_id: this.sessionId,
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       metadata: {
         ...metadata,
         page_url: window.location.href,

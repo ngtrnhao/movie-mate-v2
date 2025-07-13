@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import useUserTracking from '../../hooks/useUserTracking';
 import {
   fetchProfile,
   fetchUserStats,
@@ -64,6 +65,7 @@ const Profile = () => {
   const { userId } = useParams();
   const dispatch = useDispatch();
   const [tabValue, setTabValue] = React.useState(0);
+  const { trackInteraction } = useUserTracking();
 
   const profile = useSelector(selectProfile);
   const loading = useSelector(selectProfileLoading);
@@ -72,6 +74,20 @@ const Profile = () => {
   const reviews = useSelector(selectUserReviews);
   const ratings = useSelector(selectUserRatings);
   const favoriteGenres = useSelector(selectFavoriteGenres);
+
+  // Track profile page view
+  useEffect(() => {
+    if (userId) {
+      trackInteraction({
+        action: 'page_view',
+        metadata: {
+          page: 'profile',
+          user_id: userId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+  }, [userId, trackInteraction]);
 
   useEffect(() => {
     if (userId) {

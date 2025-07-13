@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import useUserTracking from '../../hooks/useUserTracking';
 import {
   ChartBarIcon,
   UsersIcon,
@@ -53,6 +54,18 @@ const AdminDashboard = () => {
   const { data: dashboardData } = useDashboardData();
   const user = useSelector(state => state.auth.user);
   const navigate = useNavigate();
+  const { trackInteraction } = useUserTracking();
+
+  // Track admin dashboard page view
+  useEffect(() => {
+    trackInteraction({
+      action: 'page_view',
+      metadata: {
+        page: 'admin_dashboard',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }, [trackInteraction]);
 
   // Check if user is admin
   useEffect(() => {

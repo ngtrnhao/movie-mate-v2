@@ -11,6 +11,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { getPrimaryRating, getRatingBadgeColors } from '../../utils/ratingUtils';
 import { getDisplayTitle, getDisplayOverview } from '../../utils/titleUtils';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
+import useUserTracking from '../../hooks/useUserTracking';
 
 // Import existing components
 import HeroSection from './components/HeroSection';
@@ -21,6 +22,7 @@ import MovieTrailerModal from '../../components/movies/movie-trailer/MovieTraile
 const MovieDetailsPage = () => {
   const { movieId } = useParams();
   const { currentLanguage, t } = useTranslation('movies');
+  const { trackDetailView } = useUserTracking();
   const [movie, setMovie] = useState(null);
   const [cast, setCast] = useState([]);
   const [similarMovies, setSimilarMovies] = useState([]);
@@ -30,6 +32,16 @@ const MovieDetailsPage = () => {
   const [castError, setCastError] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
   const [currentTrailerUrl, setCurrentTrailerUrl] = useState(null);
+
+  // Track movie details page view
+  useEffect(() => {
+    if (movieId) {
+      trackDetailView(parseInt(movieId), {
+        page: 'movie_details',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [movieId, trackDetailView]);
 
   // Filter genres by current language
   const filteredGenres =
@@ -43,11 +55,9 @@ const MovieDetailsPage = () => {
 
         // Try optimized consolidated API first
         try {
-          console.log('🚀 Trying optimized API...');
           const optimizedData = await getMovieDetailsComplete(movieId);
 
           if (optimizedData?.movie) {
-            console.log('✅ Optimized API success:', optimizedData);
             setMovie(optimizedData.movie);
             setCast(optimizedData.cast || []);
             setSimilarMovies(optimizedData.similarMovies || []);
@@ -60,11 +70,9 @@ const MovieDetailsPage = () => {
 
         // Fallback: Try parallel loading
         try {
-          console.log('🔄 Trying parallel API...');
           const parallelData = await getMovieDetailsParallel(movieId);
 
           if (parallelData?.movie) {
-            console.log('✅ Parallel API success:', parallelData);
             setMovie(parallelData.movie);
             setCast(parallelData.cast || []);
             setSimilarMovies(parallelData.similarMovies || []);
@@ -76,11 +84,9 @@ const MovieDetailsPage = () => {
         }
 
         // Final fallback: Sequential loading (original approach)
-        console.log('🐌 Using sequential API calls...');
 
         // Fetch movie details
         const movieData = await getMovieDetails(movieId);
-        console.log('Movie data:', movieData);
         setMovie(movieData?.data || movieData);
 
         // Fetch movie cast
@@ -88,7 +94,6 @@ const MovieDetailsPage = () => {
         setCastError(null);
         try {
           const castData = await getMovieCast(movieId);
-          console.log('Cast data:', castData);
           setCast(castData?.data || []);
         } catch (castError) {
           console.error('Error fetching cast:', castError);
@@ -107,8 +112,10 @@ const MovieDetailsPage = () => {
               genre => genre.language === currentLanguage || !genre.language
             );
             const similarData = await getSimilarMovies(movieId, filteredGenresForSimilar, 6);
-            console.log('Similar movies data:', similarData);
-            setSimilarMovies(similarData?.results || similarData?.data || []);
+
+            // Handle both response formats
+            const similarResults = similarData?.results || similarData?.data || similarData || [];
+            setSimilarMovies(similarResults);
           } catch (similarError) {
             console.error('Error fetching similar movies:', similarError);
             setSimilarMovies([]);

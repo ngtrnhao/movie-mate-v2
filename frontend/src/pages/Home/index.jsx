@@ -6,8 +6,23 @@ import MovieBuzzSection from '../../components/reviewed/MovieBuzzSection';
 import TopRatedGrid from '../../components/movies/movie-grid/TopRatedGrid';
 import FindSimilarMovies from '../../components/recommendation-tools/SimilarityFinder';
 import TopGenreRecommendations from '../../components/movies/movie-grid/TopGenreRecommendations';
+import useUserTracking from '../../hooks/useUserTracking';
+import { useEffect } from 'react';
 
 const HomePage = () => {
+  const { trackInteraction } = useUserTracking();
+
+  // Track home page view
+  useEffect(() => {
+    trackInteraction({
+      action: 'page_view',
+      metadata: {
+        page: 'home',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }, [trackInteraction]);
+
   return (
     <div className="bg-gray-900">
       {/* Quảng cáo banner đầu trang - chỉ hiển thị cho non-premium users */}

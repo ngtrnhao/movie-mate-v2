@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import useUserTracking from '../../hooks/useUserTracking';
 import { RecommendationToolsHeader } from './RecommendationToolsHeader';
 import SimilarityFinder from './SimilarityFinder';
 import GenreExplorer from './GenreExplorer';
@@ -5,6 +7,19 @@ import MoodBasedRecommendations from './MoodBasedRecommendations';
 import TrendingNow from './TrendingNow';
 
 export default function Recommendation() {
+  const { trackInteraction } = useUserTracking();
+
+  // Track recommendation page view
+  useEffect(() => {
+    trackInteraction({
+      action: 'page_view',
+      metadata: {
+        page: 'recommendation',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }, [trackInteraction]);
+
   return (
     <div className="min-h-screen bg-gray-900">
       <RecommendationToolsHeader />

@@ -1,3 +1,6 @@
+import { useEffect, useRef } from 'react';
+import useUserTracking from '../../hooks/useUserTracking';
+
 const mockMovie = {
   title: 'The Shawshank Redemption',
   vote_average: 9.3,
@@ -9,13 +12,59 @@ const mockMovie = {
   poster_path: 'https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg',
   backdrop_path: 'https://image.tmdb.org/t/p/original/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg',
   trailer_url: 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-576p.mp4',
+  id: 'hero-banner-movie',
 };
 
 const HeroBannerRecommendation = ({ movie = mockMovie }) => {
+  const heroRef = useRef(null);
+  // const { trackInteraction, trackView } = useUserTracking();
   const userRating = movie.vote_average ? Math.round(movie.vote_average / 2) : 0;
 
+  // Track hero banner view
+  // useEffect(() => {
+  //   const heroElement = heroRef.current;
+  //   if (heroElement) {
+  //     trackView(heroElement, {
+  //       action: 'hero_banner_view',
+  //       movie_id: movie.id,
+  //       metadata: {
+  //         context: 'hero_banner',
+  //         page: 'home',
+  //         movie_title: movie.title,
+  //         timestamp: new Date().toISOString(),
+  //       },
+  //     });
+  //   }
+  // }, [movie, trackView]);
+
+  // const handleViewDetails = () => {
+  //   trackInteraction({
+  //     action: 'hero_button_click',
+  //     movie_id: movie.id,
+  //     metadata: {
+  //       button_type: 'view_details',
+  //       context: 'hero_banner',
+  //       movie_title: movie.title,
+  //       timestamp: new Date().toISOString(),
+  //     },
+  //   });
+  // };
+
+  // const handleWhyRecommended = () => {
+  //   trackInteraction({
+  //     action: 'hero_button_click',
+  //     movie_id: movie.id,
+  //     metadata: {
+  //       button_type: 'why_recommended',
+  //       context: 'hero_banner',
+  //       movie_title: movie.title,
+  //       timestamp: new Date().toISOString(),
+  //     },
+  //   });
+  // };
+
   return (
-    <section className="relative min-h-[105vh] w-full">
+    <section ref={heroRef} className="relative min-h-[105vh] w-full">
       {/* Background Video */}
       <div className="absolute inset-0">
         <video
@@ -91,10 +140,16 @@ const HeroBannerRecommendation = ({ movie = mockMovie }) => {
             {movie.overview}
           </p>
           <div className="mt-6 flex flex-wrap gap-4">
-            <button className="rounded-sm bg-red-600 px-6 py-2 font-semibold text-white shadow-lg transition hover:bg-red-700">
+            <button
+              //   onClick={handleViewDetails}
+              className="rounded-sm bg-red-600 px-6 py-2 font-semibold text-white shadow-lg transition hover:bg-red-700"
+            >
               View Details
             </button>
-            <button className="rounded-sm bg-white/10 px-6 py-2 font-semibold text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20">
+            <button
+              //onClick={handleWhyRecommended}
+              className="rounded-sm bg-white/10 px-6 py-2 font-semibold text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20"
+            >
               Why Recommended?
             </button>
           </div>

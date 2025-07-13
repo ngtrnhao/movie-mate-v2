@@ -23,6 +23,26 @@ class UserDataCollectionService:
         self.cooldown_period = 5 * 60  # 5 minutes between same movie views
         self.max_views_per_session = 3  # Max views per movie per session
 
+    def _safe_numeric_conversion(self, value, default=None, context=""):
+        """
+        🔥 NEW: Safely convert value to numeric type with proper error handling
+
+        Args:
+            value: Value to convert
+            default: Default value if conversion fails
+            context: Context for logging (e.g., "timestamp", "session_start")
+
+        Returns:
+            Converted numeric value or default
+        """
+        try:
+            if value is None:
+                return default
+            return float(value)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Failed to convert {context} to numeric: {value} ({type(value)}) - {str(e)}")
+            return default
+
     def _validate_session_interaction(self, movie_id: int, session_id: str, action: str, metadata: dict = None):
         """
         Validate if interaction should be tracked based on session rules
@@ -31,21 +51,32 @@ class UserDataCollectionService:
         if not session_id:
             return True, "No session validation needed"
 
+        # 🔥 ENHANCED: Validate session_id format
+        if not isinstance(session_id, str) or len(session_id.strip()) == 0:
+            logger.warning(f"Invalid session_id format: {session_id}")
+            return False, "Invalid session ID format"
+
         metadata = metadata or {}
         session_view_count = metadata.get('sessionViewCount', 1)
         timestamp = metadata.get('timestamp', timezone.now().timestamp() * 1000)
 
-        # Ensure timestamp is numeric
-        try:
-            timestamp = float(timestamp)
-        except (ValueError, TypeError):
-            timestamp = timezone.now().timestamp() * 1000
+        # 🔥 ENHANCED: Use safe numeric conversion for timestamp
+        current_timestamp = timezone.now().timestamp() * 1000
+        timestamp = self._safe_numeric_conversion(
+            timestamp,
+            default=current_timestamp,
+            context="timestamp"
+        )
 
         # Check session age - safely extract session start time
         try:
             if '_' in session_id:
                 session_start_str = session_id.split('_')[1]
-                session_start = int(session_start_str)
+                session_start = self._safe_numeric_conversion(
+                    session_start_str,
+                    default=timestamp,
+                    context="session_start"
+                )
             else:
                 # If no timestamp in session_id, use current time
                 session_start = timestamp
@@ -53,18 +84,26 @@ class UserDataCollectionService:
             # If session_id format is invalid, use current time
             session_start = timestamp
 
+        # 🔥 ENHANCED: Additional validation to ensure both values are numeric
+        if not isinstance(timestamp, (int, float)) or not isinstance(session_start, (int, float)):
+            logger.error(f"Invalid numeric types: timestamp={timestamp} ({type(timestamp)}), "
+                        f"session_start={session_start} ({type(session_start)})")
+            return False, "Invalid session data - session expired"
+
         # Debug logging to identify the issue
         logger.debug(f"Session validation - movie_id: {movie_id}, session_id: {session_id}, "
                     f"timestamp: {timestamp} (type: {type(timestamp)}), "
                     f"session_start: {session_start} (type: {type(session_start)})")
 
+        # Calculate session age with proper error handling
         try:
             session_age = (timestamp - session_start) / 1000  # Convert to seconds
         except TypeError as e:
             logger.error(f"Type error in session_age calculation: timestamp={timestamp} ({type(timestamp)}), "
                         f"session_start={session_start} ({type(session_start)})")
-            # Fallback: use current time
-            session_age = 0
+            # 🔥 FIXED: Treat invalid session data as expired session instead of new session
+            # This prevents bypassing session expiration checks
+            return False, "Invalid session data - session expired"
 
         if session_age > self.session_timeout:
             return False, "Session expired"
@@ -93,15 +132,23 @@ class UserDataCollectionService:
             last_view_time = cache.get(cache_key)
 
             if last_view_time:
-                try:
-                    last_view_time = float(last_view_time)
-                    time_since_last = (timestamp - last_view_time) / 1000  # Convert to seconds
+                # 🔥 ENHANCED: Use safe numeric conversion for cooldown validation
+                safe_last_view_time = self._safe_numeric_conversion(
+                    last_view_time,
+                    default=None,
+                    context="cooldown_last_view_time"
+                )
+
+                if safe_last_view_time is not None:
+                    time_since_last = (timestamp - safe_last_view_time) / 1000  # Convert to seconds
                     if time_since_last < self.cooldown_period:
                         remaining = self.cooldown_period - time_since_last
                         return False, f"Cooldown period not met ({remaining:.0f}s remaining)"
-                except (ValueError, TypeError):
-                    # If last_view_time is invalid, ignore cooldown
-                    pass
+                else:
+                    # 🔥 FIXED: Log invalid cooldown data and treat as expired cooldown
+                    logger.warning(f"Invalid cooldown data for movie {movie_id}: {last_view_time}")
+                    # Clear invalid cache entry
+                    cache.delete(cache_key)
 
             # Update cooldown cache (only for actions that need cooldown)
             cache.set(cache_key, timestamp, timeout=self.cooldown_period)

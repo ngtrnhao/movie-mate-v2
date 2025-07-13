@@ -4,6 +4,7 @@ import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getSearchSuggestions } from '../../api/movieService';
 import { Search, Clock, TrendingUp, X } from 'lucide-react';
+import useUserTracking from '../../hooks/useUserTracking';
 
 const SearchBar = () => {
   const { t, currentLanguage } = useTranslation('common');
@@ -15,6 +16,7 @@ const SearchBar = () => {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef(null);
   const suggestionsRef = useRef(null);
+  const { trackInteraction } = useUserTracking();
 
   // Debounce search query to avoid too many API calls
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -68,6 +70,16 @@ const SearchBar = () => {
     const searchTerm = query.trim();
 
     if (searchTerm) {
+      // Track search interaction
+      trackInteraction({
+        action: 'search',
+        metadata: {
+          search_query: searchTerm,
+          context: 'search_bar',
+          timestamp: new Date().toISOString(),
+        },
+      });
+
       saveToRecentSearches(searchTerm);
       setShowSuggestions(false);
       setSelectedIndex(-1);

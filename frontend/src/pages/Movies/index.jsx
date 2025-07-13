@@ -15,14 +15,27 @@ import { useScrollPosition } from '../../hooks/useScrollPosition';
 import animationCache from '../../utils/animationCache';
 import ImagePreloader from '../../components/common/ImagePreloader';
 import { useNavigate, useLocation } from 'react-router-dom';
+import useUserTracking from '../../hooks/useUserTracking';
 
 const MoviesPage = () => {
   const { t } = useTranslation('movies');
   const navigate = useNavigate();
   const location = useLocation();
+  const { trackInteraction } = useUserTracking();
   const [showFilters, setShowFilters] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [genres, setGenres] = useState([]);
+
+  // Track movies page view
+  useEffect(() => {
+    trackInteraction({
+      action: 'page_view',
+      metadata: {
+        page: 'movies',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }, [trackInteraction]);
 
   // Define default filters with useMemo to prevent recreating on each render
   const defaultFilters = useMemo(
@@ -215,14 +228,26 @@ const MoviesPage = () => {
         pageParam ? searchMovies(filters, pageParam, 50) : searchMovies(filters, 1, 50),
       getNextPageParam: lastPage => {
         if (!lastPage) return undefined;
-        // Nếu có next_search_after thì dùng cho lần fetch tiếp
-        if (lastPage.next_search_after) {
+
+        // For Elasticsearch: check for next_search_after field
+        if (lastPage.search_engine === 'elasticsearch' && lastPage.next_search_after) {
           return lastPage.next_search_after;
         }
-        // Fallback: nếu có has_next và current_page
-        if (lastPage.has_next === true) {
-          return (lastPage.current_page || 1) + 1;
+
+        // For ORM fallback: check for next URL and extract page number
+        if (lastPage.search_engine === 'django_orm' && lastPage.next) {
+          const url = new URL(lastPage.next, window.location.origin);
+          const pageParam = url.searchParams.get('page');
+          if (pageParam) {
+            return parseInt(pageParam, 10);
+          }
         }
+
+        // Fallback: check if next field exists (for backward compatibility)
+        if (lastPage.next && typeof lastPage.next !== 'string') {
+          return lastPage.next;
+        }
+
         return undefined;
       },
       enabled: true,
@@ -235,6 +260,11 @@ const MoviesPage = () => {
         return false;
       },
     });
+
+  // Log the full data object after fetching
+  if (data && data.pages) {
+    data.pages.forEach((page, idx) => {});
+  }
 
   // State to prevent duplicate fetchNextPage calls
   const [isFetching, setIsFetching] = useState(false);
@@ -269,36 +299,38 @@ const MoviesPage = () => {
 
   // Memoized movie list với optimized deduplication
   const movies = useMemo(() => {
-    if (!data?.pages) return [];
+    if (!data?.pages) {
+      return [];
+    }
 
     // Safely extract movies from all pages với deduplication
-    const allMovies = data.pages.reduce((accumulator, page) => {
-      if (page && page.data && Array.isArray(page.data)) {
-        return [...accumulator, ...page.data];
+    const allMovies = data.pages.reduce((accumulator, page, idx) => {
+      if (page) {
+        if (Array.isArray(page.data)) {
+          return [...accumulator, ...page.data];
+        }
+        if (Array.isArray(page.results)) {
+          return [...accumulator, ...page.results];
+        }
+        if (Array.isArray(page)) {
+          return [...accumulator, ...page];
+        }
       }
       return accumulator;
     }, []);
-
-    // Debug: Track original vs deduplicated count
-    const originalCount = allMovies.length;
 
     // Optimized deduplication using Map for O(n) performance
     const uniqueMoviesMap = new Map();
     allMovies.forEach(movie => {
       if (movie && movie.id && !uniqueMoviesMap.has(movie.id)) {
-        uniqueMoviesMap.set(movie.id, movie);
+        uniqueMoviesMap.set(movie.id, {
+          ...movie,
+          poster_url: movie.poster_url || movie.poster_path || '', // Map poster_path to poster_url
+        });
       }
     });
 
     const uniqueMovies = Array.from(uniqueMoviesMap.values());
-
-    // Debug logging cho development (chỉ log khi thực sự có duplicate)
-    if (process.env.NODE_ENV === 'development' && originalCount !== uniqueMovies.length) {
-      console.warn(
-        `[Movies Deduplication] Found ${originalCount - uniqueMovies.length} duplicate movies`
-      );
-      console.log(`Original: ${originalCount}, Unique: ${uniqueMovies.length}`);
-    }
 
     return uniqueMovies;
   }, [data]);
@@ -883,7 +915,7 @@ const MoviesPage = () => {
                   </div>
                 )}
 
-                {/* End of Results Message */}
+                {/* End of Results Message
                 {!data?.pages?.[data.pages.length - 1]?.next_search_after && movies.length > 0 && (
                   <div className="mt-8 text-center text-gray-400">
                     <div className="inline-flex items-center gap-2 rounded-lg bg-gray-800/50 px-4 py-2">
@@ -892,7 +924,7 @@ const MoviesPage = () => {
                       </span>
                     </div>
                   </div>
-                )}
+                )} */}
 
                 {/* Empty State */}
                 {movies.length === 0 && !isLoading && (

@@ -156,7 +156,7 @@ class Command(BaseCommand):
             # Only movies without production metrics or with outdated metrics
             queryset = Movie.objects.filter(
                 models.Q(production_metrics__isnull=True) |
-                models.Q(production_metrics__last_calculated_at__isnull=True)
+                models.Q(production_metrics__last_metrics_update__isnull=True)
             )
             description = "movies without production metrics"
 

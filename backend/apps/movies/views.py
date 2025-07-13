@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -15,7 +15,7 @@ from django.db.models import Count, Prefetch, Q, F, Avg, Case, When, Value, Inte
 from django.db.models.functions import Greatest, Coalesce, Cast
 from django.core.paginator import Paginator
 from django.db import models
-from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer, ReviewReport,ModerationConfig,ModerationFeedback
+from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer, ReviewReport,ModerationConfig,ModerationFeedback, MovieQualityMetrics, ProductionMetrics
 from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer, ReviewReportSerializer, ModerationQueueReviewSerializer, AdminMovieListSerializer, AdminMovieSerializer
 import logging
 import hashlib
@@ -25,6 +25,9 @@ from .services.search_service import MovieSearchService
 from .services.spoiler_detection_service import spoiler_detector
 logger = logging.getLogger(__name__)
 from rest_framework.pagination import PageNumberPagination
+from .services.quality_calculation_service import QualityCalculationService
+from .services.user_data_collection_service import UserDataCollectionService
+from .services.production_metrics_service import ProductionMetricsService
 
 class AdminMoviePagination(PageNumberPagination):
     """Custom pagination for admin movies with smaller page size"""
@@ -911,9 +914,17 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             page = self.paginate_queryset(queryset)
             serializer = self.get_serializer(page, many=True)
 
-            response = self.get_paginated_response(serializer.data)
-            response.data['search_engine'] = 'django_orm'
-            return response
+            # Standardize response format to match Elasticsearch
+            paginated_response = self.get_paginated_response(serializer.data)
+
+            return Response({
+                'status': 'success',
+                'count': paginated_response.data.get('count', 0),
+                'data': paginated_response.data.get('results', []),  # Standardize to 'data' key
+                'search_engine': 'django_orm',
+                'next': paginated_response.data.get('next'),
+                'previous': paginated_response.data.get('previous')
+            })
 
         except Exception as e:
             logger.error(f"Search error: {str(e)}")
@@ -4096,4 +4107,187 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def test_calculation_metrics(request):
+    """
+    API endpoint to test calculated metrics integration
+    Returns sample data and statistics
+    """
+    try:
+        # Get basic statistics
+        total_movies = Movie.objects.count()
+        movies_with_quality = MovieQualityMetrics.objects.count()
+        movies_with_production = ProductionMetrics.objects.count()
+
+        # Get sample movies with all metrics
+        sample_movies = Movie.objects.select_related(
+            'quality_metrics', 'production_metrics'
+        ).filter(
+            quality_metrics__isnull=False,
+            production_metrics__isnull=False
+        ).order_by('-quality_metrics__last_quality_check')[:5]
+
+        # Calculate averages
+        avg_quality = MovieQualityMetrics.objects.aggregate(
+            avg_quality=Avg('quality_score'),
+            avg_completeness=Avg('content_completeness')
+        )
+
+        avg_production = ProductionMetrics.objects.aggregate(
+            avg_performance=Avg('performance_score'),
+            avg_trending=Avg('trending_score')
+        )
+
+        # Quality distribution
+        quality_distribution = MovieQualityMetrics.objects.aggregate(
+            excellent=Count('id', filter=Q(quality_score__gte=8.0)),
+            good=Count('id', filter=Q(quality_score__gte=6.0, quality_score__lt=8.0)),
+            fair=Count('id', filter=Q(quality_score__gte=4.0, quality_score__lt=6.0)),
+            poor=Count('id', filter=Q(quality_score__lt=4.0))
+        )
+
+        # Production categories
+        production_categories = ProductionMetrics.objects.values('trending_category').annotate(
+            count=Count('id')
+        ).order_by('-count')
+
+        # Sample data
+        sample_data = []
+        for movie in sample_movies:
+            sample_data.append({
+                'id': movie.id,
+                'title': movie.title,
+                'poster_url': movie.poster_url,
+                'quality_metrics': {
+                    'quality_score': movie.quality_metrics.quality_score,
+                    'content_completeness': movie.quality_metrics.content_completeness,
+                    'minimum_quality_met': movie.quality_metrics.minimum_quality_met,
+                    'last_quality_check': movie.quality_metrics.last_quality_check
+                } if movie.quality_metrics else None,
+                'production_metrics': {
+                    'performance_score': movie.production_metrics.performance_score,
+                    'trending_score': movie.production_metrics.trending_score,
+                    'trending_category': movie.production_metrics.trending_category,
+                    'homepage_views': movie.production_metrics.homepage_views,
+                    'detail_page_views': movie.production_metrics.detail_page_views,
+                    'engagement_rate': movie.production_metrics.engagement_rate,
+                    'last_metrics_update': movie.production_metrics.last_metrics_update
+                } if movie.production_metrics else None
+            })
+
+        return Response({
+            'status': 'success',
+            'message': 'Calculated metrics test successful',
+            'data': {
+                'statistics': {
+                    'total_movies': total_movies,
+                    'movies_with_quality': movies_with_quality,
+                    'movies_with_production': movies_with_production,
+                    'quality_coverage': round((movies_with_quality / total_movies) * 100, 2) if total_movies > 0 else 0,
+                    'production_coverage': round((movies_with_production / total_movies) * 100, 2) if total_movies > 0 else 0
+                },
+                'averages': {
+                    'quality_score': round(avg_quality['avg_quality'], 2) if avg_quality['avg_quality'] else 0,
+                    'content_completeness': round(avg_quality['avg_completeness'], 2) if avg_quality['avg_completeness'] else 0,
+                    'performance_score': round(avg_production['avg_performance'], 2) if avg_production['avg_performance'] else 0,
+                    'trending_score': round(avg_production['avg_trending'], 2) if avg_production['avg_trending'] else 0
+                },
+                'quality_distribution': quality_distribution,
+                'production_categories': list(production_categories),
+                'sample_movies': sample_data
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error in test_calculation_metrics: {str(e)}")
+        return Response({
+            'status': 'error',
+            'message': f'Error testing calculated metrics: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_sample_metrics(request):
+    """
+    API endpoint to calculate metrics for a sample of movies
+    Used for testing the calculation pipeline
+    """
+    try:
+        sample_size = min(int(request.data.get('sample_size', 5)), 20)  # Max 20 movies
+
+        # Get sample movies
+        sample_movies = Movie.objects.filter(
+            title__isnull=False,
+            poster_url__isnull=False
+        ).exclude(
+            title__exact='',
+            poster_url__exact=''
+        ).order_by('?')[:sample_size]  # Random sample
+
+        if not sample_movies:
+            return Response({
+                'status': 'error',
+                'message': 'No sample movies found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Initialize services
+        quality_service = QualityCalculationService()
+        user_data_service = UserDataCollectionService()
+        production_service = ProductionMetricsService()
+
+        results = []
+        processed = 0
+        errors = 0
+
+        for movie in sample_movies:
+            try:
+                # Calculate quality metrics
+                quality_result = quality_service.calculate_movie_quality(movie, save=True)
+
+                # Calculate user data (from existing data)
+                user_data_service._calculate_from_existing_data(movie)
+
+                # Calculate production metrics
+                production_result = production_service.calculate_production_metrics(movie, save=True)
+
+                results.append({
+                    'movie_id': movie.id,
+                    'title': movie.title,
+                    'quality_score': quality_result['quality_score'],
+                    'content_completeness': quality_result['content_completeness'],
+                    'production_calculated': bool(production_result),
+                    'status': 'success'
+                })
+
+                processed += 1
+
+            except Exception as e:
+                results.append({
+                    'movie_id': movie.id,
+                    'title': movie.title,
+                    'status': 'error',
+                    'error': str(e)
+                })
+                errors += 1
+                logger.error(f"Error calculating metrics for movie {movie.id}: {str(e)}")
+
+        return Response({
+            'status': 'success',
+            'message': f'Sample calculation completed: {processed} successful, {errors} errors',
+            'data': {
+                'sample_size': sample_size,
+                'processed': processed,
+                'errors': errors,
+                'results': results
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error in calculate_sample_metrics: {str(e)}")
+        return Response({
+            'status': 'error',
+            'message': f'Error calculating sample metrics: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { useInView } from 'react-intersection-observer';
 import { useThrottledScroll } from '../../../hooks/useThrottledScroll';
+import useUserTracking from '../../../hooks/useUserTracking';
 import MovieCard from '../movie-card';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import ErrorMessage from '../../common/ErrorMessage';
@@ -33,6 +34,21 @@ const MovieGrid = memo(
     fetchNextPage,
   }) => {
     const { t } = useTranslation('movies');
+    const { trackInteraction } = useUserTracking();
+
+    // Track grid view when movies are loaded
+    useEffect(() => {
+      if (movies && movies.length > 0 && !loading) {
+        trackInteraction({
+          action: 'grid_view',
+          metadata: {
+            movies_count: movies.length,
+            context: 'movie_grid',
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+    }, [movies?.length, loading, trackInteraction]);
 
     // Get scroll state để optimize rendering
     const { isFastScrolling, isScrolling, scrollSpeed } = useThrottledScroll();

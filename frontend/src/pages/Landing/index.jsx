@@ -5,6 +5,7 @@ import { CheckCircle } from 'lucide-react';
 import { useEffect, useRef, useState, useMemo, useCallback, lazy } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import useUserTracking from '../../hooks/useUserTracking';
 
 // Lazy load các component nặng để tối ưu performance
 const CategoriesSection = lazy(() => import('../../components/categories/CategoriesSection'));
@@ -47,6 +48,20 @@ const LandingPage = () => {
   const user = useSelector(state => state.auth.user);
   const currentTab = useSelector(state => state.movies.currentTab);
   const [isSecondaryDataEnabled, setIsSecondaryDataEnabled] = useState(false);
+
+  // User tracking
+  const { trackInteraction } = useUserTracking();
+
+  // Track landing page view
+  useEffect(() => {
+    trackInteraction({
+      action: 'page_view',
+      metadata: {
+        page: 'landing',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }, [trackInteraction]);
 
   // Use the trailer modal hook
   const {

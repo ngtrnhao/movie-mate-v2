@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
+from . import views
 from .views import (
     RegisterView,
     LoginView,
@@ -53,4 +54,8 @@ urlpatterns = [
     path('profile/<int:userId>/favorite-movies/', UserFavoriteMoviesView.as_view(), name='user-favorite-movies'),
     path('usage-stats/', UserUsageStatsView.as_view(), name='user-usage-stats'),
     path('google/', GoogleAuthView.as_view(), name='google-auth'),
+
+    # User interaction tracking endpoints
+    path('user-interactions/', views.user_interactions, name='user_interactions'),
+    path('user-interaction-stats/', views.user_interaction_stats, name='user_interaction_stats'),
 ]

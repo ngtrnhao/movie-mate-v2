@@ -1,4 +1,4 @@
-import { memo, useMemo, useCallback, useState } from 'react';
+import { memo, useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Actions from './Actions';
@@ -11,6 +11,7 @@ import RecommendedInfo from './RecommendedInfo';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { getDisplayTitle, getDisplayOverview } from '../../../utils/titleUtils';
 import animationCache from '../../../utils/animationCache';
+import useUserTracking from '../../../hooks/useUserTracking';
 
 // Slide up animation variants
 const posterVariants = {
@@ -19,10 +20,23 @@ const posterVariants = {
 };
 
 const MovieCard = memo(
-  ({ movie, index = 0, onClick, onTrailerClick, priority = false, minimal = false, style }) => {
+  props => {
+    // Normalize movie object to always have both poster_url and poster_path
+    const movie = {
+      ...props.movie,
+      poster_url: props.movie.poster_url || props.movie.poster_path || '',
+      poster_path: props.movie.poster_path || props.movie.poster_url || '',
+    };
+    const { index = 0, onClick, onTrailerClick, priority = false, minimal = false, style } = props;
     const { i18n } = useTranslation();
     const [posterLoaded, setPosterLoaded] = useState(false);
     const [hasAnimated, setHasAnimated] = useState(animationCache.isMovieAnimated(movie.id));
+    const cardRef = useRef(null);
+    const viewObserverRef = useRef(null);
+
+    // Initialize user tracking
+    const { trackHomepageView, trackMovieClick, trackTrailerView, createViewObserver } =
+      useUserTracking();
 
     // Memoize stable movie data to prevent re-calculations
     const movieData = useMemo(
@@ -33,6 +47,7 @@ const MovieCard = memo(
         title_vi: movie.title_vi,
         original_title: movie.original_title,
         poster_path: movie.poster_path,
+        poster_url: movie.poster_url,
         overview_en: movie.overview_en,
         overview_vi: movie.overview_vi,
         release_date: movie.release_date,
@@ -56,6 +71,7 @@ const MovieCard = memo(
         movie.title_vi,
         movie.original_title,
         movie.poster_path,
+        movie.poster_url,
         movie.overview_en,
         movie.overview_vi,
         movie.release_date,
@@ -90,11 +106,18 @@ const MovieCard = memo(
     const isPriority = index < 8;
 
     const handleClick = useCallback(() => {
+      // Track movie click
+      trackMovieClick(movieData.id, {
+        component: 'movie_card',
+        position: index,
+        minimal: minimal,
+      });
+
       // Remove sessionStorage handling - let the global hook handle it
       if (onClick) {
         onClick(movieData);
       }
-    }, [movieData, onClick]);
+    }, [movieData, onClick, trackMovieClick, index, minimal]);
 
     const handleTrailerClick = useCallback(
       e => {
@@ -104,11 +127,18 @@ const MovieCard = memo(
         if (e && e.stopPropagation) {
           e.stopPropagation();
         }
+
+        // Track trailer view
+        trackTrailerView(movieData.id, {
+          component: 'movie_card',
+          position: index,
+        });
+
         if (onTrailerClick) {
           onTrailerClick(movieData);
         }
       },
-      [movieData, onTrailerClick]
+      [movieData, onTrailerClick, trackTrailerView, index]
     );
 
     // Mark movie as animated when it comes into view
@@ -119,11 +149,29 @@ const MovieCard = memo(
       }
     }, [hasAnimated, movie.id]);
 
+    // Setup intersection observer for homepage view tracking
+    useEffect(() => {
+      if (cardRef.current && movieData.id && !minimal) {
+        viewObserverRef.current = createViewObserver(cardRef.current, movieData.id, {
+          component: 'movie_card',
+          position: index,
+          page_type: 'homepage',
+        });
+      }
+
+      return () => {
+        if (viewObserverRef.current) {
+          viewObserverRef.current.disconnect();
+        }
+      };
+    }, [movieData.id, index, minimal, createViewObserver]);
+
     // Minimal rendering cho fast scroll - chỉ hiển thị poster và title
     if (minimal) {
       if (posterLoaded) {
         return (
           <motion.div
+            ref={cardRef}
             variants={hasAnimated ? {} : posterVariants}
             initial={hasAnimated ? 'visible' : 'hidden'}
             whileInView={hasAnimated ? undefined : 'visible'}
@@ -157,6 +205,7 @@ const MovieCard = memo(
       }
       return (
         <div
+          ref={cardRef}
           className="movie-card focus-ring group relative rounded-lg bg-gray-800 shadow-lg transition-transform will-change-transform hover:scale-105"
           style={style}
         >
@@ -174,6 +223,7 @@ const MovieCard = memo(
     if (posterLoaded) {
       return (
         <motion.div
+          ref={cardRef}
           variants={hasAnimated ? {} : posterVariants}
           initial={hasAnimated ? 'visible' : 'hidden'}
           whileInView={hasAnimated ? undefined : 'visible'}
@@ -254,7 +304,10 @@ const MovieCard = memo(
       );
     }
     return (
-      <div className="movie-card focus-ring group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md">
+      <div
+        ref={cardRef}
+        className="movie-card focus-ring group relative flex h-full flex-col overflow-hidden rounded-lg bg-gray-800 shadow-md"
+      >
         <div className="movie-poster">
           <Poster
             movie={movieData}

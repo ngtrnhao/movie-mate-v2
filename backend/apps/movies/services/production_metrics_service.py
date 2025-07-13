@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Sum, Avg, Count, Q, F
-from apps.movies.models import Movie, ProductionMetrics
+from apps.movies.models import Movie, ProductionMetrics, UserInteraction
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class ProductionMetricsService:
     """
     Service để tính toán production metrics tự động cho movies
-    Cải thiện MovieProductionMetrics với calculated values
+    🔥 ENHANCED: Tích hợp với UserInteraction data cho tính toán chính xác
     """
 
     # Performance score weights
@@ -29,11 +29,12 @@ class ProductionMetricsService:
     ENGAGEMENT_SCORE_THRESHOLD = 100  # Engagements for max score
 
     def __init__(self):
-        self.calculation_version = "1.0"
+        self.calculation_version = "2.0"  # Updated to reflect UserInteraction integration
 
     def calculate_production_metrics(self, movie: Movie, save: bool = True) -> Dict:
         """
         Tính toán toàn bộ production metrics cho một movie
+        🔥 ENHANCED: Sử dụng UserInteraction data cho tính toán chính xác
 
         Args:
             movie: Movie instance
@@ -59,8 +60,11 @@ class ProductionMetricsService:
                 }
             )
 
-            # Calculate current metrics
-            current_metrics = self._calculate_current_metrics(movie, production_metrics)
+            # 🔥 ENHANCED: Calculate metrics from UserInteraction data
+            interaction_metrics = self._calculate_metrics_from_interactions(movie)
+
+            # Calculate current metrics (combines UserInteraction + existing data)
+            current_metrics = self._calculate_current_metrics(movie, production_metrics, interaction_metrics)
 
             # Calculate performance scores
             performance_scores = self._calculate_performance_scores(movie, current_metrics)
@@ -73,8 +77,8 @@ class ProductionMetricsService:
                 current_metrics, performance_scores
             )
 
-            # Get trending information
-            trending_info = self._calculate_trending_metrics(movie, current_metrics)
+            # Get trending information (enhanced with interaction data)
+            trending_info = self._calculate_trending_metrics(movie, current_metrics, interaction_metrics)
 
             # Prepare metrics data
             metrics_data = {
@@ -93,58 +97,143 @@ class ProductionMetricsService:
             if save:
                 self._save_production_metrics(production_metrics, metrics_data)
 
-            logger.info(f"Production metrics calculated for movie {movie.id}: {overall_performance:.1f}/10.0")
+            logger.info(f"🔥 Production metrics calculated for movie {movie.id}: {overall_performance:.1f}/10.0 (v{self.calculation_version})")
             return metrics_data
 
         except Exception as e:
-            logger.error(f"Error calculating production metrics for movie {movie.id}: {str(e)}")
+            logger.error(f"❌ Error calculating production metrics for movie {movie.id}: {str(e)}")
             raise
 
-    def _calculate_current_metrics(self, movie: Movie, production_metrics: ProductionMetrics) -> Dict:
-        """Tính toán current metrics từ database"""
+    def _calculate_metrics_from_interactions(self, movie: Movie) -> Dict:
+        """🔥 NEW: Tính toán metrics từ UserInteraction data"""
+        try:
+            # Get interactions for this movie (last 30 days for freshness)
+            thirty_days_ago = timezone.now() - timedelta(days=30)
 
-        # Get basic metrics from ProductionMetrics model
-        homepage_views = production_metrics.homepage_views
-        detail_page_views = production_metrics.detail_page_views
-        trailer_plays = production_metrics.trailer_plays
+            # All-time interactions
+            all_interactions = UserInteraction.objects.filter(movie=movie)
+
+            # Recent interactions (last 30 days)
+            recent_interactions = all_interactions.filter(timestamp__gte=thirty_days_ago)
+
+            # Calculate view counts from interactions
+            homepage_views = all_interactions.filter(action='homepage_view').count()
+            detail_views = all_interactions.filter(action='detail_view').count()
+            page_views = all_interactions.filter(action='page_view').count()
+
+            # Calculate engagement from interactions
+            favorites = all_interactions.filter(action='favorite').count()
+            watchlist_adds = all_interactions.filter(action='watchlist').count()
+            shares = all_interactions.filter(action='share').count()
+            likes = all_interactions.filter(action='like').count()
+
+            # Calculate unique users and sessions
+            unique_users = all_interactions.filter(user__isnull=False).values('user').distinct().count()
+            unique_sessions = all_interactions.filter(session_id__isnull=False).values('session_id').distinct().count()
+
+            # Calculate average session duration
+            avg_duration = all_interactions.filter(
+                duration_seconds__isnull=False
+            ).aggregate(avg_duration=Avg('duration_seconds'))['avg_duration'] or 0
+
+            # Recent activity metrics
+            recent_activity_score = recent_interactions.count()
+            recent_unique_users = recent_interactions.filter(user__isnull=False).values('user').distinct().count()
+
+            # Device breakdown from user_agent
+            mobile_interactions = all_interactions.filter(
+                user_agent__icontains='Mobile'
+            ).count()
+            tablet_interactions = all_interactions.filter(
+                user_agent__icontains='Tablet'
+            ).count()
+            desktop_interactions = all_interactions.count() - mobile_interactions - tablet_interactions
+
+            return {
+                'interaction_homepage_views': homepage_views,
+                'interaction_detail_views': detail_views,
+                'interaction_page_views': page_views,
+                'interaction_total_views': homepage_views + detail_views + page_views,
+                'interaction_favorites': favorites,
+                'interaction_watchlist': watchlist_adds,
+                'interaction_shares': shares,
+                'interaction_likes': likes,
+                'interaction_total_engagement': favorites + watchlist_adds + shares + likes,
+                'interaction_unique_users': unique_users,
+                'interaction_unique_sessions': unique_sessions,
+                'interaction_avg_duration': float(avg_duration),
+                'interaction_recent_activity': recent_activity_score,
+                'interaction_recent_users': recent_unique_users,
+                'interaction_mobile_count': mobile_interactions,
+                'interaction_tablet_count': tablet_interactions,
+                'interaction_desktop_count': desktop_interactions,
+                'interaction_total_count': all_interactions.count()
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error calculating metrics from interactions for movie {movie.id}: {str(e)}")
+            return {}
+
+    def _calculate_current_metrics(self, movie: Movie, production_metrics: ProductionMetrics, interaction_metrics: Dict) -> Dict:
+        """🔥 ENHANCED: Combine ProductionMetrics + UserInteraction data"""
+
+        # Combine data from both sources (UserInteraction takes precedence if available)
+        homepage_views = max(
+            production_metrics.homepage_views,
+            interaction_metrics.get('interaction_homepage_views', 0)
+        )
+        detail_page_views = max(
+            production_metrics.detail_page_views,
+            interaction_metrics.get('interaction_detail_views', 0)
+        )
+
+        # Use interaction data for more accurate counts
+        total_views = interaction_metrics.get('interaction_total_views', homepage_views + detail_page_views)
 
         # Reviews and ratings count from existing fields
         reviews_count = production_metrics.review_count
         avg_user_rating = production_metrics.average_user_rating
 
-        # Calculate engagement from recent activity (last 30 days)
-        thirty_days_ago = timezone.now() - timedelta(days=30)
-        recent_reviews = 0
-        recent_favorites = 0
+        # Enhanced engagement from UserInteraction data
+        favorites_count = max(
+            production_metrics.user_favorites_count,
+            interaction_metrics.get('interaction_favorites', 0)
+        )
 
-        # Try to get recent reviews if reviews relationship exists
-        try:
-            if hasattr(movie, 'reviews'):
-                recent_reviews = movie.reviews.filter(created_at__gte=thirty_days_ago).count()
-        except:
-            recent_reviews = 0
+        shares_count = interaction_metrics.get('interaction_shares', 0)
+        likes_count = interaction_metrics.get('interaction_likes', 0)
 
-        # Estimate favorites count from engagement rate and views if available
-        total_views = homepage_views + detail_page_views
-        estimated_favorites = int(total_views * (production_metrics.engagement_rate / 100)) if total_views > 0 else 0
+        # Total engagement score (enhanced)
+        total_engagement = (
+            favorites_count +
+            shares_count +
+            likes_count +
+            reviews_count +
+            interaction_metrics.get('interaction_watchlist', 0)
+        )
 
-        # Total engagement score
-        total_engagement = estimated_favorites + reviews_count + recent_reviews
+        # Recent activity (from interactions)
+        recent_activity = interaction_metrics.get('interaction_recent_activity', 0)
+        unique_users = interaction_metrics.get('interaction_unique_users', 0)
 
         return {
             'homepage_views': homepage_views,
             'detail_page_views': detail_page_views,
-            'trailer_plays': trailer_plays,
+            'total_views': total_views,
+            'trailer_plays': production_metrics.trailer_plays,
             'search_appearances': production_metrics.search_appearances,
-            'mobile_views': production_metrics.mobile_views,
-            'desktop_views': production_metrics.desktop_views,
-            'tablet_views': production_metrics.tablet_views,
+            'mobile_views': interaction_metrics.get('interaction_mobile_count', production_metrics.mobile_views),
+            'desktop_views': interaction_metrics.get('interaction_desktop_count', production_metrics.desktop_views),
+            'tablet_views': interaction_metrics.get('interaction_tablet_count', production_metrics.tablet_views),
             'reviews_count': reviews_count,
             'avg_user_rating': round(float(avg_user_rating), 2) if avg_user_rating else 0.0,
-            'recent_reviews_count': recent_reviews,
-            'recent_favorites_count': recent_favorites,
-            'estimated_favorites_count': estimated_favorites,
+            'favorites_count': favorites_count,
+            'shares_count': shares_count,
+            'likes_count': likes_count,
             'total_engagement_count': total_engagement,
+            'recent_activity_count': recent_activity,
+            'unique_users_count': unique_users,
+            'avg_session_duration': interaction_metrics.get('interaction_avg_duration', 0),
             'click_through_rate': float(production_metrics.click_through_rate),
             'engagement_rate': float(production_metrics.engagement_rate),
             'performance_score': float(production_metrics.performance_score),
@@ -171,9 +260,9 @@ class ProductionMetricsService:
 
         # Freshness score (based on recent activity)
         freshness_score = 0.0
-        if current_metrics['recent_reviews_count'] > 0:
+        if current_metrics.get('recent_reviews_count', 0) > 0:
             freshness_score += 3.0
-        if current_metrics['recent_favorites_count'] > 0:
+        if current_metrics.get('recent_favorites_count', 0) > 0:
             freshness_score += 2.0
 
         # Release date freshness (newer movies get higher score)
@@ -233,31 +322,42 @@ class ProductionMetricsService:
 
         return round(overall_score, 2)
 
-    def _calculate_trending_metrics(self, movie: Movie, current_metrics: Dict) -> Dict:
-        """Tính toán trending metrics"""
+    def _calculate_trending_metrics(self, movie: Movie, current_metrics: Dict, interaction_metrics: Dict) -> Dict:
+        """🔥 ENHANCED: Tính toán trending metrics với UserInteraction data"""
+
+        # Enhanced trending calculation using interaction data
+        recent_activity = interaction_metrics.get('interaction_recent_activity', 0)
+        recent_users = interaction_metrics.get('interaction_recent_users', 0)
 
         # Is trending if has significant recent activity
         is_trending = (
-            current_metrics['recent_reviews_count'] >= 5 or
-            current_metrics['recent_favorites_count'] >= 10 or
-            current_metrics['total_engagement_count'] >= 50
+            recent_activity >= 10 or  # At least 10 recent interactions
+            recent_users >= 5 or      # At least 5 recent unique users
+            current_metrics['total_engagement_count'] >= 50  # High overall engagement
         )
 
-        # Trending score based on recent activity velocity
+        # Enhanced trending score calculation
         trending_score = 0.0
-        if current_metrics['recent_reviews_count'] > 0:
-            trending_score += min(current_metrics['recent_reviews_count'] * 2, 20)
-        if current_metrics['recent_favorites_count'] > 0:
-            trending_score += min(current_metrics['recent_favorites_count'], 30)
+
+        # Recent activity factor (0-40 points)
+        trending_score += min(recent_activity * 2, 40)
+
+        # Recent users factor (0-30 points)
+        trending_score += min(recent_users * 6, 30)
+
+        # Engagement velocity factor (0-30 points)
+        if current_metrics['total_views'] > 0:
+            engagement_velocity = (current_metrics['total_engagement_count'] / current_metrics['total_views']) * 100
+            trending_score += min(engagement_velocity * 3, 30)
 
         trending_score = min(trending_score, 100.0)
 
-        # Trending category
+        # Enhanced trending category
         if trending_score >= 80:
             trending_category = "viral"
-        elif trending_score >= 50:
+        elif trending_score >= 60:
             trending_category = "hot"
-        elif trending_score >= 20:
+        elif trending_score >= 30:
             trending_category = "rising"
         else:
             trending_category = "stable"
@@ -265,7 +365,9 @@ class ProductionMetricsService:
         return {
             'is_trending': is_trending,
             'trending_score': round(trending_score, 2),
-            'trending_category': trending_category
+            'trending_category': trending_category,
+            'recent_activity_score': recent_activity,
+            'recent_users_score': recent_users
         }
 
     def _save_production_metrics(self, production_metrics: ProductionMetrics, metrics_data: Dict):

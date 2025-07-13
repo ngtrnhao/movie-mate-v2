@@ -1540,7 +1540,25 @@ class ProductionMetrics(models.Model):
     positive_review_ratio = models.DecimalField(max_digits=5, decimal_places=2, default=0,
                                               help_text="Percentage of positive reviews")
 
-    # ⏰ TEMPORAL TRACKING
+    # 🎯 USER ENGAGEMENT METRICS
+    user_favorites_count = models.IntegerField(default=0, help_text="Number of users who favorited this movie")
+    user_watchlist_count = models.IntegerField(default=0, help_text="Number of users who added to watchlist")
+    user_shares_count = models.IntegerField(default=0, help_text="Number of times movie was shared")
+    user_likes_count = models.IntegerField(default=0, help_text="Number of user likes")
+
+    # 📊 ADDITIONAL ENGAGEMENT METRICS
+    bounce_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
+                                     help_text="Percentage of users who left quickly")
+    session_duration_avg = models.DecimalField(max_digits=6, decimal_places=2, default=0,
+                                              help_text="Average session duration in seconds")
+    return_visitor_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
+                                             help_text="Percentage of returning visitors")
+
+    # 🌐 INTERACTION TRACKING
+    last_interaction_date = models.DateTimeField(null=True, blank=True,
+                                                help_text="Last time there was user interaction")
+
+    # ⏰ TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_metrics_update = models.DateTimeField(null=True, blank=True,
@@ -2326,4 +2344,64 @@ class MovieScheduling(models.Model):
                 featured_until__lte=future_time
             )
         ).select_related('movie')
+
+
+class UserInteraction(models.Model):
+    """
+    Model để lưu trữ raw user interaction data
+    Phục vụ analytics và tính toán metrics chi tiết
+    """
+
+    # Core fields
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='user_interactions')
+    user = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='movie_interactions')
+    session_id = models.CharField(max_length=100, null=True, blank=True, help_text="Session ID for anonymous users")
+
+    # Interaction details
+    action = models.CharField(max_length=50, help_text="Type of interaction (view, click, favorite, etc.)")
+    interaction_type = models.CharField(max_length=50, null=True, blank=True, help_text="Specific interaction type from metadata")
+
+    # Context and metadata
+    page_url = models.URLField(null=True, blank=True)
+    referrer = models.URLField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    screen_resolution = models.CharField(max_length=50, null=True, blank=True)
+    viewport_size = models.CharField(max_length=50, null=True, blank=True)
+
+    # Additional metadata stored as JSON
+    metadata = models.JSONField(default=dict, blank=True)
+
+    # Timestamps
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    processed_at = models.DateTimeField(null=True, blank=True, help_text="When this interaction was processed for metrics")
+
+    # Analytics fields
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True, help_text="Time spent on page/interaction")
+    is_unique_session = models.BooleanField(default=True, help_text="Is this the first interaction from this session")
+
+    class Meta:
+        db_table = 'movies_userinteraction'
+        indexes = [
+            models.Index(fields=['movie', 'action', 'timestamp']),
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['session_id', 'timestamp']),
+            models.Index(fields=['action', 'timestamp']),
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['processed_at']),
+        ]
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        user_identifier = self.user.username if self.user else f"session_{self.session_id}"
+        return f"{user_identifier} - {self.action} - {self.movie.title} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+    @property
+    def user_identifier(self):
+        """Get user identifier (username or session_id)"""
+        return self.user.username if self.user else f"session_{self.session_id}"
+
+    def mark_as_processed(self):
+        """Mark this interaction as processed for metrics calculation"""
+        self.processed_at = timezone.now()
+        self.save(update_fields=['processed_at'])
 

@@ -1,14 +1,16 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import { useCategories } from '../../hooks/useCategories';
+import useUserTracking from '../../hooks/useUserTracking';
 import CategoryGrid from './CategoryGrid';
 import { LazyLoader, GridSkeleton } from '../common/LazyLoader';
 
 const CategoriesSection = memo(() => {
   const { t } = useTranslation('landing');
   const navigate = useNavigate();
+  const { trackInteraction } = useUserTracking();
 
   // Sử dụng hook với options tối ưu cho section này
   const {
@@ -21,17 +23,47 @@ const CategoriesSection = memo(() => {
     placeholderData: [],
   });
 
+  // Track categories section view
+  useEffect(() => {
+    if (categories && categories.length > 0 && !catLoading) {
+      trackInteraction({
+        action: 'categories_section_view',
+        metadata: {
+          categories_count: categories.length,
+          context: 'categories_section',
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+  }, [categories?.length, catLoading, trackInteraction]);
+
   // Memoize handlers
   const handleViewAllCategories = useCallback(() => {
+    trackInteraction({
+      action: 'view_all_categories_click',
+      metadata: {
+        context: 'categories_section',
+        timestamp: new Date().toISOString(),
+      },
+    });
     navigate('/categories');
-  }, [navigate]);
+  }, [navigate, trackInteraction]);
 
   const handleCategoryClick = useCallback(
     category => {
+      trackInteraction({
+        action: 'category_click',
+        metadata: {
+          category_id: category.id,
+          category_name: category.name,
+          context: 'categories_section',
+          timestamp: new Date().toISOString(),
+        },
+      });
       // Navigate to movies page with genre filter
       navigate(`/movies?genres=${category.id}&sort_by=popularity&order=desc`);
     },
-    [navigate]
+    [navigate, trackInteraction]
   );
 
   return (

@@ -25,7 +25,7 @@ const isCacheValid = (key, duration = CACHE_DURATION) => {
 // Helper function to handle API responses
 const handleResponse = response => {
   if (response.status === 'success') {
-    return response.data;
+    return response.data; // Return the full response object, not just response.data
   }
   throw new Error(response.message || 'API request failed');
 };
@@ -35,7 +35,6 @@ const makeApiCall = async (endpoint, cacheKey) => {
   try {
     // Check cache first
     if (isCacheValid(cacheKey)) {
-      console.log(`Returning cached ${cacheKey} movies`);
       return cache[cacheKey];
     }
 
@@ -191,18 +190,25 @@ export const getSimilarMovies = async (movieId, genres = [], limit = 6) => {
     params.append('order', 'desc');
 
     const response = await axiosInstance.get(`/api/movies/search/?${params}`);
+    const data = handleResponse(response.data);
+
+    // Handle both response formats
+    let results = data.results || data.data || data || [];
 
     // Filter out the current movie from results
-    let results = response.data?.results || [];
     if (results.length > 0) {
       results = results.filter(movie => movie.id !== parseInt(movieId));
       results = results.slice(0, limit);
     }
 
-    return { results };
+    return {
+      results,
+      count: data.count || results.length,
+      search_engine: data.search_engine || 'unknown',
+    };
   } catch (error) {
     console.error('Error fetching similar movies:', error);
-    return { results: [] };
+    return { results: [], count: 0 };
   }
 };
 
@@ -322,87 +328,102 @@ export const submitMovieRating = async (movieId, rating, review = '') => {
 // Enhanced search movies with caching and request cancellation
 let searchController = null; // Store AbortController for request cancellation
 
+// Search movies with enhanced caching and fallback
 export const searchMovies = async (filters = {}, pageOrSearchAfter = 1, pageSize = 50) => {
   try {
-    // Cancel previous request if exists
-    if (searchController) {
-      searchController.abort();
-    }
-
-    // Create new AbortController for this request
-    searchController = new AbortController();
-
-    // Create cache key from filters
-    const cacheKey = JSON.stringify({
-      ...filters,
-      pageOrSearchAfter,
-      pageSize,
-    });
-
-    // Check cache first for search results
-    if (cache.search.has(cacheKey) && isCacheValid(`search_${cacheKey}`, SEARCH_CACHE_DURATION)) {
-      console.log('Returning cached search results');
-      return cache.search.get(cacheKey);
-    }
-
+    // Build query parameters
     const params = new URLSearchParams();
 
-    // Add filters to params - optimized parameter building
-    const filterMappings = {
-      genres: value => value?.length && value.forEach(genre => params.append('genres', genre)),
-      yearFrom: value => value && params.append('year_from', value),
-      yearTo: value => value && params.append('year_to', value),
-      country: value => value && params.append('country', value),
-      status: value => value && params.append('status', value),
-      adult: value => value !== undefined && params.append('adult', value.toString()),
-      language: value => value && params.append('language', value),
-      query: value => value && params.append('q', value),
-      sortBy: value => value && params.append('sort_by', value),
-      order: value => value && params.append('order', value),
+    // Add search query
+    if (filters.query) {
+      params.append('q', filters.query.trim());
+    }
+
+    // Add genre filters
+    if (filters.genres && filters.genres.length > 0) {
+      filters.genres.forEach(genre => {
+        params.append('genres', genre.id || genre);
+      });
+    }
+
+    // Add year filters
+    if (filters.yearFrom) {
+      params.append('year_from', filters.yearFrom);
+    }
+    if (filters.yearTo) {
+      params.append('year_to', filters.yearTo);
+    }
+
+    // Add sorting
+    if (filters.sortBy) {
+      params.append('sort_by', filters.sortBy);
+    }
+    if (filters.order) {
+      params.append('order', filters.order);
+    }
+
+    // Add poster filter
+    if (filters.hasPoster !== undefined) {
+      params.append('has_poster', filters.hasPoster.toString());
+    }
+
+    // Add pagination
+    if (typeof pageOrSearchAfter === 'number') {
+      params.append('page', pageOrSearchAfter.toString());
+    } else if (pageOrSearchAfter && typeof pageOrSearchAfter === 'string') {
+      // Handle search_after pagination
+      params.append('search_after', pageOrSearchAfter);
+    } else if (Array.isArray(pageOrSearchAfter)) {
+      // Handle search_after array from Elasticsearch
+      pageOrSearchAfter.forEach(value => {
+        params.append('search_after', value.toString());
+      });
+    }
+
+    params.append('page_size', pageSize.toString());
+
+    // Create cache key
+    const cacheKey = `search_${params.toString()}`;
+
+    // Check cache first
+    if (cache.search.has(cacheKey)) {
+      const cached = cache.search.get(cacheKey);
+      if (Date.now() - cached.timestamp < SEARCH_CACHE_DURATION) {
+        // Return the full cached object except timestamp
+        const { timestamp, ...rest } = cached;
+        return rest;
+      }
+      cache.search.delete(cacheKey);
+    }
+
+    // Make API call
+    const response = await axiosInstance.get(`/api/movies/search/?${params}`);
+    const responseData = response.data; // Lấy response.data trực tiếp
+
+    // Standardize response format for frontend compatibility
+    const standardizedData = {
+      data: responseData.data || responseData.results || [], // Always prioritize 'data' over 'results'
+      count: responseData.count || 0,
+      next: responseData.next, // Keep original next for ORM
+      next_search_after: responseData.next_search_after, // Keep original next_search_after for Elasticsearch
+      previous: responseData.previous,
+      search_engine: responseData.search_engine || 'unknown',
+      total_pages: responseData.total_pages || Math.ceil((responseData.count || 0) / pageSize),
     };
 
-    // Apply filters efficiently
-    Object.entries(filterMappings).forEach(([key, handler]) => {
-      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
-        handler(filters[key]);
-      }
+    // Cache the result (spread standardizedData, not as nested 'data')
+    cache.search.set(cacheKey, {
+      ...standardizedData,
+      timestamp: Date.now(),
     });
 
-    params.append('page_size', pageSize);
-
-    // Nếu pageOrSearchAfter là mảng (search_after), truyền vào
-    if (Array.isArray(pageOrSearchAfter)) {
-      pageOrSearchAfter.forEach(val => params.append('search_after', val));
-    } else {
-      params.append('page', pageOrSearchAfter);
-    }
-
-    const response = await axiosInstance.get(`/api/movies/search/?${params}`, {
-      signal: searchController.signal,
-      timeout: 30000, // 30 second timeout for search
-    });
-
-    // Cache the search results
-    cache.search.set(cacheKey, response.data);
-    cache.lastFetch[`search_${cacheKey}`] = Date.now();
-
-    // Limit cache size to prevent memory issues
-    if (cache.search.size > 100) {
-      const firstKey = cache.search.keys().next().value;
-      cache.search.delete(firstKey);
-      delete cache.lastFetch[`search_${firstKey}`];
-    }
-
-    return response.data;
+    return standardizedData;
   } catch (error) {
-    // Don't throw error if request was cancelled
-    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
-      console.log('Search request was cancelled');
-      return null;
-    }
-
     console.error('Error searching movies:', error);
-    throw error;
+    throw {
+      error: error.response?.data?.message || 'Failed to search movies',
+      details: error.response?.data,
+    };
   }
 };
 //Get search suggestions for autocomplete
@@ -420,7 +441,6 @@ export const getSearchSuggestions = async (query, language = 'en', limit = 5) =>
     //check cache first
     if (cache.suggestions.has(cacheKey) && isCacheValid(`suggestions_${cacheKey}`, 300000)) {
       //5 minutes cache for suggestions
-      console.log('Returning cached suggestions');
       return cache.suggestions.get(cacheKey);
     }
     const params = new URLSearchParams();
@@ -1015,5 +1035,28 @@ export const getAccuracySummary = async () => {
       error: error.response?.data?.message || 'Failed to fetch accuracy summary',
       details: error.response?.data,
     };
+  }
+};
+
+// Update API endpoints to use new structure
+export const testCalculationMetrics = async () => {
+  try {
+    const response = await axiosInstance.get('/test/calculation-metrics/');
+    return response.data;
+  } catch (error) {
+    console.error('Error testing calculation metrics:', error);
+    throw error;
+  }
+};
+
+export const calculateSampleMetrics = async (sampleSize = 5) => {
+  try {
+    const response = await axiosInstance.post('/test/calculate-sample/', {
+      sample_size: sampleSize,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error calculating sample metrics:', error);
+    throw error;
   }
 };

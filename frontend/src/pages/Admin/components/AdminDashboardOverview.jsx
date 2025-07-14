@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useDashboardData } from '../../../hooks/useDashboardData';
-import { useComprehensiveMetrics } from '../../../hooks/useProductionMetrics';
-import { useUserInteractionStats } from '../../../hooks/useUserInteractionStats';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  useAdminDashboard,
+  useAdminComprehensiveMetrics,
+  useAdminUserInteractionStats,
+} from '../../../contexts/AdminDataContext';
 import RealTimeCharts from './RealTimeCharts';
 import {
   ChartBarIcon,
@@ -18,7 +20,7 @@ const AdminDashboardOverview = () => {
     data: dashboardData,
     loading: isDashboardLoading,
     error: dashboardError,
-  } = useDashboardData();
+  } = useAdminDashboard();
 
   const {
     data: productionMetrics,
@@ -27,151 +29,157 @@ const AdminDashboardOverview = () => {
     lastUpdated,
     refreshMetrics,
     isStale,
-  } = useComprehensiveMetrics();
+  } = useAdminComprehensiveMetrics();
 
   const {
     data: userInteractionStats,
     loading: isUserStatsLoading,
     error: userStatsError,
-  } = useUserInteractionStats();
+  } = useAdminUserInteractionStats();
 
   const [showCharts, setShowCharts] = useState(true);
-  const [stats, setStats] = useState({
-    systemStats: {},
-    userStats: {},
-    contentStats: {},
-    moderationStats: {},
-    securityStats: {},
-  });
-  const [recentActivity, setRecentActivity] = useState([]);
 
-  // Update stats when data changes
-  useEffect(() => {
-    if (dashboardData && productionMetrics && userInteractionStats) {
-      // Get the actual data from the API response structure
-      const productionData = productionMetrics?.data || productionMetrics;
-      const userData = userInteractionStats?.data || userInteractionStats;
-      const dashboardDataRes = dashboardData?.data || dashboardData;
-
-      console.log('Debug - productionData:', productionData);
-      console.log('Debug - userData:', userData);
-      console.log('Debug - dashboardDataRes:', dashboardDataRes);
-
-      // Enhanced stats with real production data
-      const realStats = {
-        systemStats: {
-          uptime: 99.8,
-          responseTime: 245,
-          errorRate: 0.2,
-          serverLoad: 65,
-          databaseConnections: 45,
-          cacheHitRate: 92.5,
-          apiCallsPerMinute: productionData?.engagement_stats?.total_homepage_views || 0,
-          currentActiveUsers: userData?.overview?.total_users || 0,
-        },
-        userStats: {
-          totalUsers: userData?.overview?.total_users || 0,
-          newUsers: 45,
-          activeUsers: userData?.overview?.total_sessions || 0,
-          bannedUsers: 23,
-          moderators: 8,
-          admins: 2,
-          userGrowth: productionData?.engagement_stats?.avg_engagement_rate || 0,
-          retentionRate: productionData?.engagement_stats?.avg_engagement_rate || 0,
-          avgSessionDuration: productionData?.engagement_stats?.avg_performance_score || 0,
-          bounceRate: productionData?.engagement_stats?.avg_trending_score || 0,
-        },
-        contentStats: {
-          totalMovies: productionData?.total_movies || 0,
-          totalReviews: 15678,
-          totalComments: 45678,
-          reportedContent: 234,
-          pendingModeration: dashboardDataRes?.pending_approval || 0,
-          contentGrowth: productionData?.engagement_stats?.avg_engagement_rate || 0,
-          averageRating: 4.2,
-          publishedMovies: productionData?.published_count || 0,
-          adminFeatured: productionData?.admin_featured_count || 0,
-          qualityIssues: productionData?.quality_stats?.quality_issues || 0,
-          avgQualityScore: productionData?.quality_stats?.avg_quality_score || 0,
-          contentCompleteness: productionData?.quality_stats?.avg_completeness || 0,
-        },
-        moderationStats: {
-          pendingReviews: 47,
-          processedToday: 156,
-          averageResponseTime: 2.3,
-          moderatorEfficiency: 94.2,
-          autoModerationRate: 67.8,
-          falsePositiveRate: 2.1,
-          approvedContentRatio: productionData?.approval_stats?.[0]?.count || 0,
-        },
-        securityStats: {
-          failedLogins: 12,
-          suspiciousActivities: 5,
-          blockedIPs: 8,
-          securityAlerts: 2,
-          lastBackup: '2024-01-15T10:00:00Z',
-          backupStatus: 'success',
-        },
-        performanceStats: {
-          avgPerformanceScore: productionData?.engagement_stats?.avg_performance_score || 0,
-          avgTrendingScore: productionData?.engagement_stats?.avg_trending_score || 0,
-          totalHomepageViews: productionData?.engagement_stats?.total_homepage_views || 0,
-          totalDetailViews: productionData?.engagement_stats?.total_detail_views || 0,
-          totalSearchAppearances: productionData?.engagement_stats?.total_trailer_plays || 0,
-          performanceBreakdown: productionData?.trending_distribution || {},
-          trendingBreakdown: productionData?.interaction_stats || {},
-        },
+  // Memoize the computed stats to prevent infinite re-renders
+  const stats = useMemo(() => {
+    if (!dashboardData || !productionMetrics || !userInteractionStats) {
+      return {
+        systemStats: {},
+        userStats: {},
+        contentStats: {},
+        moderationStats: {},
+        securityStats: {},
+        performanceStats: {},
       };
-
-      setStats(realStats);
-
-      // Generate recent activity from real data
-      const activity = [
-        {
-          id: 1,
-          type: 'system',
-          content: `Đã xử lý ${realStats.performanceStats.totalHomepageViews} lượt xem trang chủ`,
-          user: 'System',
-          time: '2 phút trước',
-          priority: 'low',
-        },
-        {
-          id: 2,
-          type: 'user',
-          content: `${realStats.userStats.activeUsers} người dùng đang hoạt động`,
-          user: 'User Analytics',
-          time: '5 phút trước',
-          priority: 'medium',
-        },
-        {
-          id: 3,
-          type: 'content',
-          content: `Performance score trung bình: ${realStats.performanceStats.avgPerformanceScore.toFixed(1)}`,
-          user: 'Content Manager',
-          time: '10 phút trước',
-          priority: 'high',
-        },
-        {
-          id: 4,
-          type: 'moderation',
-          content: `${realStats.moderationStats.pendingReviews} nội dung đang chờ duyệt`,
-          user: 'Moderation System',
-          time: '15 phút trước',
-          priority: realStats.moderationStats.pendingReviews > 50 ? 'high' : 'medium',
-        },
-        {
-          id: 5,
-          type: 'security',
-          content: `Tỷ lệ bounce: ${realStats.userStats.bounceRate.toFixed(1)}%`,
-          user: 'Security Monitor',
-          time: '20 phút trước',
-          priority: 'low',
-        },
-      ];
-
-      setRecentActivity(activity);
     }
+
+    // Get the actual data from the API response structure
+    const productionData = productionMetrics?.data || productionMetrics;
+    const userData = userInteractionStats?.data || userInteractionStats;
+    const dashboardDataRes = dashboardData?.data || dashboardData;
+
+    // Enhanced stats with real production data
+    return {
+      systemStats: {
+        uptime: 99.8,
+        responseTime: 245,
+        errorRate: 0.2,
+        serverLoad: 65,
+        databaseConnections: 45,
+        cacheHitRate: 92.5,
+        apiCallsPerMinute: productionData?.engagement_stats?.total_homepage_views || 0,
+        currentActiveUsers: userData?.overview?.total_users || 0,
+      },
+      userStats: {
+        totalUsers: userData?.overview?.total_users || 0,
+        newUsers: 45,
+        activeUsers: userData?.overview?.total_sessions || 0,
+        bannedUsers: 23,
+        moderators: 8,
+        admins: 2,
+        userGrowth: productionData?.engagement_stats?.avg_engagement_rate || 0,
+        retentionRate: productionData?.engagement_stats?.avg_engagement_rate || 0,
+        avgSessionDuration: productionData?.engagement_stats?.avg_performance_score || 0,
+        bounceRate: productionData?.engagement_stats?.avg_trending_score || 0,
+      },
+      contentStats: {
+        totalMovies: productionData?.total_movies || 0,
+        totalReviews: 15678,
+        totalComments: 45678,
+        reportedContent: 234,
+        pendingModeration: dashboardDataRes?.pending_approval || 0,
+        contentGrowth: productionData?.engagement_stats?.avg_engagement_rate || 0,
+        averageRating: 4.2,
+        publishedMovies: productionData?.published_count || 0,
+        adminFeatured: productionData?.admin_featured_count || 0,
+        qualityIssues: productionData?.quality_stats?.quality_issues || 0,
+        avgQualityScore: productionData?.quality_stats?.avg_quality_score || 0,
+        contentCompleteness: productionData?.quality_stats?.avg_completeness || 0,
+      },
+      moderationStats: {
+        pendingReviews: 47,
+        processedToday: 156,
+        averageResponseTime: 2.3,
+        moderatorEfficiency: 94.2,
+        autoModerationRate: 67.8,
+        falsePositiveRate: 2.1,
+        approvedContentRatio: productionData?.approval_stats?.[0]?.count || 0,
+      },
+      securityStats: {
+        failedLogins: 12,
+        suspiciousActivities: 5,
+        blockedIPs: 8,
+        securityAlerts: 2,
+        lastBackup: '2024-01-15T10:00:00Z',
+        backupStatus: 'success',
+      },
+      performanceStats: {
+        avgPerformanceScore: productionData?.engagement_stats?.avg_performance_score || 0,
+        avgTrendingScore: productionData?.engagement_stats?.avg_trending_score || 0,
+        totalHomepageViews: productionData?.engagement_stats?.total_homepage_views || 0,
+        totalDetailViews: productionData?.engagement_stats?.total_detail_views || 0,
+        totalSearchAppearances: productionData?.engagement_stats?.total_trailer_plays || 0,
+        performanceBreakdown: productionData?.trending_distribution || {},
+        trendingBreakdown: productionData?.interaction_stats || {},
+      },
+    };
   }, [dashboardData, productionMetrics, userInteractionStats]);
+
+  // Memoize recent activity to prevent re-computation
+  const recentActivity = useMemo(() => {
+    if (!stats.performanceStats || !stats.userStats || !stats.moderationStats) {
+      return [];
+    }
+
+    // Safe access with default values
+    const totalHomepageViews = stats.performanceStats.totalHomepageViews || 0;
+    const activeUsers = stats.userStats.activeUsers || 0;
+    const avgPerformanceScore = stats.performanceStats.avgPerformanceScore || 0;
+    const pendingReviews = stats.moderationStats.pendingReviews || 0;
+    const bounceRate = stats.userStats.bounceRate || 0;
+
+    return [
+      {
+        id: 1,
+        type: 'system',
+        content: `Đã xử lý ${totalHomepageViews.toLocaleString()} lượt xem trang chủ`,
+        user: 'System',
+        time: '2 phút trước',
+        priority: 'low',
+      },
+      {
+        id: 2,
+        type: 'user',
+        content: `${activeUsers.toLocaleString()} người dùng đang hoạt động`,
+        user: 'User Analytics',
+        time: '5 phút trước',
+        priority: 'medium',
+      },
+      {
+        id: 3,
+        type: 'content',
+        content: `Performance score trung bình: ${avgPerformanceScore.toFixed(1)}`,
+        user: 'Content Manager',
+        time: '10 phút trước',
+        priority: 'high',
+      },
+      {
+        id: 4,
+        type: 'moderation',
+        content: `${pendingReviews.toLocaleString()} nội dung đang chờ duyệt`,
+        user: 'Moderation System',
+        time: '15 phút trước',
+        priority: pendingReviews > 50 ? 'high' : 'medium',
+      },
+      {
+        id: 5,
+        type: 'security',
+        content: `Tỷ lệ bounce: ${bounceRate.toFixed(1)}%`,
+        user: 'Security Monitor',
+        time: '20 phút trước',
+        priority: 'low',
+      },
+    ];
+  }, [stats]);
 
   const getActivityIcon = type => {
     switch (type) {
@@ -419,25 +427,25 @@ const AdminDashboardOverview = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Active Users</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats.userStats?.activeUsers || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Avg Session (min)</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats.userStats?.avgSessionDuration || 0).toFixed(1)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Bounce Rate</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats.userStats?.bounceRate || 0).toFixed(1)}%
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Retention Rate</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600 ">
                 {(stats.userStats?.retentionRate || 0).toFixed(1)}%
               </span>
             </div>
@@ -449,26 +457,26 @@ const AdminDashboardOverview = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Homepage Views</span>
-              <span className="font-semibold">
-                {stats.performanceStats.totalHomepageViews.toLocaleString()}
+              <span className="font-semibold text-gray-600">
+                {(stats?.performanceStats?.totalHomepageViews ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Detail Views</span>
-              <span className="font-semibold">
-                {stats.performanceStats.totalDetailViews.toLocaleString()}
+              <span className="font-semibold text-gray-600 ">
+                {(stats?.performanceStats?.totalDetailViews ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Search Appearances</span>
-              <span className="font-semibold">
-                {stats.performanceStats.totalSearchAppearances.toLocaleString()}
+              <span className="font-semibold text-gray-600">
+                {(stats?.performanceStats?.totalSearchAppearances ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Approval Rate</span>
-              <span className="font-semibold">
-                {stats.moderationStats.approvedContentRatio.toFixed(1)}%
+              <span className="font-semibold text-gray-600">
+                {(stats?.moderationStats?.approvedContentRatio ?? 0).toFixed(1)}%
               </span>
             </div>
           </div>
@@ -479,19 +487,23 @@ const AdminDashboardOverview = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">API Calls/min</span>
-              <span className="font-semibold">{stats.systemStats.apiCallsPerMinute}</span>
+              <span className="font-semibold text-gray-600">
+                {stats.systemStats.apiCallsPerMinute}
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Response Time</span>
-              <span className="font-semibold">{stats.systemStats.responseTime}ms</span>
+              <span className="font-semibold text-gray-600 ">
+                {stats.systemStats.responseTime}ms
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Cache Hit Rate</span>
-              <span className="font-semibold">{stats.systemStats.cacheHitRate}%</span>
+              <span className="font-semibold text-gray-600">{stats.systemStats.cacheHitRate}%</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Server Load</span>
-              <span className="font-semibold">{stats.systemStats.serverLoad}%</span>
+              <span className="font-semibold text-gray-600">{stats.systemStats.serverLoad}%</span>
             </div>
           </div>
         </div>

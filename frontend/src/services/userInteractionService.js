@@ -31,6 +31,13 @@ class UserInteractionService {
   trackInteraction(movieId, action, metadata = {}) {
     if (!action) return;
 
+    // ✅ NEW: Check if user is authenticated before tracking
+    const currentUser = this.getCurrentUser();
+    if (!currentUser || !currentUser.id) {
+      console.warn('User not authenticated, skipping interaction tracking:', action);
+      return;
+    }
+
     // Check for deduplication
     if (this.shouldDeduplicateInteraction(movieId, action)) {
       console.log(`🔄 Deduplicated interaction: ${action} for movie ${movieId}`);

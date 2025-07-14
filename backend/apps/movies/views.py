@@ -870,7 +870,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 # 🚀 PERFORMANCE: Optimize response payload
                 response_data = {
                     'status': 'success',
-                    'count': es_response['total'],
+                    'count': es_response['total_count'],
                     'data': self._optimize_search_results(es_response['results']),
                     'search_engine': es_response['search_engine'],
                     'next_search_after': es_response.get('next_search_after'),
@@ -890,20 +890,45 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
             # Apply search filters
             if params.get('q'):
+                from django.db.models import Q as Django_Q
                 query = params['q'].strip()
                 # 🚀 PERFORMANCE: Use database indexes efficiently
                 queryset = queryset.filter(
-                    Q(title__icontains=query) |
-                    Q(title_en__icontains=query) |
-                    Q(title_vi__icontains=query) |
-                    Q(overview_en__icontains=query) |
-                    Q(overview_vi__icontains=query)
+                    Django_Q(title__icontains=query) |
+                    Django_Q(title_en__icontains=query) |
+                    Django_Q(title_vi__icontains=query) |
+                    Django_Q(overview_en__icontains=query) |
+                    Django_Q(overview_vi__icontains=query)
                 )
 
             # Apply other filters
             if params.get('genres'):
-                genre_list = params['genres'].split(',') if isinstance(params['genres'], str) else params['genres']
-                queryset = queryset.filter(genres__id__in=genre_list).distinct()
+                # Handle multiple format: comma-separated string, list, or single value
+                genre_list = params['genres']
+                if isinstance(genre_list, str):
+                    # Could be comma-separated or single value
+                    genre_list = [g.strip() for g in genre_list.split(',') if g.strip()]
+                elif not isinstance(genre_list, list):
+                    genre_list = [genre_list]
+
+                # Filter by genre names (not IDs) to match Elasticsearch behavior
+                queryset = queryset.filter(genres__name__in=genre_list).distinct()
+
+            if params.get('countries'):
+                country_list = params['countries']
+                if isinstance(country_list, str):
+                    country_list = [c.strip() for c in country_list.split(',') if c.strip()]
+                elif not isinstance(country_list, list):
+                    country_list = [country_list]
+                queryset = queryset.filter(production_countries__overlap=country_list)
+
+            if params.get('status'):
+                status_list = params['status']
+                if isinstance(status_list, str):
+                    status_list = [s.strip() for s in status_list.split(',') if s.strip()]
+                elif not isinstance(status_list, list):
+                    status_list = [status_list]
+                queryset = queryset.filter(status__in=status_list)
 
             if params.get('year_from'):
                 queryset = queryset.filter(release_date__year__gte=params['year_from'])
@@ -992,33 +1017,15 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     def _optimize_search_results(self, results):
         """
-        🚀 Optimize search results payload for better performance
-        Remove unnecessary fields for mobile/frontend consumption
+        🚀 Keep all essential fields for movie card display
+        Only optimize where necessary without breaking functionality
         """
         if not results:
             return results
 
-        optimized_results = []
-        for movie in results:
-            # Keep only essential fields for search results
-            optimized_movie = {
-                'id': movie.get('id'),
-                'title': movie.get('title'),
-                'title_en': movie.get('title_en'),
-                'title_vi': movie.get('title_vi'),
-                'poster_url': movie.get('poster_url'),
-                'release_date': movie.get('release_date'),
-                'genres': movie.get('genres', [])[:3],  # Limit to 3 genres for performance
-                'combined_rating_score': movie.get('combined_rating_score'),
-                'cached_imdb_rating': movie.get('cached_imdb_rating'),
-                'runtime': movie.get('runtime'),
-                'overview_en': movie.get('overview_en', '')[:200] if movie.get('overview_en') else '',  # Truncate overview
-                'overview_vi': movie.get('overview_vi', '')[:200] if movie.get('overview_vi') else '',  # Truncate overview
-                'is_adult': movie.get('is_adult', False),
-            }
-            optimized_results.append(optimized_movie)
-
-        return optimized_results
+        # For movie cards, we need to keep all the essential fields
+        # Don't over-optimize and break the UI functionality
+        return results
 
     @action(detail=False, methods=['get'])
     def search_suggestions(self, request):
@@ -3772,10 +3779,10 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             # Đảm bảo giữ đúng thứ tự như ES
             movies_qs = sorted(movies_qs, key=lambda m: es_ids.index(m.id))
             serializer = self.get_serializer(movies_qs, many=True)
-            logger.info(f"[ADMIN MOVIE LIST] Returning ES results, count: {es_response['total']}")
+            logger.info(f"[ADMIN MOVIE LIST] Returning ES results, count: {es_response['total_count']}")
             return Response({
                 'status': 'success',
-                'count': es_response['total'],
+                'count': es_response['total_count'],
                 'data': serializer.data,
                 'search_engine': es_response['search_engine'],
                 'next_after_created_at': es_response.get('next_after_created_at'),

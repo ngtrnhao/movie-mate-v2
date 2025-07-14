@@ -16,7 +16,7 @@ const SearchBar = () => {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef(null);
   const suggestionsRef = useRef(null);
-  const { trackInteraction } = useUserTracking();
+  const { trackInteraction, trackSearch } = useUserTracking();
 
   // Debounce search query to avoid too many API calls
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -70,15 +70,8 @@ const SearchBar = () => {
     const searchTerm = query.trim();
 
     if (searchTerm) {
-      // Track search interaction
-      trackInteraction({
-        action: 'search',
-        metadata: {
-          search_query: searchTerm,
-          context: 'search_bar',
-          timestamp: new Date().toISOString(),
-        },
-      });
+      // Track search interaction using specific trackSearch method
+      trackSearch(searchTerm, []); // Empty array for resultIds, will be populated when results load
 
       saveToRecentSearches(searchTerm);
       setShowSuggestions(false);

@@ -51,10 +51,19 @@ const AdvancedAdminFilters = ({
   ];
 
   const trendingCategories = [
-    { value: 'viral', label: 'Viral', color: 'bg-red-100 text-red-800' },
+    { value: 'trending', label: 'Trending', color: 'bg-red-100 text-red-800' },
     { value: 'hot', label: 'Hot', color: 'bg-orange-100 text-orange-800' },
     { value: 'rising', label: 'Rising', color: 'bg-green-100 text-green-800' },
     { value: 'stable', label: 'Stable', color: 'bg-blue-100 text-blue-800' },
+    { value: 'declining', label: 'Declining', color: 'bg-yellow-100 text-yellow-800' },
+  ];
+
+  const adminPriorityOptions = [
+    { value: '0', label: 'No Priority (0)' },
+    { value: '1', label: 'Low Priority (1-3)', range: [1, 3] },
+    { value: '4', label: 'Medium Priority (4-6)', range: [4, 6] },
+    { value: '7', label: 'High Priority (7-8)', range: [7, 8] },
+    { value: '9', label: 'Critical Priority (9-10)', range: [9, 10] },
   ];
 
   const tabs = [
@@ -65,6 +74,12 @@ const AdvancedAdminFilters = ({
       label: 'Performance',
       icon: ArrowTrendingUpIcon,
       color: 'text-purple-600',
+    },
+    {
+      id: 'admin',
+      label: 'Admin Controls',
+      icon: AdjustmentsHorizontalIcon,
+      color: 'text-orange-600',
     },
   ];
 
@@ -87,13 +102,18 @@ const AdvancedAdminFilters = ({
       'minimum_quality_met',
       'campaign_type',
       'campaign_priority_min',
+      'admin_priority_min',
       'is_published_now',
       'is_featured_now',
+      'has_quality_issues',
       'performance_score_min',
       'trending_score_min',
       'trending_category',
       'engagement_rate_min',
       'homepage_views_min',
+      'detail_page_views_min',
+      'trailer_plays_min',
+      'click_through_rate_min',
       'user_favorites_min',
     ];
     return advancedFilterKeys.some(
@@ -219,7 +239,37 @@ const AdvancedAdminFilters = ({
             />
             <span className="ml-2 text-sm text-gray-700">Meets minimum quality standards</span>
           </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={filters.has_quality_issues === true}
+              onChange={() => handleToggleFilter('has_quality_issues')}
+              className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">
+              Has quality issues requiring attention
+            </span>
+          </label>
         </div>
+      </div>
+
+      {/* Admin Priority */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Minimum Admin Priority
+        </label>
+        <select
+          value={filters.admin_priority_min || ''}
+          onChange={e => handleFilterChange('admin_priority_min', e.target.value)}
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        >
+          <option value="">All Priorities</option>
+          {adminPriorityOptions.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
@@ -340,7 +390,7 @@ const AdvancedAdminFilters = ({
       </div>
 
       {/* Engagement Metrics */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Minimum Engagement Rate (%)
@@ -369,6 +419,51 @@ const AdvancedAdminFilters = ({
             placeholder="0"
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Minimum Detail Views
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={filters.detail_page_views_min || ''}
+            onChange={e => handleFilterChange('detail_page_views_min', e.target.value)}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            placeholder="0"
+          />
+        </div>
+      </div>
+
+      {/* Trailer & Click Metrics */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Minimum Trailer Plays
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={filters.trailer_plays_min || ''}
+            onChange={e => handleFilterChange('trailer_plays_min', e.target.value)}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Minimum Click-Through Rate (%)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={filters.click_through_rate_min || ''}
+            onChange={e => handleFilterChange('click_through_rate_min', e.target.value)}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            placeholder="0.00"
+          />
+        </div>
       </div>
 
       {/* User Favorites */}
@@ -384,6 +479,116 @@ const AdvancedAdminFilters = ({
           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
           placeholder="0"
         />
+      </div>
+    </div>
+  );
+
+  const renderAdminFilters = () => (
+    <div className="space-y-6">
+      {/* Publication Status */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">Publication Status</label>
+        <div className="space-y-2">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={filters.is_published_now === true}
+              onChange={() => handleToggleFilter('is_published_now')}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">Currently published</span>
+          </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={filters.is_featured_now === true}
+              onChange={() => handleToggleFilter('is_featured_now')}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">Currently featured</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Approval Status Filter */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Approval Status</label>
+        <select
+          value={filters.approval_status || ''}
+          onChange={e => handleFilterChange('approval_status', e.target.value)}
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+        >
+          <option value="">All Statuses</option>
+          <option value="NEEDS_REVIEW">Needs Review</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="PENDING">Pending</option>
+        </select>
+      </div>
+
+      {/* Visibility Status Filter */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Visibility Status</label>
+        <select
+          value={filters.visibility_status || ''}
+          onChange={e => handleFilterChange('visibility_status', e.target.value)}
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+        >
+          <option value="">All Visibility</option>
+          <option value="PUBLISHED">Published</option>
+          <option value="DRAFT">Draft</option>
+          <option value="SCHEDULED">Scheduled</option>
+          <option value="ARCHIVED">Archived</option>
+          <option value="RESTRICTED">Restricted</option>
+        </select>
+      </div>
+
+      {/* Admin Priority Range */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Minimum Admin Priority
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            value={filters.admin_priority_min || ''}
+            onChange={e => handleFilterChange('admin_priority_min', e.target.value)}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Maximum Admin Priority
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            value={filters.admin_priority_max || ''}
+            onChange={e => handleFilterChange('admin_priority_max', e.target.value)}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            placeholder="10"
+          />
+        </div>
+      </div>
+
+      {/* Featured Status */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">Featured Options</label>
+        <div className="space-y-2">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={filters.admin_featured === true}
+              onChange={() => handleToggleFilter('admin_featured')}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">Admin featured movies only</span>
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -444,6 +649,7 @@ const AdvancedAdminFilters = ({
         {activeTab === 'quality' && renderQualityFilters()}
         {activeTab === 'scheduling' && renderSchedulingFilters()}
         {activeTab === 'performance' && renderPerformanceFilters()}
+        {activeTab === 'admin' && renderAdminFilters()}
       </div>
     </div>
   );

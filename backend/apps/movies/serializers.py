@@ -40,14 +40,16 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
     backdrop_path = serializers.CharField(source='backdrop_url', allow_null=True)
     trailers = serializers.SerializerMethodField()
     popularity = serializers.SerializerMethodField()
+    # Frontend compatibility fields
+    adult = serializers.BooleanField(source='is_adult', read_only=True)
 
     class Meta:
         model = Movie
         fields = [
             'id', 'slug', 'title', 'title_en', 'title_vi', 'original_title', 'overview_en', 'overview_vi', 'release_date',
-            'poster_path', 'backdrop_path', 'runtime', 'status', 'genres',
-            'rating', 'vote_average', 'vote_count', 'is_popular',
-            'is_top_rated', 'is_upcoming', 'overviews', 'trailers', 'popularity'
+            'poster_path', 'poster_url', 'backdrop_path', 'runtime', 'status', 'genres',
+            'rating', 'combined_rating_score', 'cached_imdb_rating', 'vote_average', 'vote_count', 'is_popular',
+            'is_top_rated', 'is_upcoming', 'overviews', 'trailers', 'popularity', 'is_adult', 'adult',
         ]
 
     def get_genres(self, obj):
@@ -102,7 +104,15 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
                 }
         except (AttributeError, TypeError, ValueError) as e:
             logger.error(f"Error getting rating for movie {obj.id}: {str(e)}")
-        return None
+
+        # Always return a consistent rating object structure
+        return {
+            'imdb': float(obj.cached_imdb_rating) if obj.cached_imdb_rating else None,
+            'imdb_votes': obj.cached_imdb_votes if obj.cached_imdb_votes else 0,
+            'tmdb': float(obj.cached_tmdb_rating) if obj.cached_tmdb_rating else None,
+            'tmdb_votes': obj.cached_tmdb_votes if obj.cached_tmdb_votes else 0,
+            'combined_score': float(obj.combined_rating_score) if obj.combined_rating_score else None,
+        }
 
     def get_vote_average(self, obj):
         """Use cached rating for performance - Convert 10-star to 5-star scale"""

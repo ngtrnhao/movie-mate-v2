@@ -269,6 +269,62 @@ export const scheduleMovieVisibility = async (movieId, scheduleData) => {
   }
 };
 
+export const getScheduledActions = async () => {};
+export const cancelScheduledAction = async () => {};
+export const scheduleMovieAction = async () => {};
+
+// === QUALITY MANAGEMENT ===
+
+/**
+ * Update movie quality assessment
+ */
+export const updateMovieQuality = async (movieId, qualityData) => {
+  try {
+    const response = await axiosInstance.put(`/api/admin/movies/${movieId}/quality/`, qualityData);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'update movie quality');
+  }
+};
+
+/**
+ * Resolve a specific quality issue
+ */
+export const resolveMovieIssue = async (movieId, issueIndex) => {
+  try {
+    const response = await axiosInstance.post(`/api/admin/movies/${movieId}/resolve_issue/`, {
+      issue_index: issueIndex,
+    });
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'resolve movie issue');
+  }
+};
+
+/**
+ * Trigger quality recalculation for a movie
+ */
+export const recalculateMovieQuality = async movieId => {
+  try {
+    const response = await axiosInstance.post(`/api/admin/movies/${movieId}/recalculate_quality/`);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'recalculate movie quality');
+  }
+};
+
+/**
+ * Get detailed quality metrics for a movie
+ */
+export const getMovieQualityDetails = async movieId => {
+  try {
+    const response = await axiosInstance.get(`/api/admin/movies/${movieId}/quality_details/`);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'fetch movie quality details');
+  }
+};
+
 // === BULK OPERATIONS ===
 
 /**

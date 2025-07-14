@@ -39,6 +39,7 @@ import QueueList from '../Moderator/components/QueueList';
 import AdminDashboardOverview from './components/AdminDashboardOverview';
 import VisibilityControl from './components/VisibilityControl';
 import MovieManagement from './components/MovieManagement';
+import SchedulingManagement from './components/SchedulingManagement';
 import UserInteractionAnalytics from './components/UserInteractionAnalytics';
 import TrendingAnalytics from './components/TrendingAnalytics';
 import RealTimeCharts from './components/RealTimeCharts';
@@ -46,10 +47,13 @@ import AutoProcessingStatus from './components/AutoProcessingStatus';
 import AdminSidebar from './components/AdminSidebar';
 import AdminHeader from './components/AdminHeader';
 import AdminStatsCards from './components/AdminStatsCards';
-import { useDashboardData } from '../../hooks/useDashboardData';
-import { useRealTimeMetrics } from '../../hooks/useProductionMetrics';
+import {
+  AdminDataProvider,
+  useAdminData,
+  useAdminRealTimeMetrics,
+} from '../../contexts/AdminDataContext';
 
-const AdminDashboard = () => {
+const AdminDashboardContent = () => {
   const dispatch = useDispatch();
   const [activeView, setActiveView] = useState('overview');
   const [selectedItems, setSelectedItems] = useState([]);
@@ -57,8 +61,8 @@ const AdminDashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState('dashboard'); // dashboard, kanban, queue
 
-  const { data: dashboardData } = useDashboardData();
-  const { data: realTimeMetrics, isStale } = useRealTimeMetrics();
+  const { dashboardData } = useAdminData();
+  const { data: realTimeMetrics, isStale } = useAdminRealTimeMetrics();
   const user = useSelector(state => state.auth.user);
   const navigate = useNavigate();
 
@@ -344,6 +348,8 @@ const AdminDashboard = () => {
         return <UserManagement />;
       case 'movies':
         return <MovieManagement />;
+      case 'scheduling':
+        return <SchedulingManagement />;
       case 'analytics':
         return <UserAnalytics />;
       case 'content':
@@ -457,6 +463,15 @@ const AdminDashboard = () => {
         </main>
       </div>
     </div>
+  );
+};
+
+// Main wrapper component with AdminDataProvider
+const AdminDashboard = () => {
+  return (
+    <AdminDataProvider>
+      <AdminDashboardContent />
+    </AdminDataProvider>
   );
 };
 

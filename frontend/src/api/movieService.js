@@ -342,8 +342,24 @@ export const searchMovies = async (filters = {}, pageOrSearchAfter = 1, pageSize
     // Add genre filters
     if (filters.genres && filters.genres.length > 0) {
       filters.genres.forEach(genre => {
-        params.append('genres', genre.id || genre);
+        // Send genre name instead of ID to match Elasticsearch mapping
+        params.append('genres', genre.name || genre);
       });
+    }
+
+    // Add country filter
+    if (filters.country) {
+      params.append('countries', filters.country);
+    }
+
+    // Add status filter
+    if (filters.status) {
+      params.append('status', filters.status);
+    }
+
+    // Add adult filter
+    if (filters.adult !== undefined) {
+      params.append('adult', filters.adult.toString());
     }
 
     // Add year filters

@@ -530,17 +530,23 @@ const RealTimeCharts = () => {
             <div className="flex flex-col items-center">
               <ComputerDesktopIcon className="h-6 w-6 text-blue-500 mb-1" />
               <span className="text-sm text-gray-600">Desktop</span>
-              <span className="font-semibold">{realTimeData.deviceBreakdown.desktop || 0}</span>
+              <span className="font-semibold text-gray-600">
+                {realTimeData.deviceBreakdown.desktop || 0}
+              </span>
             </div>
             <div className="flex flex-col items-center">
               <DevicePhoneMobileIcon className="h-6 w-6 text-green-500 mb-1" />
               <span className="text-sm text-gray-600">Mobile</span>
-              <span className="font-semibold">{realTimeData.deviceBreakdown.mobile || 0}</span>
+              <span className="font-semibold  text-gray-600">
+                {realTimeData.deviceBreakdown.mobile || 0}
+              </span>
             </div>
             <div className="flex flex-col items-center">
               <ChartBarIcon className="h-6 w-6 text-yellow-500 mb-1" />
               <span className="text-sm text-gray-600">Tablet</span>
-              <span className="font-semibold">{realTimeData.deviceBreakdown.tablet || 0}</span>
+              <span className="font-semibold  text-gray-600">
+                {realTimeData.deviceBreakdown.tablet || 0}
+              </span>
             </div>
           </div>
         </div>

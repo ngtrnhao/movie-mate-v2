@@ -1,18 +1,28 @@
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search, Q
+from elasticsearch_dsl import Search, Q as ES_Q
 from django.conf import settings
 from django.core.cache import cache
 import logging
 from apps.metadata.models import Genre
 from ..serializers import OptimizedMovieListSerializer
-from ..models import Movie, MovieQualityMetrics, MovieScheduling
-from django.db.models import Prefetch
-from ..models import MovieTrailer
+from ..models import Movie, MovieQualityMetrics, MovieScheduling, MovieTrailer
+from django.db.models import Prefetch, Q as Django_Q
 
 logger = logging.getLogger(__name__)
 
 class MovieSearchService:
+    # 🎛️ ELASTICSEARCH TOGGLE - Set to False to force ORM fallback
+    ELASTICSEARCH_ENABLED = True
+
     def __init__(self):
+        # Check if Elasticsearch is manually disabled
+        if not self.ELASTICSEARCH_ENABLED:
+            logger.info("Elasticsearch manually disabled - using ORM fallback")
+            self.client = None
+            self.index = 'movies'
+            self.connection_available = False
+            return
+
         try:
             # Check if cloud configuration is available
             if (hasattr(settings, 'ELASTICSEARCH_CLOUD_ID') and
@@ -78,6 +88,11 @@ class MovieSearchService:
 
     def search(self, params, admin_mode=False):
         """Search movies with Elasticsearch with enhanced quality and scheduling filters"""
+        # Check if Elasticsearch is manually disabled
+        if not self.ELASTICSEARCH_ENABLED:
+            logger.info("Elasticsearch manually disabled - forcing ORM fallback")
+            return None
+
         if not self.connection_available or not self.client:
             logger.warning("Elasticsearch connection not available, falling back to database search")
             return None
@@ -90,10 +105,34 @@ class MovieSearchService:
                 query_text = params['q'].strip()
                 search = self._build_enhanced_query(search, query_text, params)
 
+            # QUALITY FILTERS: Only return documents with proper titles for better UX
+            search = search.filter('bool', should=[
+                ES_Q('exists', field='title_en'),
+                ES_Q('exists', field='title_vi')
+            ], minimum_should_match=1)
+
             # EXISTING FILTERS (preserved for both user and admin)
             if params.get('genres'):
-                genre_names = params['genres'] if isinstance(params['genres'], list) else [params['genres']]
-                search = search.filter('nested', path='genres', query=Q('terms', genres__name=genre_names))
+                genre_values = params['genres'] if isinstance(params['genres'], list) else [params['genres']]
+
+                # Convert genre IDs to names if necessary
+                genre_names = []
+                for value in genre_values:
+                    try:
+                        # Try to convert to int - if successful, it's an ID
+                        genre_id = int(value)
+                        from apps.metadata.models import Genre
+                        genre = Genre.objects.filter(id=genre_id).first()
+                        if genre:
+                            genre_names.append(genre.name)
+                        else:
+                            logger.warning(f"Genre ID {genre_id} not found")
+                    except ValueError:
+                        # Not an integer, assume it's already a name
+                        genre_names.append(value)
+
+                if genre_names:
+                    search = search.filter('nested', path='genres', query=ES_Q('terms', **{'genres.name': genre_names}))
 
             if params.get('year_from'):
                 search = search.filter('range', release_date={'gte': f"{params['year_from']}-01-01"})
@@ -114,22 +153,42 @@ class MovieSearchService:
                 search = search.filter('range', runtime={'lte': int(params['runtime_max'])})
 
             if params.get('status'):
-                search = search.filter('terms', status=params['status'])
+                status_values = params['status']
+                if isinstance(status_values, str):
+                    status_values = [status_values]
+                search = search.filter('terms', **{'status': status_values})
 
             if params.get('countries'):
-                search = search.filter('terms', production_countries=params['countries'])
+                country_values = params['countries']
+                if isinstance(country_values, str):
+                    country_values = [country_values]
+                search = search.filter('terms', **{'production_countries': country_values})
 
             if params.get('adult') is not None:
-                search = search.filter('term', is_adult=params['adult'])
+                # Convert string boolean to actual boolean
+                adult_value = params['adult']
+                if isinstance(adult_value, str):
+                    adult_value = adult_value.lower() in ('true', '1', 'yes')
+                elif isinstance(adult_value, bool):
+                    adult_value = adult_value
+                else:
+                    adult_value = bool(adult_value)
+                search = search.filter('term', is_adult=adult_value)
 
             # 🎯 ADMIN MODE FILTERS (enhanced for normalized structure)
             if admin_mode:
                 # Basic admin filters
                 if params.get('approval_status'):
-                    search = search.filter('terms', approval_status=params['approval_status'])
+                    approval_values = params['approval_status']
+                    if isinstance(approval_values, str):
+                        approval_values = [approval_values]
+                    search = search.filter('terms', approval_status=approval_values)
 
                 if params.get('visibility_status'):
-                    search = search.filter('terms', visibility_status=params['visibility_status'])
+                    visibility_values = params['visibility_status']
+                    if isinstance(visibility_values, str):
+                        visibility_values = [visibility_values]
+                    search = search.filter('terms', visibility_status=visibility_values)
 
                 if params.get('admin_featured') is not None:
                     search = search.filter('term', admin_featured=params['admin_featured'])
@@ -151,17 +210,26 @@ class MovieSearchService:
                     search = search.filter('range', content_completeness={'gte': float(params['content_completeness_min'])})
 
                 if params.get('overall_quality_rating'):
-                    search = search.filter('terms', overall_quality_rating=params['overall_quality_rating'])
+                    quality_rating_values = params['overall_quality_rating']
+                    if isinstance(quality_rating_values, str):
+                        quality_rating_values = [quality_rating_values]
+                    search = search.filter('terms', overall_quality_rating=quality_rating_values)
 
                 if params.get('completion_status'):
-                    search = search.filter('terms', completion_status=params['completion_status'])
+                    completion_values = params['completion_status']
+                    if isinstance(completion_values, str):
+                        completion_values = [completion_values]
+                    search = search.filter('terms', completion_status=completion_values)
 
                 if params.get('minimum_quality_met') is not None:
                     search = search.filter('term', minimum_quality_met=params['minimum_quality_met'])
 
                 # 📅 ADVANCED SCHEDULING FILTERS (admin only)
                 if params.get('campaign_type'):
-                    search = search.filter('terms', campaign_type=params['campaign_type'])
+                    campaign_type_values = params['campaign_type']
+                    if isinstance(campaign_type_values, str):
+                        campaign_type_values = [campaign_type_values]
+                    search = search.filter('terms', campaign_type=campaign_type_values)
 
                 if params.get('campaign_priority_min'):
                     search = search.filter('range', campaign_priority={'gte': int(params['campaign_priority_min'])})
@@ -192,7 +260,10 @@ class MovieSearchService:
                     search = search.filter('range', trending_score={'gte': float(params['trending_score_min'])})
 
                 if params.get('trending_category'):
-                    search = search.filter('terms', trending_category=params['trending_category'])
+                    trending_values = params['trending_category']
+                    if isinstance(trending_values, str):
+                        trending_values = [trending_values]
+                    search = search.filter('terms', trending_category=trending_values)
 
                 if params.get('engagement_rate_min'):
                     search = search.filter('range', engagement_rate={'gte': float(params['engagement_rate_min'])})
@@ -221,41 +292,7 @@ class MovieSearchService:
                 if params.get('scheduled_actions_pending'):
                     search = search.filter('range', next_action_date={'gte': 'now/d', 'lte': 'now+7d'})
 
-            # 📊 ENHANCED SORTING with new fields
-            sort_by = params.get('sort_by', 'relevance')
-            order = params.get('order', 'desc')
 
-            if sort_by == 'quality_score':
-                search = search.sort({f'quality_score': {'order': order}})
-            elif sort_by == 'content_completeness':
-                search = search.sort({f'content_completeness': {'order': order}})
-            elif sort_by == 'performance_score':
-                search = search.sort({f'performance_score': {'order': order}})
-            elif sort_by == 'trending_score':
-                search = search.sort({f'trending_score': {'order': order}})
-            elif sort_by == 'engagement_rate':
-                search = search.sort({f'engagement_rate': {'order': order}})
-            elif sort_by == 'homepage_views':
-                search = search.sort({f'homepage_views': {'order': order}})
-            elif sort_by == 'user_favorites':
-                search = search.sort({f'user_favorites_count': {'order': order}})
-            elif sort_by == 'campaign_priority':
-                search = search.sort({f'campaign_priority': {'order': order}})
-            # Existing sorting options
-            elif sort_by == 'popularity':
-                search = search.sort({f'combined_rating_score': {'order': order}})
-            elif sort_by == 'rating':
-                search = search.sort({f'combined_rating_score': {'order': order}})
-            elif sort_by == 'date':
-                search = search.sort({f'release_date': {'order': order}})
-            elif sort_by == 'title':
-                search = search.sort({f'title.raw': {'order': order}})
-            elif sort_by == 'runtime':
-                search = search.sort({f'runtime': {'order': order}})
-            elif sort_by == 'vote_count':
-                search = search.sort({f'vote_count': {'order': order}})
-            elif sort_by == 'created_at':
-                search = search.sort({f'created_at': {'order': order}})
 
             # 🚀 ENHANCED FUNCTION SCORE for quality-weighted results
             if params.get('q') and params.get('quality_weighted', True):
@@ -288,22 +325,100 @@ class MovieSearchService:
                     boost_mode='multiply'
                 )
 
-            # Pagination
-            page = params.get('page', 1)
-            page_size = params.get('page_size', 20)
-            start = (page - 1) * page_size
+            # Keyset Pagination for Elasticsearch
+            page_size = int(params.get('page_size', 20))
 
-            search = search[start:start + page_size]
+            # Handle search_after for keyset pagination
+            if params.get('search_after'):
+                search_after_values = params['search_after']
+                if isinstance(search_after_values, list):
+                    search = search.extra(search_after=search_after_values)
+                else:
+                    # Single value, convert to list
+                    search = search.extra(search_after=[search_after_values])
+                # Set page size for keyset pagination
+                search = search[:page_size]
+            elif params.get('page'):
+                # Fallback to page-based pagination if page is provided
+                page = int(params.get('page', 1))
+                start = (page - 1) * page_size
+                search = search[start:start + page_size]
+            else:
+                # Default: first page with page size
+                search = search[:page_size]
+
+            # 📊 ENHANCED SORTING with consistent keyset pagination
+            sort_by = params.get('sort_by', 'created_at')
+            order = params.get('order', 'desc')
+
+            # Map sort fields
+            sort_field_mapping = {
+                'quality_score': 'quality_score',
+                'content_completeness': 'content_completeness',
+                'performance_score': 'performance_score',
+                'trending_score': 'trending_score',
+                'engagement_rate': 'engagement_rate',
+                'homepage_views': 'homepage_views',
+                'user_favorites': 'user_favorites_count',
+                'campaign_priority': 'campaign_priority',
+                'popularity': 'combined_rating_score',
+                'rating': 'combined_rating_score',
+                'date': 'release_date',
+                'title': 'title.raw',
+                'runtime': 'runtime',
+                'vote_count': 'vote_count',
+                'created_at': 'created_at'
+            }
+
+            # Get the field name for sorting
+            sort_field = sort_field_mapping.get(sort_by, 'created_at')
+
+            # Create sort array for consistent keyset pagination
+            sort_order = [
+                {sort_field: {'order': order}},
+                {'id': {'order': order}}  # Always add id as tie-breaker
+            ]
+
+            search = search.sort(*sort_order)
 
             # Execute search
             response = search.execute()
 
+            # Calculate next_search_after for keyset pagination
+            next_search_after = None
+            if response.hits and len(response.hits) == page_size:
+                # Use the last hit's sort values as search_after for next page
+                last_hit = response.hits[-1]
+                if hasattr(last_hit.meta, 'sort'):
+                    next_search_after = list(last_hit.meta.sort)
+
+            # Convert Elasticsearch hits to Movie objects and serialize them
+            movie_ids = [int(hit.meta.id) for hit in response.hits]
+
+            # Get Movie objects with proper prefetching for serialization
+            movies = Movie.objects.select_related(
+                'moviemetadata'
+            ).prefetch_related(
+                'genres',
+                'ratings',
+                Prefetch('trailers', queryset=MovieTrailer.objects.filter(type='TRAILER'))
+            ).filter(id__in=movie_ids)
+
+            # Maintain the order from Elasticsearch results
+            movie_dict = {movie.id: movie for movie in movies}
+            ordered_movies = [movie_dict[movie_id] for movie_id in movie_ids if movie_id in movie_dict]
+
+            # Serialize using the same serializer as ORM
+            serializer = OptimizedMovieListSerializer(ordered_movies, many=True)
+
             return {
                 'total_count': response.hits.total.value,
-                'results': [hit.to_dict() for hit in response.hits],
+                'results': serializer.data,
                 'search_engine': 'elasticsearch',
                 'took': response.took,
-                'max_score': response.hits.max_score
+                'max_score': response.hits.max_score,
+                'next_search_after': next_search_after,
+                'from_cache': False
             }
 
         except Exception as e:
@@ -573,10 +688,10 @@ class MovieSearchService:
             if params.get('q'):
                 query_text = params['q']
                 queryset = queryset.filter(
-                    Q(title_en__icontains=query_text) |
-                    Q(title_vi__icontains=query_text) |
-                    Q(overview_en__icontains=query_text) |
-                    Q(overview_vi__icontains=query_text)
+                    Django_Q(title_en__icontains=query_text) |
+                    Django_Q(title_vi__icontains=query_text) |
+                    Django_Q(overview_en__icontains=query_text) |
+                    Django_Q(overview_vi__icontains=query_text)
                 )
 
             # Quality filters (NEW)
@@ -608,8 +723,29 @@ class MovieSearchService:
 
             # Existing filters
             if params.get('genres'):
-                genre_names = params['genres'] if isinstance(params['genres'], list) else [params['genres']]
-                queryset = queryset.filter(genres__name__in=genre_names)
+                genre_values = params['genres'] if isinstance(params['genres'], list) else [params['genres']]
+
+                # Handle both genre IDs and names
+                genre_ids = []
+                genre_names = []
+                for value in genre_values:
+                    try:
+                        # Try to convert to int - if successful, it's an ID
+                        genre_id = int(value)
+                        genre_ids.append(genre_id)
+                    except ValueError:
+                        # Not an integer, assume it's a name
+                        genre_names.append(value)
+
+                # Filter by both IDs and names
+                if genre_ids and genre_names:
+                    queryset = queryset.filter(
+                        Django_Q(genres__id__in=genre_ids) | Django_Q(genres__name__in=genre_names)
+                    )
+                elif genre_ids:
+                    queryset = queryset.filter(genres__id__in=genre_ids)
+                elif genre_names:
+                    queryset = queryset.filter(genres__name__in=genre_names)
 
             if params.get('year_from'):
                 queryset = queryset.filter(release_date__year__gte=params['year_from'])
@@ -621,7 +757,15 @@ class MovieSearchService:
                 queryset = queryset.filter(combined_rating_score__gte=params['rating_min'])
 
             if params.get('adult') is not None:
-                queryset = queryset.filter(is_adult=params['adult'])
+                # Convert string boolean to actual boolean
+                adult_value = params['adult']
+                if isinstance(adult_value, str):
+                    adult_value = adult_value.lower() in ('true', '1', 'yes')
+                elif isinstance(adult_value, bool):
+                    adult_value = adult_value
+                else:
+                    adult_value = bool(adult_value)
+                queryset = queryset.filter(is_adult=adult_value)
 
             # Enhanced sorting with new fields
             sort_mapping = {
@@ -647,14 +791,49 @@ class MovieSearchService:
                 order_prefix = '-' if order == 'desc' else ''
                 queryset = queryset.order_by(f"{order_prefix}{sort_mapping[sort_by]}")
 
-            # Pagination
-            page = params.get('page', 1)
-            page_size = params.get('page_size', 20)
-            start = (page - 1) * page_size
-            end = start + page_size
+                        # Pagination with keyset support for ORM fallback
+            page_size = int(params.get('page_size', 20))
+            order = params.get('order', 'desc')
+
+            # Handle keyset pagination for ORM
+            if params.get('search_after'):
+                # For ORM fallback, we use created_at and id for pagination
+                search_after_values = params['search_after']
+                if isinstance(search_after_values, list) and len(search_after_values) >= 2:
+                    created_at_value = search_after_values[0]
+                    id_value = search_after_values[1]
+                    # Filter for keyset pagination
+                    if order == 'desc':
+                        queryset = queryset.filter(
+                            Django_Q(created_at__lt=created_at_value) |
+                            Django_Q(created_at=created_at_value, id__lt=id_value)
+                        )
+                    else:
+                        queryset = queryset.filter(
+                            Django_Q(created_at__gt=created_at_value) |
+                            Django_Q(created_at=created_at_value, id__gt=id_value)
+                        )
+            elif params.get('page'):
+                # Fallback to page-based pagination
+                page = int(params.get('page', 1))
+                start = (page - 1) * page_size
+                queryset = queryset[start:start + page_size]
+            else:
+                # Default: first page
+                queryset = queryset[:page_size]
 
             total_count = queryset.count()
-            results = queryset[start:end]
+            results = list(queryset[:page_size])
+
+            # Calculate next_search_after for keyset pagination (ORM version)
+            next_search_after = None
+            if results and len(results) == page_size:
+                last_result = results[-1]
+                # Use created_at and id as sort values
+                next_search_after = [
+                    last_result.created_at.isoformat(),
+                    last_result.id
+                ]
 
             # Serialize results
             serializer = OptimizedMovieListSerializer(results, many=True)
@@ -663,7 +842,9 @@ class MovieSearchService:
                 'total_count': total_count,
                 'results': serializer.data,
                 'search_engine': 'django_orm_fallback',
-                'enhanced_with_normalized_data': True
+                'enhanced_with_normalized_data': True,
+                'next_search_after': next_search_after,
+                'from_cache': False
             }
 
         except Exception as e:

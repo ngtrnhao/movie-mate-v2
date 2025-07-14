@@ -198,7 +198,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.overall_quality_rating || ''}
           onChange={e => handleFilterChange('overall_quality_rating', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Ratings</option>
           {qualityRatingOptions.map(option => (
@@ -215,7 +215,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.completion_status || ''}
           onChange={e => handleFilterChange('completion_status', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Status</option>
           {completionStatusOptions.map(option => (
@@ -244,7 +244,7 @@ const AdvancedAdminFilters = ({
               type="checkbox"
               checked={filters.has_quality_issues === true}
               onChange={() => handleToggleFilter('has_quality_issues')}
-              className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+              className="rounded  border-gray-300 text-red-600 focus:ring-red-500"
             />
             <span className="ml-2 text-sm text-gray-700">
               Has quality issues requiring attention
@@ -261,7 +261,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.admin_priority_min || ''}
           onChange={e => handleFilterChange('admin_priority_min', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Priorities</option>
           {adminPriorityOptions.map(option => (

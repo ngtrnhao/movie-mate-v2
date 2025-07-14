@@ -19,13 +19,13 @@ class Command(BaseCommand):
         parser.add_argument(
             '--batch-size',
             type=int,
-            default=3,  # Ultra small batch for SSL stability
-            help='Ultra small batch size for SSL stability'
+            default=200,  # Tăng batch size mặc định lên 200 để tăng tốc
+            help='Batch size for faster processing'
         )
         parser.add_argument(
             '--delay',
             type=float,
-            default=2.0,  # Longer delay
+            default=0.0,  # Bỏ delay mặc định
             help='Delay between batches (seconds)'
         )
         parser.add_argument(
@@ -104,7 +104,7 @@ class Command(BaseCommand):
                 if self._check_memory_usage() > max_memory:
                     self.stdout.write(self.style.WARNING('💾 Memory limit reached, performing cleanup'))
                     self._aggressive_cleanup()
-                    time.sleep(delay * 2)  # Extra delay after cleanup
+                    # Đã bỏ sleep sau cleanup
 
                 # Get batch with minimal queries
                 batch_movies = list(queryset[batch_start:batch_end])
@@ -131,7 +131,7 @@ class Command(BaseCommand):
                                     self._save_progress(movie.id)
 
                         # Micro-delay between movies
-                        time.sleep(0.1)
+                        # Đã bỏ sleep giữa các phim
 
                     except Exception as e:
                         errors += 1
@@ -139,7 +139,7 @@ class Command(BaseCommand):
 
                         # Reset connection after error
                         self._reset_connection()
-                        time.sleep(delay)
+                        # Đã bỏ sleep sau lỗi
                         continue
 
                 # Progress report
@@ -158,8 +158,8 @@ class Command(BaseCommand):
                 # Aggressive cleanup after each batch
                 self._aggressive_cleanup()
 
-                # Extended delay between batches
-                time.sleep(delay)
+                # Đã bỏ hoàn toàn delay giữa các batch
+                # Không còn time.sleep(delay)
 
             except Exception as e:
                 self.stdout.write(
@@ -167,7 +167,7 @@ class Command(BaseCommand):
                 )
                 errors += len(batch_movies) if 'batch_movies' in locals() else batch_size
                 self._reset_connection()
-                time.sleep(delay * 3)  # Extra long delay after batch error
+                # Đã bỏ sleep sau lỗi batch
 
         # Final report
         total_time = time.time() - start_time
@@ -224,7 +224,7 @@ class Command(BaseCommand):
             django.core.cache.cache.clear()
 
             # Small delay for cleanup to complete
-            time.sleep(0.5)
+            # time.sleep(0.5)  # Bỏ sleep sau cleanup
 
         except Exception as e:
             logger.warning(f"Cleanup error: {e}")

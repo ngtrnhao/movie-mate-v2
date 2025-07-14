@@ -971,10 +971,11 @@ class UserUsageStatsView(generics.RetrieveAPIView):
         }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def user_interactions(request):
     """
     API endpoint to receive user interactions from frontend
-    No authentication required for basic interaction tracking
+    ✅ Requires authentication to track user interactions
     """
     try:
         interactions = request.data.get('interactions', [])

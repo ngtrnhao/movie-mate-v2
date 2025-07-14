@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Heart, Share, Play } from 'lucide-react';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { useFavorites } from '../../../hooks/useFavorites';
 import { useWatchlistContext } from '../../../context/WatchlistContext';
-
+import useUserTracking from '../../../hooks/useUserTracking';
 const ActionPanel = ({ movie, onTrailerClick }) => {
   const { t } = useTranslation('movies');
 
@@ -24,7 +24,8 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
     watchlists,
   } = useWatchlistContext();
 
-  // Local state for UI feedback
+  const { trackFavorite, trackWatchlist } = useUserTracking();
+
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
   const [actionError, setActionError] = useState(null);
@@ -41,7 +42,11 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
 
     try {
       const movieId = parseInt(movie.id);
-      if (isInWatchlist(movieId)) {
+      const wasInWatchlist = isInWatchlist(movieId);
+
+      // ✅ Track watchlist action BEFORE the action
+      trackWatchlist(movieId, !wasInWatchlist);
+      if (wasInWatchlist) {
         // Find the watchlist that contains this movie
         const watchlistWithMovie = watchlists.find(list =>
           list.items.some(item => (item.movie_data?.id || item.movie?.id) === movieId)
@@ -75,6 +80,11 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
       setIsTogglingFavorite(false);
       return;
     }
+
+    const wasFavorited = isFavorited(movieId);
+
+    // ✅ Track favorite action BEFORE the action
+    trackFavorite(movieId, !wasFavorited);
 
     const result = await toggleFavorite(movieId, movie);
     if (!result.success) {

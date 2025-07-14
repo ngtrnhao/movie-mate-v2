@@ -22,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, FilmIcon as FilmIconSolid } from '@heroicons/react/24/solid';
 import MovieDetailsModal from '../../../components/common/MovieDetailsModal';
+import MovieQualityModal from '../../../components/common/MovieQualityModal';
 import AdvancedAdminFilters from './AdvancedAdminFilters';
 import {
   getAdminMovies,
@@ -31,6 +32,8 @@ import {
   updateMoviePriority,
   performBulkAction,
   getDashboardOverview,
+  updateMovieQuality,
+  resolveMovieIssue,
 } from '../../../api/adminMovieService';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useRefreshDashboard } from '../../../hooks/useDashboardData';
@@ -55,19 +58,61 @@ const getApprovalInfo = movie => {
   );
 };
 
+const getQualityMetrics = movie => {
+  console.log('getQualityMetrics called with movie:', movie?.title);
+  console.log('Raw quality_metrics:', movie?.quality_metrics);
+
+  const qualityData = movie?.quality_metrics || {
+    quality_score: null,
+    content_completeness: '0.00',
+    minimum_quality_met: false,
+    overall_quality_rating: 'Not Assessed',
+    completion_status: 'Incomplete',
+    quality_issues: [],
+    quality_suggestions: [],
+    quality_breakdown: {},
+    basic_info_score: 0,
+    visual_assets_score: 0,
+    metadata_richness_score: 0,
+    rating_validity_score: 0,
+    last_quality_check: null,
+    assessed_by: null,
+    assessment_notes: null,
+  };
+
+  console.log('Processed quality data:', qualityData);
+  return qualityData;
+};
+
+const getSchedulingInfo = movie => {
+  return (
+    movie?.scheduling || {
+      publish_date: null,
+      featured_from: null,
+      featured_until: null,
+      campaign_name: null,
+      campaign_type: null,
+      is_published_now: true,
+      is_featured_now: false,
+    }
+  );
+};
+
 const getProductionMetrics = movie => {
   return (
     movie?.production_metrics || {
       homepage_views: 0,
-      detail_views: 0,
-      // search_appearances: 0,
+      detail_page_views: 0,
+      engagement_rate: 0.0,
       performance_score: 0,
+      trending_category: 'stable',
+      trending_score: 0.0,
     }
   );
 };
 
 const isAdminFeatured = movie => {
-  return movie?.admin_featured || false;
+  return movie?.admin_control?.admin_featured || movie?.admin_featured || false;
 };
 
 const MovieManagement = () => {
@@ -89,6 +134,8 @@ const MovieManagement = () => {
     quality_issues: 0,
   });
   const [selectedMovie, setSelectedMovie] = useState(null);
+  const [qualityModalOpen, setQualityModalOpen] = useState(false);
+  const [selectedQualityMovie, setSelectedQualityMovie] = useState(null);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -269,6 +316,110 @@ const MovieManagement = () => {
     [fetchMovies]
   );
 
+  const togglePublishStatus = useCallback(
+    async movieId => {
+      try {
+        await performBulkAction('toggle_publish', [movieId]);
+        await handleActionSuccess();
+      } catch (error) {
+        console.error('Error toggling publish status:', error);
+      }
+    },
+    [handleActionSuccess]
+  );
+
+  const handleQualityReview = useCallback(movie => {
+    console.log('Opening quality modal for:', movie.title);
+
+    // Create enhanced movie object with quality metrics for testing
+    const enhancedMovie = {
+      ...movie,
+      quality_metrics: movie.quality_metrics || {
+        quality_score: 7.2,
+        content_completeness: 85.5,
+        minimum_quality_met: true,
+        overall_quality_rating: 'Good',
+        completion_status: 'Nearly Complete',
+        basic_info_score: 8.5,
+        visual_assets_score: 7.0,
+        metadata_richness_score: 6.8,
+        rating_validity_score: 8.0,
+        quality_issues: [
+          {
+            category: 'Visual Assets',
+            description: 'Movie poster resolution is below recommended 2000x3000 pixels',
+            priority: 'medium',
+            suggested_fix: 'Replace with higher resolution poster image',
+          },
+          {
+            category: 'Metadata',
+            description: 'Missing cast information for supporting actors',
+            priority: 'low',
+            suggested_fix: 'Add complete cast and crew information',
+          },
+        ],
+        quality_suggestions: [
+          {
+            category: 'Enhancement',
+            description: 'Add movie trailers to improve user engagement',
+            priority: 'medium',
+            expected_impact: 'Increase detail page views by 20-30%',
+          },
+          {
+            category: 'SEO',
+            description: 'Optimize movie description for better search visibility',
+            priority: 'low',
+            expected_impact: 'Improve search ranking and organic traffic',
+          },
+        ],
+        quality_breakdown: {
+          poster_quality: 7.0,
+          metadata_completeness: 8.5,
+          content_accuracy: 8.0,
+          technical_quality: 6.8,
+          user_engagement: 7.5,
+          content_freshness: 7.8,
+        },
+        last_quality_check: new Date().toISOString(),
+        assessed_by: 'System Auto-Assessment',
+        assessment_notes:
+          'Overall good quality movie with minor improvements needed in visual assets and metadata completeness.',
+      },
+    };
+
+    console.log('Enhanced movie object:', enhancedMovie);
+    setSelectedQualityMovie(enhancedMovie);
+    setQualityModalOpen(true);
+  }, []);
+
+  const handleQualityUpdate = useCallback(
+    async (movieId, qualityData) => {
+      try {
+        await updateMovieQuality(movieId, qualityData);
+        await fetchMovies(); // Refresh the movie list
+        await refreshDashboard(); // Refresh dashboard stats
+      } catch (error) {
+        console.error('Error updating quality:', error);
+        throw error;
+      }
+    },
+    [fetchMovies, refreshDashboard]
+  );
+
+  const handleIssueResolve = useCallback(
+    async (movieId, issueIndex) => {
+      try {
+        await resolveMovieIssue(movieId, issueIndex);
+        await fetchMovies(); // Refresh the movie list
+        await refreshDashboard(); // Refresh dashboard stats
+      } catch (error) {
+        console.error('Error resolving issue:', error);
+        throw error;
+      }
+    },
+    [fetchMovies, refreshDashboard]
+  );
+
   const bulkAction = useCallback(
     async (action, movieIds) => {
       try {
@@ -355,10 +506,16 @@ const MovieManagement = () => {
   };
 
   const handleViewDetails = useCallback(movie => {
-    setSelectedMovie(movie);
+    console.log('Opening movie details modal for:', movie?.title || 'Unknown Movie');
+    const enhancedMovie = {
+      ...movie,
+      title: movie?.title || 'Unknown Movie',
+    };
+    setSelectedMovie(enhancedMovie);
   }, []);
 
   const handleCloseDetails = useCallback(() => {
+    console.log('Closing movie details modal');
     setSelectedMovie(null);
   }, []);
 
@@ -432,13 +589,15 @@ const MovieManagement = () => {
       if (!movie?.id) return null;
 
       const approvalInfo = getApprovalInfo(movie);
-      const metrics = getProductionMetrics(movie);
+      const qualityMetrics = getQualityMetrics(movie);
+      const schedulingInfo = getSchedulingInfo(movie);
+      const productionMetrics = getProductionMetrics(movie);
       const isFeatured = isAdminFeatured(movie);
       const releaseYear = movie?.release_date ? new Date(movie.release_date).getFullYear() : 'N/A';
       const genres = movie?.genres?.map(g => g.name).join(', ') || 'N/A';
       const runtime = movie?.runtime ? `${movie.runtime} min` : 'N/A';
-      const qualityScore = movie?.quality_score || 0;
-      const completeness = movie?.content_completeness || 0;
+      const qualityScore = qualityMetrics?.quality_score || 0;
+      const completeness = qualityMetrics?.content_completeness || 0;
 
       return (
         <div
@@ -497,62 +656,210 @@ const MovieManagement = () => {
             </div>
 
             {/* Quality Metrics */}
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center text-gray-500">
-                <ChartBarIcon className="mr-1 size-4" />
-                {(metrics?.performance_score || 0).toFixed(1)}
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs text-gray-700 mb-2">
+                <span className="font-medium">Chất lượng:</span>
+                <span
+                  className={`px-2 py-1 rounded text-xs ${
+                    qualityMetrics?.minimum_quality_met
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {qualityMetrics?.overall_quality_rating || 'Chưa đánh giá'}
+                </span>
               </div>
-              <div className="flex items-center text-gray-500">
-                <DocumentCheckIcon className="mr-1 size-4" />
-                {(completeness || 0).toFixed(1)}%
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center text-gray-500">
+                  <DocumentCheckIcon className="mr-1 size-3" />
+                  {parseFloat(completeness || 0).toFixed(1)}%
+                </div>
+                <div className="flex items-center text-gray-500">
+                  <ChartBarIcon className="mr-1 size-3" />
+                  {qualityMetrics?.quality_score
+                    ? parseFloat(qualityMetrics.quality_score).toFixed(1)
+                    : 'N/A'}
+                </div>
+              </div>
+              {qualityMetrics?.quality_issues?.length > 0 && (
+                <div className="mt-1 text-xs text-red-600">
+                  <ExclamationTriangleIcon className="inline size-3 mr-1" />
+                  {qualityMetrics.quality_issues.length} vấn đề
+                </div>
+              )}
+            </div>
+
+            {/* Production Metrics */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs text-gray-700 mb-2">
+                <span className="font-medium">Hiệu suất:</span>
+                <span
+                  className={`px-2 py-1 rounded text-xs ${
+                    productionMetrics?.trending_category === 'trending'
+                      ? 'bg-orange-100 text-orange-800'
+                      : productionMetrics?.trending_category === 'rising'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {productionMetrics?.trending_category || 'stable'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center text-gray-500">
+                  <EyeIcon className="mr-1 size-3" />
+                  {productionMetrics?.homepage_views || 0}
+                </div>
+                <div className="flex items-center text-gray-500">
+                  <MagnifyingGlassIcon className="mr-1 size-3" />
+                  {productionMetrics?.detail_page_views || 0}
+                </div>
+              </div>
+              <div className="mt-1 text-xs text-gray-500">
+                Engagement: {(productionMetrics?.engagement_rate * 100 || 0).toFixed(1)}%
               </div>
             </div>
 
-            {/* View Metrics */}
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center text-gray-500">
-                <EyeIcon className="mr-1 size-4" />
-                {metrics?.homepage_views || 0}
+            {/* Scheduling Info */}
+            {(schedulingInfo?.featured_from || schedulingInfo?.campaign_name) && (
+              <div className="mt-4">
+                <div className="text-xs text-gray-700 font-medium mb-1">Lịch trình:</div>
+                {schedulingInfo?.campaign_name && (
+                  <div className="text-xs text-blue-600 mb-1">
+                    <CalendarIcon className="inline size-3 mr-1" />
+                    {schedulingInfo.campaign_name}
+                  </div>
+                )}
+                {schedulingInfo?.featured_from && (
+                  <div className="text-xs text-gray-500">
+                    Featured: {new Date(schedulingInfo.featured_from).toLocaleDateString()}
+                    {schedulingInfo?.featured_until &&
+                      ` - ${new Date(schedulingInfo.featured_until).toLocaleDateString()}`}
+                  </div>
+                )}
               </div>
-              <div className="flex items-center text-gray-500">
-                <MagnifyingGlassIcon className="mr-1 size-4" />
-                {metrics?.detail_page_views || 0}
-              </div>
-            </div>
+            )}
 
             {/* Actions */}
             <div className="mt-4 space-y-2">
               {/* Primary Actions Row */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => approveMovieAction(movie.id)}
-                  disabled={!approvalInfo?.can_approve}
-                  className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <CheckCircleIcon className="mr-1.5 size-4" />
-                  Duyệt
-                </button>
+              <div className="space-y-2">
+                {/* Always show View Details button */}
                 <button
                   onClick={() => handleViewDetails(movie)}
-                  className="inline-flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  className="inline-flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   <EyeIcon className="mr-1.5 size-4" />
-                  Chi tiết
+                  Xem chi tiết
+                </button>
+
+                {/* Approval actions for movies needing review */}
+                {approvalInfo?.status === 'NEEDS_REVIEW' && (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => approveMovieAction(movie.id)}
+                      disabled={!approvalInfo?.can_approve}
+                      className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <CheckCircleIcon className="mr-1.5 size-4" />
+                      Duyệt
+                    </button>
+                    <button
+                      onClick={() => rejectMovieAction(movie.id, 'Không đạt yêu cầu chất lượng')}
+                      disabled={!approvalInfo?.can_reject}
+                      className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <XCircleIcon className="mr-1.5 size-4" />
+                      Từ chối
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Admin Control Actions */}
+              {approvalInfo?.status === 'APPROVED' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => toggleFeatured(movie.id)}
+                    className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-xs font-medium ${
+                      isFeatured
+                        ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    } transition-colors`}
+                  >
+                    <StarIcon className="mr-1 size-3" />
+                    {isFeatured ? 'Bỏ Featured' : 'Featured'}
+                  </button>
+
+                  <button
+                    onClick={() => togglePublishStatus(movie.id)}
+                    className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-xs font-medium ${
+                      movie?.admin_control?.visibility_status === 'PUBLISHED'
+                        ? 'border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    } transition-colors`}
+                  >
+                    <EyeIcon className="mr-1 size-3" />
+                    {movie?.admin_control?.visibility_status === 'PUBLISHED' ? 'Ẩn' : 'Xuất bản'}
+                  </button>
+                </div>
+              )}
+
+              {/* Quality & Priority Actions */}
+              <div className="space-y-2">
+                {qualityMetrics?.quality_issues?.length > 0 && (
+                  <button
+                    onClick={() => handleQualityReview(movie)}
+                    className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800 hover:bg-orange-100 transition-colors"
+                  >
+                    <ExclamationTriangleIcon className="mr-1 size-3" />
+                    Khắc phục chất lượng ({qualityMetrics.quality_issues.length})
+                  </button>
+                )}
+
+                {/* Always show Quality Review button for testing */}
+                <button
+                  onClick={() => handleQualityReview(movie)}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+                >
+                  <ChartBarIcon className="mr-1 size-3" />
+                  Đánh giá chất lượng
                 </button>
               </div>
 
-              {/* Secondary Action */}
-              <button
-                onClick={() => toggleFeatured(movie.id)}
-                className={`inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium ${
-                  isFeatured
-                    ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
-                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                } transition-colors`}
-              >
-                <StarIcon className="mr-1.5 size-4" />
-                {isFeatured ? 'Bỏ Featured' : 'Đánh dấu Featured'}
-              </button>
+              {/* Priority Adjustment */}
+              {approvalInfo?.status === 'APPROVED' && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500">Ưu tiên:</span>
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() =>
+                        updatePriorityAction(
+                          movie.id,
+                          Math.max(0, (movie?.admin_control?.admin_priority || 0) - 1)
+                        )
+                      }
+                      className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                    >
+                      -
+                    </button>
+                    <span className="text-xs font-medium w-6 text-center">
+                      {movie?.admin_control?.admin_priority || 0}
+                    </span>
+                    <button
+                      onClick={() =>
+                        updatePriorityAction(
+                          movie.id,
+                          Math.min(10, (movie?.admin_control?.admin_priority || 0) + 1)
+                        )
+                      }
+                      className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1034,6 +1341,21 @@ const MovieManagement = () => {
         open={!!selectedMovie}
         onClose={handleCloseDetails}
       />
+
+      {/* Movie Quality Modal */}
+      {selectedQualityMovie && (
+        <MovieQualityModal
+          movie={selectedQualityMovie}
+          isOpen={qualityModalOpen}
+          onClose={() => {
+            setQualityModalOpen(false);
+            setSelectedQualityMovie(null);
+          }}
+          onQualityUpdate={handleQualityUpdate}
+          onIssueResolve={handleIssueResolve}
+          userRole="admin"
+        />
+      )}
     </div>
   );
 };

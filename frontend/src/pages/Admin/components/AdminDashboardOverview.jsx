@@ -427,25 +427,25 @@ const AdminDashboardOverview = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Active Users</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats.userStats?.activeUsers || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Avg Session (min)</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats.userStats?.avgSessionDuration || 0).toFixed(1)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Bounce Rate</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats.userStats?.bounceRate || 0).toFixed(1)}%
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Retention Rate</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600 ">
                 {(stats.userStats?.retentionRate || 0).toFixed(1)}%
               </span>
             </div>
@@ -457,25 +457,25 @@ const AdminDashboardOverview = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Homepage Views</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats?.performanceStats?.totalHomepageViews ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Detail Views</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600 ">
                 {(stats?.performanceStats?.totalDetailViews ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Search Appearances</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats?.performanceStats?.totalSearchAppearances ?? 0).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Approval Rate</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-600">
                 {(stats?.moderationStats?.approvedContentRatio ?? 0).toFixed(1)}%
               </span>
             </div>
@@ -487,19 +487,23 @@ const AdminDashboardOverview = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">API Calls/min</span>
-              <span className="font-semibold">{stats.systemStats.apiCallsPerMinute}</span>
+              <span className="font-semibold text-gray-600">
+                {stats.systemStats.apiCallsPerMinute}
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Response Time</span>
-              <span className="font-semibold">{stats.systemStats.responseTime}ms</span>
+              <span className="font-semibold text-gray-600 ">
+                {stats.systemStats.responseTime}ms
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Cache Hit Rate</span>
-              <span className="font-semibold">{stats.systemStats.cacheHitRate}%</span>
+              <span className="font-semibold text-gray-600">{stats.systemStats.cacheHitRate}%</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Server Load</span>
-              <span className="font-semibold">{stats.systemStats.serverLoad}%</span>
+              <span className="font-semibold text-gray-600">{stats.systemStats.serverLoad}%</span>
             </div>
           </div>
         </div>

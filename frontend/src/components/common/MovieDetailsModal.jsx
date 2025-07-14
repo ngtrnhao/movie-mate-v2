@@ -3,51 +3,119 @@ import {
   CalendarIcon,
   TagIcon,
   ChartBarIcon,
-  EyeIcon,
-  MagnifyingGlassIcon,
   DocumentCheckIcon,
   GlobeAltIcon,
   ShieldCheckIcon,
-  UserGroupIcon,
   StarIcon,
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,
+  FilmIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import Modal from './Modal';
 
-const MetricItem = ({ icon: Icon, label, value }) => (
-  <div className="flex items-center space-x-2">
-    <Icon className="size-5 text-gray-400" />
+const MetricItem = ({ icon: Icon, label, value, className = '' }) => (
+  <div className={`flex items-center space-x-2 ${className}`}>
+    <Icon className="size-5 text-gray-400 flex-shrink-0" />
     <span className="text-sm text-gray-500">{label}:</span>
     <span className="text-sm font-medium text-gray-900">{value}</span>
   </div>
 );
 
+const Section = ({ title, icon: Icon, children, className = '' }) => (
+  <div className={`space-y-4 ${className}`}>
+    <div className="flex items-center space-x-2 border-b border-gray-200 pb-2">
+      <Icon className="size-5 text-blue-600" />
+      <h4 className="text-lg font-semibold text-gray-900">{title}</h4>
+    </div>
+    {children}
+  </div>
+);
+
+const Badge = ({ children, color = 'gray' }) => {
+  const colors = {
+    gray: 'bg-gray-100 text-gray-800',
+    green: 'bg-green-100 text-green-800',
+    yellow: 'bg-yellow-100 text-yellow-800',
+    red: 'bg-red-100 text-red-800',
+    blue: 'bg-blue-100 text-blue-800',
+    orange: 'bg-orange-100 text-orange-800',
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[color] || colors.gray}`}
+    >
+      {children}
+    </span>
+  );
+};
+
+const RatingDisplay = ({ rating, className = '' }) => {
+  if (!rating) return <span className="text-gray-400">N/A</span>;
+  return (
+    <div className={`flex items-center space-x-1 ${className}`}>
+      <StarIconSolid className="size-4 text-yellow-400" />
+      <span className="font-medium text-gray-600">{rating}</span>
+    </div>
+  );
+};
+
 const MovieDetailsModal = ({ movie, open, onClose }) => {
-  if (!movie) return null;
+  if (!movie) {
+    console.log('MovieDetailsModal: No movie provided');
+    return null;
+  }
+
+  console.log('MovieDetailsModal opened with movie:', movie?.title || 'Unknown Movie');
 
   const {
     title,
+    title_en,
+    title_vi,
     original_title,
     release_date,
     runtime,
     genres,
     overviews,
-    production_metrics,
+    poster_path,
+    poster_url,
+    backdrop_path,
+    status,
+    popularity,
+    is_adult,
+    adult,
+    rating,
+    cached_imdb_rating,
+    vote_average,
+    vote_count,
+    combined_rating_score,
+    trailers,
     approval_info,
     admin_control,
-    content_completeness,
-    quality_score,
+    production_metrics,
   } = movie;
 
-  const formatDate = date => {
+  const getProductionMetrics = () =>
+    production_metrics || {
+      homepage_views: 0,
+      detail_page_views: 0,
+      engagement_rate: 0.0,
+      performance_score: 0,
+      trending_category: 'stable',
+      review_count: 0,
+      average_user_rating: null,
+      trailer_plays: 0,
+      positive_review_ratio: 0.0,
+    };
+
+  const metricsData = getProductionMetrics();
+
+  const formatDateShort = date => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    return new Date(date).toLocaleDateString('vi-VN');
   };
 
   const getApprovalStatusColor = status => {
@@ -72,126 +140,289 @@ const MovieDetailsModal = ({ movie, open, onClose }) => {
     return icons[status] || ClockIcon;
   };
 
-  const ApprovalIcon = getApprovalIcon(approval_info?.status);
+  const getTrendingColor = category => {
+    const colors = {
+      hot: 'red',
+      trending: 'orange',
+      rising: 'yellow',
+      stable: 'blue',
+      declining: 'gray',
+    };
+    return colors[category] || 'gray';
+  };
+
+  const ApprovalIcon = getApprovalIcon(approval_info?.status || admin_control?.approval_status);
 
   return (
-    <Modal open={open} onClose={onClose} title="Chi tiết phim">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Column 1: Basic Info & Overview */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Basic Info */}
-          <div className="space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
-                {original_title && original_title !== title && (
-                  <p className="mt-1 text-sm text-gray-500">{original_title}</p>
+    <Modal open={open} onClose={onClose} title="Chi tiết phim" size="max">
+      <div className="space-y-8">
+        {/* Header Section */}
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="text-3xl font-bold text-gray-900">{title}</h3>
+            <div className="mt-2 space-y-1">
+              {title_en && title_en !== title && (
+                <p className="text-lg text-gray-600">English: {title_en}</p>
+              )}
+              {title_vi && title_vi !== title && title_vi !== title_en && (
+                <p className="text-lg text-gray-600">Tiếng Việt: {title_vi}</p>
+              )}
+              {original_title &&
+                original_title !== title &&
+                original_title !== title_en &&
+                original_title !== title_vi && (
+                  <p className="text-sm text-gray-500">Original: {original_title}</p>
                 )}
-              </div>
-              <div className={`flex items-center ${getApprovalStatusColor(approval_info?.status)}`}>
-                <ApprovalIcon className="mr-1.5 size-5" />
-                <span className="text-sm font-medium">{approval_info?.status || 'PENDING'}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <MetricItem
-                icon={CalendarIcon}
-                label="Ngày phát hành"
-                value={formatDate(release_date)}
-              />
-              <MetricItem
-                icon={ClockIcon}
-                label="Thời lượng"
-                value={runtime ? `${runtime} phút` : 'N/A'}
-              />
-              <MetricItem
-                icon={TagIcon}
-                label="Thể loại"
-                value={genres?.map(g => g.name).join(', ') || 'N/A'}
-              />
-              <MetricItem
-                icon={GlobeAltIcon}
-                label="Trạng thái"
-                value={admin_control?.visibility_status || 'DRAFT'}
-              />
             </div>
           </div>
-
-          {/* Overview */}
-          <div className="space-y-2">
-            <h4 className="text-lg font-semibold text-gray-900">Nội dung</h4>
-            <div className="space-y-3 rounded-lg bg-gray-50 p-4">
-              {overviews?.vi && (
-                <p className="text-sm">
-                  <span className="font-medium text-gray-700">Tiếng Việt:</span>{' '}
-                  <span className="text-gray-900">{overviews.vi}</span>
-                </p>
-              )}
-              {overviews?.en && (
-                <p className="text-sm">
-                  <span className="font-medium text-gray-700">English:</span>{' '}
-                  <span className="text-gray-900">{overviews.en}</span>
-                </p>
-              )}
+          <div className="flex flex-col items-end space-y-2">
+            <div
+              className={`flex items-center ${getApprovalStatusColor(approval_info?.status || admin_control?.approval_status)}`}
+            >
+              <ApprovalIcon className="mr-1.5 size-5" />
+              <span className="text-sm font-medium">
+                {approval_info?.status || admin_control?.approval_status || 'PENDING'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Column 2: Metrics & Admin Info */}
-        <div className="space-y-6">
-          {/* Metrics */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900">Chỉ số hiệu suất</h4>
-            <div className="space-y-3 rounded-lg bg-gray-50 p-4">
-              <MetricItem
-                icon={ChartBarIcon}
-                label="Điểm hiệu suất"
-                value={(production_metrics?.performance_score || 0).toFixed(1)}
-              />
-              <MetricItem
-                icon={DocumentCheckIcon}
-                label="Độ hoàn thiện"
-                value={`${(content_completeness || 0).toFixed(1)}%`}
-              />
-              <MetricItem
-                icon={EyeIcon}
-                label="Lượt xem trang chủ"
-                value={production_metrics?.homepage_views?.toLocaleString() || 0}
-              />
-              {/* <MetricItem
-                icon={MagnifyingGlassIcon}
-                label="Lượt xuất hiện tìm kiếm"
-                value={production_metrics?.search_appearances?.toLocaleString() || 0}
-              /> */}
-            </div>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          {/* Column 1: Basic Info & Content */}
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <Section title="Thông tin cơ bản" icon={FilmIcon}>
+              <div className="space-y-3">
+                <MetricItem
+                  icon={CalendarIcon}
+                  label="Ngày phát hành"
+                  value={formatDateShort(release_date)}
+                />
+                <MetricItem
+                  icon={ClockIcon}
+                  label="Thời lượng"
+                  value={runtime ? `${runtime} phút` : 'N/A'}
+                />
+                <MetricItem
+                  icon={TagIcon}
+                  label="Thể loại"
+                  value={genres?.map(g => g.name).join(', ') || 'N/A'}
+                />
+                <MetricItem
+                  icon={GlobeAltIcon}
+                  label="Trạng thái"
+                  value={status || admin_control?.visibility_status || 'DRAFT'}
+                />
+                <MetricItem
+                  icon={ChartBarIcon}
+                  label="Độ phổ biến"
+                  value={popularity ? popularity.toFixed(2) : 'N/A'}
+                />
+                <MetricItem
+                  icon={ShieldCheckIcon}
+                  label="Người lớn"
+                  value={is_adult || adult ? 'Có' : 'Không'}
+                />
+              </div>
+            </Section>
+
+            {/* Rating Information */}
+            <Section title="Đánh giá" icon={StarIcon}>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">IMDB:</span>
+                  <RatingDisplay
+                    className="text-gray-600"
+                    rating={rating?.imdb || cached_imdb_rating}
+                  />
+                </div>
+                {rating?.imdb_votes && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">IMDB Votes:</span>
+                    <span className="text-sm font-medium text-gray-600">
+                      {rating.imdb_votes.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {rating?.tmdb && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">TMDB:</span>
+                    <RatingDisplay className="text-gray-600" rating={rating.tmdb} />
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Combined Score:</span>
+                  <span className="text-sm font-medium text-gray-600">
+                    {combined_rating_score || rating?.combined_score}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Vote Average:</span>
+                  <span className="text-sm font-medium text-gray-600">{vote_average}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Vote Count:</span>
+                  <span className="text-sm font-medium text-gray-600">
+                    {vote_count?.toLocaleString() || 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </Section>
+
+            {/* Content Overview */}
+            <Section title="Nội dung" icon={DocumentCheckIcon}>
+              <div className="space-y-3">
+                {overviews?.vi ? (
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Tiếng Việt:</span>
+                    <p className="mt-1 text-sm text-gray-900 bg-gray-50 rounded-lg p-3">
+                      {overviews.vi}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">Chưa có mô tả tiếng Việt</p>
+                )}
+                {overviews?.en ? (
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">English:</span>
+                    <p className="mt-1 text-sm text-gray-900 bg-gray-50 rounded-lg p-3">
+                      {overviews.en}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">Chưa có mô tả tiếng Anh</p>
+                )}
+                {trailers && trailers.length > 0 ? (
+                  <MetricItem
+                    icon={FilmIcon}
+                    label="Trailers"
+                    value={`${trailers.length} video(s)`}
+                  />
+                ) : (
+                  <p className="text-sm text-gray-500 italic">Chưa có trailer</p>
+                )}
+              </div>
+            </Section>
+
+            {/* Assets Information */}
+            <Section title="Media Assets" icon={PhotoIcon}>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Poster:</span>
+                  <Badge color={poster_path || poster_url ? 'green' : 'red'}>
+                    {poster_path || poster_url ? 'Available' : 'Missing'}
+                  </Badge>
+                </div>
+                {(poster_path || poster_url) && (
+                  <div className="mt-2">
+                    <img
+                      src={poster_url || poster_path}
+                      alt={title}
+                      className="w-20 h-28 object-cover rounded-lg border border-gray-200"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Backdrop:</span>
+                  <Badge color={backdrop_path ? 'green' : 'red'}>
+                    {backdrop_path ? 'Available' : 'Missing'}
+                  </Badge>
+                </div>
+                {backdrop_path && (
+                  <div className="mt-2">
+                    <img
+                      src={`https://image.tmdb.org/t/p/original${backdrop_path}`}
+                      alt={title}
+                      className="w-20 h-28 object-cover rounded-lg border border-gray-200"
+                    />
+                  </div>
+                )}
+              </div>
+            </Section>
           </div>
 
-          {/* Admin Control */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900">Thông tin quản trị</h4>
-            <div className="space-y-3 rounded-lg bg-gray-50 p-4">
-              <MetricItem
-                icon={UserGroupIcon}
-                label="Người duyệt"
-                value={approval_info?.approved_by || 'Chưa duyệt'}
-              />
-              <MetricItem
-                icon={CalendarIcon}
-                label="Ngày duyệt"
-                value={formatDate(approval_info?.approved_at)}
-              />
-              <MetricItem
-                icon={StarIcon}
-                label="Featured"
-                value={admin_control?.admin_featured ? 'Có' : 'Không'}
-              />
-              <MetricItem
-                icon={ShieldCheckIcon}
-                label="Chất lượng"
-                value={`${(quality_score || 0).toFixed(1)}/10`}
-              />
-            </div>
+          {/* Column 2: Production Metrics */}
+          <div className="space-y-6">
+            <Section title="Hiệu suất sản xuất" icon={ChartBarIcon}>
+              {/* Enhanced Production Metrics */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {metricsData.homepage_views?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-sm text-blue-700">Homepage Views</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {metricsData.detail_page_views?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-sm text-green-700">Detail Views</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {metricsData.trailer_plays?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-sm text-purple-700">Trailer Plays</div>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {(metricsData.engagement_rate * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-sm text-orange-700">Engagement</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Performance Score:</span>
+                    <span className="text-sm font-medium text-gray-600">
+                      {metricsData.performance_score?.toFixed(1) || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Trending:</span>
+                    <Badge color={getTrendingColor(metricsData.trending_category)}>
+                      {metricsData.trending_category}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Reviews:</span>
+                    <span className="text-sm font-medium text-gray-600">
+                      {metricsData.review_count || 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Avg User Rating:</span>
+                    <RatingDisplay rating={metricsData.average_user_rating} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Positive Ratio:</span>
+                    <span className="text-sm font-medium text-gray-600">
+                      {(metricsData.positive_review_ratio * 100).toFixed(1)}%
+                    </span>
+                  </div>
+
+                  {metricsData.click_through_rate > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">CTR:</span>
+                      <span className="text-sm font-medium">
+                        {(metricsData.click_through_rate * 100).toFixed(2)}%
+                      </span>
+                    </div>
+                  )}
+
+                  {metricsData.trailer_completion_rate > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">Trailer Completion:</span>
+                      <span className="text-sm font-medium">
+                        {(metricsData.trailer_completion_rate * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Section>
           </div>
         </div>
       </div>

@@ -39,6 +39,7 @@ import QueueList from '../Moderator/components/QueueList';
 import AdminDashboardOverview from './components/AdminDashboardOverview';
 import VisibilityControl from './components/VisibilityControl';
 import MovieManagement from './components/MovieManagement';
+import SchedulingManagement from './components/SchedulingManagement';
 import UserInteractionAnalytics from './components/UserInteractionAnalytics';
 import TrendingAnalytics from './components/TrendingAnalytics';
 import RealTimeCharts from './components/RealTimeCharts';
@@ -347,6 +348,8 @@ const AdminDashboardContent = () => {
         return <UserManagement />;
       case 'movies':
         return <MovieManagement />;
+      case 'scheduling':
+        return <SchedulingManagement />;
       case 'analytics':
         return <UserAnalytics />;
       case 'content':

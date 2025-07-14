@@ -38,11 +38,8 @@ const MovieCard = memo(
     // Initialize user tracking with memoized functions
     const { trackMovieClick, trackTrailerView } = useUserTracking();
 
-    // Memoize trackHomepageView to prevent unnecessary useEffect re-runs
-    const trackHomepageViewMemoized = useCallback((movieId, metadata) => {
-      if (!movieId) return;
-      userInteractionService.trackHomepageView(movieId, metadata);
-    }, []);
+    // Optimized tracking using the enhanced userInteractionService
+    // Bỏ trackHomepageViewMemoized vì service đã handle deduplication
 
     // Memoize stable movie data to prevent re-calculations
     const movieData = useMemo(
@@ -155,35 +152,33 @@ const MovieCard = memo(
       }
     }, [hasAnimated, movie.id]);
 
-    // Setup intersection observer for homepage view tracking
+    // Optimized view tracking với intersection observer
     useEffect(() => {
-      let timeoutId = null;
+      let timeoutId;
 
-      if (cardRef.current && movieData.id && !minimal) {
-        // Create observer directly without using createViewObserver from hook
-        // to avoid dependency issues
+      if (cardRef.current && !minimal) {
         const observer = new IntersectionObserver(
           entries => {
             entries.forEach(entry => {
-              if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-                // Clear any existing timeout to prevent multiple calls
+              if (entry.isIntersecting) {
+                // Clear any existing timeout
                 if (timeoutId) {
                   clearTimeout(timeoutId);
                 }
 
-                // Use timeout to avoid too frequent calls
-                timeoutId = setTimeout(() => {
-                  trackHomepageViewMemoized(movieData.id, {
-                    component: 'movie_card',
-                    position: index,
-                    page_type: 'homepage',
-                  });
-                }, 1000); // 1 second delay
+                // Use userInteractionService's optimized tracking
+                // Service sẽ tự handle deduplication và authentication check
+                userInteractionService.trackHomepageView(movieData.id, {
+                  component: 'movie_card',
+                  position: index,
+                  page_type: 'homepage',
+                  viewport_ratio: entry.intersectionRatio,
+                });
               }
             });
           },
           {
-            threshold: 0.5,
+            threshold: 0.5, // Track when 50% visible
             rootMargin: '0px 0px -10% 0px',
           }
         );
@@ -193,7 +188,7 @@ const MovieCard = memo(
       }
 
       return () => {
-        // Clear timeout to prevent memory leaks and tracking calls for unmounted components
+        // Clear timeout to prevent memory leaks
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
@@ -202,7 +197,7 @@ const MovieCard = memo(
           viewObserverRef.current.disconnect();
         }
       };
-    }, [movieData.id, index, minimal, trackHomepageViewMemoized]); // Removed createViewObserver from deps
+    }, [movieData.id, index, minimal]); // Removed trackHomepageViewMemoized dependency
 
     // Minimal rendering cho fast scroll - chỉ hiển thị poster và title
     if (minimal) {

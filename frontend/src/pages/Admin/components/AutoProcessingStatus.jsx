@@ -11,9 +11,12 @@ const AutoProcessingStatus = () => {
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      const response = await adminMovieService.getAutoProcessingStatus();
-      if (response.data?.status === 'success') {
-        setStatus(response.data.data);
+      // adminMovieService.getAutoProcessingStatus() already returns processed data
+      const statusData = await adminMovieService.getAutoProcessingStatus();
+      console.log('🔍 AutoProcessingStatus - Received data:', statusData);
+
+      if (statusData) {
+        setStatus(statusData);
         setLastRefresh(new Date());
       }
     } catch (error) {
@@ -145,11 +148,11 @@ const AutoProcessingStatus = () => {
                             : '⏳'}
                     </span>
                     <div>
-                      <div className="font-medium text-sm capitalize">
+                      <div className="font-medium text-sm text-gray-700 capitalize">
                         {taskName.replace('_', ' ')}
                       </div>
                       <div
-                        className={`text-xs ${
+                        className={`text-xs text-gray-700 ${
                           taskStatus === 'running'
                             ? 'text-blue-600'
                             : taskStatus === 'completed'
@@ -195,7 +198,7 @@ const AutoProcessingStatus = () => {
             {/* Interaction Processing */}
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
-                <div className="font-medium">User Interactions</div>
+                <div className="font-medium text-gray-600">User Interactions</div>
                 <div className="text-sm text-gray-600">
                   {automation.last_processing_result ? (
                     <>
@@ -223,7 +226,7 @@ const AutoProcessingStatus = () => {
             {/* Metrics Calculation */}
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
-                <div className="font-medium">Production Metrics</div>
+                <div className="font-medium text-gray-600">Production Metrics</div>
                 <div className="text-sm text-gray-600">
                   {automation.last_metrics_calculation ? (
                     <>
@@ -251,7 +254,7 @@ const AutoProcessingStatus = () => {
             {/* Trending Sync */}
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
-                <div className="font-medium">Trending Categories</div>
+                <div className="font-medium text-gray-600">Trending Categories</div>
                 <div className="text-sm text-gray-600">
                   {automation.last_trending_sync ? (
                     <>

@@ -757,6 +757,9 @@ class MovieReview(models.Model):
     # Reply system - add parent review reference
     parent_review = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True,
                                     related_name='replies', help_text="Parent review for replies")
+    reply_to_user = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='mentioned_in_replies',
+                                    help_text="User being replied to when replying to a reply (for @mentions)")
 
     # Metadata
     review_type = models.CharField(max_length=20, choices=REVIEW_TYPES, default='USER')
@@ -811,6 +814,7 @@ class MovieReview(models.Model):
             models.Index(fields=["created_at"]),
             models.Index(fields=["source"]),
             models.Index(fields=["parent_review"]),  # Index for reply queries
+            models.Index(fields=["reply_to_user"]),  # Index for mention queries
 
             # MODERATION PERFORMANCE INDEXES
             # Primary moderation queue lookup
@@ -935,19 +939,32 @@ class MovieReview(models.Model):
             return self._reply_count
         return MovieReview.objects.filter(parent_review=self, is_public=True).count()
 
+    @property
+    def mentioned_username(self):
+        """Get username of user being replied to (for @mentions)"""
+        if self.reply_to_user:
+            return self.reply_to_user.username
+        return None
+
+    def get_main_parent(self):
+        """Get the main parent review (for flattening nested replies)"""
+        if self.parent_review:
+            if self.parent_review.is_reply:
+                # If parent is also a reply, get its parent (main review)
+                return self.parent_review.parent_review
+            return self.parent_review
+        return None
+
     def can_reply(self, user):
         """Check if user can reply to this review"""
         if not user or not user.is_authenticated:
             return False
 
-        # Cannot reply to own review
+        # Cannot reply to own review or reply
         if self.user and self.user.id == user.id:
             return False
 
-        # Cannot reply to a reply
-        if self.is_reply:
-            return False
-
+        # Can reply to main reviews and replies (but replies to replies will be flattened)
         return True
 
     def get_helpfulness_ratio(self):

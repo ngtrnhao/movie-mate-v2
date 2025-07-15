@@ -99,8 +99,9 @@ class MovieSearchService:
 
         try:
             search = Search(using=self.client, index=self.index)
-            search = search.filter('exists', field='poster_url')
-            search = search.filter('range', poster_url={'gt':''})
+            if not admin_mode:
+                search = search.filter('exists', field='poster_url')
+                search = search.filter('range', poster_url={'gt':''})
 
             #  Enhanced search query with quality scoring
             if params.get('q'):
@@ -398,16 +399,17 @@ class MovieSearchService:
             movie_ids = [int(hit.meta.id) for hit in response.hits]
 
             # Get Movie objects with proper prefetching for serialization
+            orm_filter = {'id__in': movie_ids}
+            if not admin_mode:
+                orm_filter.update({'poster_url__isnull': False, 'poster_url__gt': ''})
+
             movies = Movie.objects.select_related(
                 'moviemetadata'
             ).prefetch_related(
                 'genres',
                 'ratings',
                 Prefetch('trailers', queryset=MovieTrailer.objects.filter(type='TRAILER'))
-            ).filter(
-                id__in=movie_ids,
-                poster_url__isnull=False,
-                poster_url__gt='')
+            ).filter(**orm_filter)
 
             # Maintain the order from Elasticsearch results
             movie_dict = {movie.id: movie for movie in movies}

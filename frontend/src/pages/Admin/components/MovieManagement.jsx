@@ -34,6 +34,10 @@ import {
   getDashboardOverview,
   updateMovieQuality,
   resolveMovieIssue,
+  enrichMovie,
+  getMovieEnrichmentStatus,
+  batchEnrichMovies,
+  enrichMoviesWithQualityIssues,
 } from '../../../api/adminMovieService';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useRefreshDashboard } from '../../../hooks/useDashboardData';
@@ -136,6 +140,15 @@ const MovieManagement = () => {
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [qualityModalOpen, setQualityModalOpen] = useState(false);
   const [selectedQualityMovie, setSelectedQualityMovie] = useState(null);
+
+  // Enrichment states
+  const [enrichmentProgress, setEnrichmentProgress] = useState({});
+  const [batchEnrichmentOpen, setBatchEnrichmentOpen] = useState(false);
+  const [enrichmentOptions, setEnrichmentOptions] = useState({
+    forceRefresh: false,
+    focusAreas: [],
+    enrichType: 'comprehensive',
+  });
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -419,6 +432,78 @@ const MovieManagement = () => {
     },
     [fetchMovies, refreshDashboard]
   );
+
+  // Enrichment handlers
+  const handleEnrichMovie = useCallback(
+    async (movieId, options = {}) => {
+      setEnrichmentProgress(prev => ({ ...prev, [movieId]: { status: 'loading', progress: 0 } }));
+
+      try {
+        const result = await enrichMovie(movieId, {
+          forceRefresh: options.forceRefresh || false,
+          focusAreas: options.focusAreas || ['basic'],
+          enrichType: options.enrichType || 'comprehensive',
+        });
+
+        setEnrichmentProgress(prev => ({
+          ...prev,
+          [movieId]: { status: 'completed', progress: 100, result },
+        }));
+
+        await fetchMovies(); // Refresh the movie list
+        await refreshDashboard(); // Refresh dashboard stats
+
+        // Clear progress after 3 seconds
+        setTimeout(() => {
+          setEnrichmentProgress(prev => {
+            const updated = { ...prev };
+            delete updated[movieId];
+            return updated;
+          });
+        }, 3000);
+      } catch (error) {
+        console.error('Error enriching movie:', error);
+        setEnrichmentProgress(prev => ({
+          ...prev,
+          [movieId]: { status: 'error', progress: 0, error: error.message },
+        }));
+      }
+    },
+    [fetchMovies, refreshDashboard]
+  );
+
+  const handleBatchEnrichment = useCallback(async () => {
+    if (selectedMovies.length === 0) return;
+
+    setBatchEnrichmentOpen(false);
+
+    try {
+      const result = await batchEnrichMovies(selectedMovies, enrichmentOptions);
+      console.log('Batch enrichment result:', result);
+
+      await fetchMovies();
+      await refreshDashboard();
+      setSelectedMovies([]);
+    } catch (error) {
+      console.error('Error batch enriching movies:', error);
+    }
+  }, [selectedMovies, enrichmentOptions, fetchMovies, refreshDashboard]);
+
+  const handleEnrichQualityIssues = useCallback(async () => {
+    try {
+      const result = await enrichMoviesWithQualityIssues({
+        qualityScoreMax: 7.0,
+        hasQualityIssues: true,
+        limit: 20,
+      });
+      console.log('Quality issues enrichment result:', result);
+
+      await fetchMovies();
+      await refreshDashboard();
+    } catch (error) {
+      console.error('Error enriching quality issues:', error);
+    }
+  }, [fetchMovies, refreshDashboard]);
 
   const bulkAction = useCallback(
     async (action, movieIds) => {
@@ -825,6 +910,41 @@ const MovieManagement = () => {
                   <ChartBarIcon className="mr-1 size-3" />
                   Đánh giá chất lượng
                 </button>
+
+                {/* Movie Enrichment Button */}
+                <button
+                  onClick={() =>
+                    handleEnrichMovie(movie.id, {
+                      focusAreas: ['basic', 'visual'],
+                      enrichType: 'quality_based',
+                    })
+                  }
+                  disabled={enrichmentProgress[movie.id]?.status === 'loading'}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-green-300 bg-green-50 px-3 py-2 text-xs font-medium text-green-800 hover:bg-green-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  title="Bổ sung dữ liệu phim từ TMDB/IMDB"
+                >
+                  {enrichmentProgress[movie.id]?.status === 'loading' ? (
+                    <>
+                      <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
+                      Đang xử lý...
+                    </>
+                  ) : enrichmentProgress[movie.id]?.status === 'completed' ? (
+                    <>
+                      <CheckCircleIcon className="mr-1 size-3" />
+                      Đã cập nhật ✓
+                    </>
+                  ) : enrichmentProgress[movie.id]?.status === 'error' ? (
+                    <>
+                      <ExclamationTriangleIcon className="mr-1 size-3" />
+                      Lỗi
+                    </>
+                  ) : (
+                    <>
+                      <DocumentCheckIcon className="mr-1 size-3" />
+                      Bổ sung dữ liệu
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Priority Adjustment */}
@@ -937,6 +1057,27 @@ const MovieManagement = () => {
                   Đang lọc
                 </span>
               )}
+            </button>
+
+            {/* Bulk Enrichment Button */}
+            {selectedMovies.length > 0 && (
+              <button
+                onClick={() => setBatchEnrichmentOpen(true)}
+                className="inline-flex items-center rounded-md border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100 transition-colors"
+              >
+                <DocumentCheckIcon className="mr-2 size-4" />
+                Bổ sung dữ liệu ({selectedMovies.length})
+              </button>
+            )}
+
+            {/* Quality Issues Enrichment */}
+            <button
+              onClick={handleEnrichQualityIssues}
+              className="inline-flex items-center rounded-md border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-100 transition-colors"
+              title="Tự động bổ sung dữ liệu cho phim có vấn đề chất lượng"
+            >
+              <ExclamationTriangleIcon className="mr-2 size-4" />
+              Khắc phục chất lượng
             </button>
 
             <div className="flex rounded-md shadow-sm">
@@ -1355,6 +1496,93 @@ const MovieManagement = () => {
           onIssueResolve={handleIssueResolve}
           userRole="admin"
         />
+      )}
+
+      {/* Batch Enrichment Modal */}
+      {batchEnrichmentOpen && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto"
+          aria-labelledby="modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              aria-hidden="true"
+              onClick={() => setBatchEnrichmentOpen(false)}
+            ></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
+              &#8203;
+            </span>
+            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+              <div>
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                  <DocumentCheckIcon className="h-6 w-6 text-green-600" aria-hidden="true" />
+                </div>
+                <div className="mt-3 text-center sm:mt-5">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                    Bổ sung dữ liệu hàng loạt
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      Sẽ bổ sung dữ liệu cho {selectedMovies.length} phim đã chọn từ TMDB/IMDB.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Loại bổ sung
+                  </label>
+                  <select
+                    value={enrichmentOptions.enrichType}
+                    onChange={e =>
+                      setEnrichmentOptions(prev => ({ ...prev, enrichType: e.target.value }))
+                    }
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                  >
+                    <option value="comprehensive">Toàn diện</option>
+                    <option value="quality_based">Dựa trên chất lượng</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={enrichmentOptions.forceRefresh}
+                      onChange={e =>
+                        setEnrichmentOptions(prev => ({ ...prev, forceRefresh: e.target.checked }))
+                      }
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Làm mới dữ liệu có sẵn</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 sm:text-sm"
+                  onClick={handleBatchEnrichment}
+                >
+                  Bắt đầu bổ sung
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                  onClick={() => setBatchEnrichmentOpen(false)}
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

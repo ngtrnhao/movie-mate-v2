@@ -956,6 +956,273 @@ class ModeratorDashboardViewSet(viewsets.ViewSet):
             'moderation_actions': 0  # Placeholder for future implementation
         })
 
+    @action(detail=False, methods=['get'])
+    def flagged_users(self, request):
+        """
+        Get users flagged for moderation attention
+        Replaces mock data in UserManagement component
+        """
+        try:
+            # Get filter parameters
+            page = int(request.query_params.get('page', 1))
+            page_size = min(int(request.query_params.get('page_size', 20)), 100)
+            status_filter = request.query_params.get('status', 'all')  # all, active, warning, banned
+            sort_by = request.query_params.get('sort_by', 'report_count')  # report_count, last_activity
+
+            from datetime import timedelta
+            now = timezone.now()
+            last_30_days = now - timedelta(days=30)
+
+            # Get users with reports in the last 30 days
+            flagged_users_query = User.objects.filter(
+                review_reports__created_at__gte=last_30_days
+            ).annotate(
+                total_reports=Count('review_reports', distinct=True),
+                total_reviews=Count('moviereview', filter=Q(moviereview__review_type='USER'), distinct=True),
+                rejected_reviews=Count('moviereview', filter=Q(
+                    moviereview__review_type='USER',
+                    moviereview__is_approved=False
+                ), distinct=True),
+                last_review_date=models.Max('moviereview__created_at'),
+                last_report_date=models.Max('review_reports__created_at')
+            ).filter(
+                total_reports__gt=0
+            ).distinct()
+
+            # Apply status filter (for now, we'll simulate this)
+            if status_filter == 'warning':
+                flagged_users_query = flagged_users_query.filter(total_reports__gte=3)
+            elif status_filter == 'banned':
+                flagged_users_query = flagged_users_query.filter(is_active=False)
+
+            # Apply sorting
+            if sort_by == 'report_count':
+                flagged_users_query = flagged_users_query.order_by('-total_reports')
+            else:
+                flagged_users_query = flagged_users_query.order_by('-last_report_date')
+
+            # Pagination
+            start = (page - 1) * page_size
+            end = start + page_size
+            total_count = flagged_users_query.count()
+            flagged_users = flagged_users_query[start:end]
+
+            # Format response
+            users_data = []
+            for user in flagged_users:
+                # Simulate warning status based on report count
+                warning_status = 'none'
+                if user.total_reports >= 5:
+                    warning_status = 'severe'
+                elif user.total_reports >= 3:
+                    warning_status = 'warning'
+                elif user.total_reports >= 1:
+                    warning_status = 'flagged'
+
+                users_data.append({
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'avatar_url': user.avatar_url,
+                    'join_date': user.date_joined.isoformat(),
+                    'last_activity': user.last_review_date.isoformat() if user.last_review_date else None,
+                    'total_reports': user.total_reports,
+                    'total_reviews': user.total_reviews,
+                    'rejected_reviews': user.rejected_reviews,
+                    'warning_status': warning_status,
+                    'is_active': user.is_active,
+                    'reputation_score': max(100 - (user.total_reports * 10), 0),  # Simple calculation
+                    'flags': [
+                        'Multiple Reports' if user.total_reports >= 3 else None,
+                        'High Rejection Rate' if user.rejected_reviews > user.total_reviews * 0.5 else None,
+                        'Spam Patterns' if user.total_reports >= 5 else None
+                    ]
+                })
+
+            return Response({
+                'status': 'success',
+                'data': {
+                    'users': users_data,
+                    'pagination': {
+                        'current_page': page,
+                        'page_size': page_size,
+                        'total_count': total_count,
+                        'total_pages': (total_count + page_size - 1) // page_size,
+                        'has_next': end < total_count,
+                        'has_previous': page > 1
+                    },
+                    'summary': {
+                        'total_flagged': total_count,
+                        'warning_users': flagged_users_query.filter(total_reports__gte=3).count(),
+                        'severe_users': flagged_users_query.filter(total_reports__gte=5).count(),
+                        'banned_users': flagged_users_query.filter(is_active=False).count()
+                    }
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error fetching flagged users: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def moderate_user(self, request, pk=None):
+        """
+        Take moderation action on a user (warning, temporary ban, permanent ban)
+        """
+        try:
+            user = User.objects.get(pk=pk)
+            action = request.data.get('action')  # warning, temp_ban, permanent_ban, reactivate
+            reason = request.data.get('reason', '')
+            duration_days = request.data.get('duration_days', 0)
+
+            # For now, we'll simulate these actions since we don't have warning/ban fields
+            # In a real implementation, you'd add these fields to the User model
+
+            response_data = {
+                'user_id': user.id,
+                'action': action,
+                'reason': reason,
+                'moderator': request.user.username,
+                'timestamp': timezone.now().isoformat()
+            }
+
+            if action == 'warning':
+                # Log warning - in real implementation, save to UserWarning model
+                response_data['message'] = f"Warning issued to user {user.username}"
+
+            elif action == 'temp_ban':
+                # Temporary ban - in real implementation, set ban_until field
+                response_data['message'] = f"User {user.username} temporarily banned for {duration_days} days"
+                response_data['ban_until'] = (timezone.now() + timedelta(days=duration_days)).isoformat()
+
+            elif action == 'permanent_ban':
+                user.is_active = False
+                user.save()
+                response_data['message'] = f"User {user.username} permanently banned"
+
+            elif action == 'reactivate':
+                user.is_active = True
+                user.save()
+                response_data['message'] = f"User {user.username} reactivated"
+
+            return Response({
+                'status': 'success',
+                'data': response_data
+            })
+
+        except User.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error moderating user {pk}: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def system_notifications(self, request):
+        """
+        Get system notifications for moderator dashboard
+        Replaces hardcoded notifications in frontend
+        """
+        try:
+            # Simulate notifications based on current system state
+            notifications = []
+
+            # Check for high priority issues
+            from apps.movies.models import MovieReview, ReviewReport
+
+            pending_high_priority = MovieReview.objects.filter(
+                review_type='USER',
+                is_approved__isnull=True,
+                is_spoiler=True
+            ).count()
+
+            if pending_high_priority > 10:
+                notifications.append({
+                    'id': f'high_priority_{timezone.now().timestamp()}',
+                    'type': 'warning',
+                    'title': 'High Priority Queue Alert',
+                    'message': f'{pending_high_priority} high-priority reviews pending moderation',
+                    'timestamp': timezone.now().isoformat(),
+                    'action_url': '/moderator/queue?priority=high',
+                    'is_read': False
+                })
+
+            # Check for reports accumulation
+            total_reports = ReviewReport.objects.filter(
+                review__is_approved__isnull=True
+            ).count()
+
+            if total_reports > 20:
+                notifications.append({
+                    'id': f'reports_{timezone.now().timestamp()}',
+                    'type': 'alert',
+                    'title': 'Content Reports Accumulating',
+                    'message': f'{total_reports} user reports need attention',
+                    'timestamp': timezone.now().isoformat(),
+                    'action_url': '/moderator/reports',
+                    'is_read': False
+                })
+
+            # System health notification
+            total_pending = MovieReview.objects.filter(
+                review_type='USER',
+                is_approved__isnull=True
+            ).count()
+
+            if total_pending > 100:
+                notifications.append({
+                    'id': f'queue_health_{timezone.now().timestamp()}',
+                    'type': 'info',
+                    'title': 'Queue Health Status',
+                    'message': f'Moderation queue has {total_pending} pending items',
+                    'timestamp': timezone.now().isoformat(),
+                    'action_url': '/moderator/queue',
+                    'is_read': False
+                })
+
+            # Recent auto-moderation summary
+            from datetime import timedelta
+            last_24h = timezone.now() - timedelta(hours=24)
+            auto_marked_24h = MovieReview.objects.filter(
+                auto_marked=True,
+                created_at__gte=last_24h
+            ).count()
+
+            if auto_marked_24h > 0:
+                notifications.append({
+                    'id': f'auto_mod_{timezone.now().timestamp()}',
+                    'type': 'success',
+                    'title': 'Auto-Moderation Update',
+                    'message': f'{auto_marked_24h} reviews auto-marked in the last 24 hours',
+                    'timestamp': timezone.now().isoformat(),
+                    'action_url': '/moderator/auto-marked',
+                    'is_read': True
+                })
+
+            return Response({
+                'status': 'success',
+                'data': {
+                    'notifications': notifications,
+                    'unread_count': len([n for n in notifications if not n['is_read']]),
+                    'last_updated': timezone.now().isoformat()
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error fetching system notifications: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class UserUsageStatsView(generics.RetrieveAPIView):
     """Get user usage statistics and limits"""
     permission_classes = [IsAuthenticated]

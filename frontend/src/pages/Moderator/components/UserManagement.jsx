@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { getFlaggedUsers, moderateUser } from '../../../api/moderatorService';
+import moderationCacheService from '../../../services/moderationCacheService';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -11,77 +13,182 @@ const UserManagement = () => {
     searchTerm: '',
   });
   const [activeTab, setActiveTab] = useState('flagged');
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    pageSize: 20,
+    totalCount: 0,
+    totalPages: 1,
+    hasNext: false,
+    hasPrevious: false,
+  });
+  const [summary, setSummary] = useState({
+    total_flagged: 0,
+    warning_users: 0,
+    severe_users: 0,
+    banned_users: 0,
+  });
+  const [error, setError] = useState(null);
+  const [moderationLoading, setModerationLoading] = useState(false);
 
+  // Dynamic tabs with real counts from API
   const tabs = [
-    { id: 'flagged', label: 'Bị đánh dấu', icon: '🚩', count: 8 },
-    { id: 'warned', label: 'Đã cảnh báo', icon: '⚠️', count: 12 },
-    { id: 'suspended', label: 'Tạm khóa', icon: '🔒', count: 5 },
-    { id: 'banned', label: 'Bị cấm', icon: '🚫', count: 3 },
+    { id: 'flagged', label: 'Bị đánh dấu', icon: '🚩', count: summary.total_flagged },
+    { id: 'warned', label: 'Đã cảnh báo', icon: '⚠️', count: summary.warning_users },
+    { id: 'suspended', label: 'Tạm khóa', icon: '🔒', count: summary.severe_users },
+    { id: 'banned', label: 'Bị cấm', icon: '🚫', count: summary.banned_users },
   ];
 
-  // Mock data - replace with actual API calls
+  // Fetch flagged users from API
+  const fetchFlaggedUsers = useCallback(
+    async (page = 1, pageSize = 20) => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Map activeTab to API status filter
+        let statusFilter = 'all';
+        switch (activeTab) {
+          case 'warned':
+            statusFilter = 'warning';
+            break;
+          case 'suspended':
+          case 'banned':
+            statusFilter = 'banned';
+            break;
+          default:
+            statusFilter = 'all';
+        }
+
+        // Use cache service for flagged users API
+        const response = await moderationCacheService.cachedApiCall(
+          'flagged_users',
+          async () =>
+            await getFlaggedUsers({
+              page,
+              pageSize,
+              status: statusFilter,
+              sortBy: 'report_count',
+            }),
+          { page, pageSize, status: statusFilter }
+        );
+
+        if (response.status === 'success' && response.data) {
+          const usersData = response.data.users || [];
+
+          // Transform API data to match component expectations
+          const transformedUsers = usersData.map(user => ({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: 'user', // API doesn't provide role, assume user
+            status: user.is_active ? 'active' : 'banned',
+            joinDate: user.join_date,
+            lastLogin: user.last_activity,
+            reports: user.total_reports || 0,
+            warnings:
+              user.warning_status === 'warning' ? 1 : user.warning_status === 'severe' ? 2 : 0,
+            isBanned: !user.is_active,
+            banReason: user.warning_status === 'severe' ? 'Multiple violations' : '',
+            totalReviews: user.total_reviews || 0,
+            rejectedReviews: user.rejected_reviews || 0,
+            reputationScore: user.reputation_score || 100,
+            flags: user.flags || [],
+            warningStatus: user.warning_status || 'none',
+          }));
+
+          setUsers(transformedUsers);
+
+          // Update pagination
+          setPagination({
+            currentPage: response.data.pagination?.current_page || 1,
+            pageSize: response.data.pagination?.page_size || 20,
+            totalCount: response.data.pagination?.total_count || 0,
+            totalPages: response.data.pagination?.total_pages || 1,
+            hasNext: response.data.pagination?.has_next || false,
+            hasPrevious: response.data.pagination?.has_previous || false,
+          });
+
+          // Update summary
+          setSummary(
+            response.data.summary || {
+              total_flagged: 0,
+              warning_users: 0,
+              severe_users: 0,
+              banned_users: 0,
+            }
+          );
+
+          console.log('✅ Flagged users loaded:', {
+            count: transformedUsers.length,
+            totalCount: response.data.pagination?.total_count || 0,
+            fromCache: response.__fromCache || false,
+          });
+        } else {
+          throw new Error(response.error || 'Failed to fetch flagged users');
+        }
+      } catch (err) {
+        console.error('Error fetching flagged users:', err);
+        setError('Không thể tải danh sách người dùng bị đánh dấu');
+
+        // Fallback to empty array if API fails
+        setUsers([]);
+        setPagination({
+          currentPage: 1,
+          pageSize: 20,
+          totalCount: 0,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: false,
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [activeTab]
+  );
+
+  // Load users on component mount and tab change
   useEffect(() => {
-    const mockUsers = [
-      {
-        id: 'user-1',
-        username: 'john_doe',
-        email: 'john@example.com',
-        role: 'user',
-        status: 'active',
-        joinDate: '2024-01-01T00:00:00Z',
-        lastLogin: '2024-01-15T10:30:00Z',
-        reports: 0,
-        warnings: 0,
-        isBanned: false,
-      },
-      {
-        id: 'user-2',
-        username: 'spam_user',
-        email: 'spam@example.com',
-        role: 'user',
-        status: 'suspended',
-        joinDate: '2024-01-05T00:00:00Z',
-        lastLogin: '2024-01-14T15:20:00Z',
-        reports: 5,
-        warnings: 2,
-        isBanned: true,
-        banReason: 'Spam comments',
-      },
-      {
-        id: 'user-3',
-        username: 'moderator_a',
-        email: 'moda@example.com',
-        role: 'moderator',
-        status: 'active',
-        joinDate: '2023-12-01T00:00:00Z',
-        lastLogin: '2024-01-15T09:15:00Z',
-        reports: 0,
-        warnings: 0,
-        isBanned: false,
-      },
-      {
-        id: 'user-4',
-        username: 'troll_user',
-        email: 'troll@example.com',
-        role: 'user',
-        status: 'banned',
-        joinDate: '2024-01-10T00:00:00Z',
-        lastLogin: '2024-01-13T20:45:00Z',
-        reports: 12,
-        warnings: 3,
-        isBanned: true,
-        banReason: 'Harassment and inappropriate content',
-      },
-    ];
+    fetchFlaggedUsers(1, pagination.pageSize);
+  }, [fetchFlaggedUsers, activeTab]);
 
-    setTimeout(() => {
-      setUsers(mockUsers);
-      setFilteredUsers(mockUsers);
-      setLoading(false);
-    }, 1000);
-  }, []);
+  // Handle moderation actions
+  const handleModerationAction = useCallback(
+    async (userId, action, reason = '', durationDays = 0) => {
+      try {
+        setModerationLoading(true);
 
-  // Filter users
+        const response = await moderateUser(userId, action, reason, durationDays);
+
+        if (response.status === 'success') {
+          // Refresh users list after action
+          await fetchFlaggedUsers(pagination.currentPage, pagination.pageSize);
+
+          // Clear cache to ensure fresh data
+          moderationCacheService.clearCache('flagged_users');
+
+          console.log('✅ User moderation action completed:', {
+            userId,
+            action,
+            message: response.data?.message,
+          });
+
+          // Show success notification (you can implement a toast here)
+          alert(response.data?.message || 'Thao tác thành công');
+        } else {
+          throw new Error(response.error || 'Failed to moderate user');
+        }
+      } catch (err) {
+        console.error('Error moderating user:', err);
+        alert(`Lỗi: ${err.error || err.message || 'Không thể thực hiện thao tác'}`);
+      } finally {
+        setModerationLoading(false);
+      }
+    },
+    [fetchFlaggedUsers, pagination.currentPage, pagination.pageSize]
+  );
+
+  // Filter users (now working with real API data)
   useEffect(() => {
     let filtered = [...users];
 
@@ -443,22 +550,34 @@ const UserManagement = () => {
                 <div className="flex space-x-2">
                   {user.isBanned ? (
                     <button
-                      onClick={() => handleUserAction('unban', user.id)}
+                      onClick={() => handleModerationAction(user.id, 'unban')}
                       className="text-green-600 hover:text-green-900"
+                      disabled={moderationLoading}
                     >
                       Mở khóa
                     </button>
                   ) : (
                     <>
                       <button
-                        onClick={() => handleUserAction('suspend', user.id)}
+                        onClick={() =>
+                          handleModerationAction(
+                            user.id,
+                            'suspend',
+                            'Tạm khóa do vi phạm nội quy',
+                            7
+                          )
+                        }
                         className="text-yellow-600 hover:text-yellow-900"
+                        disabled={moderationLoading}
                       >
                         Tạm khóa
                       </button>
                       <button
-                        onClick={() => handleUserAction('ban', user.id)}
+                        onClick={() =>
+                          handleModerationAction(user.id, 'ban', 'Cấm do vi phạm nghiêm trọng', 365)
+                        }
                         className="text-red-600 hover:text-red-900"
+                        disabled={moderationLoading}
                       >
                         Cấm
                       </button>
@@ -466,15 +585,17 @@ const UserManagement = () => {
                   )}
                   {user.role === 'user' ? (
                     <button
-                      onClick={() => handleUserAction('promote_moderator', user.id)}
+                      onClick={() => handleModerationAction(user.id, 'promote_moderator')}
                       className="text-blue-600 hover:text-blue-900"
+                      disabled={moderationLoading}
                     >
                       Thăng Moderator
                     </button>
                   ) : user.role === 'moderator' ? (
                     <button
-                      onClick={() => handleUserAction('demote_user', user.id)}
+                      onClick={() => handleModerationAction(user.id, 'demote_user')}
                       className="text-gray-600 hover:text-gray-900"
+                      disabled={moderationLoading}
                     >
                       Hạ cấp
                     </button>

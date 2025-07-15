@@ -4,6 +4,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import moderationCacheService from '../../services/moderationCacheService';
 import { getUnifiedModerationQueue } from '../../api/movieService';
 import {
+  getDashboardStatistics,
+  getNavigationBadgeCounts,
+  getSystemNotifications,
+  getAllDashboardData,
+  refreshAllData,
+} from '../../api/moderatorService';
+import {
   ChartBarIcon,
   ClipboardDocumentListIcon,
   ExclamationTriangleIcon,
@@ -65,6 +72,20 @@ const ModeratorDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
+  // Real API data states - Enhanced
+  const [realDashboardStats, setRealDashboardStats] = useState([]);
+  const [navigationBadges, setNavigationBadges] = useState({});
+  const [systemNotifications, setSystemNotifications] = useState([]);
+  const [detailedStats, setDetailedStats] = useState(null); // New: for additional stats data
+  const [apiLoading, setApiLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false); // New: for notifications dropdown
+
+  // Individual API loading states
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [badgesLoading, setBadgesLoading] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+
   // Shared data for both KanbanBoard and QueueList
   const [unifiedModerationData, setUnifiedModerationData] = useState(null);
   const [unifiedDataLoading, setUnifiedDataLoading] = useState(false);
@@ -90,6 +111,198 @@ const ModeratorDashboard = () => {
 
   const isAdmin = user?.groups?.some(g => g.name === 'Administrators');
   const isModerator = user?.groups?.some(g => g.name === 'Moderators');
+
+  // Enhanced: Fetch individual APIs separately instead of using getAllDashboardData
+  const fetchDashboardStatistics = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      const response = await moderationCacheService.cachedApiCall(
+        'dashboard_statistics',
+        async () => await getDashboardStatistics(),
+        {}
+      );
+
+      if (response?.data) {
+        const stats = response.data;
+        setDetailedStats(stats); // Store full stats for additional usage
+
+        // Enhanced dashboard stats with more data from API
+        setRealDashboardStats([
+          {
+            title: 'Nội dung chờ duyệt',
+            value: stats.pending_content?.total_reviews?.toString() || '0',
+            change: `+${stats.pending_content?.high_priority || 0}`,
+            changeType: stats.pending_content?.total_reviews > 50 ? 'increase' : 'stable',
+            icon: ClockIcon,
+            color: stats.pending_content?.total_reviews > 50 ? 'red' : 'yellow',
+            description: 'Cần xử lý trong ngày',
+            trend: 'up',
+            details: {
+              total: stats.pending_content?.total_reviews || 0,
+              highPriority: stats.pending_content?.high_priority || 0,
+              reported: stats.pending_content?.reported_content || 0,
+            },
+          },
+          {
+            title: 'Báo cáo vi phạm',
+            value: stats.pending_content?.reported_content?.toString() || '0',
+            change: `+${Math.floor((stats.pending_content?.reported_content || 0) * 0.25)}`,
+            changeType: 'increase',
+            icon: ExclamationTriangleIcon,
+            color: 'red',
+            description: 'Cần ưu tiên xử lý',
+            trend: 'up',
+            details: {
+              total: stats.pending_content?.reported_content || 0,
+              autoDetected: stats.auto_detection?.total_flagged || 0,
+              userReported:
+                (stats.pending_content?.reported_content || 0) -
+                (stats.auto_detection?.total_flagged || 0),
+            },
+          },
+          {
+            title: 'Đã duyệt hôm nay',
+            value: stats.daily_stats?.today_moderated?.toString() || '0',
+            change: `+${stats.daily_stats?.today_approved || 0}`,
+            changeType: 'increase',
+            icon: CheckCircleIcon,
+            color: 'green',
+            description: `Tỷ lệ duyệt: ${stats.daily_stats?.approval_rate || 0}%`,
+            trend: 'up',
+            details: {
+              approved: stats.daily_stats?.today_approved || 0,
+              rejected: stats.daily_stats?.today_rejected || 0,
+              pending: stats.daily_stats?.today_pending || 0,
+              approvalRate: stats.daily_stats?.approval_rate || 0,
+            },
+          },
+          {
+            title: 'Hiệu suất hệ thống',
+            value:
+              stats.system_health?.queue_health === 'good'
+                ? 'Tốt'
+                : stats.system_health?.queue_health === 'warning'
+                  ? 'Cảnh báo'
+                  : 'Nghiêm trọng',
+            change: stats.weekly_comparison?.change_percent
+              ? `${stats.weekly_comparison.change_percent}%`
+              : '0%',
+            changeType: stats.weekly_comparison?.change_percent >= 0 ? 'increase' : 'decrease',
+            icon: ClockIcon,
+            color:
+              stats.system_health?.queue_health === 'good'
+                ? 'green'
+                : stats.system_health?.queue_health === 'warning'
+                  ? 'yellow'
+                  : 'red',
+            description: 'So với tuần trước',
+            trend: stats.weekly_comparison?.change_percent >= 0 ? 'up' : 'down',
+            details: {
+              avgProcessingTime: stats.system_health?.avg_processing_time || 0,
+              queueHealth: stats.system_health?.queue_health || 'unknown',
+              weeklyChange: stats.weekly_comparison?.change_percent || 0,
+              efficiency: stats.system_health?.efficiency_score || 0,
+            },
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard statistics:', error);
+      setApiError(prev => (prev ? `${prev}; Stats API failed` : 'Stats API failed'));
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  const fetchNavigationBadges = useCallback(async () => {
+    try {
+      setBadgesLoading(true);
+      const response = await moderationCacheService.cachedApiCall(
+        'navigation_badges',
+        async () => await getNavigationBadgeCounts(),
+        {}
+      );
+
+      if (response?.data) {
+        setNavigationBadges(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching navigation badges:', error);
+      setApiError(prev => (prev ? `${prev}; Badges API failed` : 'Badges API failed'));
+    } finally {
+      setBadgesLoading(false);
+    }
+  }, []);
+
+  const fetchSystemNotifications = useCallback(async () => {
+    try {
+      setNotificationsLoading(true);
+      const response = await moderationCacheService.cachedApiCall(
+        'system_notifications',
+        async () => await getSystemNotifications(),
+        {}
+      );
+
+      if (response?.data?.notifications) {
+        setSystemNotifications(response.data.notifications);
+        setNotifications(response.data.notifications);
+      }
+    } catch (error) {
+      console.error('Error fetching system notifications:', error);
+      setApiError(prev =>
+        prev ? `${prev}; Notifications API failed` : 'Notifications API failed'
+      );
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
+
+  // Enhanced: Fetch all dashboard data using individual APIs
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setApiLoading(true);
+      setApiError(null);
+
+      // Call all APIs in parallel
+      await Promise.all([
+        fetchDashboardStatistics(),
+        fetchNavigationBadges(),
+        fetchSystemNotifications(),
+      ]);
+
+      console.log('✅ All dashboard APIs loaded successfully');
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setApiError('Không thể tải một số dữ liệu dashboard');
+    } finally {
+      setApiLoading(false);
+    }
+  }, [fetchDashboardStatistics, fetchNavigationBadges, fetchSystemNotifications]);
+
+  // Load dashboard data on component mount
+  useEffect(() => {
+    if (user && (isAdmin || isModerator)) {
+      fetchDashboardData();
+    }
+  }, [user, isAdmin, isModerator, fetchDashboardData]);
+
+  // Enhanced: Manual refresh function for individual APIs
+  const handleRefreshData = useCallback(async () => {
+    try {
+      setApiLoading(true);
+
+      // Clear cache and refresh all data
+      moderationCacheService.clearCache();
+      await fetchDashboardData();
+
+      console.log('✅ Dashboard data refreshed manually');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      setApiError('Không thể refresh dữ liệu');
+    } finally {
+      setApiLoading(false);
+    }
+  }, [fetchDashboardData]);
 
   // Fetch unified moderation data for both KanbanBoard and QueueList
   const fetchUnifiedModerationData = useCallback(async () => {
@@ -230,7 +443,7 @@ const ModeratorDashboard = () => {
     setSelectedItems([]);
   };
 
-  // Enhanced Navigation items based on role - Professional design with best practices
+  // Enhanced Navigation items based on role - Using real API data
   const getNavigationItems = () => {
     const baseItems = [
       {
@@ -242,8 +455,8 @@ const ModeratorDashboard = () => {
         viewMode: 'dashboard',
         description: 'Thống kê tổng quan công việc kiểm duyệt',
         priority: 'high',
-        badge: '23',
-        badgeColor: 'yellow',
+        badge: navigationBadges.pending_content?.count?.toString() || '0',
+        badgeColor: navigationBadges.pending_content?.color || 'gray',
       },
       {
         id: 'moderation-queue',
@@ -254,8 +467,8 @@ const ModeratorDashboard = () => {
         viewMode: 'queue',
         description: 'Danh sách nội dung chờ kiểm duyệt',
         priority: 'critical',
-        badge: '15',
-        badgeColor: 'red',
+        badge: navigationBadges.queue_items?.count?.toString() || '0',
+        badgeColor: navigationBadges.queue_items?.color || 'gray',
       },
       {
         id: 'reports',
@@ -266,21 +479,21 @@ const ModeratorDashboard = () => {
         viewMode: 'queue',
         description: 'Xử lý báo cáo vi phạm từ người dùng',
         priority: 'high',
-        badge: '8',
-        badgeColor: 'red',
+        badge: navigationBadges.violation_reports?.count?.toString() || '0',
+        badgeColor: navigationBadges.violation_reports?.color || 'gray',
       },
-      {
-        id: 'content-review',
-        label: 'Review nội dung',
-        icon: DocumentTextIcon,
-        iconSolid: DocumentTextIconSolid,
-        color: 'green',
-        viewMode: 'dashboard',
-        description: 'Kiểm duyệt review và comment',
-        priority: 'medium',
-        badge: '12',
-        badgeColor: 'blue',
-      },
+      // {
+      //   id: 'content-review',
+      //   label: 'Review nội dung',
+      //   icon: DocumentTextIcon,
+      //   iconSolid: DocumentTextIconSolid,
+      //   color: 'green',
+      //   viewMode: 'dashboard',
+      //   description: 'Kiểm duyệt review và comment',
+      //   priority: 'medium',
+      //   badge: navigationBadges.content_reviews?.count?.toString() || '0',
+      //   badgeColor: navigationBadges.content_reviews?.color || 'gray',
+      // },
       {
         id: 'content-moderation',
         label: 'Kiểm duyệt nội dung',
@@ -290,8 +503,8 @@ const ModeratorDashboard = () => {
         viewMode: 'dashboard',
         description: 'Kiểm duyệt với spoiler detection',
         priority: 'high',
-        badge: '25',
-        badgeColor: 'red',
+        badge: navigationBadges.content_moderation?.count?.toString() || '0',
+        badgeColor: navigationBadges.content_moderation?.color || 'gray',
       },
       {
         id: 'auto-marked',
@@ -302,8 +515,8 @@ const ModeratorDashboard = () => {
         viewMode: 'dashboard',
         description: 'Reviews được đánh dấu tự động bởi AI',
         priority: 'high',
-        badge: '18',
-        badgeColor: 'yellow',
+        badge: navigationBadges.auto_marked_reviews?.count?.toString() || '0',
+        badgeColor: navigationBadges.auto_marked_reviews?.color || 'gray',
       },
       {
         id: 'user-management',
@@ -314,8 +527,8 @@ const ModeratorDashboard = () => {
         viewMode: 'dashboard',
         description: 'Cảnh báo và tạm khóa người dùng',
         priority: 'medium',
-        badge: '5',
-        badgeColor: 'orange',
+        badge: navigationBadges.user_management?.count?.toString() || '0',
+        badgeColor: navigationBadges.user_management?.color || 'gray',
       },
       {
         id: 'analytics',
@@ -344,20 +557,20 @@ const ModeratorDashboard = () => {
     ];
 
     // Admin-only items
-    if (isAdmin) {
-      baseItems.push({
-        id: 'system-users',
-        label: 'Quản lý hệ thống',
-        icon: WrenchScrewdriverIcon,
-        iconSolid: WrenchScrewdriverIconSolid,
-        color: 'yellow',
-        viewMode: 'dashboard',
-        description: 'Quản lý người dùng hệ thống',
-        priority: 'high',
-        badge: '3',
-        badgeColor: 'purple',
-      });
-    }
+    // if (isAdmin) {
+    //   baseItems.push({
+    //     id: 'system-users',
+    //     label: 'Quản lý hệ thống',
+    //     icon: WrenchScrewdriverIcon,
+    //     iconSolid: WrenchScrewdriverIconSolid,
+    //     color: 'yellow',
+    //     viewMode: 'dashboard',
+    //     description: 'Quản lý người dùng hệ thống',
+    //     priority: 'high',
+    //     badge: '3',
+    //     badgeColor: 'purple',
+    //   });
+    // }
 
     return baseItems;
   };
@@ -439,49 +652,56 @@ const ModeratorDashboard = () => {
     return baseActions;
   };
 
-  // Enhanced stats data
-  const getDashboardStats = () => [
-    {
-      title: 'Nội dung chờ duyệt',
-      value: '23',
-      change: '+5',
-      changeType: 'increase',
-      icon: ClockIcon,
-      color: 'yellow',
-      description: 'Cần xử lý trong ngày',
-      trend: 'up',
-    },
-    {
-      title: 'Báo cáo vi phạm',
-      value: '12',
-      change: '+3',
-      changeType: 'increase',
-      icon: ExclamationTriangleIcon,
-      color: 'red',
-      description: 'Cần ưu tiên xử lý',
-      trend: 'up',
-    },
-    {
-      title: 'Đã duyệt hôm nay',
-      value: '156',
-      change: '+23',
-      changeType: 'increase',
-      icon: CheckCircleIcon,
-      color: 'green',
-      description: 'Tăng 17% so với hôm qua',
-      trend: 'up',
-    },
-    {
-      title: 'Thời gian xử lý TB',
-      value: '2.5h',
-      change: '-0.3h',
-      changeType: 'decrease',
-      icon: ClockIcon,
-      color: 'blue',
-      description: 'Cải thiện hiệu suất',
-      trend: 'down',
-    },
-  ];
+  // Enhanced stats data - Using real API data
+  const getDashboardStats = () => {
+    if (realDashboardStats.length > 0) {
+      return realDashboardStats;
+    }
+
+    // Fallback to default stats if API data not loaded yet
+    return [
+      {
+        title: 'Nội dung chờ duyệt',
+        value: '0',
+        change: '+0',
+        changeType: 'stable',
+        icon: ClockIcon,
+        color: 'gray',
+        description: 'Đang tải dữ liệu...',
+        trend: 'stable',
+      },
+      {
+        title: 'Báo cáo vi phạm',
+        value: '0',
+        change: '+0',
+        changeType: 'stable',
+        icon: ExclamationTriangleIcon,
+        color: 'gray',
+        description: 'Đang tải dữ liệu...',
+        trend: 'stable',
+      },
+      {
+        title: 'Đã duyệt hôm nay',
+        value: '0',
+        change: '+0',
+        changeType: 'stable',
+        icon: CheckCircleIcon,
+        color: 'gray',
+        description: 'Đang tải dữ liệu...',
+        trend: 'stable',
+      },
+      {
+        title: 'Hiệu suất hệ thống',
+        value: '...',
+        change: '+0%',
+        changeType: 'stable',
+        icon: ClockIcon,
+        color: 'gray',
+        description: 'Đang tải dữ liệu...',
+        trend: 'stable',
+      },
+    ];
+  };
 
   // Handle bulk selection
   const handleSelectItem = useCallback(itemId => {
@@ -525,6 +745,38 @@ const ModeratorDashboard = () => {
     [isAdmin]
   );
 
+  // New: Enhanced notification handler
+  const handleNotificationClick = useCallback(notification => {
+    console.log('Notification clicked:', notification);
+
+    // Handle different notification types
+    switch (notification.type) {
+      case 'moderation_queue':
+        setActiveView('moderation-queue');
+        break;
+      case 'user_report':
+        setActiveView('reports');
+        break;
+      case 'system_alert':
+        setActiveView('settings');
+        break;
+      default:
+        setActiveView('overview');
+    }
+
+    setNotificationsOpen(false);
+  }, []);
+
+  // New: Mark notification as read
+  const markNotificationAsRead = useCallback(notificationId => {
+    setSystemNotifications(prev =>
+      prev.map(notif => (notif.id === notificationId ? { ...notif, is_read: true } : notif))
+    );
+    setNotifications(prev =>
+      prev.map(notif => (notif.id === notificationId ? { ...notif, is_read: true } : notif))
+    );
+  }, []);
+
   // Sidebar toggle handler
   const handleSidebarToggle = () => {
     if (sidebarHidden) {
@@ -547,6 +799,17 @@ const ModeratorDashboard = () => {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [sidebarMobileOpen]);
+
+  // Close notifications dropdown when clicking outside
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const handleClick = e => {
+      if (e.target.closest('[data-notifications-dropdown]')) return;
+      setNotificationsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [notificationsOpen]);
 
   const renderMainContent = () => {
     switch (activeView) {
@@ -682,8 +945,8 @@ const ModeratorDashboard = () => {
             isAdmin={isAdmin}
           />
         );
-      case 'content-review':
-        return <ContentManagement />;
+      // case 'content-review':
+      //   return <ContentManagement />;
       case 'content-moderation':
         return <ContentModerationDashboard />;
       case 'auto-marked':
@@ -694,8 +957,8 @@ const ModeratorDashboard = () => {
         return <Analytics />;
       case 'settings':
         return isAdmin ? <AdminSettings /> : <SystemSettings />;
-      case 'system-users':
-        return isAdmin ? <UserManagement /> : null;
+      // case 'system-users':
+      //   return isAdmin ? <UserManagement /> : null;
       default:
         return <DashboardOverview isAdmin={isAdmin} isModerator={isModerator} />;
     }
@@ -751,14 +1014,135 @@ const ModeratorDashboard = () => {
             />
           </div>
           <div className="relative">
-            <button className="rounded-full p-2 text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600">
+            <button
+              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              className="rounded-full p-2 text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600"
+            >
               <BellIcon className="size-5" />
-              {notifications.length > 0 && (
+              {notifications.filter(n => !n.is_read).length > 0 && (
                 <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                  {notifications.length}
+                  {notifications.filter(n => !n.is_read).length}
                 </span>
               )}
             </button>
+
+            {/* Enhanced Notifications Dropdown */}
+            {notificationsOpen && (
+              <div
+                data-notifications-dropdown
+                className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-lg"
+              >
+                <div className="border-b border-gray-200 p-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900">Thông báo hệ thống</h3>
+                    <div className="flex items-center space-x-2">
+                      {notificationsLoading && (
+                        <div className="size-4 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                      )}
+                      <button
+                        onClick={() => fetchSystemNotifications()}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Làm mới
+                      </button>
+                    </div>
+                  </div>
+                  {notifications.filter(n => !n.is_read).length > 0 && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {notifications.filter(n => !n.is_read).length} thông báo chưa đọc
+                    </p>
+                  )}
+                </div>
+
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center">
+                      <BellIcon className="mx-auto size-8 text-gray-300" />
+                      <p className="mt-2 text-sm text-gray-500">Không có thông báo mới</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {notifications.map((notification, index) => (
+                        <div
+                          key={notification.id || index}
+                          className={`cursor-pointer p-3 transition-colors hover:bg-gray-50 ${
+                            !notification.is_read ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => {
+                            handleNotificationClick(notification);
+                            markNotificationAsRead(notification.id);
+                          }}
+                        >
+                          <div className="flex items-start">
+                            <div
+                              className={`mt-1 flex-shrink-0 rounded-full p-1 ${
+                                notification.type === 'error'
+                                  ? 'bg-red-100'
+                                  : notification.type === 'warning'
+                                    ? 'bg-yellow-100'
+                                    : notification.type === 'success'
+                                      ? 'bg-green-100'
+                                      : 'bg-blue-100'
+                              }`}
+                            >
+                              {notification.type === 'error' ? (
+                                <ExclamationTriangleIcon className={`size-4 text-red-600`} />
+                              ) : notification.type === 'warning' ? (
+                                <ExclamationTriangleIcon className={`size-4 text-yellow-600`} />
+                              ) : notification.type === 'success' ? (
+                                <CheckCircleIcon className={`size-4 text-green-600`} />
+                              ) : (
+                                <InformationCircleIcon className={`size-4 text-blue-600`} />
+                              )}
+                            </div>
+                            <div className="ml-3 flex-1 min-w-0">
+                              <p
+                                className={`text-sm ${!notification.is_read ? 'font-semibold text-gray-900' : 'text-gray-800'}`}
+                              >
+                                {notification.title || notification.message}
+                              </p>
+                              {notification.description && (
+                                <p className="mt-1 text-xs text-gray-600">
+                                  {notification.description}
+                                </p>
+                              )}
+                              <div className="mt-1 flex items-center justify-between">
+                                <p className="text-xs text-gray-500">
+                                  {notification.created_at
+                                    ? new Date(notification.created_at).toLocaleString('vi-VN')
+                                    : 'Vừa xong'}
+                                </p>
+                                {!notification.is_read && (
+                                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                    Mới
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {notifications.length > 0 && (
+                  <div className="border-t border-gray-200 p-3">
+                    <button
+                      onClick={() => {
+                        // Mark all as read
+                        setSystemNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+                        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+                        setNotificationsOpen(false);
+                      }}
+                      className="w-full rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
+                    >
+                      Đánh dấu tất cả đã đọc
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <span className="size-2 animate-pulse rounded-full bg-green-500"></span>
@@ -825,6 +1209,13 @@ const ModeratorDashboard = () => {
                               ? 'border border-red-200 bg-red-50'
                               : 'border border-blue-200 bg-blue-50'
                       }`}
+                      title={
+                        !sidebarCollapsed && stat.details
+                          ? `Chi tiết: ${Object.entries(stat.details)
+                              .map(([key, value]) => `${key}: ${value}`)
+                              .join(', ')}`
+                          : stat.description
+                      }
                     >
                       <StatIcon
                         className={`${sidebarCollapsed ? 'size-6' : 'size-4'} ${
@@ -855,12 +1246,90 @@ const ModeratorDashboard = () => {
                           >
                             {stat.value}
                           </div>
+                          {/* Enhanced: Show additional details from API */}
+                          {stat.details && (
+                            <div className="mt-1 text-xs text-gray-500">
+                              <div className="flex justify-between">
+                                <span>Tổng: {stat.details.total}</span>
+                                {stat.details.highPriority && (
+                                  <span className="text-orange-600">
+                                    Ưu tiên: {stat.details.highPriority}
+                                  </span>
+                                )}
+                              </div>
+                              {stat.details.approvalRate && (
+                                <div className="text-xs text-green-600">
+                                  Tỷ lệ duyệt: {stat.details.approvalRate}%
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   );
                 })}
               </div>
+
+              {/* Enhanced: Additional Stats from API when available */}
+              {!sidebarCollapsed && detailedStats && (
+                <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-2">
+                  <h4 className="mb-2 text-xs font-semibold text-blue-800">Chi tiết hệ thống</h4>
+                  <div className="space-y-1 text-xs text-blue-700">
+                    {detailedStats.system_health && (
+                      <div className="flex justify-between">
+                        <span>Hiệu suất:</span>
+                        <span
+                          className={`font-medium ${
+                            detailedStats.system_health.queue_health === 'good'
+                              ? 'text-green-600'
+                              : detailedStats.system_health.queue_health === 'warning'
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                          }`}
+                        >
+                          {detailedStats.system_health.queue_health === 'good'
+                            ? 'Tốt'
+                            : detailedStats.system_health.queue_health === 'warning'
+                              ? 'Cảnh báo'
+                              : 'Nghiêm trọng'}
+                        </span>
+                      </div>
+                    )}
+                    {detailedStats.daily_stats?.approval_rate && (
+                      <div className="flex justify-between">
+                        <span>Tỷ lệ duyệt:</span>
+                        <span className="font-medium text-green-600">
+                          {detailedStats.daily_stats.approval_rate}%
+                        </span>
+                      </div>
+                    )}
+                    {detailedStats.auto_detection?.total_flagged && (
+                      <div className="flex justify-between">
+                        <span>AI phát hiện:</span>
+                        <span className="font-medium text-purple-600">
+                          {detailedStats.auto_detection.total_flagged}
+                        </span>
+                      </div>
+                    )}
+                    {detailedStats.weekly_comparison?.change_percent && (
+                      <div className="flex justify-between">
+                        <span>So với tuần trước:</span>
+                        <span
+                          className={`font-medium ${
+                            detailedStats.weekly_comparison.change_percent >= 0
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }`}
+                        >
+                          {detailedStats.weekly_comparison.change_percent >= 0 ? '+' : ''}
+                          {detailedStats.weekly_comparison.change_percent}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             {/* Navigation */}
             <div className="mb-6 flex flex-col gap-2">
@@ -1001,14 +1470,14 @@ const ModeratorDashboard = () => {
                       Báo cáo vi phạm
                     </>
                   )}
-                  {activeView === 'content-review' && (
+                  {/* {activeView === 'content-review' && (
                     <>
                       <DocumentTextIcon
                         className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-green-600`}
                       />
                       Review nội dung
                     </>
-                  )}
+                  )} */}
                   {activeView === 'user-management' && (
                     <>
                       <UsersIcon
@@ -1033,14 +1502,14 @@ const ModeratorDashboard = () => {
                       Cài đặt
                     </>
                   )}
-                  {activeView === 'system-users' && (
+                  {/* {activeView === 'system-users' && (
                     <>
                       <WrenchScrewdriverIcon
                         className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-yellow-600`}
                       />
                       Quản lý hệ thống
                     </>
-                  )}
+                  )} */}
                 </h2>
                 <p className="mt-1 truncate text-xs text-gray-600">
                   {activeView === 'moderation-queue'

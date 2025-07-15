@@ -22,7 +22,15 @@ router.register(r'moderation-feedback', ModerationFeedbackViewSet, basename='mod
 router.register(r'admin/movies', AdminMovieViewSet, basename='admin-movie')
 
 urlpatterns = [
+    # Admin Movie Enrichment endpoints - MUST be before router patterns
+    path('admin/movies/batch-enrich/', views.admin_batch_enrich_movies, name='admin-batch-enrich-movies'),
+    path('admin/movies/enrich-quality-issues/', views.admin_enrich_quality_issues, name='admin-enrich-quality-issues'),
+    path('admin/movies/<int:movie_id>/enrich/', views.admin_enrich_movie, name='admin-enrich-movie'),
+    path('admin/movies/<int:movie_id>/enrichment-status/', views.admin_movie_enrichment_status, name='admin-movie-enrichment-status'),
+
+    # Include router URLs after specific patterns
     path('', include(router.urls)),
+
     # Custom URL patterns for specific actions
     path('movies/featured/', views.MovieViewSet.as_view({'get': 'featured'}), name='featured-movies'),
     path('movies/trending/', views.MovieViewSet.as_view({'get': 'trending'}), name='trending-movies'),
@@ -67,6 +75,8 @@ urlpatterns = [
     re_path(r'^movies/(?P<slug>[\w-]+)/cast/$', views.MovieViewSet.as_view({'get': 'cast'}), name='movie-cast'),
     re_path(r'^movies/(?P<slug>[\w-]+)/details_complete/$', views.MovieViewSet.as_view({'get': 'details_complete'}), name='movie-details-complete'),
     re_path(r'^movies/(?P<slug>[\w-]+)/reviews/$', views.MovieViewSet.as_view({'get': 'reviews', 'post': 'reviews'}), name='movie-reviews-slug'),
+
+
 
     # Testing endpoints for calculated metrics
     path('test/calculation-metrics/', views.test_calculation_metrics, name='test_calculation_metrics'),

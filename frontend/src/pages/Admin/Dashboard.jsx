@@ -46,7 +46,7 @@ import RealTimeCharts from './components/RealTimeCharts';
 import AutoProcessingStatus from './components/AutoProcessingStatus';
 import AdminSidebar from './components/AdminSidebar';
 import AdminHeader from './components/AdminHeader';
-import AdminStatsCards from './components/AdminStatsCards';
+// import AdminStatsCards from './components/AdminStatsCards';
 import {
   AdminDataProvider,
   useAdminData,
@@ -445,7 +445,7 @@ const AdminDashboardContent = () => {
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6">
           {/* Enhanced System Stats Cards with Real-time Data */}
-          <AdminStatsCards realTimeMetrics={realTimeMetrics} />
+          {/* <AdminStatsCards realTimeMetrics={realTimeMetrics} /> */}
 
           {/* Main Content */}
           <div className="rounded-lg bg-white shadow-sm border border-gray-200">

@@ -1331,10 +1331,10 @@ class AdminMovieListSerializer(OptimizedMovieListSerializer):
                 'trailer_completion_rate': float(metrics.trailer_completion_rate),
                 'last_featured_date': metrics.last_featured_date,
                 'last_calculated_at': metrics.last_calculated_at,
-                'total_featured_days': metrics.total_featured_days,
+                # 'total_featured_days': metrics.total_featured_days,
                 'review_count': metrics.review_count,
                 'average_user_rating': float(metrics.average_user_rating) if metrics.average_user_rating else None,
-                'positive_review_ratio': float(metrics.positive_review_ratio)
+                # 'positive_review_ratio': float(metrics.positive_review_ratio)
             })
         else:
             # Fallback: use combined_rating_score as performance_score

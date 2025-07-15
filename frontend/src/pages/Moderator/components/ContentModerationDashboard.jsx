@@ -41,6 +41,12 @@ const ContentModerationDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [notification, setNotification] = useState(null);
+  // Add state for API stats
+  const [apiStats, setApiStats] = useState({
+    count: 0,
+    priority_stats: { high: 0, medium: 0, low: 0 },
+    type_stats: { reported: 0, spoiler: 0, total: 0 },
+  });
   // Removed viewMode state - only list view is supported
 
   // Optimized fetch function with caching
@@ -59,6 +65,13 @@ const ContentModerationDashboard = () => {
       setReviews(response.data || []);
       setTotalPages(response.total_pages || 1);
 
+      // Update API stats from response
+      setApiStats({
+        count: response.count || 0,
+        priority_stats: response.priority_stats || { high: 0, medium: 0, low: 0 },
+        type_stats: response.type_stats || { reported: 0, spoiler: 0, total: 0 },
+      });
+
       console.log('✅ Optimized moderation queue loaded:', {
         count: response.data?.length || 0,
         performance: response.performance_info,
@@ -74,6 +87,24 @@ const ContentModerationDashboard = () => {
         const fallbackResponse = await getModerationQueue(currentPage, 20, filters);
         setReviews(fallbackResponse.data || []);
         setTotalPages(fallbackResponse.total_pages || 1);
+
+        // For fallback, calculate stats from current page data (not ideal but better than nothing)
+        const priorityCounts = {
+          high:
+            fallbackResponse.data?.filter(r => r.moderation_analysis?.priority_level === 'high')
+              .length || 0,
+          medium:
+            fallbackResponse.data?.filter(r => r.moderation_analysis?.priority_level === 'medium')
+              .length || 0,
+          low:
+            fallbackResponse.data?.filter(r => r.moderation_analysis?.priority_level === 'low')
+              .length || 0,
+        };
+        setApiStats({
+          count: fallbackResponse.data?.length || 0,
+          priority_stats: priorityCounts,
+          type_stats: { reported: 0, spoiler: 0, total: fallbackResponse.data?.length || 0 },
+        });
       } catch (fallbackErr) {
         console.error('Fallback also failed:', fallbackErr);
       }
@@ -209,12 +240,12 @@ const ContentModerationDashboard = () => {
     }
   };
 
-  // Calculate priority counts for statistics
-  const priorityCounts = {
-    high: reviews.filter(r => r.moderation_analysis?.priority_level === 'high').length,
-    medium: reviews.filter(r => r.moderation_analysis?.priority_level === 'medium').length,
-    low: reviews.filter(r => r.moderation_analysis?.priority_level === 'low').length,
-  };
+  // Remove the local priority calculation since we now use apiStats
+  // const priorityCounts = {
+  //   high: reviews.filter(r => r.moderation_analysis?.priority_level === 'high').length,
+  //   medium: reviews.filter(r => r.moderation_analysis?.priority_level === 'medium').length,
+  //   low: reviews.filter(r => r.moderation_analysis?.priority_level === 'low').length,
+  // };
 
   if (loading && reviews.length === 0) {
     return (
@@ -282,7 +313,7 @@ const ContentModerationDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Tổng cần kiểm duyệt</p>
-              <p className="text-2xl font-bold text-gray-900">{reviews.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{apiStats.count}</p>
             </div>
           </div>
         </div>
@@ -294,7 +325,7 @@ const ContentModerationDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-red-600">Ưu tiên cao</p>
-              <p className="text-2xl font-bold text-red-900">{priorityCounts.high}</p>
+              <p className="text-2xl font-bold text-red-900">{apiStats.priority_stats.high}</p>
             </div>
           </div>
         </div>
@@ -306,7 +337,7 @@ const ContentModerationDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-orange-600">Ưu tiên trung bình</p>
-              <p className="text-2xl font-bold text-orange-900">{priorityCounts.medium}</p>
+              <p className="text-2xl font-bold text-orange-900">{apiStats.priority_stats.medium}</p>
             </div>
           </div>
         </div>
@@ -318,7 +349,7 @@ const ContentModerationDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-green-600">Ưu tiên thấp</p>
-              <p className="text-2xl font-bold text-green-900">{priorityCounts.low}</p>
+              <p className="text-2xl font-bold text-green-900">{apiStats.priority_stats.low}</p>
             </div>
           </div>
         </div>

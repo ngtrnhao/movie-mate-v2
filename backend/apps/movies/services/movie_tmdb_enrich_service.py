@@ -5,13 +5,13 @@ class MovieTMDBEnrichService:
     @classmethod
     def enrich_backdrop_and_tmdb_id(cls, movie):
         tmdb_service = TMDBService()
-        tmdb_data = tmdb_service.get_movie_by_id(movie.tmdb_id) if getattr(movie, 'tmdb_id', None) else None
+        tmdb_data = tmdb_service.get_movie_details(int(movie.tmdb_id)) if getattr(movie, 'tmdb_id', None) else None
         if not tmdb_data and movie.imdb_id:
             find_result = tmdb_service._make_request(f"find/{movie.imdb_id}", {"external_source": "imdb_id"})
             if find_result and find_result.get("movie_results"):
                 tmdb_id = find_result["movie_results"][0]["id"]
                 movie.tmdb_id = tmdb_id
-                tmdb_data = tmdb_service.get_movie_by_id(tmdb_id)
+                tmdb_data = tmdb_service.get_movie_details(tmdb_id)
         if tmdb_data:
             movie.backdrop_url = f"https://image.tmdb.org/t/p/original{tmdb_data.get('backdrop_path')}" if tmdb_data.get('backdrop_path') else None
             movie.save()
@@ -19,7 +19,7 @@ class MovieTMDBEnrichService:
     @classmethod
     def enrich_movie_metadata(cls, movie):
         tmdb_service = TMDBService()
-        tmdb_data = tmdb_service.get_movie_by_id(getattr(movie, 'tmdb_id', None))
+        tmdb_data = tmdb_service.get_movie_details(int(getattr(movie, 'tmdb_id', None))) if getattr(movie, 'tmdb_id', None) else None
         if not tmdb_data:
             return
         metadata, _ = MovieMetadata.objects.get_or_create(movie=movie)
@@ -76,7 +76,7 @@ class MovieTMDBEnrichService:
     @classmethod
     def enrich_movie_rating(cls, movie):
         tmdb_service = TMDBService()
-        tmdb_data = tmdb_service.get_movie_by_id(getattr(movie, 'tmdb_id', None))
+        tmdb_data = tmdb_service.get_movie_details(int(getattr(movie, 'tmdb_id', None))) if getattr(movie, 'tmdb_id', None) else None
         if not tmdb_data:
             return
         MovieRating.objects.update_or_create(
@@ -108,7 +108,7 @@ class MovieTMDBEnrichService:
     @classmethod
     def enrich_movie_box_office(cls, movie):
         tmdb_service = TMDBService()
-        tmdb_data = tmdb_service.get_movie_by_id(getattr(movie, 'tmdb_id', None))
+        tmdb_data = tmdb_service.get_movie_details(int(getattr(movie, 'tmdb_id', None))) if getattr(movie, 'tmdb_id', None) else None
         if not tmdb_data:
             return
         MovieBoxOffice.objects.update_or_create(

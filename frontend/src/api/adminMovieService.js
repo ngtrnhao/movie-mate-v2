@@ -46,6 +46,82 @@ export const getProductionMetrics = async () => {
   }
 };
 
+// === MOVIE ENRICHMENT SERVICES ===
+
+/**
+ * Enrich a specific movie with comprehensive data
+ * @param {number} movieId - ID of the movie to enrich
+ * @param {Object} options - Enrichment options
+ * @param {boolean} options.forceRefresh - Force refresh existing data
+ * @param {Array<string>} options.focusAreas - Specific areas to focus on ['basic', 'visual', 'metadata', 'ratings']
+ * @param {string} options.enrichType - Type of enrichment ('comprehensive' or 'quality_based')
+ */
+export const enrichMovie = async (movieId, options = {}) => {
+  try {
+    const response = await axiosInstance.post(`/api/admin/movies/${movieId}/enrich/`, {
+      force_refresh: options.forceRefresh || false,
+      focus_areas: options.focusAreas || null,
+      enrich_type: options.enrichType || 'comprehensive',
+    });
+    return response.data;
+  } catch (error) {
+    handleError(error, 'enrich movie');
+  }
+};
+
+/**
+ * Batch enrich multiple movies
+ * @param {Array<number>} movieIds - Array of movie IDs to enrich
+ * @param {Object} options - Enrichment options
+ * @param {Array<string>} options.focusAreas - Specific areas to focus on
+ * @param {number} options.maxConcurrent - Maximum concurrent processing
+ */
+export const batchEnrichMovies = async (movieIds, options = {}) => {
+  try {
+    const response = await axiosInstance.post('/api/admin/movies/batch-enrich/', {
+      movie_ids: movieIds,
+      focus_areas: options.focusAreas || null,
+      max_concurrent: options.maxConcurrent || 5,
+    });
+    return response.data;
+  } catch (error) {
+    handleError(error, 'batch enrich movies');
+  }
+};
+
+/**
+ * Get enrichment status for a specific movie
+ * @param {number} movieId - ID of the movie
+ */
+export const getMovieEnrichmentStatus = async movieId => {
+  try {
+    const response = await axiosInstance.get(`/api/admin/movies/${movieId}/enrichment-status/`);
+    return response.data;
+  } catch (error) {
+    handleError(error, 'get movie enrichment status');
+  }
+};
+
+/**
+ * Enrich movies that have quality issues
+ * @param {Object} options - Filtering and enrichment options
+ * @param {number} options.qualityScoreMax - Maximum quality score to filter by
+ * @param {boolean} options.hasQualityIssues - Filter for movies with quality issues
+ * @param {number} options.limit - Maximum number of movies to process
+ */
+export const enrichMoviesWithQualityIssues = async (options = {}) => {
+  try {
+    const response = await axiosInstance.post('/api/admin/movies/enrich-quality-issues/', {
+      quality_score_max: options.qualityScoreMax || 7.0,
+      has_quality_issues: options.hasQualityIssues !== false,
+      limit: options.limit || 50,
+    });
+    return response.data;
+  } catch (error) {
+    handleError(error, 'enrich movies with quality issues');
+  }
+};
+
 /**
  * Get user interaction statistics for admin dashboard
  */

@@ -30,6 +30,7 @@ from rest_framework.pagination import PageNumberPagination
 from .services.quality_calculation_service import QualityCalculationService
 from .services.user_data_collection_service import UserDataCollectionService
 from .services.production_metrics_service import ProductionMetricsService
+from .services.unified_movie_enrichment_service import UnifiedMovieEnrichmentService
 
 class AdminMoviePagination(PageNumberPagination):
     """Custom pagination for admin movies with smaller page size"""
@@ -5531,5 +5532,288 @@ def calculate_sample_metrics(request):
         return Response({
             'status': 'error',
             'message': f'Error calculating sample metrics: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_enrich_movie(request, movie_id):
+    """
+    🎬 Admin endpoint: Enrich specific movie with comprehensive data
+
+    POST /api/admin/movies/{movie_id}/enrich/
+
+    Body (optional):
+    {
+        "force_refresh": false,
+        "focus_areas": ["basic", "visual", "metadata", "ratings"],
+        "enrich_type": "comprehensive" | "quality_based"
+    }
+    """
+    try:
+        # Check admin permissions
+        if not request.user.is_staff:
+            return Response({
+                'error': 'Admin access required'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get movie
+        try:
+            movie = Movie.objects.select_related('quality_metrics').prefetch_related(
+                'genres', 'cast', 'trailers', 'ratings'
+            ).get(id=movie_id)
+        except Movie.DoesNotExist:
+            return Response({
+                'error': 'Movie not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Parse request options
+        force_refresh = request.data.get('force_refresh', False)
+        focus_areas = request.data.get('focus_areas', None)
+        enrich_type = request.data.get('enrich_type', 'comprehensive')
+
+        # Initialize enrichment service
+        enrichment_service = UnifiedMovieEnrichmentService()
+
+        # Perform enrichment based on type
+        if enrich_type == 'quality_based':
+            result = enrichment_service.enrich_movie_by_quality_issues(movie)
+        else:
+            result = enrichment_service.enrich_movie_comprehensive(
+                movie=movie,
+                force_refresh=force_refresh,
+                focus_areas=focus_areas
+            )
+
+        # Return enrichment results
+        return Response({
+            'success': True,
+            'movie_id': movie_id,
+            'movie_title': movie.title,
+            'enrichment_result': result,
+            'message': 'Movie enrichment completed'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error in admin movie enrichment: {str(e)}")
+        return Response({
+            'error': f'Enrichment failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_batch_enrich_movies(request):
+    """
+    🚀 Admin endpoint: Batch enrich multiple movies
+
+    POST /api/admin/movies/batch-enrich/
+
+    Body:
+    {
+        "movie_ids": [1, 2, 3, ...],
+        "focus_areas": ["basic", "visual", "metadata", "ratings"],
+        "max_concurrent": 5
+    }
+    """
+    try:
+        # Check admin permissions
+        if not request.user.is_staff:
+            return Response({
+                'error': 'Admin access required'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Parse request data
+        movie_ids = request.data.get('movie_ids', [])
+        focus_areas = request.data.get('focus_areas', None)
+        max_concurrent = request.data.get('max_concurrent', 5)
+
+        if not movie_ids:
+            return Response({
+                'error': 'movie_ids is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(movie_ids) > 100:
+            return Response({
+                'error': 'Maximum 100 movies per batch'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate movie IDs exist
+        existing_ids = Movie.objects.filter(id__in=movie_ids).values_list('id', flat=True)
+        invalid_ids = [mid for mid in movie_ids if mid not in existing_ids]
+
+        if invalid_ids:
+            return Response({
+                'error': f'Invalid movie IDs: {invalid_ids}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Initialize enrichment service
+        enrichment_service = UnifiedMovieEnrichmentService()
+
+        # Perform batch enrichment
+        batch_result = enrichment_service.batch_enrich_movies(
+            movie_ids=list(existing_ids),
+            focus_areas=focus_areas,
+            max_concurrent=max_concurrent
+        )
+
+        return Response({
+            'success': True,
+            'batch_result': batch_result,
+            'message': f'Batch enrichment completed for {len(existing_ids)} movies'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error in batch movie enrichment: {str(e)}")
+        return Response({
+            'error': f'Batch enrichment failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_movie_enrichment_status(request, movie_id):
+    """
+    📊 Admin endpoint: Get movie enrichment status and opportunities
+
+    GET /api/admin/movies/{movie_id}/enrichment-status/
+
+    Returns detailed analysis of what data is available/missing
+    and what enrichment opportunities exist.
+    """
+    try:
+        # Check admin permissions
+        if not request.user.is_staff:
+            return Response({
+                'error': 'Admin access required'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get movie
+        try:
+            movie = Movie.objects.select_related('quality_metrics').prefetch_related(
+                'genres', 'cast', 'trailers', 'ratings', 'movieimage_set'
+            ).get(id=movie_id)
+        except Movie.DoesNotExist:
+            return Response({
+                'error': 'Movie not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Get enrichment status
+        enrichment_service = UnifiedMovieEnrichmentService()
+        status_data = enrichment_service.get_enrichment_status(movie)
+
+        # Get validation requirements
+        validation_data = enrichment_service.validate_enrichment_requirements(movie)
+
+        return Response({
+            'success': True,
+            'movie_id': movie_id,
+            'enrichment_status': status_data,
+            'validation': validation_data,
+            'message': 'Enrichment status retrieved successfully'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error getting enrichment status: {str(e)}")
+        return Response({
+            'error': f'Failed to get enrichment status: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_enrich_quality_issues(request):
+    """
+    🎯 Admin endpoint: Enrich movies with quality issues
+
+    POST /api/admin/movies/enrich-quality-issues/
+
+    Body (optional):
+    {
+        "quality_score_max": 7.0,
+        "has_quality_issues": true,
+        "limit": 50
+    }
+
+    Finds movies with quality issues and enriches them automatically.
+    """
+    try:
+        # Check admin permissions
+        if not request.user.is_staff:
+            return Response({
+                'error': 'Admin access required'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Parse filtering options
+        quality_score_max = request.data.get('quality_score_max', 7.0)
+        has_quality_issues = request.data.get('has_quality_issues', True)
+        limit = min(request.data.get('limit', 50), 100)  # Max 100 at once
+
+        # Find movies with quality issues
+        queryset = Movie.objects.select_related('quality_metrics').filter(
+            quality_metrics__isnull=False
+        )
+
+        if quality_score_max:
+            queryset = queryset.filter(
+                quality_metrics__quality_score__lt=quality_score_max
+            )
+
+        if has_quality_issues:
+            # Movies with non-empty quality_issues JSON array - Use proper Django ORM filtering
+            from django.db.models import Q
+            from django.contrib.postgres.fields.jsonb import KeyTextTransform
+            from django.db.models.functions import JSONArray
+
+            # Filter for movies that have quality_issues and the array is not empty
+            queryset = queryset.filter(
+                Q(quality_metrics__quality_issues__isnull=False) &
+                ~Q(quality_metrics__quality_issues__exact=[])
+            )
+
+        movies_to_enrich = list(queryset[:limit])
+
+        if not movies_to_enrich:
+            return Response({
+                'success': True,
+                'message': 'No movies with quality issues found',
+                'processed': 0
+            }, status=status.HTTP_200_OK)
+
+        # Perform quality-based enrichment
+        enrichment_service = UnifiedMovieEnrichmentService()
+        results = []
+
+        for movie in movies_to_enrich:
+            try:
+                result = enrichment_service.enrich_movie_by_quality_issues(movie)
+                results.append({
+                    'movie_id': movie.id,
+                    'movie_title': movie.title,
+                    'result': result
+                })
+            except Exception as e:
+                logger.error(f"Error enriching movie {movie.id}: {str(e)}")
+                results.append({
+                    'movie_id': movie.id,
+                    'movie_title': movie.title,
+                    'result': {'success': False, 'error': str(e)}
+                })
+
+        # Calculate summary
+        successful = sum(1 for r in results if r['result'].get('success', False))
+
+        return Response({
+            'success': True,
+            'processed': len(results),
+            'successful': successful,
+            'failed': len(results) - successful,
+            'results': results,
+            'message': f'Quality-based enrichment completed for {len(results)} movies'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error in quality-based enrichment: {str(e)}")
+        return Response({
+            'error': f'Quality-based enrichment failed: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

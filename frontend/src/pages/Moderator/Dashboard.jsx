@@ -482,18 +482,18 @@ const ModeratorDashboard = () => {
         badge: navigationBadges.violation_reports?.count?.toString() || '0',
         badgeColor: navigationBadges.violation_reports?.color || 'gray',
       },
-      {
-        id: 'content-review',
-        label: 'Review nội dung',
-        icon: DocumentTextIcon,
-        iconSolid: DocumentTextIconSolid,
-        color: 'green',
-        viewMode: 'dashboard',
-        description: 'Kiểm duyệt review và comment',
-        priority: 'medium',
-        badge: navigationBadges.content_reviews?.count?.toString() || '0',
-        badgeColor: navigationBadges.content_reviews?.color || 'gray',
-      },
+      // {
+      //   id: 'content-review',
+      //   label: 'Review nội dung',
+      //   icon: DocumentTextIcon,
+      //   iconSolid: DocumentTextIconSolid,
+      //   color: 'green',
+      //   viewMode: 'dashboard',
+      //   description: 'Kiểm duyệt review và comment',
+      //   priority: 'medium',
+      //   badge: navigationBadges.content_reviews?.count?.toString() || '0',
+      //   badgeColor: navigationBadges.content_reviews?.color || 'gray',
+      // },
       {
         id: 'content-moderation',
         label: 'Kiểm duyệt nội dung',
@@ -557,20 +557,20 @@ const ModeratorDashboard = () => {
     ];
 
     // Admin-only items
-    if (isAdmin) {
-      baseItems.push({
-        id: 'system-users',
-        label: 'Quản lý hệ thống',
-        icon: WrenchScrewdriverIcon,
-        iconSolid: WrenchScrewdriverIconSolid,
-        color: 'yellow',
-        viewMode: 'dashboard',
-        description: 'Quản lý người dùng hệ thống',
-        priority: 'high',
-        badge: '3',
-        badgeColor: 'purple',
-      });
-    }
+    // if (isAdmin) {
+    //   baseItems.push({
+    //     id: 'system-users',
+    //     label: 'Quản lý hệ thống',
+    //     icon: WrenchScrewdriverIcon,
+    //     iconSolid: WrenchScrewdriverIconSolid,
+    //     color: 'yellow',
+    //     viewMode: 'dashboard',
+    //     description: 'Quản lý người dùng hệ thống',
+    //     priority: 'high',
+    //     badge: '3',
+    //     badgeColor: 'purple',
+    //   });
+    // }
 
     return baseItems;
   };
@@ -945,8 +945,8 @@ const ModeratorDashboard = () => {
             isAdmin={isAdmin}
           />
         );
-      case 'content-review':
-        return <ContentManagement />;
+      // case 'content-review':
+      //   return <ContentManagement />;
       case 'content-moderation':
         return <ContentModerationDashboard />;
       case 'auto-marked':
@@ -957,8 +957,8 @@ const ModeratorDashboard = () => {
         return <Analytics />;
       case 'settings':
         return isAdmin ? <AdminSettings /> : <SystemSettings />;
-      case 'system-users':
-        return isAdmin ? <UserManagement /> : null;
+      // case 'system-users':
+      //   return isAdmin ? <UserManagement /> : null;
       default:
         return <DashboardOverview isAdmin={isAdmin} isModerator={isModerator} />;
     }
@@ -1470,14 +1470,14 @@ const ModeratorDashboard = () => {
                       Báo cáo vi phạm
                     </>
                   )}
-                  {activeView === 'content-review' && (
+                  {/* {activeView === 'content-review' && (
                     <>
                       <DocumentTextIcon
                         className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-green-600`}
                       />
                       Review nội dung
                     </>
-                  )}
+                  )} */}
                   {activeView === 'user-management' && (
                     <>
                       <UsersIcon
@@ -1502,14 +1502,14 @@ const ModeratorDashboard = () => {
                       Cài đặt
                     </>
                   )}
-                  {activeView === 'system-users' && (
+                  {/* {activeView === 'system-users' && (
                     <>
                       <WrenchScrewdriverIcon
                         className={`${sidebarCollapsed ? 'size-8' : 'size-5'} mr-2 text-yellow-600`}
                       />
                       Quản lý hệ thống
                     </>
-                  )}
+                  )} */}
                 </h2>
                 <p className="mt-1 truncate text-xs text-gray-600">
                   {activeView === 'moderation-queue'

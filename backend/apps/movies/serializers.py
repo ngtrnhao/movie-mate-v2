@@ -1291,7 +1291,7 @@ class AdminMovieListSerializer(OptimizedMovieListSerializer):
             'trailer_completion_rate': 0.0,
             'last_featured_date': None,
             'last_calculated_at': None,
-            'total_featured_days': 0,
+            # 'total_featured_days': 0,
             'review_count': 0,
             'average_user_rating': None,
             'positive_review_ratio': 0.0

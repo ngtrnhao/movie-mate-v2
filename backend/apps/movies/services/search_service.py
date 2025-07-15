@@ -99,8 +99,10 @@ class MovieSearchService:
 
         try:
             search = Search(using=self.client, index=self.index)
+            search = search.filter('exists', field='poster_url')
+            search = search.filter('range', poster_url={'gt':''})
 
-            # 🔍 Enhanced search query with quality scoring
+            #  Enhanced search query with quality scoring
             if params.get('q'):
                 query_text = params['q'].strip()
                 search = self._build_enhanced_query(search, query_text, params)
@@ -402,7 +404,10 @@ class MovieSearchService:
                 'genres',
                 'ratings',
                 Prefetch('trailers', queryset=MovieTrailer.objects.filter(type='TRAILER'))
-            ).filter(id__in=movie_ids)
+            ).filter(
+                id__in=movie_ids,
+                poster_url__isnull=False,
+                poster_url__gt='')
 
             # Maintain the order from Elasticsearch results
             movie_dict = {movie.id: movie for movie in movies}

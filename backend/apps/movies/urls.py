@@ -48,7 +48,7 @@ urlpatterns = [
     # Moderation endpoints
     path('reviews/moderation_stats/', views.MovieReviewViewSet.as_view({'get': 'moderation_stats'}), name='moderation-stats'),
     path('reviews/moderation_queue/', views.MovieReviewViewSet.as_view({'get': 'moderation_queue'}), name='moderation-queue'),
-
+    
     # OPTIMIZED Moderation endpoints
     path('reviews/moderation_queue_optimized/', views.MovieReviewViewSet.as_view({'get': 'moderation_queue_optimized'}), name='moderation-queue-optimized'),
 

@@ -108,7 +108,7 @@ const RatingTab = ({ movieId }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState('recent');
-  const [showSpoilers, setShowSpoilers] = useState(false);
+  const [revealedSpoilers, setRevealedSpoilers] = useState(new Set()); // Track individually revealed spoiler reviews
   const [editingReview, setEditingReview] = useState(null);
   const [editingContent, setEditingContent] = useState('');
   const [editingRating, setEditingRating] = useState(0);
@@ -151,6 +151,8 @@ const RatingTab = ({ movieId }) => {
     if (isAuthenticated) {
       fetchUserReview();
     }
+    // Reset revealed spoilers when page or sort changes
+    setRevealedSpoilers(new Set());
   }, [movieId, currentPage, sortBy, isAuthenticated]);
 
   const handleAuthRequired = () => {
@@ -376,6 +378,7 @@ const RatingTab = ({ movieId }) => {
   const handleSortChange = newSort => {
     setSortBy(newSort);
     setCurrentPage(1);
+    setRevealedSpoilers(new Set()); // Clear revealed spoilers when sort changes
   };
 
   const getPlaceholderText = rating => {
@@ -541,7 +544,7 @@ const RatingTab = ({ movieId }) => {
                   }`}
                 >
                   <span
-                    className={`inline-block size-5 rounded-full bg-white shadow transition-transform${
+                    className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
                       isSpoiler ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
@@ -629,7 +632,7 @@ const RatingTab = ({ movieId }) => {
         {filteredReviews.length > 0 ? (
           filteredReviews.map(review => {
             const isSpoiler = review.is_spoiler;
-            const shouldBlur = isSpoiler && !showSpoilers;
+            const shouldBlur = isSpoiler && !revealedSpoilers.has(review.id);
 
             // Check moderation status
             const isRejected = review.is_approved === false;
@@ -740,7 +743,7 @@ const RatingTab = ({ movieId }) => {
                                 }`}
                               >
                                 <span
-                                  className={`inline-block size-5 rounded-full bg-white shadow transition-transform${
+                                  className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
                                     editingSpoiler ? 'translate-x-6' : 'translate-x-1'
                                   }`}
                                 />
@@ -778,10 +781,28 @@ const RatingTab = ({ movieId }) => {
                             {shouldBlur && (
                               <div className="mb-3">
                                 <button
-                                  onClick={() => setShowSpoilers(true)}
+                                  onClick={() =>
+                                    setRevealedSpoilers(prev => new Set([...prev, review.id]))
+                                  }
                                   className="text-xs text-yellow-400 hover:text-yellow-300"
                                 >
                                   Nhấn để xem spoiler
+                                </button>
+                              </div>
+                            )}
+                            {isSpoiler && revealedSpoilers.has(review.id) && (
+                              <div className="mb-3">
+                                <button
+                                  onClick={() =>
+                                    setRevealedSpoilers(prev => {
+                                      const newSet = new Set(prev);
+                                      newSet.delete(review.id);
+                                      return newSet;
+                                    })
+                                  }
+                                  className="text-xs text-gray-400 hover:text-gray-300"
+                                >
+                                  Ẩn spoiler
                                 </button>
                               </div>
                             )}

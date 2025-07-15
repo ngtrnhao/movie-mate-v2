@@ -488,6 +488,7 @@ class MovieReviewSerializer(serializers.ModelSerializer):
     reply_count = serializers.SerializerMethodField()
     is_reply = serializers.ReadOnlyField()
     replies = serializers.SerializerMethodField()
+    mentioned_username = serializers.ReadOnlyField()
     moderation_analysis = serializers.SerializerMethodField()
     report_summary = serializers.SerializerMethodField()
     moderation_feedback = serializers.SerializerMethodField()
@@ -501,7 +502,7 @@ class MovieReviewSerializer(serializers.ModelSerializer):
             'helpful_votes', 'total_votes', 'helpfulness_ratio',
             'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
             'can_edit', 'can_vote', 'user_vote', 'can_reply', 'reply_count',
-            'is_reply', 'parent_review', 'replies',
+            'is_reply', 'parent_review', 'replies', 'mentioned_username',
             'is_approved', 'moderated_by', 'moderated_at', 'moderation_reason',
             'moderation_analysis', 'created_at', 'updated_at', 'report_summary',
             'moderation_feedback', 'spoiler_confidence'
@@ -863,6 +864,7 @@ class MovieReplySerializer(serializers.ModelSerializer):
     user_vote = serializers.SerializerMethodField()
     can_reply = serializers.SerializerMethodField()
     is_reply = serializers.ReadOnlyField()
+    mentioned_username = serializers.ReadOnlyField()
 
     class Meta:
         model = MovieReview
@@ -871,13 +873,13 @@ class MovieReplySerializer(serializers.ModelSerializer):
             'helpful_votes', 'total_votes', 'helpfulness_ratio',
             'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
             'can_edit', 'can_vote', 'user_vote', 'can_reply',
-            'is_reply', 'parent_review', 'created_at', 'updated_at'
+            'is_reply', 'parent_review', 'mentioned_username', 'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'user', 'helpful_votes', 'total_votes', 'helpfulness_ratio',
             'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
             'can_edit', 'can_vote', 'user_vote', 'can_reply',
-            'is_reply', 'parent_review', 'created_at', 'updated_at'
+            'is_reply', 'parent_review', 'mentioned_username', 'created_at', 'updated_at'
         ]
 
     def get_helpfulness_ratio(self, obj):
@@ -920,9 +922,11 @@ class MovieReplyCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating replies to reviews
     """
+    reply_to_user_id = serializers.IntegerField(required=False, allow_null=True)
+
     class Meta:
         model = MovieReview
-        fields = ['parent_review', 'content', 'language', 'is_public', 'is_spoiler']
+        fields = ['parent_review', 'content', 'language', 'is_public', 'is_spoiler', 'reply_to_user_id']
 
     def validate_content(self, value):
         if not value or len(value.strip()) < 5:
@@ -941,18 +945,33 @@ class MovieReplyCreateSerializer(serializers.ModelSerializer):
         if value.review_type == 'EXTERNAL':
             raise serializers.ValidationError("Cannot reply to external reviews")
 
-        # Check if parent is already a reply (no deep nesting)
-        if value.is_reply:
-            raise serializers.ValidationError("Cannot reply to replies. Please reply to the main review instead.")
-
         return value
 
     def create(self, validated_data):
+        parent_review = validated_data['parent_review']
+        reply_to_user_id = validated_data.pop('reply_to_user_id', None)
+
         validated_data['user'] = self.context['request'].user
         validated_data['review_type'] = 'USER'
-        validated_data['movie'] = validated_data['parent_review'].movie
+        validated_data['movie'] = parent_review.movie
         validated_data['rating'] = None  # Replies cannot have ratings
         validated_data['title'] = None   # Replies don't need titles
+
+        # Handle reply to reply - flatten to same level
+        if parent_review.is_reply:
+            # If replying to a reply, set parent to main review and track the mentioned user
+            validated_data['parent_review'] = parent_review.parent_review
+            validated_data['reply_to_user'] = parent_review.user
+        else:
+            # If replying to main review, check if user specified a reply_to_user
+            if reply_to_user_id:
+                try:
+                    from apps.users.models import User
+                    reply_to_user = User.objects.get(id=reply_to_user_id)
+                    validated_data['reply_to_user'] = reply_to_user
+                except User.DoesNotExist:
+                    pass  # Ignore invalid user ID
+
         return super().create(validated_data)
 
 class ReviewReportSerializer(serializers.ModelSerializer):

@@ -640,7 +640,7 @@ export const getMyReviews = async movieId => {
   }
 };
 
-// Reply to review
+// Reply to review (supports both main review and reply-to-reply)
 export const replyToReview = async (reviewId, replyData) => {
   try {
     const response = await axiosInstance.post(`/api/reviews/${reviewId}/reply/`, replyData);

@@ -63,66 +63,66 @@ class Movie(models.Model):
     combined_rating_score = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True,
                                                help_text="Weighted average of all ratings")
 
-    # 🎛️ PRODUCTION CONTROL FIELDS
-    is_published = models.BooleanField(default=True,
-                                     help_text="Hiển thị phim trên production")
-    visibility_status = models.CharField(max_length=20, choices=[
-        ('PUBLISHED', 'Công khai'),
-        ('DRAFT', 'Bản nháp'),
-        ('SCHEDULED', 'Đã lên lịch'),
-        ('ARCHIVED', 'Lưu trữ'),
-        ('RESTRICTED', 'Hạn chế')
-    ], default='PUBLISHED', help_text="Trạng thái hiển thị của phim")
+    # # 🎛️ PRODUCTION CONTROL FIELDS
+    # is_published = models.BooleanField(default=True,
+    #                                  help_text="Hiển thị phim trên production")
+    # visibility_status = models.CharField(max_length=20, choices=[
+    #     ('PUBLISHED', 'Công khai'),
+    #     ('DRAFT', 'Bản nháp'),
+    #     ('SCHEDULED', 'Đã lên lịch'),
+    #     ('ARCHIVED', 'Lưu trữ'),
+    #     ('RESTRICTED', 'Hạn chế')
+    # ], default='PUBLISHED', help_text="Trạng thái hiển thị của phim")
 
-    # 📅 SCHEDULING FIELDS
-    publish_date = models.DateTimeField(null=True, blank=True,
-                                       help_text="Thời gian xuất bản")
-    unpublish_date = models.DateTimeField(null=True, blank=True,
-                                         help_text="Thời gian ngừng hiển thị")
-    featured_from = models.DateTimeField(null=True, blank=True,
-                                        help_text="Bắt đầu featured")
-    featured_until = models.DateTimeField(null=True, blank=True,
-                                         help_text="Kết thúc featured")
+    # # 📅 SCHEDULING FIELDS
+    # publish_date = models.DateTimeField(null=True, blank=True,
+    #                                    help_text="Thời gian xuất bản")
+    # unpublish_date = models.DateTimeField(null=True, blank=True,
+    #                                      help_text="Thời gian ngừng hiển thị")
+    # featured_from = models.DateTimeField(null=True, blank=True,
+    #                                     help_text="Bắt đầu featured")
+    # featured_until = models.DateTimeField(null=True, blank=True,
+    #                                      help_text="Kết thúc featured")
 
-    # 👨‍💼 ADMIN CONTROL FIELDS
-    admin_featured = models.BooleanField(default=False,
-                                        help_text="Admin manually featured")
-    admin_priority = models.IntegerField(default=0,
-                                        help_text="Admin priority (higher = more important)")
-    manual_override = models.JSONField(default=dict, blank=True,
-                                      help_text="Admin override settings")
+    # # 👨‍💼 ADMIN CONTROL FIELDS
+    # admin_featured = models.BooleanField(default=False,
+    #                                     help_text="Admin manually featured")
+    # admin_priority = models.IntegerField(default=0,
+    #                                     help_text="Admin priority (higher = more important)")
+    # manual_override = models.JSONField(default=dict, blank=True,
+    #                                   help_text="Admin override settings")
 
-    # ✅ APPROVAL WORKFLOW FIELDS
-    approval_status = models.CharField(max_length=20, choices=[
-        ('PENDING', 'Chờ duyệt'),
-        ('APPROVED', 'Đã duyệt'),
-        ('REJECTED', 'Từ chối'),
-        ('NEEDS_REVIEW', 'Cần xem xét')
-    ], default='PENDING', help_text="Trạng thái duyệt của phim")
-    approved_by = models.ForeignKey('users.User', on_delete=models.SET_NULL,
-                                   null=True, blank=True,
-                                   related_name='approved_movies',
-                                   help_text="Người duyệt phim")
-    approved_at = models.DateTimeField(null=True, blank=True,
-                                      help_text="Thời gian duyệt")
+    # # ✅ APPROVAL WORKFLOW FIELDS
+    # approval_status = models.CharField(max_length=20, choices=[
+    #     ('PENDING', 'Chờ duyệt'),
+    #     ('APPROVED', 'Đã duyệt'),
+    #     ('REJECTED', 'Từ chối'),
+    #     ('NEEDS_REVIEW', 'Cần xem xét')
+    # ], default='PENDING', help_text="Trạng thái duyệt của phim")
+    # approved_by = models.ForeignKey('users.User', on_delete=models.SET_NULL,
+    #                                null=True, blank=True,
+    #                                related_name='approved_movies',
+    #                                help_text="Người duyệt phim")
+    # approved_at = models.DateTimeField(null=True, blank=True,
+    #                                   help_text="Thời gian duyệt")
 
-    # 🌍 TARGETING FIELDS
-    target_regions = models.JSONField(default=list, blank=True,
-                                     help_text="Danh sách regions hiển thị")
-    age_rating = models.CharField(max_length=10, blank=True, null=True,
-                                 help_text="Phân loại độ tuổi")
-    content_warnings = models.JSONField(default=list, blank=True,
-                                       help_text="Cảnh báo nội dung")
+    # # 🌍 TARGETING FIELDS
+    # target_regions = models.JSONField(default=list, blank=True,
+    #                                  help_text="Danh sách regions hiển thị")
+    # age_rating = models.CharField(max_length=10, blank=True, null=True,
+    #                              help_text="Phân loại độ tuổi")
+    # content_warnings = models.JSONField(default=list, blank=True,
+    #                                    help_text="Cảnh báo nội dung")
 
-    # 📊 QUALITY CONTROL FIELDS
-    quality_score = models.DecimalField(max_digits=3, decimal_places=1,
-                                       null=True, blank=True,
-                                       help_text="Điểm chất lượng content (0-10)")
-    content_completeness = models.DecimalField(max_digits=5, decimal_places=2,
-                                              default=0,
-                                              help_text="% hoàn thiện content")
-    minimum_quality_met = models.BooleanField(default=True,
-                                             help_text="Đạt tiêu chuẩn chất lượng tối thiểu")
+    # # 📊 QUALITY CONTROL FIELDS
+    # quality_score = models.DecimalField(max_digits=3, decimal_places=1,
+    #                                    null=True, blank=True,
+    #                                    help_text="Điểm chất lượng content (0-10)")
+    # content_completeness = models.DecimalField(max_digits=5, decimal_places=2,
+    #                                           default=0,
+    #                                           help_text="% hoàn thiện content")
+    # minimum_quality_met = models.BooleanField(default=True,
+    #                                          help_text="Đạt tiêu chuẩn chất lượng tối thiểu")
 
     class Meta:
         db_table = "movies_movie"
@@ -198,64 +198,6 @@ class Movie(models.Model):
                     poster_url__gt='',
                     backdrop_url__isnull=False,
                     backdrop_url__gt=''
-                )
-            ),
-
-            # 🎛️ PRODUCTION CONTROL INDEXES
-            models.Index(fields=["is_published"], name="idx_movie_is_published"),
-            models.Index(fields=["visibility_status"], name="idx_movie_visibility_status"),
-            models.Index(fields=["approval_status"], name="idx_movie_approval_status"),
-            models.Index(fields=["admin_featured"], name="idx_movie_admin_featured"),
-            models.Index(fields=["admin_priority"], name="idx_movie_admin_priority"),
-            models.Index(fields=["minimum_quality_met"], name="idx_movie_min_quality"),
-
-            # 📅 SCHEDULING INDEXES
-            models.Index(fields=["publish_date"], name="idx_movie_publish_date"),
-            models.Index(fields=["unpublish_date"], name="idx_movie_unpublish_date"),
-            models.Index(fields=["featured_from"], name="idx_movie_featured_from"),
-            models.Index(fields=["featured_until"], name="idx_movie_featured_until"),
-            models.Index(fields=["approved_at"], name="idx_movie_approved_at"),
-
-            # 📊 QUALITY INDEXES
-            models.Index(fields=["quality_score"], name="idx_movie_quality_score"),
-            models.Index(fields=["content_completeness"], name="idx_movie_content_completeness"),
-
-            # 🎯 COMPOSITE PRODUCTION INDEXES
-            # Index for production-ready movies
-            models.Index(
-                fields=["is_published", "approval_status", "visibility_status"],
-                name="idx_movie_production_ready"
-            ),
-            # Index for admin featured movies with scheduling
-            models.Index(
-                fields=["admin_featured", "admin_priority", "featured_from"],
-                name="idx_movie_admin_schedule"
-            ),
-            # Index for quality-based filtering
-            models.Index(
-                fields=["minimum_quality_met", "quality_score", "content_completeness"],
-                name="idx_movie_quality_filter"
-            ),
-
-            # 🎭 PARTIAL INDEXES FOR PRODUCTION
-            # Production-visible movies only
-            models.Index(
-                fields=["admin_priority", "combined_rating_score"],
-                name="idx_movie_production_visible",
-                condition=models.Q(
-                    is_published=True,
-                    approval_status='APPROVED',
-                    visibility_status='PUBLISHED',
-                    minimum_quality_met=True
-                )
-            ),
-            # Admin featured movies only
-            models.Index(
-                fields=["admin_priority", "featured_from"],
-                name="idx_movie_admin_active",
-                condition=models.Q(
-                    admin_featured=True,
-                    is_published=True
                 )
             ),
         ]
@@ -1806,11 +1748,11 @@ class MovieAdminControl(models.Model):
     visibility_status = models.CharField(
         max_length=20,
         choices=VISIBILITY_STATUS_CHOICES,
-        default='PUBLISHED',
+        default='DRAFT',
         help_text="Trạng thái hiển thị của phim"
     )
     is_published = models.BooleanField(
-        default=True,
+        default=False,
         help_text="Hiển thị phim trên production"
     )
 

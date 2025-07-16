@@ -892,7 +892,7 @@ const MovieManagement = () => {
 
               {/* Quality & Priority Actions */}
               <div className="space-y-2">
-                {qualityMetrics?.quality_issues?.length > 0 && (
+                {qualityMetrics?.quality_issues?.length > 0 ? (
                   <button
                     onClick={() => handleQualityReview(movie)}
                     className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800 hover:bg-orange-100 transition-colors"
@@ -900,16 +900,15 @@ const MovieManagement = () => {
                     <ExclamationTriangleIcon className="mr-1 size-3" />
                     Khắc phục chất lượng ({qualityMetrics.quality_issues.length})
                   </button>
+                ) : (
+                  <button
+                    onClick={() => handleQualityReview(movie)}
+                    className="inline-flex w-full items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+                  >
+                    <ChartBarIcon className="mr-1 size-3" />
+                    Đánh giá chất lượng
+                  </button>
                 )}
-
-                {/* Always show Quality Review button for testing */}
-                <button
-                  onClick={() => handleQualityReview(movie)}
-                  className="inline-flex w-full items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
-                >
-                  <ChartBarIcon className="mr-1 size-3" />
-                  Đánh giá chất lượng
-                </button>
 
                 {/* Movie Enrichment Button */}
                 <button
@@ -928,12 +927,12 @@ const MovieManagement = () => {
                       <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
                       Đang xử lý...
                     </>
-                  ) : enrichmentProgress[movie.id]?.status === 'completed' ? (
+                  ) : enrichmentProgress[movie.id]?.success === 'true' ? (
                     <>
                       <CheckCircleIcon className="mr-1 size-3" />
                       Đã cập nhật ✓
                     </>
-                  ) : enrichmentProgress[movie.id]?.status === 'error' ? (
+                  ) : enrichmentProgress[movie.id]?.success === 'false' ? (
                     <>
                       <ExclamationTriangleIcon className="mr-1 size-3" />
                       Lỗi

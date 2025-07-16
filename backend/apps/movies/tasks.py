@@ -25,13 +25,17 @@ from .models import (
     MovieImage,
     MovieAward,
     MovieNews,
-    MovieScheduling
+    MovieScheduling,
+    MovieAdminControl,
+    MovieQualityMetrics
 )
 from .services.imdb_service import IMDBService
 from apps.movies.services.tmdb_service import TMDBService
 from apps.movies.services.movie_tmdb_enrich_service import MovieTMDBEnrichService
 from .services.movie_title_genre_service import MovieTitleGenreService
 from .services.movie_overview_service import MovieOverviewService
+from .services.quality_calculation_service import QualityCalculationService
+from .services.production_metrics_service import ProductionMetricsService
 
 logger = get_task_logger(__name__)
 
@@ -893,7 +897,6 @@ def calculate_production_metrics_auto(self, movie_ids=None):
         # Set task status
         cache.set('task_status_calculate_metrics', 'running', timeout=3600)
 
-        from apps.movies.services.production_metrics_service import ProductionMetricsService
         from apps.movies.models import Movie
 
         production_service = ProductionMetricsService()
@@ -1016,7 +1019,7 @@ def process_scheduled_actions_auto(self):
     Runs every 5 minutes to check for pending scheduled actions
     """
     try:
-        from .models import MovieScheduling
+        from .models import MovieScheduling, MovieAdminControl
 
         # Set task status
         cache.set('task_status_scheduling', 'running', timeout=3600)
@@ -1035,41 +1038,40 @@ def process_scheduled_actions_auto(self):
         # Get all scheduling records that have pending actions
         schedulings = MovieScheduling.objects.select_related('movie').filter(
             models.Q(
-                # Auto-publish: publish_date is now or past, auto_publish enabled, movie not published
                 auto_publish=True,
                 publish_date__lte=now,
-                movie__is_published=False
+                movie__admin_control__is_published=False
             ) | models.Q(
-                # Auto-unpublish: unpublish_date is now or past, auto_unpublish enabled, movie is published
                 auto_unpublish=True,
                 unpublish_date__lte=now,
-                movie__is_published=True
+                movie__admin_control__is_published=True
             ) | models.Q(
-                # Auto-feature: featured_from is now or past, auto_feature enabled, movie not featured
                 auto_feature=True,
                 featured_from__lte=now,
-                movie__admin_featured=False
+                movie__admin_control__admin_featured=False
             ) | models.Q(
-                # Auto-unfeature: featured_until is now or past, auto_unfeature enabled, movie is featured
                 auto_unfeature=True,
                 featured_until__lte=now,
-                movie__admin_featured=True
+                movie__admin_control__admin_featured=True
             )
         )
 
         for scheduling in schedulings:
             try:
                 movie = scheduling.movie
+                admin_control = getattr(movie, 'admin_control', None)
+                if not admin_control:
+                    admin_control, _ = MovieAdminControl.objects.get_or_create(movie=movie)
                 movie_updated = False
 
                 # Process auto-publish
                 if (scheduling.auto_publish and
                     scheduling.publish_date and
                     scheduling.publish_date <= now and
-                    not movie.is_published):
+                    not admin_control.is_published):
 
-                    movie.is_published = True
-                    movie.visibility_status = 'PUBLISHED'
+                    admin_control.is_published = True
+                    admin_control.visibility_status = 'PUBLISHED'
                     movie_updated = True
                     actions_processed['published'] += 1
                     logger.info(f"📢 Auto-published movie: {movie.title} (ID: {movie.id})")
@@ -1078,10 +1080,10 @@ def process_scheduled_actions_auto(self):
                 if (scheduling.auto_unpublish and
                     scheduling.unpublish_date and
                     scheduling.unpublish_date <= now and
-                    movie.is_published):
+                    admin_control.is_published):
 
-                    movie.is_published = False
-                    movie.visibility_status = 'DRAFT'
+                    admin_control.is_published = False
+                    admin_control.visibility_status = 'DRAFT'
                     movie_updated = True
                     actions_processed['unpublished'] += 1
                     logger.info(f"📪 Auto-unpublished movie: {movie.title} (ID: {movie.id})")
@@ -1090,11 +1092,11 @@ def process_scheduled_actions_auto(self):
                 if (scheduling.auto_feature and
                     scheduling.featured_from and
                     scheduling.featured_from <= now and
-                    not movie.admin_featured):
+                    not admin_control.admin_featured):
 
-                    movie.admin_featured = True
-                    if movie.admin_priority == 0:
-                        movie.admin_priority = 1
+                    admin_control.admin_featured = True
+                    if admin_control.admin_priority == 0:
+                        admin_control.admin_priority = 1
                     movie_updated = True
                     actions_processed['featured'] += 1
                     logger.info(f"⭐ Auto-featured movie: {movie.title} (ID: {movie.id})")
@@ -1103,17 +1105,17 @@ def process_scheduled_actions_auto(self):
                 if (scheduling.auto_unfeature and
                     scheduling.featured_until and
                     scheduling.featured_until <= now and
-                    movie.admin_featured):
+                    admin_control.admin_featured):
 
-                    movie.admin_featured = False
-                    movie.admin_priority = 0
+                    admin_control.admin_featured = False
+                    admin_control.admin_priority = 0
                     movie_updated = True
                     actions_processed['unfeatured'] += 1
                     logger.info(f"⭐ Auto-unfeatured movie: {movie.title} (ID: {movie.id})")
 
-                # Save movie if any changes were made
+                # Save admin_control if any changes were made
                 if movie_updated:
-                    movie.save(update_fields=[
+                    admin_control.save(update_fields=[
                         'is_published', 'visibility_status',
                         'admin_featured', 'admin_priority'
                     ])
@@ -1144,16 +1146,9 @@ def process_scheduled_actions_auto(self):
         total_actions = sum([v for k, v in actions_processed.items() if k != 'errors'])
         logger.info(f"✅ Scheduling automation completed: {total_actions} actions processed")
 
-        return {
-            'status': 'success',
-            'actions_processed': actions_processed,
-            'total_schedulings_checked': schedulings.count()
-        }
-
     except Exception as exc:
-        cache.set('task_status_scheduling', 'error', timeout=3600)
-        logger.error(f"❌ Error in scheduling automation: {str(exc)}")
-        raise self.retry(exc=exc, countdown=60, max_retries=2)
+        logger.error(f"❌ Error in process_scheduled_actions_auto: {str(exc)}")
+        raise
 
 
 @shared_task(bind=True)
@@ -1238,7 +1233,7 @@ def update_scheduling_status_auto(self):
         }, timeout=7200)
 
         # Set task status
-        cache.set('task_status_scheduling_status', 'completed', timeout=3600)
+        cache.set('task_status_scheduling_status', 'completed', timeout=3600) 
 
         logger.info(f"✅ Scheduling status update completed: {updated_count} records updated")
 

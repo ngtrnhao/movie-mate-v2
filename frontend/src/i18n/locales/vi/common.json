@@ -4,7 +4,8 @@
     "movies": "Phim",
     "categories": "Thể Loại",
     "reviews": "Đánh Giá",
-    "watchlist": "Danh Sách Xem"
+    "watchlist": "Danh Sách Xem",
+    "back": "Quay lại"
   },
   "auth": {
     "signIn": "Đăng Nhập",

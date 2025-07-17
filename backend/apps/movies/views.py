@@ -241,7 +241,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """Get 3 featured movies - ULTRA SIMPLIFIED for performance with trailer requirement"""
         try:
             logger.info("Fetching featured movies with ULTRA SIMPLIFIED approach...")
-            cache_key = 'featured_movies_v7_ultra_simple'
+            cache_key = 'featured_movies_v8_ultra_simple'
             cached_data = cache.get(cache_key)
 
             if cached_data:
@@ -4009,7 +4009,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'title_en', 'title_vi', 'overview_en', 'overview_vi']
     filterset_fields = [
         # Chỉ giữ các trường không liên quan admin_control
-        'is_popular', 'is_top_rated', 'is_upcoming', 'minimum_quality_met'
+        'is_popular', 'is_top_rated', 'is_upcoming'
     ]
     ordering_fields = [
         'created_at', 'updated_at', 'release_date',

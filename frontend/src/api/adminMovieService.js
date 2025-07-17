@@ -205,7 +205,7 @@ export const getAdminMovies = async (params = {}) => {
             count: response.data.count,
             next: response.data.next_after_created_at,
             previous: response.data.prev_after_created_at,
-            totalPages: Math.ceil(response.data.count / (params.pageSize || 30)),
+            totalPages: Math.ceil(response.data.count / (params.pageSize || 40)),
           };
         }
 

@@ -82,12 +82,12 @@ const Header = () => {
             {isMovieDetailsPage && (
               <button
                 onClick={handleBack}
-                className="group relative flex items-center gap-2 rounded-xl border border-gray-600/50 bg-gradient-to-r from-gray-800/80 to-gray-700/80 px-2 py-1 text-white/90 shadow-lg backdrop-blur-sm transition-all duration-300 hover:-translate-x-1 hover:scale-105 hover:border-red-400/50 hover:from-red-600/80 hover:to-red-500/80 hover:text-white hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500/40 sm:px-3 sm:py-2"
+                className="group relative flex items-center gap-2  rounded-xl border border-gray-600/50 bg-gradient-to-r from-gray-800/80 to-gray-700/80 px-2 py-1 text-white/90 shadow-lg backdrop-blur-sm transition-all duration-300 hover:-translate-x-1 hover:scale-105 hover:border-red-400/50 hover:from-red-600/80 hover:to-red-500/80 hover:text-white hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500/40 sm:px-3 sm:py-2"
                 aria-label="Back"
               >
                 <ChevronLeft className="size-5 transition-transform duration-300 group-hover:-translate-x-0.5 sm:size-4" />
-                <span className="hidden text-sm font-medium sm:inline">Back</span>
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <span className="hidden text-sm font-medium sm:inline">{t('nav.back')}</span>
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 " />
               </button>
             )}
             <div className="flex min-w-0 items-center">

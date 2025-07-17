@@ -33,30 +33,36 @@ class ModerationLearningService:
             # Calculate learning impact score
             impact_score = feedback.calculate_learning_impact()
 
-            # Mark feedback as processed
-            feedback.used_for_learning = True
-            feedback.save(update_fields=['used_for_learning', 'learning_impact_score'])
+            # Mark feedback as processed (but do NOT set used_for_learning yet)
+            feedback.learning_impact_score = impact_score
+            feedback.save(update_fields=['learning_impact_score'])
 
             # Get current configuration
             config = ModerationConfig.get_active_config()
             if not config or not config.learning_enabled:
+                feedback.used_for_learning = True
+                feedback.save(update_fields=['used_for_learning'])
                 return {
                     'success': True,
                     'message': 'Feedback recorded but learning is disabled',
                     'impact_score': impact_score
                 }
 
-            # Check if we have enough feedback to trigger learning
-            recent_feedback_count = self._get_recent_feedback_count()
+            # Check if we have enough feedback to trigger learning (count ALL feedback in recent window)
+            recent_feedback = self._get_recent_feedback_batch(config.min_feedback_count)
+            recent_feedback_count = recent_feedback.count()
 
             if recent_feedback_count >= config.min_feedback_count:
                 # Trigger threshold adjustment analysis
                 adjustment_result = self.suggest_threshold_adjustments()
 
                 # Auto-apply adjustments if confidence is high enough
-                if (adjustment_result.get('confidence', 0) > 0.8 and
-                    config.learning_enabled):
+                if (adjustment_result.get('confidence', 0) > 0.8 and config.learning_enabled):
                     self._apply_threshold_adjustments(adjustment_result['suggestions'])
+
+                # Mark all feedback in this batch as used_for_learning (fix for Django slice update)
+                ids = list(recent_feedback.values_list('id', flat=True))
+                ModerationFeedback.objects.filter(id__in=ids).update(used_for_learning=True)
 
                 return {
                     'success': True,
@@ -66,6 +72,7 @@ class ModerationLearningService:
                     'adjustment_result': adjustment_result
                 }
 
+            # Nếu chưa đủ batch, chỉ đánh dấu feedback hiện tại là used_for_learning=False (chờ batch đủ mới set True)
             return {
                 'success': True,
                 'message': 'Feedback processed, waiting for more data',
@@ -221,6 +228,13 @@ class ModerationLearningService:
             created_at__gte=start_date,
             used_for_learning=False
         ).count()
+
+    def _get_recent_feedback_batch(self, min_count: int, days: int = 7):
+        """Get the most recent batch of feedback for learning trigger"""
+        start_date = timezone.now() - timedelta(days=days)
+        return ModerationFeedback.objects.filter(
+            created_at__gte=start_date
+        ).order_by('-created_at')[:min_count]
 
     def _calculate_confidence_breakdown(self, days: int) -> Dict:
         """Calculate accuracy breakdown by confidence ranges"""

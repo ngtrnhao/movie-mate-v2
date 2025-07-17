@@ -104,10 +104,10 @@ class MovieSearchService:
                 search = search.filter('range', poster_url={'gt':''})
                 # search = search.filter('exists',field='admin_control')
                 # search = search.filter('exists',field='quality_metrics')
-                search = search.filter('range', is_published={'gte':True})
-                search = search.filter('range', approval_status={'gte':'APPROVED'})
-                # search = search.filter('range', minimum_quality_met={'gte':True})
-                search = search.filter('range', visibility_status={'gte':'PUBLISHED'})
+                search = search.filter('term', is_published=True)
+                search = search.filter('term', approval_status='APPROVED')
+                # search = search.filter('term', minimum_quality_met=True)
+                search = search.filter('term', visibility_status='PUBLISHED')
                 search = search.filter('bool',must_not=[{'term':{'title.keyword':''}}])
             #  Enhanced search query with quality scoring
             if params.get('q'):
@@ -999,9 +999,14 @@ class MovieSearchService:
             suggestions = []
             for hit in response.hits:
                 movie_data = hit.to_dict()
+                # Fallback title logic
+                if language == 'vi':
+                    title = movie_data.get('title_vi') or movie_data.get('title_en') or movie_data.get('title')
+                else:
+                    title = movie_data.get('title_en') or movie_data.get('title_vi') or movie_data.get('title')
                 suggestion = {
                     'id': hit.meta.id,
-                    'title': movie_data.get('title_vi' if language == 'vi' else 'title_en') or movie_data.get('title'),
+                    'title': title,
                     'title_en': movie_data.get('title_en'),
                     'title_vi': movie_data.get('title_vi'),
                     'poster_url': movie_data.get('poster_url'),

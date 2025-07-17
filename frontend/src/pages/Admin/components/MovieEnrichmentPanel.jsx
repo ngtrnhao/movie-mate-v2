@@ -564,7 +564,7 @@ const MovieEnrichmentPanel = () => {
               <select
                 value={enrichmentType}
                 onChange={e => setEnrichmentType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="comprehensive">🔥 Comprehensive (All Data)</option>
                 <option value="quality_based">🎯 Quality-Based (Issues Only)</option>
@@ -623,7 +623,7 @@ const MovieEnrichmentPanel = () => {
                 value={selectedMovieId}
                 onChange={e => setSelectedMovieId(e.target.value)}
                 placeholder="Enter movie ID"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div className="md:col-span-3 flex flex-wrap gap-3">
@@ -700,7 +700,7 @@ const MovieEnrichmentPanel = () => {
                 onChange={e => setBatchMovieIds(e.target.value)}
                 placeholder="1, 2, 3, 4, 5..."
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div className="space-y-4">
@@ -714,7 +714,7 @@ const MovieEnrichmentPanel = () => {
                   onChange={e => setMaxConcurrent(parseInt(e.target.value) || 5)}
                   min="1"
                   max="10"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <button
@@ -786,7 +786,7 @@ const MovieEnrichmentPanel = () => {
                 min="0"
                 max="10"
                 step="0.1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -802,7 +802,7 @@ const MovieEnrichmentPanel = () => {
                 }
                 min="1"
                 max="100"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div className="flex items-end">

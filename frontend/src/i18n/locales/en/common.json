@@ -4,7 +4,8 @@
     "movies": "Movies",
     "categories": "Categories",
     "reviews": "Reviews",
-    "watchlist": "Watchlist"
+    "watchlist": "Watchlist",
+    "back": "Back"
   },
   "auth": {
     "signIn": "Sign In",

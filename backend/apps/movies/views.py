@@ -4072,7 +4072,19 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             raise ValidationError({
                 'detail': 'Bạn phải chọn ít nhất 1 filter quản trị (approval_status, visibility_status, is_published, admin_featured, admin_priority) để truy vấn.'
             })
-        after_created_at = params.get('after_created_at')
+        # Get after_created_at values - handle multiple values properly
+        after_created_at_values = request.query_params.getlist('after_created_at')
+        if after_created_at_values:
+            if len(after_created_at_values) > 1:
+                # Multiple values for Elasticsearch keyset pagination
+                after_created_at = [str(val) for val in after_created_at_values]
+                logger.info(f"[ADMIN MOVIE LIST] Multiple after_created_at values: {after_created_at}")
+            else:
+                # Single value
+                after_created_at = str(after_created_at_values[0])
+                logger.info(f"[ADMIN MOVIE LIST] Single after_created_at value: {after_created_at}")
+        else:
+            after_created_at = None
         page_size = int(params.get('page_size', 5))
         search_service = MovieSearchService()
         es_params = {k: params.get(k) for k in params}
@@ -4088,6 +4100,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         if after_created_at:
             es_params['after_created_at'] = after_created_at
             logger.info(f"[ADMIN MOVIE LIST] Using keyset pagination with after_created_at: {after_created_at}")
+            logger.info(f"[ADMIN MOVIE LIST] Full es_params being sent to Elasticsearch: {es_params}")
         else:
             logger.info("[ADMIN MOVIE LIST] Initial page load (no after_created_at)")
         if params.get('ordering'):
@@ -4096,6 +4109,20 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         logger.info(f"[ADMIN MOVIE LIST] About to call Elasticsearch with es_params: {es_params}")
         es_response = search_service.search(es_params, admin_mode=True)
         logger.info(f"[ADMIN MOVIE LIST] Elasticsearch response: {es_response}")
+
+        # Debug: Check if we have enough results for pagination
+        if es_response:
+            results_count = len(es_response.get('results', []))
+            total_count = es_response.get('total_count', 0)
+            next_search_after = es_response.get('next_search_after')
+            logger.info(f"[ADMIN MOVIE LIST] Results count: {results_count}, Total count: {total_count}, Next search after: {next_search_after}")
+
+            # Check if we have enough results for next page
+            page_size = int(params.get('page_size', 40))
+            if results_count < page_size:
+                logger.info(f"[ADMIN MOVIE LIST] Not enough results for next page. Got {results_count}, need {page_size}")
+            else:
+                logger.info(f"[ADMIN MOVIE LIST] Enough results for next page. Got {results_count}, need {page_size}")
         if es_response:
             # Lấy list id từ ES
             es_ids = [item['id'] for item in es_response['results']]
@@ -4109,8 +4136,8 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 'count': es_response['total_count'],
                 'data': serializer.data,
                 'search_engine': es_response['search_engine'],
-                'next_after_created_at': es_response.get('next_after_created_at'),
-                'prev_after_created_at': es_response.get('prev_after_created_at'),
+                'next_after_created_at': es_response.get('next_search_after'),
+                'prev_after_created_at': es_response.get('prev_search_after'),
             })
         logger.warning("[ADMIN MOVIE LIST] Elasticsearch did not return results, falling back to ORM")
         return super().list(request, *args, **kwargs)

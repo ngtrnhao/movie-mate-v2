@@ -44,6 +44,7 @@ import UserInteractionAnalytics from './components/UserInteractionAnalytics';
 import TrendingAnalytics from './components/TrendingAnalytics';
 import RealTimeCharts from './components/RealTimeCharts';
 import AutoProcessingStatus from './components/AutoProcessingStatus';
+import MovieEnrichmentPanel from './components/MovieEnrichmentPanel';
 import AdminSidebar from './components/AdminSidebar';
 import AdminHeader from './components/AdminHeader';
 // import AdminStatsCards from './components/AdminStatsCards';
@@ -115,6 +116,16 @@ const AdminDashboardContent = () => {
         group: 'content',
         priority: 'high',
         description: 'Quản lý nội dung và production metrics',
+      },
+      {
+        id: 'movie_enrichment',
+        label: 'Enrichment',
+        icon: CpuChipIcon,
+        iconSolid: CpuChipIcon,
+        color: 'emerald',
+        group: 'content',
+        priority: 'high',
+        description: 'Enrichment dữ liệu phim từ TMDB/IMDB',
       },
       {
         id: 'visibility',
@@ -348,6 +359,8 @@ const AdminDashboardContent = () => {
         return <UserManagement />;
       case 'movies':
         return <MovieManagement />;
+      case 'movie_enrichment':
+        return <MovieEnrichmentPanel />;
       case 'scheduling':
         return <SchedulingManagement />;
       case 'analytics':

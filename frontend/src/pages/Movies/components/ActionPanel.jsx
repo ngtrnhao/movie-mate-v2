@@ -148,7 +148,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
           >
             <Heart
               fill={isLiked ? 'currentColor' : 'none'}
-              className={`size-3 transition-transform duration-200 group-hover:scale-110 sm:size-4 ${
+              className={`size-3 transition-transform duration-200 group-hover:scale-110 sm:size-5 ${
                 isTogglingFavorite ? 'animate-pulse' : ''
               }`}
             />
@@ -173,7 +173,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             }`}
           >
             <Plus
-              className={`transition-transform duration-200 group-hover:scale-110 sm:size-10
+              className={`transition-transform duration-200 group-hover:scale-110 sm:size-8
                 isTogglingWatchlist ? 'animate-pulse' : ''
               } ${isInList ? 'rotate-45' : ''}`}
             />
@@ -182,10 +182,18 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
                 ? isInList
                   ? 'Removing...'
                   : 'Adding...'
-                : t('details.addToWatchlist')}
+                : isInList
+                  ? 'Remove from Watchlist'
+                  : t('details.addToWatchlist')}
             </span>
             <span className="sm:hidden">
-              {isTogglingWatchlist ? (isInList ? 'Removing...' : 'Adding...') : 'Watchlist'}
+              {isTogglingWatchlist
+                ? isInList
+                  ? 'Removing...'
+                  : 'Adding...'
+                : isInList
+                  ? 'Remove'
+                  : 'Watchlist'}
             </span>
           </button>
 

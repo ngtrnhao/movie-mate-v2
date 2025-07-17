@@ -23,6 +23,7 @@ import {
 import { StarIcon as StarIconSolid, FilmIcon as FilmIconSolid } from '@heroicons/react/24/solid';
 import MovieDetailsModal from '../../../components/common/MovieDetailsModal';
 import MovieQualityModal from '../../../components/common/MovieQualityModal';
+import ProductionMetricsCard from './ProductionMetricsCard';
 import AdvancedAdminFilters from './AdvancedAdminFilters';
 import {
   getAdminMovies,
@@ -140,6 +141,8 @@ const MovieManagement = () => {
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [qualityModalOpen, setQualityModalOpen] = useState(false);
   const [selectedQualityMovie, setSelectedQualityMovie] = useState(null);
+  const [metricsModalOpen, setMetricsModalOpen] = useState(false);
+  const [selectedMetricsMovie, setSelectedMetricsMovie] = useState(null);
 
   // Enrichment states
   const [enrichmentProgress, setEnrichmentProgress] = useState({});
@@ -193,7 +196,7 @@ const MovieManagement = () => {
       setError(null);
       try {
         const params = {
-          pageSize: 30,
+          pageSize: 40,
           filters: { ...filters, sort_by: '-created_at' },
           search: debouncedSearchQuery,
         };
@@ -201,7 +204,12 @@ const MovieManagement = () => {
           params.filters.after_created_at = effectiveAfter;
         }
 
+        console.log('[PAGINATION DEBUG] Fetching movies with params:', params);
+        console.log('[PAGINATION DEBUG] Direction:', direction, 'Effective after:', effectiveAfter);
+
         const data = await getAdminMovies(params);
+        console.log('[PAGINATION DEBUG] API response:', data);
+
         setMovies(data.results || []);
 
         // Keyset logic
@@ -217,8 +225,10 @@ const MovieManagement = () => {
 
         // Store next_after_created_at from API response
         const nextAfterCreatedAt = data.next;
+        console.log('[PAGINATION DEBUG] Next after created at:', nextAfterCreatedAt);
         setHasNext(nextAfterCreatedAt);
       } catch (error) {
+        console.error('[PAGINATION DEBUG] Error:', error);
         setError('Không thể tải danh sách phim. Vui lòng thử lại.');
       } finally {
         setLoading(false);
@@ -257,7 +267,9 @@ const MovieManagement = () => {
 
   // Next page
   const handleNextPage = () => {
-    if (hasNext && typeof hasNext === 'string') {
+    if (hasNext && (typeof hasNext === 'string' || Array.isArray(hasNext))) {
+      // Store current position before moving to next
+      setAfterStack(prev => [...prev, currentAfter]);
       setCurrentAfter(hasNext);
       fetchMovies('next', hasNext);
     }
@@ -267,11 +279,10 @@ const MovieManagement = () => {
   const handlePrevPage = () => {
     if (afterStack.length > 0) {
       const prevStack = [...afterStack];
-      prevStack.pop();
+      const newCurrentAfter = prevStack.pop(); // Get the last item
       setAfterStack(prevStack);
-      const newCurrentAfter = prevStack[prevStack.length - 1] || null;
       setCurrentAfter(newCurrentAfter);
-      fetchMovies('prev');
+      fetchMovies('prev', newCurrentAfter);
     }
   };
 
@@ -604,6 +615,11 @@ const MovieManagement = () => {
     setSelectedMovie(null);
   }, []);
 
+  const handleViewMetrics = useCallback(movie => {
+    setSelectedMetricsMovie(movie);
+    setMetricsModalOpen(true);
+  }, []);
+
   // Status Badge Component with Fixed Tailwind Classes
   const getStatusBadge = (status, type = 'approval') => {
     const approvalStatusStyles = {
@@ -892,7 +908,7 @@ const MovieManagement = () => {
 
               {/* Quality & Priority Actions */}
               <div className="space-y-2">
-                {qualityMetrics?.quality_issues?.length > 0 ? (
+                {qualityMetrics?.quality_issues?.length > 0 && (
                   <button
                     onClick={() => handleQualityReview(movie)}
                     className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800 hover:bg-orange-100 transition-colors"
@@ -900,15 +916,16 @@ const MovieManagement = () => {
                     <ExclamationTriangleIcon className="mr-1 size-3" />
                     Khắc phục chất lượng ({qualityMetrics.quality_issues.length})
                   </button>
-                ) : (
-                  <button
-                    onClick={() => handleQualityReview(movie)}
-                    className="inline-flex w-full items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
-                  >
-                    <ChartBarIcon className="mr-1 size-3" />
-                    Đánh giá chất lượng
-                  </button>
                 )}
+
+                {/* Always show Quality Review button for testing */}
+                <button
+                  onClick={() => handleQualityReview(movie)}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+                >
+                  <ChartBarIcon className="mr-1 size-3" />
+                  Đánh giá chất lượng
+                </button>
 
                 {/* Movie Enrichment Button */}
                 <button
@@ -943,6 +960,13 @@ const MovieManagement = () => {
                       Bổ sung dữ liệu
                     </>
                   )}
+                </button>
+                <button
+                  onClick={() => handleViewMetrics(movie)}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-purple-300 bg-purple-50 px-3 py-2 text-xs font-medium text-purple-800 hover:bg-purple-100 transition-colors"
+                >
+                  <ChartBarIcon className="mr-1 size-3" />
+                  Xem Production Metrics
                 </button>
               </div>
 
@@ -1580,6 +1604,28 @@ const MovieManagement = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Production Metrics Modal */}
+      {metricsModalOpen && selectedMetricsMovie && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+            <button
+              onClick={() => setMetricsModalOpen(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+            <ProductionMetricsCard movie={selectedMetricsMovie} />
           </div>
         </div>
       )}

@@ -1,52 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-  Grid,
-  Alert,
-  CircularProgress,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Divider,
-  Switch,
-  FormControlLabel,
-  Tooltip,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material';
-import {
-  ExpandMore as ExpandMoreIcon,
-  Refresh as RefreshIcon,
-  Analytics as AnalyticsIcon,
-  AutoFix as AutoFixIcon,
-  CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon,
-  Info as InfoIcon,
-  PlayArrow as PlayArrowIcon,
-  Stop as StopIcon,
-  Settings as SettingsIcon,
-} from '@mui/icons-material';
-import {
   enrichMovie,
   batchEnrichMovies,
   getMovieEnrichmentStatus,
@@ -81,10 +34,10 @@ const MovieEnrichmentPanel = () => {
 
   // Focus areas options
   const focusAreaOptions = [
-    { value: 'basic', label: '📝 Basic Info (Titles, Overviews)' },
-    { value: 'visual', label: '🖼️ Visual Assets (Posters, Backdrops)' },
-    { value: 'metadata', label: '🎭 Metadata (Cast, Genres, Trailers)' },
-    { value: 'ratings', label: '⭐ Ratings (TMDB, IMDB)' },
+    { value: 'basic', label: '📝 Basic Info (Titles, Overviews)', color: 'blue' },
+    { value: 'visual', label: '🖼️ Visual Assets (Posters, Backdrops)', color: 'purple' },
+    { value: 'metadata', label: '🎭 Metadata (Cast, Genres, Trailers)', color: 'green' },
+    { value: 'ratings', label: '⭐ Ratings (TMDB, IMDB)', color: 'yellow' },
   ];
 
   // Clear messages after delay
@@ -240,420 +193,588 @@ const MovieEnrichmentPanel = () => {
       enrichmentResults.enrichment_result || enrichmentResults.batch_result || enrichmentResults;
 
     return (
-      <Card sx={{ mt: 2 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            {isSuccess ? '✅ Enrichment Results' : '❌ Enrichment Failed'}
-          </Typography>
+      <div className="mt-6 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            {isSuccess ? (
+              <>
+                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-2">
+                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                Enrichment Results
+              </>
+            ) : (
+              <>
+                <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center mr-2">
+                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                Enrichment Failed
+              </>
+            )}
+          </h3>
+        </div>
 
+        <div className="p-6">
           {/* Single Movie Results */}
           {enrichmentResults.enrichment_result && (
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Movie: {enrichmentResults.movie_title} (ID: {enrichmentResults.movie_id})
-              </Typography>
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600">
+                Movie: <span className="font-medium">{enrichmentResults.movie_title}</span> (ID:{' '}
+                {enrichmentResults.movie_id})
+              </div>
 
               {result.quality_before && result.quality_after && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2">Quality Improvement:</Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Chip
-                        label={`Before: ${result.quality_before.quality_score || 0}/10`}
-                        color="warning"
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Chip
-                        label={`After: ${result.quality_after.quality_score || 0}/10`}
-                        color="success"
-                        size="small"
-                      />
-                    </Grid>
-                  </Grid>
-                </Box>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Quality Improvement:</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                        Before: {result.quality_before.quality_score || 0}/10
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        After: {result.quality_after.quality_score || 0}/10
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {result.improvements && result.improvements.length > 0 && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2">Improvements Made:</Typography>
-                  {result.improvements.map((improvement, index) => (
-                    <Chip
-                      key={index}
-                      label={improvement}
-                      color="success"
-                      size="small"
-                      sx={{ mr: 1, mb: 1 }}
-                    />
-                  ))}
-                </Box>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Improvements Made:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {result.improvements.map((improvement, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                      >
+                        {improvement}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
 
-              <Typography variant="body2" color="text.secondary">
+              <div className="text-sm text-gray-500">
                 Processing time: {result.processing_time || 0}s
-              </Typography>
-            </Box>
+              </div>
+            </div>
           )}
 
           {/* Batch Results */}
           {enrichmentResults.batch_result && (
-            <Box>
-              <Grid container spacing={2}>
-                <Grid item xs={3}>
-                  <Typography variant="h4" color="primary">
-                    {result.total_movies || 0}
-                  </Typography>
-                  <Typography variant="body2">Total Movies</Typography>
-                </Grid>
-                <Grid item xs={3}>
-                  <Typography variant="h4" color="success.main">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{result.total_movies || 0}</div>
+                  <div className="text-sm text-gray-600">Total Movies</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
                     {result.processed_successfully || 0}
-                  </Typography>
-                  <Typography variant="body2">Successful</Typography>
-                </Grid>
-                <Grid item xs={3}>
-                  <Typography variant="h4" color="error.main">
-                    {result.errors || 0}
-                  </Typography>
-                  <Typography variant="body2">Errors</Typography>
-                </Grid>
-                <Grid item xs={3}>
-                  <Typography variant="h4" color="info.main">
+                  </div>
+                  <div className="text-sm text-gray-600">Successful</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">{result.errors || 0}</div>
+                  <div className="text-sm text-gray-600">Errors</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-indigo-600">
                     {result.success_rate || 0}%
-                  </Typography>
-                  <Typography variant="body2">Success Rate</Typography>
-                </Grid>
-              </Grid>
+                  </div>
+                  <div className="text-sm text-gray-600">Success Rate</div>
+                </div>
+              </div>
 
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              <div className="text-sm text-gray-500">
                 Processing time: {result.processing_time || 0}s
-              </Typography>
-            </Box>
+              </div>
+            </div>
           )}
 
           {/* Quality-based Results */}
           {enrichmentResults.processed !== undefined && (
-            <Box>
-              <Grid container spacing={2}>
-                <Grid item xs={4}>
-                  <Typography variant="h4" color="primary">
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
                     {enrichmentResults.processed || 0}
-                  </Typography>
-                  <Typography variant="body2">Movies Processed</Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="h4" color="success.main">
+                  </div>
+                  <div className="text-sm text-gray-600">Movies Processed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
                     {enrichmentResults.successful || 0}
-                  </Typography>
-                  <Typography variant="body2">Successfully Enriched</Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="h4" color="error.main">
+                  </div>
+                  <div className="text-sm text-gray-600">Successfully Enriched</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">
                     {enrichmentResults.failed || 0}
-                  </Typography>
-                  <Typography variant="body2">Failed</Typography>
-                </Grid>
-              </Grid>
-            </Box>
+                  </div>
+                  <div className="text-sm text-gray-600">Failed</div>
+                </div>
+              </div>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   };
 
   // === RENDER ENRICHMENT STATUS DIALOG ===
   const renderStatusDialog = () => (
-    <Dialog
-      open={statusDialogOpen}
-      onClose={() => setStatusDialogOpen(false)}
-      maxWidth="md"
-      fullWidth
-    >
-      <DialogTitle>
-        📊 Movie Enrichment Status
-        {enrichmentStatus?.movie_id && ` - ID: ${enrichmentStatus.movie_id}`}
-      </DialogTitle>
-      <DialogContent>
-        {enrichmentStatus && (
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              {enrichmentStatus.movie_title}
-            </Typography>
+    <>
+      {statusDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                📊 Movie Enrichment Status
+                {enrichmentStatus?.movie_id && ` - ID: ${enrichmentStatus.movie_id}`}
+              </h2>
+            </div>
 
-            {/* Data Completeness */}
-            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-              📊 Data Completeness
-            </Typography>
+            <div className="p-6">
+              {enrichmentStatus && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    {enrichmentStatus.movie_title}
+                  </h3>
 
-            {Object.entries(enrichmentStatus.enrichment_status?.data_completeness || {}).map(
-              ([category, data]) => (
-                <Accordion key={category}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography variant="subtitle2">
-                      {category.replace('_', ' ').toUpperCase()}
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Grid container spacing={1}>
-                      {Object.entries(data).map(([field, value]) => (
-                        <Grid item xs={6} key={field}>
-                          <Box display="flex" alignItems="center">
-                            {value ? (
-                              <CheckCircleIcon color="success" />
-                            ) : (
-                              <ErrorIcon color="error" />
-                            )}
-                            <Typography variant="body2" sx={{ ml: 1 }}>
-                              {field.replace('_', ' ')}
-                            </Typography>
-                          </Box>
-                        </Grid>
+                  {/* Data Completeness */}
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">📊 Data Completeness</h4>
+                    <div className="space-y-3">
+                      {Object.entries(
+                        enrichmentStatus.enrichment_status?.data_completeness || {}
+                      ).map(([category, data]) => (
+                        <div key={category} className="bg-gray-50 rounded-lg p-4">
+                          <h5 className="text-sm font-medium text-gray-900 mb-2">
+                            {category.replace('_', ' ').toUpperCase()}
+                          </h5>
+                          <div className="grid grid-cols-2 gap-2">
+                            {Object.entries(data).map(([field, value]) => (
+                              <div key={field} className="flex items-center">
+                                {value ? (
+                                  <svg
+                                    className="w-4 h-4 text-green-500 mr-2"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    className="w-4 h-4 text-red-500 mr-2"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                )}
+                                <span className="text-sm text-gray-700">
+                                  {field.replace('_', ' ')}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       ))}
-                    </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              )
-            )}
+                    </div>
+                  </div>
 
-            {/* Enrichment Opportunities */}
-            {enrichmentStatus.enrichment_status?.enrichment_opportunities?.length > 0 && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
-                  💡 Enrichment Opportunities
-                </Typography>
-                {enrichmentStatus.enrichment_status.enrichment_opportunities.map(
-                  (opportunity, index) => (
-                    <Chip
-                      key={index}
-                      label={opportunity}
-                      color="info"
-                      size="small"
-                      sx={{ mr: 1, mb: 1 }}
-                    />
-                  )
-                )}
-              </Box>
-            )}
+                  {/* Enrichment Opportunities */}
+                  {enrichmentStatus.enrichment_status?.enrichment_opportunities?.length > 0 && (
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <h4 className="text-md font-medium text-gray-900 mb-3">
+                        💡 Enrichment Opportunities
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {enrichmentStatus.enrichment_status.enrichment_opportunities.map(
+                          (opportunity, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {opportunity}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-            {/* Quality Metrics */}
-            {enrichmentStatus.enrichment_status?.quality_metrics && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
-                  📈 Quality Metrics
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2">
-                      Quality Score:{' '}
-                      {enrichmentStatus.enrichment_status.quality_metrics.quality_score || 'N/A'}/10
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2">
-                      Completeness:{' '}
-                      {enrichmentStatus.enrichment_status.quality_metrics.content_completeness || 0}
-                      %
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Box>
-            )}
-          </Box>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setStatusDialogOpen(false)}>Close</Button>
-        <Button onClick={handleEnrichSingleMovie} variant="contained" disabled={loading}>
-          Enrich Now
-        </Button>
-      </DialogActions>
-    </Dialog>
+                  {/* Quality Metrics */}
+                  {enrichmentStatus.enrichment_status?.quality_metrics && (
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <h4 className="text-md font-medium text-gray-900 mb-3">📈 Quality Metrics</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-sm">
+                          <span className="font-medium">Quality Score:</span>{' '}
+                          {enrichmentStatus.enrichment_status.quality_metrics.quality_score ||
+                            'N/A'}
+                          /10
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium">Completeness:</span>{' '}
+                          {enrichmentStatus.enrichment_status.quality_metrics
+                            .content_completeness || 0}
+                          %
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                onClick={() => setStatusDialogOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleEnrichSingleMovie}
+                disabled={loading}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Enrich Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        🎬 Movie Enrichment Panel
-      </Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom>
-        Comprehensive movie data enrichment using unified TMDB/IMDB services
-      </Typography>
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">🎬 Movie Enrichment Panel</h1>
+        <p className="text-gray-600">
+          Comprehensive movie data enrichment using unified TMDB/IMDB services
+        </p>
+      </div>
 
       {/* Success/Error Messages */}
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-          {success}
-        </Alert>
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">{success}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setSuccess(null)}
+                className="inline-flex text-green-400 hover:text-green-600"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
+
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setError(null)}
+                className="inline-flex text-red-400 hover:text-red-600"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Configuration Panel */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            ⚙️ Enrichment Configuration
-          </Typography>
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">⚙️ Enrichment Configuration</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Enrichment Type
+              </label>
+              <select
+                value={enrichmentType}
+                onChange={e => setEnrichmentType(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="comprehensive">🔥 Comprehensive (All Data)</option>
+                <option value="quality_based">🎯 Quality-Based (Issues Only)</option>
+              </select>
+            </div>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Enrichment Type</InputLabel>
-                <Select
-                  value={enrichmentType}
-                  onChange={e => setEnrichmentType(e.target.value)}
-                  label="Enrichment Type"
-                >
-                  <MenuItem value="comprehensive">🔥 Comprehensive (All Data)</MenuItem>
-                  <MenuItem value="quality_based">🎯 Quality-Based (Issues Only)</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Focus Areas</label>
+              <div className="space-y-2">
+                {focusAreaOptions.map(option => (
+                  <label key={option.value} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedFocusAreas.includes(option.value)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedFocusAreas([...selectedFocusAreas, option.value]);
+                        } else {
+                          setSelectedFocusAreas(selectedFocusAreas.filter(f => f !== option.value));
+                        }
+                      }}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
 
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Focus Areas</InputLabel>
-                <Select
-                  multiple
-                  value={selectedFocusAreas}
-                  onChange={e => setSelectedFocusAreas(e.target.value)}
-                  label="Focus Areas"
-                  renderValue={selected => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.map(value => (
-                        <Chip
-                          key={value}
-                          label={focusAreaOptions.find(opt => opt.value === value)?.label || value}
-                          size="small"
-                        />
-                      ))}
-                    </Box>
-                  )}
-                >
-                  {focusAreaOptions.map(option => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={forceRefresh}
-                    onChange={e => setForceRefresh(e.target.checked)}
-                  />
-                }
-                label="🔄 Force Refresh Existing Data"
+          <div className="mt-6">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={forceRefresh}
+                onChange={e => setForceRefresh(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+              <span className="ml-2 text-sm text-gray-700">🔄 Force Refresh Existing Data</span>
+            </label>
+          </div>
+        </div>
+      </div>
 
       {/* Individual Movie Enrichment */}
-      <Accordion defaultExpanded>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="h6">🎬 Individual Movie Enrichment</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="Movie ID"
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
+        <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">🎬 Individual Movie Enrichment</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="md:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Movie ID</label>
+              <input
                 type="number"
                 value={selectedMovieId}
                 onChange={e => setSelectedMovieId(e.target.value)}
                 placeholder="Enter movie ID"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
-            </Grid>
-            <Grid item xs={12} md={8}>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  onClick={handleEnrichSingleMovie}
-                  disabled={loading || !selectedMovieId}
-                  startIcon={loading ? <CircularProgress size={20} /> : <AutoFixIcon />}
-                >
-                  {loading ? 'Enriching...' : 'Enrich Movie'}
-                </Button>
+            </div>
+            <div className="md:col-span-3 flex flex-wrap gap-3">
+              <button
+                onClick={handleEnrichSingleMovie}
+                disabled={loading || !selectedMovieId}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Enriching...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Enrich Movie
+                  </>
+                )}
+              </button>
 
-                <Button
-                  variant="outlined"
-                  onClick={handleGetEnrichmentStatus}
-                  disabled={loading || !selectedMovieId}
-                  startIcon={<AnalyticsIcon />}
-                >
-                  Check Status
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
+              <button
+                onClick={handleGetEnrichmentStatus}
+                disabled={loading || !selectedMovieId}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                </svg>
+                Check Status
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Batch Movie Enrichment */}
-      <Accordion>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="h6">🚀 Batch Movie Enrichment</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Movie IDs (comma-separated)"
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
+        <div className="px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">🚀 Batch Movie Enrichment</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Movie IDs (comma-separated)
+              </label>
+              <textarea
                 value={batchMovieIds}
                 onChange={e => setBatchMovieIds(e.target.value)}
                 placeholder="1, 2, 3, 4, 5..."
-                multiline
-                rows={2}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Max Concurrent"
-                type="number"
-                value={maxConcurrent}
-                onChange={e => setMaxConcurrent(parseInt(e.target.value) || 5)}
-                inputProps={{ min: 1, max: 10 }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Button
-                variant="contained"
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Max Concurrent
+                </label>
+                <input
+                  type="number"
+                  value={maxConcurrent}
+                  onChange={e => setMaxConcurrent(parseInt(e.target.value) || 5)}
+                  min="1"
+                  max="10"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <button
                 onClick={handleBatchEnrichMovies}
                 disabled={batchLoading || !batchMovieIds.trim()}
-                startIcon={batchLoading ? <CircularProgress size={20} /> : <PlayArrowIcon />}
-                fullWidth
+                className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {batchLoading ? 'Processing Batch...' : 'Start Batch Enrichment'}
-              </Button>
-            </Grid>
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
+                {batchLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Processing Batch...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Start Batch Enrichment
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Quality-Based Enrichment */}
-      <Accordion>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="h6">🎯 Quality-Based Enrichment</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="Max Quality Score"
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
+        <div className="px-6 py-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">🎯 Quality-Based Enrichment</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Max Quality Score
+              </label>
+              <input
                 type="number"
                 value={qualityOptions.qualityScoreMax}
                 onChange={e =>
@@ -662,13 +783,15 @@ const MovieEnrichmentPanel = () => {
                     qualityScoreMax: parseFloat(e.target.value) || 7.0,
                   }))
                 }
-                inputProps={{ min: 0, max: 10, step: 0.1 }}
+                min="0"
+                max="10"
+                step="0.1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="Limit"
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Limit</label>
+              <input
                 type="number"
                 value={qualityOptions.limit}
                 onChange={e =>
@@ -677,31 +800,64 @@ const MovieEnrichmentPanel = () => {
                     limit: parseInt(e.target.value) || 50,
                   }))
                 }
-                inputProps={{ min: 1, max: 100 }}
+                min="1"
+                max="100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Button
-                variant="contained"
+            </div>
+            <div className="flex items-end">
+              <button
                 onClick={handleEnrichQualityIssues}
                 disabled={qualityLoading}
-                startIcon={qualityLoading ? <CircularProgress size={20} /> : <AutoFixIcon />}
-                color="warning"
-                fullWidth
+                className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {qualityLoading ? 'Processing...' : 'Enrich Quality Issues'}
-              </Button>
-            </Grid>
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
+                {qualityLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Enrich Quality Issues
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Results Display */}
       {renderEnrichmentResults()}
 
       {/* Status Dialog */}
       {renderStatusDialog()}
-    </Box>
+    </div>
   );
 };
 

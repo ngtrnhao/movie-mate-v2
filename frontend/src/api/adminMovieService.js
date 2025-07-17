@@ -163,16 +163,29 @@ export const getAdminMovies = async (params = {}) => {
       });
     }
 
+    console.log('Clean filters:', cleanFilters);
+
     const queryParams = new URLSearchParams({
-      page_size: params.pageSize || 30,
+      page_size: params.pageSize || 40,
       ...cleanFilters,
     });
+
+    // Handle array values for after_created_at (Elasticsearch keyset pagination)
+    if (cleanFilters.after_created_at && Array.isArray(cleanFilters.after_created_at)) {
+      // Remove the array from queryParams and add each value separately
+      queryParams.delete('after_created_at');
+      cleanFilters.after_created_at.forEach(value => {
+        queryParams.append('after_created_at', value.toString());
+      });
+      console.log('After handling array after_created_at:', queryParams.toString());
+    }
 
     if (params.search?.trim()) {
       queryParams.append('search', params.search.trim());
     }
 
     const requestKey = `/api/admin/movies/?${queryParams}`;
+    console.log('Request URL:', requestKey);
 
     // Check if there's already a pending request with the same parameters
     if (pendingRequests.has(requestKey)) {
@@ -183,6 +196,7 @@ export const getAdminMovies = async (params = {}) => {
     const requestPromise = (async () => {
       try {
         const response = await axiosInstance.get(requestKey);
+        console.log('Raw response:', response.data);
 
         // Handle both paginated and non-paginated responses
         if (response.data.status === 'success') {
@@ -207,6 +221,7 @@ export const getAdminMovies = async (params = {}) => {
 
     return await requestPromise;
   } catch (error) {
+    console.error('Error in getAdminMovies:', error);
     handleError(error, 'fetch admin movies');
   }
 };

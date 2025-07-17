@@ -13,7 +13,6 @@ import { getDisplayTitle, getDisplayOverview } from '../../utils/titleUtils';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 import useUserTracking from '../../hooks/useUserTracking';
 
-// Import existing components
 import HeroSection from './components/HeroSection';
 import MainContent from './components/MainContent';
 import ActionPanel from './components/ActionPanel';
@@ -123,7 +122,7 @@ const MovieDetailsPage = () => {
         }
       } catch (err) {
         console.error('Error fetching movie details:', err);
-        setError(err.error || 'Failed to fetch movie details');
+        setError(err.error || 'Movies Not Found!');
       } finally {
         setLoading(false);
       }

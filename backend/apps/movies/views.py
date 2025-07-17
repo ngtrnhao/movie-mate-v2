@@ -17,7 +17,7 @@ from django.core.paginator import Paginator
 from django.db import models
 from django.contrib.auth import get_user_model
 User = get_user_model()
-from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer, ReviewReport,ModerationConfig,ModerationFeedback, MovieQualityMetrics, ProductionMetrics
+from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, MovieTrailer, ReviewReport,ModerationConfig,ModerationFeedback, MovieQualityMetrics, ProductionMetrics, MovieAdminControl, MovieScheduling
 from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer, ReviewReportSerializer, ModerationQueueReviewSerializer, AdminMovieListSerializer, AdminMovieSerializer
 import logging
 import hashlib
@@ -69,7 +69,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
     def get_optimized_queryset(self):
         """Get optimized queryset with proper prefetching for large datasets"""
         return Movie.objects.select_related(
-            'moviemetadata'
+            'moviemetadata','admin_control','quality_metrics'
         ).prefetch_related(
             Prefetch('ratings', to_attr='prefetched_ratings'),
             Prefetch('genres', to_attr='prefetched_genres'),
@@ -97,28 +97,38 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         now = timezone.now()
 
         base_filter = Q(
+            admin_control__isnull=False,
+            quality_metrics__isnull=False,
             # ✅ BASIC REQUIREMENTS
-            is_published=True,
+            admin_control__is_published=True,
             poster_url__isnull=False,
             poster_url__gt='',
-
             # ✅ APPROVAL STATUS
-            approval_status='APPROVED',
-
+            admin_control__approval_status='APPROVED',
             # ✅ QUALITY GATES
-            minimum_quality_met=True,
-
+            quality_metrics__minimum_quality_met=True,
             # ✅ VISIBILITY STATUS
-            visibility_status='PUBLISHED',
-        ) & (
-            # ✅ PUBLISH DATE (optional)
-            Q(publish_date__isnull=True) | Q(publish_date__lte=now)
-        ) & (
-            # ✅ UNPUBLISH DATE (optional)
-            Q(unpublish_date__isnull=True) | Q(unpublish_date__gt=now)
+            admin_control__visibility_status='PUBLISHED',
         )
 
-        return self.get_optimized_queryset().filter(base_filter)
+        # 🚀 Add scheduling filters using MovieScheduling
+        scheduling_filter = Q()
+
+        # Check publish date from scheduling
+        scheduling_filter &= (
+            Q(scheduling__isnull=True) |
+            Q(scheduling__publish_date__isnull=True) |
+            Q(scheduling__publish_date__lte=now)
+        )
+
+        # Check unpublish date from scheduling
+        scheduling_filter &= (
+            Q(scheduling__isnull=True) |
+            Q(scheduling__unpublish_date__isnull=True) |
+            Q(scheduling__unpublish_date__gt=now)
+        )
+
+        return self.get_optimized_queryset().filter(base_filter & scheduling_filter)
 
     def get_admin_featured_movies(self):
         """
@@ -127,14 +137,32 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         now = timezone.now()
 
-        return self.get_production_ready_queryset().filter(
-            admin_featured=True,
-        ).filter(
-            # ✅ FEATURED SCHEDULING
-            Q(featured_from__isnull=True) | Q(featured_from__lte=now)
-        ).filter(
-            Q(featured_until__isnull=True) | Q(featured_until__gt=now)
-        ).order_by('-admin_priority', '-combined_rating_score', '-release_date')
+        base_queryset = self.get_production_ready_queryset().filter(
+            admin_control__admin_featured=True,
+        )
+
+        # 🚀 Add featured scheduling filters using MovieScheduling
+        featured_filter = Q()
+
+        # Check featured_from date from scheduling
+        featured_filter &= (
+            Q(scheduling__isnull=True) |
+            Q(scheduling__featured_from__isnull=True) |
+            Q(scheduling__featured_from__lte=now)
+        )
+
+        # Check featured_until date from scheduling
+        featured_filter &= (
+            Q(scheduling__isnull=True) |
+            Q(scheduling__featured_until__isnull=True) |
+            Q(scheduling__featured_until__gt=now)
+        )
+
+        return base_queryset.filter(featured_filter).order_by(
+            '-admin_control__admin_priority',
+            '-combined_rating_score',
+            '-release_date'
+        )
 
     def get_movie_score(self, movie):
         """Calculate movie score based on data completeness"""
@@ -175,7 +203,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         return score
 
     def get_queryset(self):
-        return self.get_optimized_queryset()
+        return self._get_optimized_user_queryset()
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -222,20 +250,22 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
             # 🔥 ULTRA SIMPLE: Get top movies with trailers
             featured_movies = Movie.objects.select_related(
-                'moviemetadata'
+                'moviemetadata','admin_control','quality_metrics'
             ).filter(
-                is_published=True,
+                admin_control__isnull=False,
+                quality_metrics__isnull=False,
+                admin_control__is_published=True,
                 poster_url__isnull=False,
-                approval_status='APPROVED',
-                minimum_quality_met=True,
-                visibility_status='PUBLISHED',
+                admin_control__approval_status='APPROVED',
+                quality_metrics__minimum_quality_met=True,
+                admin_control__visibility_status='PUBLISHED',
                 trailers__isnull=False,  # Ensure movie has trailers
                 trailers__type='TRAILER'  # Specifically trailer type
-            ).distinct().order_by(  # Add distinct to prevent duplicates due to trailer join
-                '-admin_featured',  # Admin featured first
-                '-admin_priority',  # Then by priority
-                '-combined_rating_score',  # Then by rating
-                '-release_date'  # Then by date
+            ).distinct().order_by(
+                '-admin_control__admin_featured',
+                '-admin_control__admin_priority',
+                '-combined_rating_score',
+                '-release_date'
             )[:3]
 
             if not featured_movies:
@@ -693,6 +723,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=True, methods=['get'])
     def details_complete(self, request, pk=None):
         """
@@ -709,10 +740,8 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 return Response(cached_data)
 
             # Get movie with all related data in single query - simplified for performance
-            movie = Movie.objects.select_related(
-                'moviemetadata'
-            ).prefetch_related(
-                Prefetch('cast', queryset=MovieCast.objects.select_related().order_by('order', 'role')[:10],
+            movie = self._get_optimized_user_queryset().prefetch_related(
+                Prefetch('cast', queryset=MovieCast.objects.select_related().order_by('order','role')[:10],
                         to_attr='prefetched_cast'),
                 Prefetch('genres', to_attr='prefetched_genres'),
                 Prefetch('trailers', to_attr='prefetched_trailers'),
@@ -743,9 +772,8 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                             movie_year = movie.release_date.year
 
                         # Build query for similar movies with better relevance
-                        similar_query = Movie.objects.filter(
-                            genres=primary_genre_id,
-                            poster_url__isnull=False,
+                        similar_query = self._get_optimized_user_queryset().filter(
+                            genres=primary_genre_id
                         ).exclude(id=pk)
 
                         # Prefer movies with ratings and from similar time period
@@ -1002,18 +1030,20 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         🚀 Get highly optimized queryset for user search (production-ready movies only)
         """
         return Movie.objects.select_related(
-            'moviemetadata'
+            'moviemetadata', 'admin_control', 'quality_metrics'
         ).prefetch_related(
             Prefetch('genres', to_attr='prefetched_genres'),
             Prefetch('ratings', to_attr='prefetched_ratings')
         ).filter(
+            admin_control__isnull=False,
+            quality_metrics__isnull=False,
             # ✅ PRODUCTION VISIBILITY REQUIREMENTS
-            is_published=True,
+            admin_control__is_published=True,
             poster_url__isnull=False,
             poster_url__gt='',
-            approval_status='APPROVED',
-            minimum_quality_met=True,
-            visibility_status='PUBLISHED',
+            admin_control__approval_status='APPROVED',
+            quality_metrics__minimum_quality_met=True,
+            admin_control__visibility_status='PUBLISHED',
         ).exclude(
             title__exact=''
         )
@@ -3995,11 +4025,14 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # fallback ORM query (for retrieve/detail, not for list)
-        qs = Movie.objects.select_related('admin_control').only(
+        qs = Movie.objects.select_related('admin_control', 'quality_metrics').only(
             'id', 'title', 'title_en', 'title_vi', 'poster_url', 'release_date',
             'created_at', 'updated_at', 'is_popular', 'is_top_rated', 'is_upcoming',
-            'minimum_quality_met', 'combined_rating_score', 'quality_score',
-            'content_completeness',
+            'combined_rating_score',
+            # Quality metrics fields
+            'quality_metrics__minimum_quality_met', 'quality_metrics__quality_score',
+            'quality_metrics__content_completeness',
+            # Admin control fields
             'admin_control__approval_status', 'admin_control__admin_featured',
             'admin_control__visibility_status', 'admin_control__is_published',
             'admin_control__admin_priority', 'admin_control__created_at',
@@ -4113,11 +4146,16 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def dashboard_overview(self, request):
         """Get admin dashboard overview - lấy thống kê từ admin_control"""
-        from apps.movies.models import MovieAdminControl
         total_movies = Movie.objects.count()
         published_count = MovieAdminControl.objects.filter(is_published=True).count()
         featured_count = MovieAdminControl.objects.filter(admin_featured=True).count()
         pending_count = MovieAdminControl.objects.filter(approval_status='PENDING').count()
+
+        # Get quality issues count from MovieQualityMetrics
+        quality_issues_count = MovieQualityMetrics.objects.filter(
+            minimum_quality_met=False
+        ).count()
+
         recent_controls = MovieAdminControl.objects.select_related('movie').order_by('-created_at')[:5]
         recent_data = [
             {
@@ -4136,7 +4174,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 'published_movies': published_count,
                 'pending_approval': pending_count,
                 'admin_featured': featured_count,
-                'quality_issues': 0,
+                'quality_issues': quality_issues_count,
                 'recent_movies': recent_data
             }
         })
@@ -4148,7 +4186,8 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         admin_control.admin_featured = not admin_control.admin_featured
         if admin_control.admin_featured and admin_control.admin_priority == 0:
             admin_control.admin_priority = 1
-        admin_control.save(update_fields=['admin_featured', 'admin_priority'])
+        admin_control.last_modified_by = request.user
+        admin_control.save(update_fields=['admin_featured', 'admin_priority', 'last_modified_by'])
         return Response({
             'status': 'success',
             'message': f"Movie {'featured' if admin_control.admin_featured else 'unfeatured'}",
@@ -4165,10 +4204,11 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             priority = int(priority)
         except Exception:
             return Response({'status': 'error', 'message': 'Priority must be a non-negative integer'}, status=400)
-        if priority < 0:
-            return Response({'status': 'error', 'message': 'Priority must be a non-negative integer'}, status=400)
+        if priority < 0 or priority > 10:
+            return Response({'status': 'error', 'message': 'Priority must be between 0 and 10'}, status=400)
         admin_control.admin_priority = priority
-        admin_control.save(update_fields=['admin_priority'])
+        admin_control.last_modified_by = request.user
+        admin_control.save(update_fields=['admin_priority', 'last_modified_by'])
         return Response({'status': 'success', 'message': 'Priority updated successfully', 'admin_priority': admin_control.admin_priority})
 
     @action(detail=True, methods=['post'])
@@ -4179,27 +4219,44 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         is_published = request.data.get('is_published')
         publish_date = request.data.get('publish_date')
         unpublish_date = request.data.get('unpublish_date')
-        updated_fields = []
-        if visibility_status in ['PUBLISHED', 'DRAFT', 'SCHEDULED', 'ARCHIVED', 'RESTRICTED']:
+        updated_fields = ['last_modified_by']
+
+        if visibility_status in ['PUBLISHED', 'DRAFT', 'SCHEDULED', 'ARCHIVED', 'RESTRICTED', 'HIDDEN']:
             admin_control.visibility_status = visibility_status
             updated_fields.append('visibility_status')
+
         if isinstance(is_published, bool):
             admin_control.is_published = is_published
             updated_fields.append('is_published')
-        if publish_date:
-            from django.utils.dateparse import parse_datetime
-            parsed_date = parse_datetime(publish_date)
-            if parsed_date:
-                admin_control.publish_date = parsed_date
-                updated_fields.append('publish_date')
-        if unpublish_date:
-            from django.utils.dateparse import parse_datetime
-            parsed_date = parse_datetime(unpublish_date)
-            if parsed_date:
-                admin_control.unpublish_date = parsed_date
-                updated_fields.append('unpublish_date')
-        if updated_fields:
-            admin_control.save(update_fields=updated_fields)
+
+        # 🚀 Handle scheduling dates using MovieScheduling
+        scheduling = None
+        try:
+            scheduling = movie.scheduling
+        except MovieScheduling.DoesNotExist:
+            if publish_date or unpublish_date:
+                scheduling = MovieScheduling.objects.create(movie=movie)
+
+        if scheduling and (publish_date or unpublish_date):
+            scheduling_updated_fields = []
+            if publish_date:
+                from django.utils.dateparse import parse_datetime
+                parsed_date = parse_datetime(publish_date)
+                if parsed_date:
+                    scheduling.publish_date = parsed_date
+                    scheduling_updated_fields.append('publish_date')
+            if unpublish_date:
+                from django.utils.dateparse import parse_datetime
+                parsed_date = parse_datetime(unpublish_date)
+                if parsed_date:
+                    scheduling.unpublish_date = parsed_date
+                    scheduling_updated_fields.append('unpublish_date')
+            if scheduling_updated_fields:
+                scheduling.save(update_fields=scheduling_updated_fields)
+
+        admin_control.last_modified_by = request.user
+        admin_control.save(update_fields=updated_fields)
+
         return Response({
             'status': 'success',
             'message': 'Visibility settings updated',
@@ -4211,13 +4268,30 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
     def approve_movie(self, request, pk=None):
         movie = self.get_object()
         admin_control = self.get_object_admin_control(movie)
+
+        # Check quality metrics
+        quality_met = True
+        try:
+            quality_metrics = movie.quality_metrics
+            quality_met = quality_metrics.minimum_quality_met
+        except MovieQualityMetrics.DoesNotExist:
+            quality_met = False
+
         admin_control.approval_status = 'APPROVED'
         admin_control.approved_by = request.user
         admin_control.approved_at = timezone.now()
-        if admin_control.minimum_quality_met and admin_control.visibility_status == 'DRAFT':
+        admin_control.last_modified_by = request.user
+
+        # Auto-publish if quality requirements are met
+        if quality_met and admin_control.visibility_status == 'DRAFT':
             admin_control.visibility_status = 'PUBLISHED'
             admin_control.is_published = True
-        admin_control.save(update_fields=['approval_status', 'approved_by', 'approved_at', 'visibility_status', 'is_published'])
+
+        admin_control.save(update_fields=[
+            'approval_status', 'approved_by', 'approved_at',
+            'visibility_status', 'is_published', 'last_modified_by'
+        ])
+
         return Response({
             'status': 'success',
             'message': 'Movie approved successfully',
@@ -4230,16 +4304,27 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         movie = self.get_object()
         admin_control = self.get_object_admin_control(movie)
         reason = request.data.get('reason', '')
+
         admin_control.approval_status = 'REJECTED'
         admin_control.approved_by = request.user
         admin_control.approved_at = timezone.now()
+        admin_control.last_modified_by = request.user
         admin_control.is_published = False
         admin_control.visibility_status = 'DRAFT'
+        admin_control.rejection_reason = reason
+
+        # Store additional rejection info in manual_override
         if not admin_control.manual_override:
             admin_control.manual_override = {}
         admin_control.manual_override['rejection_reason'] = reason
         admin_control.manual_override['rejected_at'] = timezone.now().isoformat()
-        admin_control.save(update_fields=['approval_status', 'approved_by', 'approved_at', 'is_published', 'visibility_status', 'manual_override'])
+        admin_control.manual_override['rejected_by'] = request.user.username
+
+        admin_control.save(update_fields=[
+            'approval_status', 'approved_by', 'approved_at', 'last_modified_by',
+            'is_published', 'visibility_status', 'rejection_reason', 'manual_override'
+        ])
+
         return Response({
             'status': 'success',
             'message': 'Movie rejected',
@@ -4253,30 +4338,60 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         action = request.data.get('action')
         if not movie_ids or not action:
             return Response({'status': 'error', 'message': 'movie_ids and action are required'}, status=400)
-        from apps.movies.models import MovieAdminControl
+
         controls = MovieAdminControl.objects.filter(movie_id__in=movie_ids)
         now = timezone.now()
         updated = 0
+
         if action == 'approve':
-            updated = controls.update(approval_status='APPROVED', approved_at=now)
+            updated = controls.update(
+                approval_status='APPROVED',
+                approved_at=now,
+                approved_by=request.user,
+                last_modified_by=request.user
+            )
             message = f'Approved {updated} movies'
         elif action == 'reject':
-            updated = controls.update(approval_status='REJECTED', approved_at=now, is_published=False)
+            updated = controls.update(
+                approval_status='REJECTED',
+                approved_at=now,
+                approved_by=request.user,
+                last_modified_by=request.user,
+                is_published=False,
+                visibility_status='DRAFT'
+            )
             message = f'Rejected {updated} movies'
         elif action == 'feature':
-            updated = controls.update(admin_featured=True, admin_priority=1)
+            updated = controls.update(
+                admin_featured=True,
+                admin_priority=1,
+                last_modified_by=request.user
+            )
             message = f'Featured {updated} movies'
         elif action == 'unfeature':
-            updated = controls.update(admin_featured=False, admin_priority=0)
+            updated = controls.update(
+                admin_featured=False,
+                admin_priority=0,
+                last_modified_by=request.user
+            )
             message = f'Unfeatured {updated} movies'
         elif action == 'publish':
-            updated = controls.update(is_published=True, visibility_status='PUBLISHED')
+            updated = controls.update(
+                is_published=True,
+                visibility_status='PUBLISHED',
+                last_modified_by=request.user
+            )
             message = f'Published {updated} movies'
         elif action == 'unpublish':
-            updated = controls.update(is_published=False, visibility_status='DRAFT')
+            updated = controls.update(
+                is_published=False,
+                visibility_status='DRAFT',
+                last_modified_by=request.user
+            )
             message = f'Unpublished {updated} movies'
         else:
             return Response({'status': 'error', 'message': 'Invalid action'}, status=400)
+
         return Response({'status': 'success', 'message': message, 'affected_count': updated})
 
     @action(detail=False, methods=['get'])
@@ -4291,8 +4406,8 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
 
             # === BASIC MOVIE COUNTS ===
             total_movies = Movie.objects.count()
-            published_count = Movie.objects.filter(is_published=True).count()
-            admin_featured_count = Movie.objects.filter(admin_featured=True).count()
+            published_count = MovieAdminControl.objects.filter(is_published=True).count()
+            admin_featured_count = MovieAdminControl.objects.filter(admin_featured=True).count()
             popular_count = Movie.objects.filter(is_popular=True).count()
             top_rated_count = Movie.objects.filter(is_top_rated=True).count()
             upcoming_count = Movie.objects.filter(is_upcoming=True).count()
@@ -4379,7 +4494,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             ).values('session_id').distinct().count()
 
             # === QUALITY METRICS ===
-            quality_stats = Movie.objects.aggregate(
+            quality_stats = MovieQualityMetrics.objects.aggregate(
                 avg_quality_score=Avg('quality_score'),
                 avg_completeness=Avg('content_completeness'),
                 quality_issues=Count('id', filter=Q(minimum_quality_met=False))
@@ -4494,7 +4609,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             today = now.date()
             week_ago = now - timedelta(days=7)
             month_ago = now - timedelta(days=30)
-
+            active_window = now - timedelta(minutes=10)
             # === OVERALL INTERACTION STATS ===
             total_interactions = UserInteraction.objects.count()
             total_users = UserInteraction.objects.filter(
@@ -4503,7 +4618,10 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             total_sessions = UserInteraction.objects.filter(
                 session_id__isnull=False
             ).values('session_id').distinct().count()
-
+            active_sessions = UserInteraction.objects.filter(
+                session_id__isnull=False,
+                timestamp__gte=active_window
+            ).values('session_id').distinct().count()
             # === TIME-BASED BREAKDOWN ===
             today_interactions = UserInteraction.objects.filter(
                 timestamp__date=today
@@ -4556,6 +4674,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                     'total_interactions': total_interactions,
                     'total_users': total_users,
                     'total_sessions': total_sessions,
+                    'active_sessions': active_sessions,
                     'avg_interactions_per_user': round(avg_interactions_per_user['avg_interactions'] or 0, 2),
                     'today_interactions': today_interactions,
                     'week_interactions': week_interactions,
@@ -4765,45 +4884,69 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         try:
             movie = self.get_object()
 
-            visibility_type = request.data.get('type')  # featured, popular, top_rated, upcoming
+            visibility_type = request.data.get('type')  # featured, popular, top_rated, upcoming, publish
             start_date = request.data.get('start_date')
             end_date = request.data.get('end_date')
             priority = request.data.get('priority', 1)
+            campaign_name = request.data.get('campaign_name', '')
+            campaign_type = request.data.get('campaign_type', 'marketing')
 
-            # For now, implement immediate scheduling
-            # In production, you'd use Celery for scheduling
             from django.utils.dateparse import parse_datetime
             from django.utils import timezone
 
             start_datetime = parse_datetime(start_date) if start_date else timezone.now()
             end_datetime = parse_datetime(end_date) if end_date else None
 
-            # Update fields based on type
-            updated_fields = []
+            # 🚀 Get or create scheduling record
+            scheduling, created = MovieScheduling.objects.get_or_create(movie=movie)
+            admin_control = self.get_object_admin_control(movie)
+
             if visibility_type == 'featured':
-                movie.admin_featured = True
-                movie.featured_from = start_datetime
-                movie.featured_until = end_datetime
-                movie.admin_priority = priority
-                updated_fields.extend(['admin_featured', 'featured_from', 'featured_until', 'admin_priority'])
+                # Update admin control
+                admin_control.admin_featured = True
+                admin_control.admin_priority = priority
+                admin_control.last_modified_by = request.user
+                admin_control.save(update_fields=['admin_featured', 'admin_priority', 'last_modified_by'])
+
+                # Update scheduling
+                scheduling.featured_from = start_datetime
+                scheduling.featured_until = end_datetime
+                scheduling.auto_feature = True
+                scheduling.campaign_name = campaign_name
+                scheduling.campaign_type = campaign_type
+                scheduling.campaign_priority = priority
+                scheduling.save(update_fields=[
+                    'featured_from', 'featured_until', 'auto_feature',
+                    'campaign_name', 'campaign_type', 'campaign_priority'
+                ])
+
+            elif visibility_type == 'publish':
+                # Update scheduling for publication
+                scheduling.publish_date = start_datetime
+                scheduling.unpublish_date = end_datetime
+                scheduling.auto_publish = True
+                scheduling.auto_unpublish = bool(end_datetime)
+                scheduling.save(update_fields=[
+                    'publish_date', 'unpublish_date', 'auto_publish', 'auto_unpublish'
+                ])
+
             elif visibility_type == 'popular':
                 movie.is_popular = True
-                updated_fields.append('is_popular')
+                movie.save(update_fields=['is_popular'])
             elif visibility_type == 'top_rated':
                 movie.is_top_rated = True
-                updated_fields.append('is_top_rated')
+                movie.save(update_fields=['is_top_rated'])
             elif visibility_type == 'upcoming':
                 movie.is_upcoming = True
-                updated_fields.append('is_upcoming')
-
-            movie.save(update_fields=updated_fields)
+                movie.save(update_fields=['is_upcoming'])
 
             return Response({
                 'status': 'success',
                 'message': f'Visibility scheduled for {visibility_type}',
                 'scheduled_type': visibility_type,
                 'start_date': start_datetime.isoformat() if start_datetime else None,
-                'end_date': end_datetime.isoformat() if end_datetime else None
+                'end_date': end_datetime.isoformat() if end_datetime else None,
+                'campaign_name': campaign_name
             })
 
         except Exception as e:
@@ -5761,8 +5904,6 @@ def admin_enrich_quality_issues(request):
         if has_quality_issues:
             # Movies with non-empty quality_issues JSON array - Use proper Django ORM filtering
             from django.db.models import Q
-            from django.contrib.postgres.fields.jsonb import KeyTextTransform
-            from django.db.models.functions import JSONArray
 
             # Filter for movies that have quality_issues and the array is not empty
             queryset = queryset.filter(

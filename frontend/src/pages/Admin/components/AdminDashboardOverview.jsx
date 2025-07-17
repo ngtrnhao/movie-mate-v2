@@ -72,7 +72,7 @@ const AdminDashboardOverview = () => {
       userStats: {
         totalUsers: userData?.overview?.total_users || 0,
         newUsers: 45,
-        activeUsers: userData?.overview?.total_sessions || 0,
+        activeUsers: userData?.overview?.active_sessions || 0,
         bannedUsers: 23,
         moderators: 8,
         admins: 2,
@@ -151,7 +151,7 @@ const AdminDashboardOverview = () => {
         type: 'user',
         content: `${activeUsers.toLocaleString()} người dùng đang hoạt động`,
         user: 'User Analytics',
-        time: '5 phút trước',
+        time: '10 phút trước',
         priority: 'medium',
       },
       {

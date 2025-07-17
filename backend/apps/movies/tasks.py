@@ -1146,9 +1146,22 @@ def process_scheduled_actions_auto(self):
         total_actions = sum([v for k, v in actions_processed.items() if k != 'errors'])
         logger.info(f"✅ Scheduling automation completed: {total_actions} actions processed")
 
+        return {
+            'status': 'success',
+            'actions_processed': actions_processed,
+            'total_actions': total_actions,
+            'total_schedulings_checked': schedulings.count()
+        }
+
     except Exception as exc:
+        # Set task status to error
+        cache.set('task_status_scheduling', 'error', timeout=3600)
         logger.error(f"❌ Error in process_scheduled_actions_auto: {str(exc)}")
-        raise
+        try:
+            self.retry(exc=exc, countdown=60 * 5, max_retries=3)  # Retry after 5 minutes, max 3 retries
+        except MaxRetriesExceededError:
+            logger.error(f"Max retries exceeded for process_scheduled_actions_auto")
+            raise
 
 
 @shared_task(bind=True)
@@ -1233,7 +1246,7 @@ def update_scheduling_status_auto(self):
         }, timeout=7200)
 
         # Set task status
-        cache.set('task_status_scheduling_status', 'completed', timeout=3600) 
+        cache.set('task_status_scheduling_status', 'completed', timeout=3600)
 
         logger.info(f"✅ Scheduling status update completed: {updated_count} records updated")
 

@@ -747,7 +747,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 Prefetch('trailers', to_attr='prefetched_trailers'),
                 # Add images prefetch for media gallery
                 Prefetch('movieimage_set', to_attr='prefetched_images')
-            )
+            ).get(id=pk)
 
             # Serialize movie with enhanced serializer
             movie_serializer = MovieDetailSerializer(movie)

@@ -241,7 +241,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """Get 3 featured movies - ULTRA SIMPLIFIED for performance with trailer requirement"""
         try:
             logger.info("Fetching featured movies with ULTRA SIMPLIFIED approach...")
-            cache_key = 'featured_movies_v8_ultra_simple'
+            cache_key = 'featured_movies_v1_ultra_simple'
             cached_data = cache.get(cache_key)
 
             if cached_data:
@@ -868,7 +868,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             if search_after_values:
                 params['search_after'] = search_after_values
 
-            # 🚀 PERFORMANCE: Create cache key for popular searches
+            # PERFORMANCE: Create cache key for popular searches
             cache_key_parts = []
             cache_key_parts.append(f"q:{params.get('q', '')[:50]}")  # Limit query length for cache key
             if params.get('genres'):
@@ -898,7 +898,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             es_response = search_service.search(params, admin_mode=False)
 
             if es_response:
-                # 🚀 PERFORMANCE: Optimize response payload
+                # PERFORMANCE: Optimize response payload
                 response_data = {
                     'status': 'success',
                     'count': es_response['total_count'],
@@ -923,7 +923,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             if params.get('q'):
                 from django.db.models import Q as Django_Q
                 query = params['q'].strip()
-                # 🚀 PERFORMANCE: Use database indexes efficiently
+                # PERFORMANCE: Use database indexes efficiently
                 queryset = queryset.filter(
                     Django_Q(title__icontains=query) |
                     Django_Q(title_en__icontains=query) |
@@ -1037,7 +1037,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         ).filter(
             admin_control__isnull=False,
             quality_metrics__isnull=False,
-            # ✅ PRODUCTION VISIBILITY REQUIREMENTS
+            #  PRODUCTION VISIBILITY REQUIREMENTS
             admin_control__is_published=True,
             poster_url__isnull=False,
             poster_url__gt='',
@@ -3998,7 +3998,7 @@ class ModerationFeedbackViewSet(viewsets.ReadOnlyModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class AdminMovieViewSet(viewsets.ModelViewSet):
+class   AdminMovieViewSet(viewsets.ModelViewSet):
     """
     Admin-only viewset for managing movies with production control
     """
@@ -4729,8 +4729,8 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 'data': interaction_stats
             }
 
-            # Cache for 10 minutes
-            cache.set(cache_key, response_data, timeout=600)
+            # Cache for 5 minutes
+            cache.set(cache_key, response_data, timeout=300)
             return Response(response_data)
 
         except Exception as e:

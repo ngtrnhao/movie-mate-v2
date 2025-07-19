@@ -109,17 +109,13 @@ class MovieDocument(Document):
     auto_unfeature = fields.BooleanField()
 
     # Campaign fields
-    campaign_name = fields.KeywordField(
-        fields={'text': fields.TextField(
-            analyzer='standard',
-            fields={'raw': fields.KeywordField()}
-        )}
+    campaign_name = fields.TextField(
+        analyzer='standard',
+        fields={'raw': fields.KeywordField()}
     )
-    campaign_type = fields.KeywordField(
-        fields={'text': fields.TextField(
-            analyzer='standard',
-            fields={'raw': fields.KeywordField()}
-        )}
+    campaign_type = fields.TextField(
+        analyzer='standard',
+        fields={'raw': fields.KeywordField()}
     )
     campaign_priority = fields.IntegerField()
     campaign_budget = fields.FloatField()

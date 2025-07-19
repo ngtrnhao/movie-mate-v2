@@ -23,7 +23,7 @@ app.conf.beat_schedule_filename = 'celerybeat-schedule'
 app.conf.beat_schedule = {
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(days=5),  # Every 1 minutes
     },
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
@@ -31,11 +31,11 @@ app.conf.beat_schedule = {
     },
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(minutes=15),  # Every 5 days
     },
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",
-        "schedule": timedelta(days=5),
+        "schedule": timedelta(minutes=10),
     },
     "refresh_genre_summary": {
         "task": "apps.metadata.tasks.refresh_genre_summary_task",
@@ -55,7 +55,7 @@ app.conf.beat_schedule = {
     },
     "sync_trending_categories": {
         "task": "apps.movies.tasks.sync_trending_categories_auto",
-        "schedule": timedelta(hours=6),  # Every 6 hours
+        "schedule": timedelta(minutes=15),  # Every 6 hours
     },
 
     # 📅 Scheduling automation tasks

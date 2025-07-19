@@ -78,7 +78,10 @@ def sync_popular_movies(self):
                 if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
-
+                # Chỉ sync phim mới
+                if Movie.objects.filter(imdb_id=imdb_id).exists():
+                    logger.info(f"Movie {imdb_id} already exists, skipping sync.")
+                    continue
                 movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
                 movie.is_popular = True
                 movie.save(update_fields=["is_popular"])
@@ -148,7 +151,10 @@ def sync_top_rated_movies(self):
                 if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
-
+                # Chỉ sync phim mới
+                if Movie.objects.filter(imdb_id=imdb_id).exists():
+                    logger.info(f"Movie {imdb_id} already exists, skipping sync.")
+                    continue
                 movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
                 movie.is_top_rated = True
                 movie.save(update_fields=["is_top_rated"])
@@ -218,7 +224,10 @@ def sync_upcoming_movies(self):
                 if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
-
+                # Chỉ sync phim mới
+                if Movie.objects.filter(imdb_id=imdb_id).exists():
+                    logger.info(f"Movie {imdb_id} already exists, skipping sync.")
+                    continue
                 movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
                 movie.is_upcoming = True
                 movie.save(update_fields=["is_upcoming"])

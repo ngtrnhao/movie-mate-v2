@@ -1,6 +1,6 @@
 from django_elasticsearch_dsl import Document, fields
 from django_elasticsearch_dsl.registries import registry
-from .models import Movie, MovieQualityMetrics, MovieScheduling
+from .models import Movie, MovieQualityMetrics, MovieScheduling, MovieAdminControl, ProductionMetrics
 import logging
 
 logger = logging.getLogger(__name__)
@@ -109,8 +109,14 @@ class MovieDocument(Document):
     auto_unfeature = fields.BooleanField()
 
     # Campaign fields
-    campaign_name = fields.KeywordField()
-    campaign_type = fields.KeywordField()
+    campaign_name = fields.TextField(
+        analyzer='standard',
+        fields={'raw': fields.KeywordField()}
+    )
+    campaign_type = fields.TextField(
+        analyzer='standard',
+        fields={'raw': fields.KeywordField()}
+    )
     campaign_priority = fields.IntegerField()
     campaign_budget = fields.FloatField()
     campaign_start_date = fields.DateField()
@@ -175,11 +181,11 @@ class MovieDocument(Document):
         fields = [
             'id'
         ]
-        related_models = [MovieQualityMetrics, MovieScheduling]
+        related_models = [MovieQualityMetrics, MovieScheduling, MovieAdminControl, ProductionMetrics]
 
     def get_instances_from_related(self, related_instance):
         """Update document when related models change"""
-        if isinstance(related_instance, (MovieQualityMetrics, MovieScheduling)):
+        if isinstance(related_instance, (MovieQualityMetrics, MovieScheduling, MovieAdminControl, ProductionMetrics)):
             return related_instance.movie
 
     # 📊 QUALITY METRICS PREPARE METHODS
@@ -746,24 +752,54 @@ class MovieDocument(Document):
             return 0
 
     def prepare_approval_status(self, instance):
-        """Prepare approval status"""
-        return getattr(instance, 'approval_status', 'PENDING')
+        """Prepare approval status from MovieAdminControl"""
+        try:
+            if hasattr(instance, 'admin_control') and instance.admin_control:
+                return instance.admin_control.approval_status
+            return 'PENDING'
+        except Exception as e:
+            logger.warning(f"Error preparing approval_status for movie {instance.id}: {e}")
+            return 'PENDING'
 
     def prepare_admin_featured(self, instance):
-        """Prepare admin featured flag"""
-        return getattr(instance, 'admin_featured', False)
+        """Prepare admin featured flag from MovieAdminControl"""
+        try:
+            if hasattr(instance, 'admin_control') and instance.admin_control:
+                return instance.admin_control.admin_featured
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing admin_featured for movie {instance.id}: {e}")
+            return False
 
     def prepare_visibility_status(self, instance):
-        """Prepare visibility status"""
-        return getattr(instance, 'visibility_status', 'DRAFT')
+        """Prepare visibility status from MovieAdminControl"""
+        try:
+            if hasattr(instance, 'admin_control') and instance.admin_control:
+                return instance.admin_control.visibility_status
+            return 'DRAFT'
+        except Exception as e:
+            logger.warning(f"Error preparing visibility_status for movie {instance.id}: {e}")
+            return 'DRAFT'
 
     def prepare_is_published(self, instance):
-        """Prepare is published flag"""
-        return getattr(instance, 'is_published', False)
+        """Prepare is published flag from MovieAdminControl"""
+        try:
+            if hasattr(instance, 'admin_control') and instance.admin_control:
+                return instance.admin_control.is_published
+            return False
+        except Exception as e:
+            logger.warning(f"Error preparing is_published for movie {instance.id}: {e}")
+            return False
 
     def prepare_admin_priority(self, instance):
-        """Prepare admin priority"""
-        return getattr(instance, 'admin_priority', 0)
+        """Prepare admin priority from MovieAdminControl"""
+        try:
+            if hasattr(instance, 'admin_control') and instance.admin_control:
+                return instance.admin_control.admin_priority
+            return 0
+        except Exception as e:
+            logger.warning(f"Error preparing admin_priority for movie {instance.id}: {e}")
+            return 0
 
     def prepare_created_at(self, instance):
         """Prepare created at timestamp"""

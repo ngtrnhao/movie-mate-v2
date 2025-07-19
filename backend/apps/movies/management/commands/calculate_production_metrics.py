@@ -1,9 +1,10 @@
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.db import transaction, connection
 from django.db import models
 from apps.movies.models import Movie, ProductionMetrics
 from apps.movies.services.production_metrics_service import ProductionMetricsService
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +21,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--batch-size',
             type=int,
-            default=100,
-            help='Number of movies to process per batch (default: 100)'
+            default=50,  # Giảm batch size mặc định để tránh timeout
+            help='Number of movies to process per batch (default: 50)'
         )
         parser.add_argument(
             '--limit',
@@ -48,6 +49,12 @@ class Command(BaseCommand):
             action='store_true',
             help='Show performance score distribution after calculation'
         )
+        parser.add_argument(
+            '--sleep',
+            type=float,
+            default=0.2,
+            help='Sleep time (seconds) between batches to reduce DB load (default: 0.2)'
+        )
 
     def handle(self, *args, **options):
         movie_id = options.get('movie_id')
@@ -57,6 +64,7 @@ class Command(BaseCommand):
         force_recalculate = options['force_recalculate']
         show_trending = options['show_trending']
         show_distribution = options['show_distribution']
+        sleep_time = options['sleep']
 
         service = ProductionMetricsService()
 
@@ -71,7 +79,7 @@ class Command(BaseCommand):
             return
 
         # Bulk calculation
-        self._calculate_bulk_movies(service, batch_size, limit, dry_run, force_recalculate)
+        self._calculate_bulk_movies(service, batch_size, limit, dry_run, force_recalculate, sleep_time)
 
         # Show additional information if requested
         if show_trending and not dry_run:
@@ -145,7 +153,7 @@ class Command(BaseCommand):
             )
 
     def _calculate_bulk_movies(self, service: ProductionMetricsService, batch_size: int,
-                              limit: int, dry_run: bool, force_recalculate: bool):
+                              limit: int, dry_run: bool, force_recalculate: bool, sleep_time: float):
         """Calculate production metrics for multiple movies"""
 
         # Determine which movies to process
@@ -199,41 +207,58 @@ class Command(BaseCommand):
         # Real bulk calculation
         movie_ids = list(queryset.values_list('id', flat=True))
 
-        try:
+        processed = 0
+        errors = 0
+        batch_count = 0
+        total_batches = (total_count + batch_size - 1) // batch_size
+
+        for i in range(0, total_count, batch_size):
+            batch_count += 1
+            batch_movie_ids = movie_ids[i:i+batch_size]
+            batch_movies = list(Movie.objects.filter(id__in=batch_movie_ids).select_related().prefetch_related('quality_metrics'))
+            self.stdout.write(f'🚀 Batch {batch_count}/{total_batches}: Processing {len(batch_movies)} movies...')
+            try:
+                with transaction.atomic():
+                    for movie in batch_movies:
+                        try:
+                            service.calculate_production_metrics(movie, save=True)
+                            processed += 1
+                        except Exception as e:
+                            logger.error(f'❌ Error calculating metrics for movie {movie.id}: {str(e)}')
+                            errors += 1
+                    # Commit transaction for this batch
+                    connection.commit()
+            except Exception as e:
+                logger.error(f'❌ Error in batch {batch_count}: {str(e)}')
+                errors += len(batch_movies)
+                # Đóng và mở lại connection để tránh lỗi connection
+                connection.close()
+                time.sleep(1)
+                continue
+            # Sleep giữa các batch để giảm tải DB
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+        self.stdout.write('')
+        self.stdout.write('=' * 60)
+        self.stdout.write('📊 BULK CALCULATION RESULTS')
+        self.stdout.write('=' * 60)
+        self.stdout.write(f'🎯 Total movies processed: {processed:,}')
+        self.stdout.write(f'✅ Successful calculations: {processed - errors:,}')
+        self.stdout.write(f'❌ Errors: {errors:,}')
+        self.stdout.write(f'📊 Success rate: {(processed - errors) / processed * 100 if processed > 0 else 0:.2f}%')
+
+        if errors == 0:
             self.stdout.write('')
-            self.stdout.write('🚀 Starting bulk production metrics calculation...')
-
-            results = service.bulk_calculate_production_metrics(
-                movie_ids=movie_ids,
-                batch_size=batch_size
-            )
-
-            # Display results
-            self.stdout.write('')
-            self.stdout.write('=' * 60)
-            self.stdout.write('📊 BULK CALCULATION RESULTS')
-            self.stdout.write('=' * 60)
-            self.stdout.write(f'🎯 Total movies processed: {results["total_movies"]:,}')
-            self.stdout.write(f'✅ Successful calculations: {results["processed_successfully"]:,}')
-            self.stdout.write(f'❌ Errors: {results["errors"]:,}')
-            self.stdout.write(f'📊 Success rate: {results["success_rate"]:.2f}%')
-
-            if results["errors"] == 0:
-                self.stdout.write('')
-                self.stdout.write(
-                    self.style.SUCCESS('🎉 All movies processed successfully!')
-                )
-            else:
-                self.stdout.write('')
-                self.stdout.write(
-                    self.style.WARNING(
-                        f'⚠️ Completed with {results["errors"]} errors. Check logs for details.'
-                    )
-                )
-
-        except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'❌ Bulk calculation failed: {str(e)}')
+                self.style.SUCCESS('🎉 All movies processed successfully!')
+            )
+        else:
+            self.stdout.write('')
+            self.stdout.write(
+                self.style.WARNING(
+                    f'⚠️ Completed with {errors} errors. Check logs for details.'
+                )
             )
 
     def _show_trending_movies(self, service: ProductionMetricsService):

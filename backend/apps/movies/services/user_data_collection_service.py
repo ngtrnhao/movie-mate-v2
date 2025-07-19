@@ -280,7 +280,7 @@ class UserDataCollectionService:
             production_metrics.save()
 
             # Mark interaction as processed
-            interaction.mark_as_processed()
+            # interaction.mark_as_processed()
 
             logger.info(f"✅ Immediate metrics updated for movie {movie.id}, action: {action}")
 

@@ -23,6 +23,7 @@ import {
 import { StarIcon as StarIconSolid, FilmIcon as FilmIconSolid } from '@heroicons/react/24/solid';
 import MovieDetailsModal from '../../../components/common/MovieDetailsModal';
 import MovieQualityModal from '../../../components/common/MovieQualityModal';
+import ProductionMetricsCard from './ProductionMetricsCard';
 import AdvancedAdminFilters from './AdvancedAdminFilters';
 import {
   getAdminMovies,
@@ -140,6 +141,8 @@ const MovieManagement = () => {
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [qualityModalOpen, setQualityModalOpen] = useState(false);
   const [selectedQualityMovie, setSelectedQualityMovie] = useState(null);
+  const [metricsModalOpen, setMetricsModalOpen] = useState(false);
+  const [selectedMetricsMovie, setSelectedMetricsMovie] = useState(null);
 
   // Enrichment states
   const [enrichmentProgress, setEnrichmentProgress] = useState({});
@@ -193,7 +196,7 @@ const MovieManagement = () => {
       setError(null);
       try {
         const params = {
-          pageSize: 30,
+          pageSize: 40,
           filters: { ...filters, sort_by: '-created_at' },
           search: debouncedSearchQuery,
         };
@@ -201,24 +204,23 @@ const MovieManagement = () => {
           params.filters.after_created_at = effectiveAfter;
         }
 
+        console.log('[PAGINATION DEBUG] Fetching movies with params:', params);
+        console.log('[PAGINATION DEBUG] Direction:', direction, 'Effective after:', effectiveAfter);
+
         const data = await getAdminMovies(params);
+        console.log('[PAGINATION DEBUG] API response:', data);
+
         setMovies(data.results || []);
 
         // Keyset logic
-        if (direction === 'next') {
-          setAfterStack(prev => [...prev, currentAfter]);
-          setHasPrevious(true);
-        } else if (direction === 'prev') {
-          setHasPrevious(afterStack.length > 1);
-        } else {
-          setAfterStack([]);
-          setHasPrevious(false);
-        }
+        setHasPrevious(afterStack.length > 0);
 
         // Store next_after_created_at from API response
         const nextAfterCreatedAt = data.next;
+        console.log('[PAGINATION DEBUG] Next after created at:', nextAfterCreatedAt);
         setHasNext(nextAfterCreatedAt);
       } catch (error) {
+        console.error('[PAGINATION DEBUG] Error:', error);
         setError('Không thể tải danh sách phim. Vui lòng thử lại.');
       } finally {
         setLoading(false);
@@ -257,7 +259,9 @@ const MovieManagement = () => {
 
   // Next page
   const handleNextPage = () => {
-    if (hasNext && typeof hasNext === 'string') {
+    if (hasNext && (typeof hasNext === 'string' || Array.isArray(hasNext))) {
+      // Only push currentAfter if it's not null (don't push on first page)
+      setAfterStack(prev => (currentAfter ? [...prev, currentAfter] : prev));
       setCurrentAfter(hasNext);
       fetchMovies('next', hasNext);
     }
@@ -266,12 +270,14 @@ const MovieManagement = () => {
   // Prev page
   const handlePrevPage = () => {
     if (afterStack.length > 0) {
+      // Remove the current page's after value
       const prevStack = [...afterStack];
       prevStack.pop();
+      // The new last value is the previous page's after value (or null for first page)
+      const newCurrentAfter = prevStack.length > 0 ? prevStack[prevStack.length - 1] : null;
       setAfterStack(prevStack);
-      const newCurrentAfter = prevStack[prevStack.length - 1] || null;
       setCurrentAfter(newCurrentAfter);
-      fetchMovies('prev');
+      fetchMovies('prev', newCurrentAfter);
     }
   };
 
@@ -519,6 +525,26 @@ const MovieManagement = () => {
     [fetchMovies, refreshDashboard]
   );
 
+  // Thêm các hàm kiểm tra trạng thái cho bulk action ngược lại
+  const allFeatured =
+    selectedMovies.length > 0 &&
+    selectedMovies.every(id => movies.find(m => m.id === id)?.admin_control?.admin_featured);
+  const allPublished =
+    selectedMovies.length > 0 &&
+    selectedMovies.every(
+      id => movies.find(m => m.id === id)?.admin_control?.visibility_status === 'PUBLISHED'
+    );
+  const allApproved =
+    selectedMovies.length > 0 &&
+    selectedMovies.every(
+      id => movies.find(m => m.id === id)?.admin_control?.approval_status === 'APPROVED'
+    );
+  const allRejected =
+    selectedMovies.length > 0 &&
+    selectedMovies.every(
+      id => movies.find(m => m.id === id)?.admin_control?.approval_status === 'REJECTED'
+    );
+
   // Event Handlers
   const handleSearchChange = e => {
     setSearchQuery(e.target.value);
@@ -602,6 +628,11 @@ const MovieManagement = () => {
   const handleCloseDetails = useCallback(() => {
     console.log('Closing movie details modal');
     setSelectedMovie(null);
+  }, []);
+
+  const handleViewMetrics = useCallback(movie => {
+    setSelectedMetricsMovie(movie);
+    setMetricsModalOpen(true);
   }, []);
 
   // Status Badge Component with Fixed Tailwind Classes
@@ -892,7 +923,7 @@ const MovieManagement = () => {
 
               {/* Quality & Priority Actions */}
               <div className="space-y-2">
-                {qualityMetrics?.quality_issues?.length > 0 ? (
+                {qualityMetrics?.quality_issues?.length > 0 && (
                   <button
                     onClick={() => handleQualityReview(movie)}
                     className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800 hover:bg-orange-100 transition-colors"
@@ -900,15 +931,16 @@ const MovieManagement = () => {
                     <ExclamationTriangleIcon className="mr-1 size-3" />
                     Khắc phục chất lượng ({qualityMetrics.quality_issues.length})
                   </button>
-                ) : (
-                  <button
-                    onClick={() => handleQualityReview(movie)}
-                    className="inline-flex w-full items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
-                  >
-                    <ChartBarIcon className="mr-1 size-3" />
-                    Đánh giá chất lượng
-                  </button>
                 )}
+
+                {/* Always show Quality Review button for testing */}
+                <button
+                  onClick={() => handleQualityReview(movie)}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+                >
+                  <ChartBarIcon className="mr-1 size-3" />
+                  Đánh giá chất lượng
+                </button>
 
                 {/* Movie Enrichment Button */}
                 <button
@@ -944,6 +976,13 @@ const MovieManagement = () => {
                     </>
                   )}
                 </button>
+                <button
+                  onClick={() => handleViewMetrics(movie)}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-purple-300 bg-purple-50 px-3 py-2 text-xs font-medium text-purple-800 hover:bg-purple-100 transition-colors"
+                >
+                  <ChartBarIcon className="mr-1 size-3" />
+                  Xem Production Metrics
+                </button>
               </div>
 
               {/* Priority Adjustment */}
@@ -958,11 +997,11 @@ const MovieManagement = () => {
                           Math.max(0, (movie?.admin_control?.admin_priority || 0) - 1)
                         )
                       }
-                      className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                      className="rounded border text-gray-700 border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
                     >
                       -
                     </button>
-                    <span className="text-xs font-medium w-6 text-center">
+                    <span className="text-xs text-gray-700 font-medium w-6 text-center">
                       {movie?.admin_control?.admin_priority || 0}
                     </span>
                     <button
@@ -972,7 +1011,7 @@ const MovieManagement = () => {
                           Math.min(10, (movie?.admin_control?.admin_priority || 0) + 1)
                         )
                       }
-                      className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                      className="rounded border text-gray-700 border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
                     >
                       +
                     </button>
@@ -1201,6 +1240,7 @@ const MovieManagement = () => {
               </span>
 
               <div className="flex space-x-2">
+                {/* Bulk Approve */}
                 <button
                   onClick={() => bulkAction('approve', selectedMovies)}
                   className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
@@ -1208,7 +1248,16 @@ const MovieManagement = () => {
                   <CheckCircleIcon className="mr-1 size-4" />
                   Duyệt
                 </button>
-
+                {/* Bulk Reject */}
+                <button
+                  onClick={() => bulkAction('reject', selectedMovies)}
+                  disabled={!allApproved && !allRejected}
+                  className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <XCircleIcon className="mr-1 size-4" />
+                  Từ chối
+                </button>
+                {/* Bulk Feature */}
                 <button
                   onClick={() => bulkAction('feature', selectedMovies)}
                   className="inline-flex items-center rounded-md border border-transparent bg-yellow-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
@@ -1216,13 +1265,31 @@ const MovieManagement = () => {
                   <StarIcon className="mr-1 size-4" />
                   Featured
                 </button>
-
+                {/* Bulk Unfeature */}
+                <button
+                  onClick={() => bulkAction('unfeature', selectedMovies)}
+                  disabled={!allFeatured}
+                  className="inline-flex items-center rounded-md border border-transparent bg-yellow-400 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <StarIcon className="mr-1 size-4" />
+                  Bỏ Featured
+                </button>
+                {/* Bulk Publish */}
                 <button
                   onClick={() => bulkAction('publish', selectedMovies)}
                   className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
                   <EyeIcon className="mr-1 size-4" />
                   Xuất bản
+                </button>
+                {/* Bulk Unpublish */}
+                <button
+                  onClick={() => bulkAction('unpublish', selectedMovies)}
+                  disabled={!allPublished}
+                  className="inline-flex items-center rounded-md border border-transparent bg-blue-400 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <EyeSlashIcon className="mr-1 size-4" />
+                  Bỏ xuất bản
                 </button>
               </div>
             </div>
@@ -1580,6 +1647,28 @@ const MovieManagement = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Production Metrics Modal */}
+      {metricsModalOpen && selectedMetricsMovie && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+            <button
+              onClick={() => setMetricsModalOpen(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+            <ProductionMetricsCard movie={selectedMetricsMovie} />
           </div>
         </div>
       )}

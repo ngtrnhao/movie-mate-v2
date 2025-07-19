@@ -516,7 +516,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.approval_status || ''}
           onChange={e => handleFilterChange('approval_status', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
         >
           <option value="">All Statuses</option>
           <option value="NEEDS_REVIEW">Needs Review</option>
@@ -532,7 +532,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.visibility_status || ''}
           onChange={e => handleFilterChange('visibility_status', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
         >
           <option value="">All Visibility</option>
           <option value="PUBLISHED">Published</option>
@@ -555,7 +555,7 @@ const AdvancedAdminFilters = ({
             max="10"
             value={filters.admin_priority_min || ''}
             onChange={e => handleFilterChange('admin_priority_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
             placeholder="0"
           />
         </div>

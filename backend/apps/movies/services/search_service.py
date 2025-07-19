@@ -102,7 +102,13 @@ class MovieSearchService:
             if not admin_mode:
                 search = search.filter('exists', field='poster_url')
                 search = search.filter('range', poster_url={'gt':''})
-
+                # search = search.filter('exists',field='admin_control')
+                # search = search.filter('exists',field='quality_metrics')
+                search = search.filter('term', is_published=True)
+                search = search.filter('term', approval_status='APPROVED')
+                # search = search.filter('term', minimum_quality_met=True)
+                search = search.filter('term', visibility_status='PUBLISHED')
+                search = search.filter('bool',must_not=[{'term':{'title.keyword':''}}])
             #  Enhanced search query with quality scoring
             if params.get('q'):
                 query_text = params['q'].strip()
@@ -180,6 +186,10 @@ class MovieSearchService:
 
             # 🎯 ADMIN MODE FILTERS (enhanced for normalized structure)
             if admin_mode:
+                search = search.filter('bool', should=[
+                ES_Q('exists', field='title_en'),
+                ES_Q('exists', field='title_vi')
+            ], minimum_should_match=1)
                 # Basic admin filters
                 if params.get('approval_status'):
                     approval_values = params['approval_status']
@@ -336,9 +346,23 @@ class MovieSearchService:
                 search_after_values = params['search_after']
                 if isinstance(search_after_values, list):
                     search = search.extra(search_after=search_after_values)
+                    logger.info(f"[SEARCH SERVICE] Using search_after array: {search_after_values}")
                 else:
                     # Single value, convert to list
                     search = search.extra(search_after=[search_after_values])
+                    logger.info(f"[SEARCH SERVICE] Using search_after single value: {search_after_values}")
+                # Set page size for keyset pagination
+                search = search[:page_size]
+            elif params.get('after_created_at'):
+                # Handle after_created_at parameter for keyset pagination
+                after_created_at_values = params['after_created_at']
+                if isinstance(after_created_at_values, list):
+                    search = search.extra(search_after=after_created_at_values)
+                    logger.info(f"[SEARCH SERVICE] Using after_created_at array: {after_created_at_values}")
+                else:
+                    # Single value, convert to list
+                    search = search.extra(search_after=[after_created_at_values])
+                    logger.info(f"[SEARCH SERVICE] Using after_created_at single value: {after_created_at_values}")
                 # Set page size for keyset pagination
                 search = search[:page_size]
             elif params.get('page'):
@@ -349,6 +373,7 @@ class MovieSearchService:
             else:
                 # Default: first page with page size
                 search = search[:page_size]
+                logger.info(f"[SEARCH SERVICE] Initial page load, page_size: {page_size}")
 
             # 📊 ENHANCED SORTING with consistent keyset pagination
             sort_by = params.get('sort_by', 'created_at')
@@ -394,6 +419,11 @@ class MovieSearchService:
                 last_hit = response.hits[-1]
                 if hasattr(last_hit.meta, 'sort'):
                     next_search_after = list(last_hit.meta.sort)
+                    logger.info(f"[SEARCH SERVICE] Calculated next_search_after: {next_search_after}")
+                else:
+                    logger.warning(f"[SEARCH SERVICE] Last hit has no sort metadata")
+            else:
+                logger.info(f"[SEARCH SERVICE] Not enough results for next page. Got {len(response.hits) if response.hits else 0}, need {page_size}")
 
             # Convert Elasticsearch hits to Movie objects and serialize them
             movie_ids = [int(hit.meta.id) for hit in response.hits]
@@ -969,9 +999,14 @@ class MovieSearchService:
             suggestions = []
             for hit in response.hits:
                 movie_data = hit.to_dict()
+                # Fallback title logic
+                if language == 'vi':
+                    title = movie_data.get('title_vi') or movie_data.get('title_en') or movie_data.get('title')
+                else:
+                    title = movie_data.get('title_en') or movie_data.get('title_vi') or movie_data.get('title')
                 suggestion = {
                     'id': hit.meta.id,
-                    'title': movie_data.get('title_vi' if language == 'vi' else 'title_en') or movie_data.get('title'),
+                    'title': title,
                     'title_en': movie_data.get('title_en'),
                     'title_vi': movie_data.get('title_vi'),
                     'poster_url': movie_data.get('poster_url'),

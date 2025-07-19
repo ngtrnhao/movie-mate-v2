@@ -299,10 +299,17 @@ const MovieDetailsPage = () => {
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-300">{t('details.country')}:</span>
                       <span className="max-w-24 text-right text-white sm:max-w-32">
-                        {movie.production_info?.production_countries?.[0]?.name ||
-                          movie.production_info?.production_countries?.[0] ||
-                          movie.production_countries?.[0]?.name ||
-                          movie.production_countries?.[0]}
+                        {(
+                          movie.production_info?.production_countries ||
+                          movie.production_countries ||
+                          []
+                        )
+                          .slice(0, 2)
+                          .map(country => country.name || country)
+                          .join(', ')}
+                        {(movie.production_info?.production_countries?.length > 2 ||
+                          movie.production_countries?.length > 2) &&
+                          '...'}
                       </span>
                     </div>
                   )}
@@ -314,8 +321,10 @@ const MovieDetailsPage = () => {
                       <span className="font-medium text-gray-300">{t('details.language')}:</span>
                       <span className="uppercase text-white">
                         {movie.original_language ||
-                          movie.production_info?.spoken_languages?.[0]?.name ||
-                          movie.production_info?.spoken_languages?.[0]}
+                          (movie.production_info?.spoken_languages || [])
+                            .slice(0, 2)
+                            .map(lang => lang.name || lang)
+                            .join(', ')}
                       </span>
                     </div>
                   )}
@@ -350,6 +359,9 @@ const MovieDetailsPage = () => {
                           .slice(0, 2)
                           .map(company => company.name || company)
                           .join(', ')}
+                        {(movie.production_info?.production_companies?.length > 2 ||
+                          movie.production_companies?.length > 2) &&
+                          '...'}
                       </span>
                     </div>
                   )}
@@ -387,6 +399,15 @@ const MovieDetailsPage = () => {
                   <p className="text-xs leading-relaxed text-gray-200 sm:text-sm">
                     {getDisplayOverview(movie, currentLanguage)}
                   </p>
+                )}
+
+                {/* Tagline - New addition */}
+                {movie.production_info?.tagline && (
+                  <div className="mt-3 rounded-lg bg-yellow-600/20 p-3 border border-yellow-600/30">
+                    <p className="text-xs italic text-yellow-200 sm:text-sm">
+                      "{movie.production_info.tagline}"
+                    </p>
+                  </div>
                 )}
               </div>
             </div>

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
@@ -145,11 +144,11 @@ const AdminStatsCards = ({ realTimeMetrics }) => {
   const getChangeIcon = changeType => {
     switch (changeType) {
       case 'increase':
-        return <ArrowTrendingUpIcon className="mr-1 h-4 w-4" />;
+        return <ArrowTrendingUpIcon className="mr-1 size-4" />;
       case 'decrease':
-        return <ArrowTrendingDownIcon className="mr-1 h-4 w-4" />;
+        return <ArrowTrendingDownIcon className="mr-1 size-4" />;
       case 'warning':
-        return <ExclamationCircleIcon className="mr-1 h-4 w-4" />;
+        return <ExclamationCircleIcon className="mr-1 size-4" />;
       default:
         return null;
     }
@@ -180,7 +179,7 @@ const AdminStatsCards = ({ realTimeMetrics }) => {
           return (
             <div
               key={index}
-              className="rounded-lg bg-white p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+              className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -192,21 +191,21 @@ const AdminStatsCards = ({ realTimeMetrics }) => {
                     {getChangeIcon(stat.changeType)}
                     {stat.change}
                   </p>
-                  {stat.subtitle && <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>}
+                  {stat.subtitle && <p className="mt-1 text-xs text-gray-500">{stat.subtitle}</p>}
                 </div>
                 <div className={`rounded-lg ${stat.bgColor} p-3`}>
-                  <IconComponent className={`h-6 w-6 ${stat.iconColor}`} />
+                  <IconComponent className={`size-6 ${stat.iconColor}`} />
                 </div>
               </div>
 
               {/* Progress indicator for metrics */}
               {stat.metric !== undefined && (
                 <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                  <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
                     <span>Current</span>
                     <span>{stat.metric.toLocaleString()}</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="h-1.5 w-full rounded-full bg-gray-200">
                     <div
                       className={`h-1.5 rounded-full ${
                         stat.changeType === 'increase'
@@ -229,26 +228,26 @@ const AdminStatsCards = ({ realTimeMetrics }) => {
 
       {/* Performance Metrics Bar */}
       {performanceMetrics.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
-            <ChartBarIcon className="h-4 w-4 mr-2" />
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 flex items-center text-sm font-medium text-gray-900">
+            <ChartBarIcon className="mr-2 size-4" />
             Performance Metrics
             {realTimeMetrics && (
-              <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+              <span className="ml-2 rounded-full bg-green-100 px-2 py-1 text-xs text-green-600">
                 Real-time
               </span>
             )}
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {performanceMetrics.map((metric, index) => {
               const IconComponent = metric.icon;
               return (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
                 >
                   <div className="flex items-center space-x-3">
-                    <IconComponent className={`h-5 w-5 ${metric.color}`} />
+                    <IconComponent className={`size-5 ${metric.color}`} />
                     <span className="text-sm font-medium text-gray-700">{metric.title}</span>
                   </div>
                   <span className={`text-sm font-bold ${metric.color}`}>{metric.value}</span>
@@ -261,10 +260,10 @@ const AdminStatsCards = ({ realTimeMetrics }) => {
 
       {/* Real-time Status Indicator */}
       {realTimeMetrics && (
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3">
+        <div className="rounded-lg border border-green-200 bg-gradient-to-r from-green-50 to-blue-50 p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="size-2 animate-pulse rounded-full bg-green-400"></div>
               <span className="text-sm font-medium text-gray-700">Real-time Data Active</span>
             </div>
             <div className="text-xs text-gray-600">

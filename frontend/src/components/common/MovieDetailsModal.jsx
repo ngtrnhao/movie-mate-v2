@@ -18,7 +18,7 @@ import Modal from './Modal';
 
 const MetricItem = ({ icon: Icon, label, value, className = '' }) => (
   <div className={`flex items-center space-x-2 ${className}`}>
-    <Icon className="size-5 text-gray-400 flex-shrink-0" />
+    <Icon className="size-5 shrink-0 text-gray-400" />
     <span className="text-sm text-gray-500">{label}:</span>
     <span className="text-sm font-medium text-gray-900">{value}</span>
   </div>
@@ -46,7 +46,7 @@ const Badge = ({ children, color = 'gray' }) => {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[color] || colors.gray}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${colors[color] || colors.gray}`}
     >
       {children}
     </span>
@@ -275,22 +275,22 @@ const MovieDetailsModal = ({ movie, open, onClose }) => {
                 {overviews?.vi ? (
                   <div>
                     <span className="text-sm font-medium text-gray-700">Tiếng Việt:</span>
-                    <p className="mt-1 text-sm text-gray-900 bg-gray-50 rounded-lg p-3">
+                    <p className="mt-1 rounded-lg bg-gray-50 p-3 text-sm text-gray-900">
                       {overviews.vi}
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 italic">Chưa có mô tả tiếng Việt</p>
+                  <p className="text-sm italic text-gray-500">Chưa có mô tả tiếng Việt</p>
                 )}
                 {overviews?.en ? (
                   <div>
                     <span className="text-sm font-medium text-gray-700">English:</span>
-                    <p className="mt-1 text-sm text-gray-900 bg-gray-50 rounded-lg p-3">
+                    <p className="mt-1 rounded-lg bg-gray-50 p-3 text-sm text-gray-900">
                       {overviews.en}
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 italic">Chưa có mô tả tiếng Anh</p>
+                  <p className="text-sm italic text-gray-500">Chưa có mô tả tiếng Anh</p>
                 )}
                 {trailers && trailers.length > 0 ? (
                   <MetricItem
@@ -299,7 +299,7 @@ const MovieDetailsModal = ({ movie, open, onClose }) => {
                     value={`${trailers.length} video(s)`}
                   />
                 ) : (
-                  <p className="text-sm text-gray-500 italic">Chưa có trailer</p>
+                  <p className="text-sm italic text-gray-500">Chưa có trailer</p>
                 )}
               </div>
             </Section>
@@ -318,7 +318,7 @@ const MovieDetailsModal = ({ movie, open, onClose }) => {
                     <img
                       src={poster_url || poster_path}
                       alt={title}
-                      className="w-20 h-28 object-cover rounded-lg border border-gray-200"
+                      className="h-28 w-20 rounded-lg border border-gray-200 object-cover"
                     />
                   </div>
                 )}
@@ -333,7 +333,7 @@ const MovieDetailsModal = ({ movie, open, onClose }) => {
                     <img
                       src={`https://image.tmdb.org/t/p/original${backdrop_path}`}
                       alt={title}
-                      className="w-20 h-28 object-cover rounded-lg border border-gray-200"
+                      className="h-28 w-20 rounded-lg border border-gray-200 object-cover"
                     />
                   </div>
                 )}
@@ -347,25 +347,25 @@ const MovieDetailsModal = ({ movie, open, onClose }) => {
               {/* Enhanced Production Metrics */}
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="rounded-lg bg-blue-50 p-4 text-center">
                     <div className="text-2xl font-bold text-blue-600">
                       {metricsData.homepage_views?.toLocaleString() || '0'}
                     </div>
                     <div className="text-sm text-blue-700">Homepage Views</div>
                   </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="rounded-lg bg-green-50 p-4 text-center">
                     <div className="text-2xl font-bold text-green-600">
                       {metricsData.detail_page_views?.toLocaleString() || '0'}
                     </div>
                     <div className="text-sm text-green-700">Detail Views</div>
                   </div>
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="rounded-lg bg-purple-50 p-4 text-center">
                     <div className="text-2xl font-bold text-purple-600">
                       {metricsData.trailer_plays?.toLocaleString() || '0'}
                     </div>
                     <div className="text-sm text-purple-700">Trailer Plays</div>
                   </div>
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <div className="rounded-lg bg-orange-50 p-4 text-center">
                     <div className="text-2xl font-bold text-orange-600">
                       {(metricsData.engagement_rate * 100).toFixed(1)}%
                     </div>

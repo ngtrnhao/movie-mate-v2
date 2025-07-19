@@ -4,7 +4,6 @@ import { useWatchlistContext } from '../../../context/WatchlistContext';
 import { useUserLimits } from '../../../hooks/useUserLimits';
 import { useState } from 'react';
 import UpgradePrompt from '../../../components/common/UpgradePrompt';
-import useUserTracking from '../../../hooks/useUserTracking';
 const Actions = ({ movie, onlyMainButton, onlyBookmark, onTrailerClick }) => {
   const { t } = useTranslation('movies');
   const { watchlists, openCreateModal, openExistingModal } = useWatchlistContext();

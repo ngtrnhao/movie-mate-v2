@@ -332,7 +332,7 @@ const DashboardOverview = ({ isAdmin: _isAdmin, isModerator: _isModerator }) => 
               {[1, 2, 3].map(i => (
                 <div key={i} className="text-center">
                   <div className="mx-auto h-8 w-16 rounded bg-gray-200"></div>
-                  <div className="mt-2 mx-auto h-4 w-24 rounded bg-gray-200"></div>
+                  <div className="mx-auto mt-2 h-4 w-24 rounded bg-gray-200"></div>
                 </div>
               ))}
             </div>

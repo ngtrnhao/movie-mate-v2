@@ -3,17 +3,14 @@ import {
   CalendarIcon,
   ClockIcon,
   StarIcon,
-  TagIcon,
   PlusIcon,
   CheckCircleIcon,
   XCircleIcon,
-  PencilIcon,
   TrashIcon,
   ExclamationTriangleIcon,
   BoltIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import {
   getAdminMovies,
   scheduleMovieAction,
@@ -208,8 +205,8 @@ const SchedulingManagement = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="size-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -217,7 +214,7 @@ const SchedulingManagement = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="flex items-center text-2xl font-bold text-gray-900">
@@ -239,44 +236,44 @@ const SchedulingManagement = () => {
       </div>
 
       {/* Scheduled Actions */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-200 px-6 py-4">
           <h3 className="text-lg font-medium text-gray-900">Lịch trình đã tạo</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Phim
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Hành động
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Thời gian
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Chiến dịch
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Trạng thái
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Thao tác
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {scheduledActions.map(action => (
                 <tr key={action.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">{action.movie_title}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-6 py-4">
                     {getActionTypeBadge(action.action_type)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
                     {new Date(action.scheduled_datetime).toLocaleString('vi-VN')}
                     {action.end_datetime && (
                       <div className="text-xs text-gray-500">
@@ -284,15 +281,15 @@ const SchedulingManagement = () => {
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-6 py-4">
                     {action.campaign_name ? (
                       <div className="text-sm text-gray-900">{action.campaign_name}</div>
                     ) : (
                       <span className="text-sm text-gray-500">Không có</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{getActionStatusBadge(action)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="whitespace-nowrap px-6 py-4">{getActionStatusBadge(action)}</td>
+                  <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
                     {action.status === 'PENDING' && (
                       <button
                         onClick={() => handleCancelAction(action.id)}
@@ -315,7 +312,7 @@ const SchedulingManagement = () => {
           {/* Movie Selection */}
           {!selectedMovie && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Chọn phim</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Chọn phim</label>
               <select
                 value={selectedMovie?.id || ''}
                 onChange={e => {
@@ -337,14 +334,14 @@ const SchedulingManagement = () => {
           {selectedMovie && (
             <>
               {/* Selected Movie Display */}
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="rounded-lg bg-gray-50 p-4">
                 <h4 className="font-medium text-gray-900">{selectedMovie.title}</h4>
                 <p className="text-sm text-gray-600">{selectedMovie.original_title}</p>
               </div>
 
               {/* Action Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Loại hành động
                 </label>
                 <select
@@ -362,7 +359,7 @@ const SchedulingManagement = () => {
               {/* Scheduled Date and Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
                     Ngày thực hiện
                   </label>
                   <input
@@ -375,7 +372,7 @@ const SchedulingManagement = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
                     Giờ thực hiện
                   </label>
                   <input
@@ -410,7 +407,7 @@ const SchedulingManagement = () => {
                   {scheduleForm.auto_unschedule && (
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-medium text-gray-700">
                           Ngày kết thúc
                         </label>
                         <input
@@ -423,7 +420,7 @@ const SchedulingManagement = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-medium text-gray-700">
                           Giờ kết thúc
                         </label>
                         <input
@@ -442,7 +439,7 @@ const SchedulingManagement = () => {
 
               {/* Campaign Information */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Tên chiến dịch (tùy chọn)
                 </label>
                 <input
@@ -458,7 +455,7 @@ const SchedulingManagement = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
                     Loại chiến dịch
                   </label>
                   <select
@@ -475,7 +472,7 @@ const SchedulingManagement = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
                     Mức độ ưu tiên
                   </label>
                   <input
@@ -504,7 +501,7 @@ const SchedulingManagement = () => {
                   type="button"
                   onClick={handleScheduleAction}
                   disabled={!scheduleForm.scheduled_date}
-                  className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <BoltIcon className="mr-2 size-4" />
                   Tạo lịch trình

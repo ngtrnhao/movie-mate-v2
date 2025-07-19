@@ -65,7 +65,7 @@ const Toast = ({ message, type = 'success', duration = 3000, onClose }) => {
 
   const toastContent = (
     <div
-      className={`fixed right-4 bottom-4 z-[9998] transition-all duration-300${
+      className={`fixed bottom-4 right-4 z-[9998] transition-all duration-300${
         isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       }`}
     >

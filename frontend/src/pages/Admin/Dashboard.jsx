@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -62,7 +62,7 @@ const AdminDashboardContent = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState('dashboard'); // dashboard, kanban, queue
 
-  const { dashboardData } = useAdminData();
+  const { dashboardData, setActiveTab, activeTab } = useAdminData();
   const { data: realTimeMetrics, isStale } = useAdminRealTimeMetrics();
   const user = useSelector(state => state.auth.user);
   const navigate = useNavigate();
@@ -73,6 +73,15 @@ const AdminDashboardContent = () => {
       navigate('/');
     }
   }, [user, navigate]);
+
+  // Update active tab in context when view changes
+  useEffect(() => {
+    // Only update if tab actually changed
+    if (activeTab !== activeView) {
+      setActiveTab(activeView);
+      console.log('🔄 [AdminDashboard] Active tab changed to:', activeView);
+    }
+  }, [activeView, setActiveTab, activeTab]);
 
   // Navigation configuration with improved grouping
   const getNavigationItems = () => {
@@ -320,15 +329,15 @@ const AdminDashboardContent = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Real-time Analytics Dashboard</h2>
-                <p className="text-gray-600 mt-1">
+                <p className="mt-1 text-gray-600">
                   Biểu đồ và thống kê thời gian thực cho user tracking và production metrics
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <div className="size-2 animate-pulse rounded-full bg-green-400"></div>
                 <span className="text-sm text-gray-500">Live Data</span>
                 {isStale && (
-                  <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
+                  <span className="rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-600">
                     Dữ liệu cũ
                   </span>
                 )}
@@ -343,12 +352,12 @@ const AdminDashboardContent = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Auto-Processing Status</h2>
-                <p className="text-gray-600 mt-1">
+                <p className="mt-1 text-gray-600">
                   Trạng thái và điều khiển hệ thống tự động xử lý dữ liệu
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                <div className="size-2 animate-pulse rounded-full bg-emerald-400"></div>
                 <span className="text-sm text-gray-500">Automation Active</span>
               </div>
             </div>
@@ -446,7 +455,7 @@ const AdminDashboardContent = () => {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Header */}
         <AdminHeader
           breadcrumbs={breadcrumbs}
@@ -461,11 +470,11 @@ const AdminDashboardContent = () => {
           {/* <AdminStatsCards realTimeMetrics={realTimeMetrics} /> */}
 
           {/* Main Content */}
-          <div className="rounded-lg bg-white shadow-sm border border-gray-200">
+          <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
             {loading ? (
               <div className="flex h-64 items-center justify-center">
                 <div className="text-center">
-                  <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <div className="mx-auto mb-4 size-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
                   <p className="text-gray-600">Đang xử lý...</p>
                 </div>
               </div>

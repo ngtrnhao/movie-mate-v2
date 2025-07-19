@@ -11,7 +11,7 @@ const Modal = ({ open, onClose, title, children }) => {
 
       {/* Modal Container */}
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-        <div className="w-full max-w-6xl animate-fade-in rounded-lg bg-white shadow-xl">
+        <div className="animate-fade-in w-full max-w-6xl rounded-lg bg-white shadow-xl">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
             {title && <h2 className="text-xl font-semibold text-gray-900">{title}</h2>}

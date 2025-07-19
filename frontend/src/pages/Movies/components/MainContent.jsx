@@ -82,7 +82,7 @@ const TechnicalSection = ({ movie }) => {
   const { t } = useTranslation('movies');
 
   return (
-    <div className="space-y-4 sm:space-y-6 text-white">
+    <div className="space-y-4 text-white sm:space-y-6">
       <h3 className="mb-3 text-xl font-bold sm:mb-4 sm:text-2xl">{t('details.technicalInfo')}</h3>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -157,6 +157,109 @@ const TechnicalSection = ({ movie }) => {
             <p className="text-sm text-gray-200 sm:text-base">{movie.status}</p>
           </div>
         )}
+
+        {/* Budget - New addition */}
+        {movie.production_info?.budget && (
+          <div className="rounded-lg bg-gray-800/50 p-3 sm:p-4">
+            <h4 className="mb-2 text-sm font-semibold text-gray-300 sm:text-base">
+              {t('details.budget')}
+            </h4>
+            <p className="text-sm text-gray-200 sm:text-base">
+              ${(movie.production_info.budget / 1000000).toFixed(1)}M
+            </p>
+          </div>
+        )}
+
+        {/* Revenue - New addition */}
+        {movie.production_info?.revenue && (
+          <div className="rounded-lg bg-gray-800/50 p-3 sm:p-4">
+            <h4 className="mb-2 text-sm font-semibold text-gray-300 sm:text-base">
+              {t('details.revenue')}
+            </h4>
+            <p className="text-sm text-gray-200 sm:text-base">
+              ${(movie.production_info.revenue / 1000000).toFixed(1)}M
+            </p>
+          </div>
+        )}
+
+        {/* Homepage - New addition */}
+        {movie.production_info?.homepage && (
+          <div className="rounded-lg bg-gray-800/50 p-3 sm:p-4">
+            <h4 className="mb-2 text-sm font-semibold text-gray-300 sm:text-base">
+              {t('details.homepage')}
+            </h4>
+            <a
+              href={movie.production_info.homepage}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-400 hover:text-blue-300 sm:text-base"
+            >
+              {t('details.visitHomepage')}
+            </a>
+          </div>
+        )}
+
+        {/* Production Countries - Enhanced display */}
+        {movie.production_info?.production_countries?.length > 0 && (
+          <div className="rounded-lg bg-gray-800/50 p-3 sm:p-4">
+            <h4 className="mb-2 text-sm font-semibold text-gray-300 sm:text-base">
+              {t('details.country')}
+            </h4>
+            <div className="flex flex-wrap gap-1">
+              {movie.production_info.production_countries.map((country, index) => (
+                <span
+                  key={index}
+                  className="rounded bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm"
+                >
+                  {country.name || country}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Spoken Languages - Enhanced display */}
+        {movie.production_info?.spoken_languages?.length > 0 && (
+          <div className="rounded-lg bg-gray-800/50 p-3 sm:p-4">
+            <h4 className="mb-2 text-sm font-semibold text-gray-300 sm:text-base">
+              {t('details.language')}
+            </h4>
+            <div className="flex flex-wrap gap-1">
+              {movie.production_info.spoken_languages.map((language, index) => (
+                <span
+                  key={index}
+                  className="rounded bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm uppercase"
+                >
+                  {language.name || language}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Production Companies - Enhanced display */}
+        {movie.production_info?.production_companies?.length > 0 && (
+          <div className="rounded-lg bg-gray-800/50 p-3 sm:p-4">
+            <h4 className="mb-2 text-sm font-semibold text-gray-300 sm:text-base">
+              {t('details.production')}
+            </h4>
+            <div className="flex flex-wrap gap-1">
+              {movie.production_info.production_companies.slice(0, 4).map((company, index) => (
+                <span
+                  key={index}
+                  className="rounded bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm"
+                >
+                  {company.name || company}
+                </span>
+              ))}
+              {movie.production_info.production_companies.length > 4 && (
+                <span className="rounded bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm">
+                  +{movie.production_info.production_companies.length - 4} more
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Rating Details - Responsive */}
@@ -209,7 +312,7 @@ const MediaSection = ({ movie }) => {
   const { t } = useTranslation('movies');
 
   return (
-    <div className="space-y-4 sm:space-y-6 text-white">
+    <div className="space-y-4 text-white sm:space-y-6">
       <h3 className="mb-3 text-xl font-bold sm:mb-4 sm:text-2xl">Hình ảnh</h3>
 
       {movie.images ? (
@@ -336,7 +439,7 @@ const SimilarMoviesSection = ({ similarMovies }) => {
   const { t } = useTranslation('movies');
 
   return (
-    <div className="space-y-4 sm:space-y-6 text-white">
+    <div className="space-y-4 text-white sm:space-y-6">
       {similarMovies && similarMovies.length > 0 ? (
         <div>
           <h3 className="mb-3 text-xl font-bold sm:mb-4 sm:text-2xl">

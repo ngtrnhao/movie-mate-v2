@@ -76,7 +76,8 @@ urlpatterns = [
     re_path(r'^movies/(?P<slug>[\w-]+)/details_complete/$', views.MovieViewSet.as_view({'get': 'details_complete'}), name='movie-details-complete'),
     re_path(r'^movies/(?P<slug>[\w-]+)/reviews/$', views.MovieViewSet.as_view({'get': 'reviews', 'post': 'reviews'}), name='movie-reviews-slug'),
 
-
+    # Cast member detail
+    path('movies/cast/<int:cast_id>/', views.get_cast_member_detail, name='cast_member_detail'),
 
     # Testing endpoints for calculated metrics
     path('test/calculation-metrics/', views.test_calculation_metrics, name='test_calculation_metrics'),

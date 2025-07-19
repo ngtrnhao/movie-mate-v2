@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Heart, Share, Play } from 'lucide-react';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { useFavorites } from '../../../hooks/useFavorites';
@@ -173,9 +173,9 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             }`}
           >
             <Plus
-              className={`transition-transform duration-200 group-hover:scale-110 sm:size-8
-                isTogglingWatchlist ? 'animate-pulse' : ''
-              } ${isInList ? 'rotate-45' : ''}`}
+              className={`isTogglingWatchlist ? 'animate-pulse' :
+                '' } transition-transform duration-200 group-hover:scale-110
+              sm:size-8 ${isInList ? 'rotate-45' : ''}`}
             />
             <span className="hidden sm:inline">
               {isTogglingWatchlist

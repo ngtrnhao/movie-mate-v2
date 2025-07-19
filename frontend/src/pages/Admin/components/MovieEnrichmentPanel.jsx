@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   enrichMovie,
   batchEnrichMovies,
@@ -193,13 +193,13 @@ const MovieEnrichmentPanel = () => {
       enrichmentResults.enrichment_result || enrichmentResults.batch_result || enrichmentResults;
 
     return (
-      <div className="mt-6 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+      <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4">
+          <h3 className="flex items-center text-lg font-semibold text-gray-900">
             {isSuccess ? (
               <>
-                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-2">
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <div className="mr-2 flex size-5 items-center justify-center rounded-full bg-green-500">
+                  <svg className="size-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
                       d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -211,8 +211,8 @@ const MovieEnrichmentPanel = () => {
               </>
             ) : (
               <>
-                <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center mr-2">
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <div className="mr-2 flex size-5 items-center justify-center rounded-full bg-red-500">
+                  <svg className="size-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
                       d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -236,16 +236,16 @@ const MovieEnrichmentPanel = () => {
               </div>
 
               {result.quality_before && result.quality_after && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Quality Improvement:</h4>
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <h4 className="mb-3 text-sm font-medium text-gray-900">Quality Improvement:</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center">
-                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                      <div className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-800">
                         Before: {result.quality_before.quality_score || 0}/10
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      <div className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
                         After: {result.quality_after.quality_score || 0}/10
                       </div>
                     </div>
@@ -254,13 +254,13 @@ const MovieEnrichmentPanel = () => {
               )}
 
               {result.improvements && result.improvements.length > 0 && (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Improvements Made:</h4>
+                <div className="rounded-lg bg-blue-50 p-4">
+                  <h4 className="mb-3 text-sm font-medium text-gray-900">Improvements Made:</h4>
                   <div className="flex flex-wrap gap-2">
                     {result.improvements.map((improvement, index) => (
                       <span
                         key={index}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800"
                       >
                         {improvement}
                       </span>
@@ -278,7 +278,7 @@ const MovieEnrichmentPanel = () => {
           {/* Batch Results */}
           {enrichmentResults.batch_result && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{result.total_movies || 0}</div>
                   <div className="text-sm text-gray-600">Total Movies</div>
@@ -341,9 +341,9 @@ const MovieEnrichmentPanel = () => {
   const renderStatusDialog = () => (
     <>
       {statusDialogOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-2xl">
+            <div className="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4">
               <h2 className="text-xl font-semibold text-gray-900">
                 📊 Movie Enrichment Status
                 {enrichmentStatus?.movie_id && ` - ID: ${enrichmentStatus.movie_id}`}
@@ -359,13 +359,13 @@ const MovieEnrichmentPanel = () => {
 
                   {/* Data Completeness */}
                   <div>
-                    <h4 className="text-md font-medium text-gray-900 mb-3">📊 Data Completeness</h4>
+                    <h4 className="text-md mb-3 font-medium text-gray-900">📊 Data Completeness</h4>
                     <div className="space-y-3">
                       {Object.entries(
                         enrichmentStatus.enrichment_status?.data_completeness || {}
                       ).map(([category, data]) => (
-                        <div key={category} className="bg-gray-50 rounded-lg p-4">
-                          <h5 className="text-sm font-medium text-gray-900 mb-2">
+                        <div key={category} className="rounded-lg bg-gray-50 p-4">
+                          <h5 className="mb-2 text-sm font-medium text-gray-900">
                             {category.replace('_', ' ').toUpperCase()}
                           </h5>
                           <div className="grid grid-cols-2 gap-2">
@@ -373,7 +373,7 @@ const MovieEnrichmentPanel = () => {
                               <div key={field} className="flex items-center">
                                 {value ? (
                                   <svg
-                                    className="w-4 h-4 text-green-500 mr-2"
+                                    className="mr-2 size-4 text-green-500"
                                     fill="currentColor"
                                     viewBox="0 0 20 20"
                                   >
@@ -385,7 +385,7 @@ const MovieEnrichmentPanel = () => {
                                   </svg>
                                 ) : (
                                   <svg
-                                    className="w-4 h-4 text-red-500 mr-2"
+                                    className="mr-2 size-4 text-red-500"
                                     fill="currentColor"
                                     viewBox="0 0 20 20"
                                   >
@@ -409,8 +409,8 @@ const MovieEnrichmentPanel = () => {
 
                   {/* Enrichment Opportunities */}
                   {enrichmentStatus.enrichment_status?.enrichment_opportunities?.length > 0 && (
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <h4 className="text-md font-medium text-gray-900 mb-3">
+                    <div className="rounded-lg bg-blue-50 p-4">
+                      <h4 className="text-md mb-3 font-medium text-gray-900">
                         💡 Enrichment Opportunities
                       </h4>
                       <div className="flex flex-wrap gap-2">
@@ -418,7 +418,7 @@ const MovieEnrichmentPanel = () => {
                           (opportunity, index) => (
                             <span
                               key={index}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                              className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
                             >
                               {opportunity}
                             </span>
@@ -430,8 +430,8 @@ const MovieEnrichmentPanel = () => {
 
                   {/* Quality Metrics */}
                   {enrichmentStatus.enrichment_status?.quality_metrics && (
-                    <div className="bg-green-50 rounded-lg p-4">
-                      <h4 className="text-md font-medium text-gray-900 mb-3">📈 Quality Metrics</h4>
+                    <div className="rounded-lg bg-green-50 p-4">
+                      <h4 className="text-md mb-3 font-medium text-gray-900">📈 Quality Metrics</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="text-sm">
                           <span className="font-medium">Quality Score:</span>{' '}
@@ -452,17 +452,17 @@ const MovieEnrichmentPanel = () => {
               )}
             </div>
 
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+            <div className="flex justify-end space-x-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
               <button
                 onClick={() => setStatusDialogOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Close
               </button>
               <button
                 onClick={handleEnrichSingleMovie}
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Enrich Now
               </button>
@@ -474,10 +474,10 @@ const MovieEnrichmentPanel = () => {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-7xl p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">🎬 Movie Enrichment Panel</h1>
+        <h1 className="mb-2 text-3xl font-bold text-gray-900">🎬 Movie Enrichment Panel</h1>
         <p className="text-gray-600">
           Comprehensive movie data enrichment using unified TMDB/IMDB services
         </p>
@@ -485,10 +485,10 @@ const MovieEnrichmentPanel = () => {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
           <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+            <div className="shrink-0">
+              <svg className="size-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -504,7 +504,7 @@ const MovieEnrichmentPanel = () => {
                 onClick={() => setSuccess(null)}
                 className="inline-flex text-green-400 hover:text-green-600"
               >
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="size-5" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"
                     d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -518,10 +518,10 @@ const MovieEnrichmentPanel = () => {
       )}
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+            <div className="shrink-0">
+              <svg className="size-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -537,7 +537,7 @@ const MovieEnrichmentPanel = () => {
                 onClick={() => setError(null)}
                 className="inline-flex text-red-400 hover:text-red-600"
               >
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="size-5" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"
                     d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -551,20 +551,20 @@ const MovieEnrichmentPanel = () => {
       )}
 
       {/* Configuration Panel */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-lg">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">⚙️ Enrichment Configuration</h2>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 Enrichment Type
               </label>
               <select
                 value={enrichmentType}
                 onChange={e => setEnrichmentType(e.target.value)}
-                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               >
                 <option value="comprehensive">🔥 Comprehensive (All Data)</option>
                 <option value="quality_based">🎯 Quality-Based (Issues Only)</option>
@@ -572,7 +572,7 @@ const MovieEnrichmentPanel = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Focus Areas</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Focus Areas</label>
               <div className="space-y-2">
                 {focusAreaOptions.map(option => (
                   <label key={option.value} className="flex items-center">
@@ -586,7 +586,7 @@ const MovieEnrichmentPanel = () => {
                           setSelectedFocusAreas(selectedFocusAreas.filter(f => f !== option.value));
                         }
                       }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="ml-2 text-sm text-gray-700">{option.label}</span>
                   </label>
@@ -601,7 +601,7 @@ const MovieEnrichmentPanel = () => {
                 type="checkbox"
                 checked={forceRefresh}
                 onChange={e => setForceRefresh(e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <span className="ml-2 text-sm text-gray-700">🔄 Force Refresh Existing Data</span>
             </label>
@@ -610,32 +610,32 @@ const MovieEnrichmentPanel = () => {
       </div>
 
       {/* Individual Movie Enrichment */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
-        <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-lg">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">🎬 Individual Movie Enrichment</h2>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
             <div className="md:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Movie ID</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Movie ID</label>
               <input
                 type="number"
                 value={selectedMovieId}
                 onChange={e => setSelectedMovieId(e.target.value)}
                 placeholder="Enter movie ID"
-                className="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               />
             </div>
-            <div className="md:col-span-3 flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 md:col-span-3">
               <button
                 onClick={handleEnrichSingleMovie}
                 disabled={loading || !selectedMovieId}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? (
                   <>
                     <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      className="-ml-1 mr-2 size-4 animate-spin text-white"
                       fill="none"
                       viewBox="0 0 24 24"
                     >
@@ -657,7 +657,7 @@ const MovieEnrichmentPanel = () => {
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="mr-2 size-4" fill="currentColor" viewBox="0 0 20 20">
                       <path
                         fillRule="evenodd"
                         d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
@@ -672,9 +672,9 @@ const MovieEnrichmentPanel = () => {
               <button
                 onClick={handleGetEnrichmentStatus}
                 disabled={loading || !selectedMovieId}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="mr-2 size-4" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                 </svg>
                 Check Status
@@ -685,14 +685,14 @@ const MovieEnrichmentPanel = () => {
       </div>
 
       {/* Batch Movie Enrichment */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
-        <div className="px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-lg">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">🚀 Batch Movie Enrichment</h2>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 Movie IDs (comma-separated)
               </label>
               <textarea
@@ -700,12 +700,12 @@ const MovieEnrichmentPanel = () => {
                 onChange={e => setBatchMovieIds(e.target.value)}
                 placeholder="1, 2, 3, 4, 5..."
                 rows={3}
-                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               />
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Max Concurrent
                 </label>
                 <input
@@ -714,18 +714,18 @@ const MovieEnrichmentPanel = () => {
                   onChange={e => setMaxConcurrent(parseInt(e.target.value) || 5)}
                   min="1"
                   max="10"
-                  className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                 />
               </div>
               <button
                 onClick={handleBatchEnrichMovies}
                 disabled={batchLoading || !batchMovieIds.trim()}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {batchLoading ? (
                   <>
                     <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      className="-ml-1 mr-2 size-4 animate-spin text-white"
                       fill="none"
                       viewBox="0 0 24 24"
                     >
@@ -747,7 +747,7 @@ const MovieEnrichmentPanel = () => {
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="mr-2 size-4" fill="currentColor" viewBox="0 0 20 20">
                       <path
                         fillRule="evenodd"
                         d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
@@ -764,14 +764,14 @@ const MovieEnrichmentPanel = () => {
       </div>
 
       {/* Quality-Based Enrichment */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
-        <div className="px-6 py-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-gray-200">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-lg">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-yellow-50 to-orange-50 px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">🎯 Quality-Based Enrichment</h2>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 Max Quality Score
               </label>
               <input
@@ -786,11 +786,11 @@ const MovieEnrichmentPanel = () => {
                 min="0"
                 max="10"
                 step="0.1"
-                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Limit</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Limit</label>
               <input
                 type="number"
                 value={qualityOptions.limit}
@@ -802,19 +802,19 @@ const MovieEnrichmentPanel = () => {
                 }
                 min="1"
                 max="100"
-                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               />
             </div>
             <div className="flex items-end">
               <button
                 onClick={handleEnrichQualityIssues}
                 disabled={qualityLoading}
-                className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-yellow-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {qualityLoading ? (
                   <>
                     <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      className="-ml-1 mr-2 size-4 animate-spin text-white"
                       fill="none"
                       viewBox="0 0 24 24"
                     >
@@ -836,7 +836,7 @@ const MovieEnrichmentPanel = () => {
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="mr-2 size-4" fill="currentColor" viewBox="0 0 20 20">
                       <path
                         fillRule="evenodd"
                         d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"

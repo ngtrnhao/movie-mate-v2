@@ -30,7 +30,7 @@ const CreateWatchlistModal = ({ isOpen, onClose, onSubmit, loading, limitMessage
           </div>
 
           {limitMessage && (
-            <div className="mb-4 rounded bg-yellow-100/10 p-3 text-sm text-yellow-400 border border-yellow-400">
+            <div className="mb-4 rounded border border-yellow-400 bg-yellow-100/10 p-3 text-sm text-yellow-400">
               {limitMessage}
             </div>
           )}

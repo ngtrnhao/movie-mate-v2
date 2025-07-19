@@ -255,7 +255,7 @@ const CheckoutPage = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] px-2 py-10 text-white">
       {/* Language Switcher */}
-      <div className="absolute top-4 right-4 flex gap-2">
+      <div className="absolute right-4 top-4 flex gap-2">
         <button
           onClick={() => i18n.changeLanguage('en')}
           className={`rounded-lg px-3 py-1 text-sm font-medium transition-colors ${

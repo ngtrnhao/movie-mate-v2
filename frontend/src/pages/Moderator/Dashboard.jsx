@@ -7,8 +7,6 @@ import {
   getDashboardStatistics,
   getNavigationBadgeCounts,
   getSystemNotifications,
-  getAllDashboardData,
-  refreshAllData,
 } from '../../api/moderatorService';
 import {
   ChartBarIcon,
@@ -18,7 +16,6 @@ import {
   UsersIcon,
   ChartPieIcon,
   Cog6ToothIcon,
-  WrenchScrewdriverIcon,
   CheckCircleIcon,
   XCircleIcon,
   FlagIcon,
@@ -40,11 +37,9 @@ import {
   ChartBarIcon as ChartBarIconSolid,
   ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
   ExclamationTriangleIcon as ExclamationTriangleIconSolid,
-  DocumentTextIcon as DocumentTextIconSolid,
   UsersIcon as UsersIconSolid,
   ChartPieIcon as ChartPieIconSolid,
   Cog6ToothIcon as Cog6ToothIconSolid,
-  WrenchScrewdriverIcon as WrenchScrewdriverIconSolid,
 } from '@heroicons/react/24/solid';
 import DashboardOverview from './components/DashboardOverview';
 import KanbanBoard from './components/KanbanBoard';
@@ -54,7 +49,6 @@ import UserManagement from './components/UserManagement';
 import SystemSettings from './components/SystemSettings';
 import AdminSettings from './components/AdminSettings';
 import Analytics from './components/Analytics';
-import ContentManagement from './components/ContentManagement';
 import ContentModerationDashboard from './components/ContentModerationDashboard';
 import AutoMarkedReviews from './components/AutoMarkedReviews';
 import ModerationDebugPanel from './components/ModerationDebugPanel';
@@ -1075,7 +1069,7 @@ const ModeratorDashboard = () => {
                         >
                           <div className="flex items-start">
                             <div
-                              className={`mt-1 flex-shrink-0 rounded-full p-1 ${
+                              className={`mt-1 shrink-0 rounded-full p-1 ${
                                 notification.type === 'error'
                                   ? 'bg-red-100'
                                   : notification.type === 'warning'
@@ -1095,7 +1089,7 @@ const ModeratorDashboard = () => {
                                 <InformationCircleIcon className={`size-4 text-blue-600`} />
                               )}
                             </div>
-                            <div className="ml-3 flex-1 min-w-0">
+                            <div className="ml-3 min-w-0 flex-1">
                               <p
                                 className={`text-sm ${!notification.is_read ? 'font-semibold text-gray-900' : 'text-gray-800'}`}
                               >

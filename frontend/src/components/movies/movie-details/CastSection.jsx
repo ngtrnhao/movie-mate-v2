@@ -3,9 +3,12 @@ import { motion } from 'framer-motion';
 import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { Users, UserX } from 'lucide-react';
 import { getProfileUrl } from '../../../utils/imageUtils';
+import { useNavigate } from 'react-router-dom';
+import CastCard from '../cast/CastCard';
 
 const CastSection = ({ cast = [], isLoading = false, error = null }) => {
   const { t } = useTranslation('movies');
+  const navigate = useNavigate();
   const [showAllCast, setShowAllCast] = useState(false);
 
   // Handle different data formats from backend
@@ -154,32 +157,12 @@ const CastSection = ({ cast = [], isLoading = false, error = null }) => {
           }`}
         >
           {displayCast.map((actor, index) => (
-            <motion.div
+            <CastCard
               key={actor.cast_id || actor.id || `${actor.name}-${actor.order}-${index}`}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: showAllCast ? index * 0.05 : index * 0.1 }}
-              className="group relative overflow-hidden rounded-lg bg-gray-800"
-            >
-              <div className="aspect-[2/3] w-full overflow-hidden">
-                <img
-                  src={getProfileUrl(actor, 'w500')}
-                  alt={actor.name || 'Actor'}
-                  className="size-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  onError={e => {
-                    // Fallback to default avatar if both profile URL and gender-specific fallback fail
-                    e.target.src = '/images/avatar_default.jpg';
-                  }}
-                />
-              </div>
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-4">
-                <h3 className="line-clamp-1 text-sm font-semibold text-white">
-                  {actor.name || 'Unknown Actor'}
-                </h3>
-                <p className="mt-1 line-clamp-1 text-xs text-gray-300">{getCharacterName(actor)}</p>
-              </div>
-            </motion.div>
+              actor={actor}
+              index={index}
+              showAllCast={showAllCast}
+            />
           ))}
         </div>
 

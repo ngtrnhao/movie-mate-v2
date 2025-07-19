@@ -202,7 +202,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-4"
           onClick={handleClose}
         >
           <motion.div
@@ -238,7 +238,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
               )}
 
               {error ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-900 text-white p-4">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-900 p-4 text-white">
                   <p className="text-base font-medium text-red-500 sm:text-lg">{error}</p>
                   <button
                     onClick={handleClose}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import adminMovieService from '../../../api/adminMovieService';
 
 const AutoProcessingStatus = () => {
@@ -50,18 +50,19 @@ const AutoProcessingStatus = () => {
   // Auto refresh every 30 seconds
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 30000);
-    return () => clearInterval(interval);
+    // Remove separate interval - rely on AdminDataContext for auto-refresh
+    // const interval = setInterval(fetchStatus, 30000);
+    // return () => clearInterval(interval);
   }, []);
 
   if (loading && !status) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="rounded-lg bg-white p-6 shadow">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded mb-4 w-1/3"></div>
+          <div className="mb-4 h-6 w-1/3 rounded bg-gray-200"></div>
           <div className="space-y-3">
-            <div className="h-4 bg-gray-200 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 w-full rounded bg-gray-200"></div>
+            <div className="h-4 w-3/4 rounded bg-gray-200"></div>
           </div>
         </div>
       </div>
@@ -88,9 +89,9 @@ const AutoProcessingStatus = () => {
   const health = status?.system_health || {};
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="rounded-lg bg-white shadow">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
+      <div className="border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium text-gray-900">🔄 Auto-Processing Status</h3>
           <div className="flex items-center space-x-2">
@@ -100,7 +101,7 @@ const AutoProcessingStatus = () => {
             <button
               onClick={fetchStatus}
               disabled={loading}
-              className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50"
+              className="rounded-md bg-blue-100 px-3 py-1 text-sm text-blue-700 hover:bg-blue-200 disabled:opacity-50"
             >
               {loading ? 'Refreshing...' : 'Refresh'}
             </button>
@@ -111,8 +112,8 @@ const AutoProcessingStatus = () => {
       <div className="p-6">
         {/* System Health */}
         <div className="mb-6">
-          <h4 className="text-md font-medium text-gray-900 mb-3">System Health</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h4 className="text-md mb-3 font-medium text-gray-900">System Health</h4>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="flex items-center space-x-2">
               <span>{getStatusIcon(health.database_responsive)}</span>
               <span className={getStatusColor(health.database_responsive)}>Database</span>
@@ -133,10 +134,10 @@ const AutoProcessingStatus = () => {
         {/* Task Status */}
         {status?.queue_status?.task_status && (
           <div className="mb-6">
-            <h4 className="text-md font-medium text-gray-900 mb-3">Current Task Status</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h4 className="text-md mb-3 font-medium text-gray-900">Current Task Status</h4>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {Object.entries(status.queue_status.task_status).map(([taskName, taskStatus]) => (
-                <div key={taskName} className="bg-gray-50 p-3 rounded-lg">
+                <div key={taskName} className="rounded-lg bg-gray-50 p-3">
                   <div className="flex items-center space-x-2">
                     <span>
                       {taskStatus === 'running'
@@ -148,7 +149,7 @@ const AutoProcessingStatus = () => {
                             : '⏳'}
                     </span>
                     <div>
-                      <div className="font-medium text-sm text-gray-700 capitalize">
+                      <div className="text-sm font-medium capitalize text-gray-700">
                         {taskName.replace('_', ' ')}
                       </div>
                       <div
@@ -174,16 +175,16 @@ const AutoProcessingStatus = () => {
 
         {/* Current Activity */}
         <div className="mb-6">
-          <h4 className="text-md font-medium text-gray-900 mb-3">Current Activity</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="text-sm text-blue-600 font-medium">Pending Interactions</div>
+          <h4 className="text-md mb-3 font-medium text-gray-900">Current Activity</h4>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-lg bg-blue-50 p-4">
+              <div className="text-sm font-medium text-blue-600">Pending Interactions</div>
               <div className="text-2xl font-bold text-blue-900">
                 {automation.pending_interactions?.toLocaleString() || '0'}
               </div>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="text-sm text-green-600 font-medium">Recent Activity (1h)</div>
+            <div className="rounded-lg bg-green-50 p-4">
+              <div className="text-sm font-medium text-green-600">Recent Activity (1h)</div>
               <div className="text-2xl font-bold text-green-900">
                 {automation.recent_interactions_1h?.toLocaleString() || '0'}
               </div>
@@ -193,10 +194,10 @@ const AutoProcessingStatus = () => {
 
         {/* Last Processing Results */}
         <div className="mb-6">
-          <h4 className="text-md font-medium text-gray-900 mb-3">Last Processing Results</h4>
+          <h4 className="text-md mb-3 font-medium text-gray-900">Last Processing Results</h4>
           <div className="space-y-3">
             {/* Interaction Processing */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
               <div>
                 <div className="font-medium text-gray-600">User Interactions</div>
                 <div className="text-sm text-gray-600">
@@ -217,14 +218,14 @@ const AutoProcessingStatus = () => {
               <button
                 onClick={() => triggerProcessing('interactions', { hours: 1 })}
                 disabled={triggering.interactions}
-                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50"
+                className="rounded-md bg-blue-100 px-3 py-1 text-sm text-blue-700 hover:bg-blue-200 disabled:opacity-50"
               >
                 {triggering.interactions ? 'Triggering...' : 'Trigger Now'}
               </button>
             </div>
 
             {/* Metrics Calculation */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
               <div>
                 <div className="font-medium text-gray-600">Production Metrics</div>
                 <div className="text-sm text-gray-600">
@@ -245,14 +246,14 @@ const AutoProcessingStatus = () => {
               <button
                 onClick={() => triggerProcessing('metrics')}
                 disabled={triggering.metrics}
-                className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-md hover:bg-green-200 disabled:opacity-50"
+                className="rounded-md bg-green-100 px-3 py-1 text-sm text-green-700 hover:bg-green-200 disabled:opacity-50"
               >
                 {triggering.metrics ? 'Triggering...' : 'Trigger Now'}
               </button>
             </div>
 
             {/* Trending Sync */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
               <div>
                 <div className="font-medium text-gray-600">Trending Categories</div>
                 <div className="text-sm text-gray-600">
@@ -273,7 +274,7 @@ const AutoProcessingStatus = () => {
               <button
                 onClick={() => triggerProcessing('trending')}
                 disabled={triggering.trending}
-                className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 disabled:opacity-50"
+                className="rounded-md bg-purple-100 px-3 py-1 text-sm text-purple-700 hover:bg-purple-200 disabled:opacity-50"
               >
                 {triggering.trending ? 'Triggering...' : 'Trigger Now'}
               </button>
@@ -282,9 +283,9 @@ const AutoProcessingStatus = () => {
         </div>
 
         {/* Automation Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="text-md font-medium text-blue-900 mb-2">🤖 Automation Schedule</h4>
-          <div className="text-sm text-blue-800 space-y-1">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <h4 className="text-md mb-2 font-medium text-blue-900">🤖 Automation Schedule</h4>
+          <div className="space-y-1 text-sm text-blue-800">
             <div>• User interactions: Every 15 minutes</div>
             <div>• Production metrics: Auto-triggered after interactions</div>
             <div>• Trending categories: Every 6 hours</div>

@@ -2,16 +2,9 @@ import { useState } from 'react';
 import {
   ChartBarIcon,
   CalendarDaysIcon,
-  ClockIcon,
-  SparklesIcon,
   AdjustmentsHorizontalIcon,
   ArrowTrendingUpIcon,
-  BoltIcon,
-  EyeIcon,
-  HeartIcon,
   XMarkIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
 const AdvancedAdminFilters = ({
@@ -128,10 +121,10 @@ const AdvancedAdminFilters = ({
           onClick={onToggleAdvanced}
           className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900"
         >
-          <AdjustmentsHorizontalIcon className="h-4 w-4" />
+          <AdjustmentsHorizontalIcon className="size-4" />
           <span>Show Advanced Filters</span>
           {hasActiveFilters() && (
-            <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-500"></span>
+            <span className="ml-2 inline-flex size-2 rounded-full bg-blue-500"></span>
           )}
         </button>
       </div>
@@ -143,7 +136,7 @@ const AdvancedAdminFilters = ({
       {/* Quality Score Range */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Quality Score
           </label>
           <input
@@ -158,7 +151,7 @@ const AdvancedAdminFilters = ({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Maximum Quality Score
           </label>
           <input
@@ -176,7 +169,7 @@ const AdvancedAdminFilters = ({
 
       {/* Content Completeness */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           Minimum Content Completeness (%)
         </label>
         <input
@@ -192,13 +185,13 @@ const AdvancedAdminFilters = ({
 
       {/* Quality Rating */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           Overall Quality Rating
         </label>
         <select
           value={filters.overall_quality_rating || ''}
           onChange={e => handleFilterChange('overall_quality_rating', e.target.value)}
-          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Ratings</option>
           {qualityRatingOptions.map(option => (
@@ -211,11 +204,11 @@ const AdvancedAdminFilters = ({
 
       {/* Completion Status */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Completion Status</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">Completion Status</label>
         <select
           value={filters.completion_status || ''}
           onChange={e => handleFilterChange('completion_status', e.target.value)}
-          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Status</option>
           {completionStatusOptions.map(option => (
@@ -255,13 +248,13 @@ const AdvancedAdminFilters = ({
 
       {/* Admin Priority */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           Minimum Admin Priority
         </label>
         <select
           value={filters.admin_priority_min || ''}
           onChange={e => handleFilterChange('admin_priority_min', e.target.value)}
-          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Priorities</option>
           {adminPriorityOptions.map(option => (
@@ -278,7 +271,7 @@ const AdvancedAdminFilters = ({
     <div className="space-y-6">
       {/* Campaign Type */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Type</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">Campaign Type</label>
         <select
           value={filters.campaign_type || ''}
           onChange={e => handleFilterChange('campaign_type', e.target.value)}
@@ -295,7 +288,7 @@ const AdvancedAdminFilters = ({
 
       {/* Campaign Priority */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           Minimum Campaign Priority
         </label>
         <input
@@ -341,7 +334,7 @@ const AdvancedAdminFilters = ({
       {/* Performance Scores */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Performance Score
           </label>
           <input
@@ -356,7 +349,7 @@ const AdvancedAdminFilters = ({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Trending Score
           </label>
           <input
@@ -374,7 +367,7 @@ const AdvancedAdminFilters = ({
 
       {/* Trending Category */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Trending Category</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">Trending Category</label>
         <select
           value={filters.trending_category || ''}
           onChange={e => handleFilterChange('trending_category', e.target.value)}
@@ -392,7 +385,7 @@ const AdvancedAdminFilters = ({
       {/* Engagement Metrics */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Engagement Rate (%)
           </label>
           <input
@@ -407,7 +400,7 @@ const AdvancedAdminFilters = ({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Homepage Views
           </label>
           <input
@@ -420,7 +413,7 @@ const AdvancedAdminFilters = ({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Detail Views
           </label>
           <input
@@ -437,7 +430,7 @@ const AdvancedAdminFilters = ({
       {/* Trailer & Click Metrics */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Trailer Plays
           </label>
           <input
@@ -450,7 +443,7 @@ const AdvancedAdminFilters = ({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Click-Through Rate (%)
           </label>
           <input
@@ -468,7 +461,7 @@ const AdvancedAdminFilters = ({
 
       {/* User Favorites */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           Minimum User Favorites
         </label>
         <input
@@ -512,11 +505,11 @@ const AdvancedAdminFilters = ({
 
       {/* Approval Status Filter */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Approval Status</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">Approval Status</label>
         <select
           value={filters.approval_status || ''}
           onChange={e => handleFilterChange('approval_status', e.target.value)}
-          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-orange-500 focus:ring-orange-500"
         >
           <option value="">All Statuses</option>
           <option value="NEEDS_REVIEW">Needs Review</option>
@@ -528,11 +521,11 @@ const AdvancedAdminFilters = ({
 
       {/* Visibility Status Filter */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Visibility Status</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">Visibility Status</label>
         <select
           value={filters.visibility_status || ''}
           onChange={e => handleFilterChange('visibility_status', e.target.value)}
-          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-orange-500 focus:ring-orange-500"
         >
           <option value="">All Visibility</option>
           <option value="PUBLISHED">Published</option>
@@ -546,7 +539,7 @@ const AdvancedAdminFilters = ({
       {/* Admin Priority Range */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Minimum Admin Priority
           </label>
           <input
@@ -555,12 +548,12 @@ const AdvancedAdminFilters = ({
             max="10"
             value={filters.admin_priority_min || ''}
             onChange={e => handleFilterChange('admin_priority_min', e.target.value)}
-            className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-orange-500 focus:ring-orange-500"
             placeholder="0"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             Maximum Admin Priority
           </label>
           <input
@@ -598,7 +591,7 @@ const AdvancedAdminFilters = ({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
         <div className="flex items-center space-x-2">
-          <AdjustmentsHorizontalIcon className="h-5 w-5 text-gray-400" />
+          <AdjustmentsHorizontalIcon className="size-5 text-gray-400" />
           <h3 className="text-lg font-medium text-gray-900">Advanced Filters</h3>
           {hasActiveFilters() && (
             <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
@@ -616,7 +609,7 @@ const AdvancedAdminFilters = ({
             onClick={onToggleAdvanced}
             className="rounded-md p-1 text-gray-400 hover:text-gray-500"
           >
-            <XMarkIcon className="h-5 w-5" />
+            <XMarkIcon className="size-5" />
           </button>
         </div>
       </div>
@@ -630,13 +623,13 @@ const AdvancedAdminFilters = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 border-b-2 py-4 px-1 text-sm font-medium ${
+                className={`flex items-center space-x-2 border-b-2 px-1 py-4 text-sm font-medium ${
                   activeTab === tab.id
                     ? `border-blue-500 ${tab.color}`
                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="size-4" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -645,7 +638,7 @@ const AdvancedAdminFilters = ({
       </div>
 
       {/* Filter Content */}
-      <div className="px-6 py-6">
+      <div className="p-6">
         {activeTab === 'quality' && renderQualityFilters()}
         {activeTab === 'scheduling' && renderSchedulingFilters()}
         {activeTab === 'performance' && renderPerformanceFilters()}

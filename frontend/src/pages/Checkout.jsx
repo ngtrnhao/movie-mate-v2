@@ -253,32 +253,8 @@ const CheckoutPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] px-2 py-10 text-white">
-      {/* Language Switcher */}
-      <div className="absolute top-4 right-4 flex gap-2">
-        <button
-          onClick={() => i18n.changeLanguage('en')}
-          className={`rounded-lg px-3 py-1 text-sm font-medium transition-colors ${
-            i18n.language === 'en'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          EN
-        </button>
-        <button
-          onClick={() => i18n.changeLanguage('vi')}
-          className={`rounded-lg px-3 py-1 text-sm font-medium transition-colors ${
-            i18n.language === 'vi'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          VI
-        </button>
-      </div>
-
-      <div className="flex w-full max-w-2xl flex-col gap-8 rounded-2xl bg-gray-900/95 p-8 shadow-2xl md:flex-row md:items-start md:gap-10">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#3a1c71] via-[#d76d77] to-[#2e1a47] px-2 py-10 text-white pt-20">
+      <div className="flex w-full max-w-2xl flex-col gap-8 rounded-2xl bg-gray-900/95 p-8 shadow-2xl md:flex-row md:items-start md:gap-10  ">
         {/* Plan Summary */}
         <div className="flex-1">
           <h1 className="mb-4 text-center text-3xl font-bold md:text-left">{t('title')}</h1>

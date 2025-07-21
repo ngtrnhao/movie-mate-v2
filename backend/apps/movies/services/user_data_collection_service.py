@@ -25,7 +25,7 @@ class UserDataCollectionService:
 
     def _safe_numeric_conversion(self, value, default=None, context=""):
         """
-        🔥 NEW: Safely convert value to numeric type with proper error handling
+        Safely convert value to numeric type with proper error handling
 
         Args:
             value: Value to convert
@@ -51,7 +51,7 @@ class UserDataCollectionService:
         if not session_id:
             return True, "No session validation needed"
 
-        # 🔥 ENHANCED: Validate session_id format
+        # Validate session_id format
         if not isinstance(session_id, str) or len(session_id.strip()) == 0:
             logger.warning(f"Invalid session_id format: {session_id}")
             return False, "Invalid session ID format"
@@ -60,7 +60,7 @@ class UserDataCollectionService:
         session_view_count = metadata.get('sessionViewCount', 1)
         timestamp = metadata.get('timestamp', timezone.now().timestamp() * 1000)
 
-        # 🔥 ENHANCED: Use safe numeric conversion for timestamp
+        # Use safe numeric conversion for timestamp
         current_timestamp = timezone.now().timestamp() * 1000
         timestamp = self._safe_numeric_conversion(
             timestamp,
@@ -84,7 +84,7 @@ class UserDataCollectionService:
             # If session_id format is invalid, use current time
             session_start = timestamp
 
-        # 🔥 ENHANCED: Additional validation to ensure both values are numeric
+        # Additional validation to ensure both values are numeric
         if not isinstance(timestamp, (int, float)) or not isinstance(session_start, (int, float)):
             logger.error(f"Invalid numeric types: timestamp={timestamp} ({type(timestamp)}), "
                         f"session_start={session_start} ({type(session_start)})")
@@ -101,7 +101,7 @@ class UserDataCollectionService:
         except TypeError as e:
             logger.error(f"Type error in session_age calculation: timestamp={timestamp} ({type(timestamp)}), "
                         f"session_start={session_start} ({type(session_start)})")
-            # 🔥 FIXED: Treat invalid session data as expired session instead of new session
+            # Treat invalid session data as expired session instead of new session
             # This prevents bypassing session expiration checks
             return False, "Invalid session data - session expired"
 
@@ -132,7 +132,7 @@ class UserDataCollectionService:
             last_view_time = cache.get(cache_key)
 
             if last_view_time:
-                # 🔥 ENHANCED: Use safe numeric conversion for cooldown validation
+                # Use safe numeric conversion for cooldown validation
                 safe_last_view_time = self._safe_numeric_conversion(
                     last_view_time,
                     default=None,
@@ -145,7 +145,7 @@ class UserDataCollectionService:
                         remaining = self.cooldown_period - time_since_last
                         return False, f"Cooldown period not met ({remaining:.0f}s remaining)"
                 else:
-                    # 🔥 FIXED: Log invalid cooldown data and treat as expired cooldown
+                    #  FIXED: Log invalid cooldown data and treat as expired cooldown
                     logger.warning(f"Invalid cooldown data for movie {movie_id}: {last_view_time}")
                     # Clear invalid cache entry
                     cache.delete(cache_key)
@@ -183,17 +183,17 @@ class UserDataCollectionService:
                 except User.DoesNotExist:
                     logger.warning(f"User {user_id} not found, proceeding with session_id")
 
-            # 🔥 ENHANCED: Session-based validation for spam prevention
+            # Session-based validation for spam prevention
             should_track, reason = self._validate_session_interaction(movie_id, session_id, action, metadata)
             if not should_track:
                 logger.info(f"⏭️ Skipping interaction: {action} for movie {movie_id} - {reason}")
                 return
 
-            # Cache key để tránh duplicate tracking trong thời gian ngắn
+            # Cache key to prevent duplicate tracking in short time
             cache_key = f"interaction_{movie_id}_{action}_{user_id or session_id}"
             if cache.get(cache_key):
                 logger.info(f"⏭️ Duplicate interaction detected: {action} for movie {movie_id}")
-                return  # Skip duplicate interaction trong 5 phút
+                return  # Skip duplicate interaction in 5 minutes
 
             # Extract metadata fields
             metadata = metadata or {}
@@ -212,7 +212,7 @@ class UserDataCollectionService:
                 action=action
             ).exists() if session_id and not user else True
 
-            # 🔥 SAVE RAW INTERACTION TO DATABASE
+            # Save raw interaction to database
             interaction = UserInteraction.objects.create(
                 movie=movie,
                 user=user,
@@ -232,10 +232,10 @@ class UserDataCollectionService:
             # Set cache to prevent duplicates
             cache.set(cache_key, True, timeout=self.cache_timeout)
 
-            # 🔥 IMMEDIATE METRICS UPDATE (for real-time responsiveness)
+            # Immediate metrics update (for real-time responsiveness)
             self._update_metrics_immediate(movie, action, interaction)
 
-            # 🔥 ALSO STORE IN CACHE for batch processing (fallback)
+            # Also store in cache for batch processing (fallback)
             self._store_interaction_cache(movie_id, action, user_id, session_id, metadata)
 
             logger.info(f"✅ Interaction saved: {action} for movie {movie_id} by {user.username if user else session_id} (ID: {interaction.id}) - {reason}")

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   useAdminDashboard,
   useAdminComprehensiveMetrics,
@@ -8,11 +8,9 @@ import RealTimeCharts from './RealTimeCharts';
 import {
   ChartBarIcon,
   ClockIcon,
-  CpuChipIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 
 const AdminDashboardOverview = () => {
@@ -29,7 +27,7 @@ const AdminDashboardOverview = () => {
     lastUpdated,
     refreshMetrics,
     isStale,
-  } = useAdminComprehensiveMetrics();
+  } = useAdminComprehensiveMetrics({ autoRefresh: false });
 
   const {
     data: userInteractionStats,
@@ -102,7 +100,10 @@ const AdminDashboardOverview = () => {
         moderatorEfficiency: 94.2,
         autoModerationRate: 67.8,
         falsePositiveRate: 2.1,
-        approvedContentRatio: productionData?.approval_stats?.[0]?.count || 0,
+        approvedContentRatio:
+          productionData?.total_movies > 0
+            ? Math.round((productionData?.published_count / productionData?.total_movies) * 100)
+            : 0,
       },
       securityStats: {
         failedLogins: 12,
@@ -117,7 +118,7 @@ const AdminDashboardOverview = () => {
         avgTrendingScore: productionData?.engagement_stats?.avg_trending_score || 0,
         totalHomepageViews: productionData?.engagement_stats?.total_homepage_views || 0,
         totalDetailViews: productionData?.engagement_stats?.total_detail_views || 0,
-        totalSearchAppearances: productionData?.engagement_stats?.total_trailer_plays || 0,
+        totalSearchAppearances: productionData?.engagement_stats?.total_trailer_plays || 0, // Using trailer_plays as search_appearances field doesn't exist
         performanceBreakdown: productionData?.trending_distribution || {},
         trendingBreakdown: productionData?.interaction_stats || {},
       },
@@ -226,7 +227,7 @@ const AdminDashboardOverview = () => {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="mx-auto mb-4 size-12 animate-spin rounded-full border-b-2 border-purple-600"></div>
           <p className="text-gray-600">Đang tải dữ liệu tổng quan...</p>
         </div>
       </div>
@@ -270,18 +271,18 @@ const AdminDashboardOverview = () => {
             </div>
           </div>
           <div className="text-right">
-            <div className="flex items-center space-x-2 mb-2">
+            <div className="mb-2 flex items-center space-x-2">
               {systemHealth.status === 'healthy' && (
-                <CheckCircleIcon className="h-5 w-5 text-green-300" />
+                <CheckCircleIcon className="size-5 text-green-300" />
               )}
               {systemHealth.status === 'warning' && (
-                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-300" />
+                <ExclamationTriangleIcon className="size-5 text-yellow-300" />
               )}
               {systemHealth.status === 'error' && (
-                <ExclamationTriangleIcon className="h-5 w-5 text-red-300" />
+                <ExclamationTriangleIcon className="size-5 text-red-300" />
               )}
               {systemHealth.status === 'loading' && (
-                <ClockIcon className="h-5 w-5 text-blue-300 animate-spin" />
+                <ClockIcon className="size-5 animate-spin text-blue-300" />
               )}
               <span className="text-sm">{systemHealth.message}</span>
             </div>
@@ -295,12 +296,12 @@ const AdminDashboardOverview = () => {
       </div>
 
       {/* Control Panel */}
-      <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 p-4">
+      <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center space-x-4">
           <h3 className="text-lg font-medium text-gray-900">Dashboard Analytics</h3>
           {isStale && (
             <div className="flex items-center space-x-2 text-yellow-600">
-              <ExclamationTriangleIcon className="h-4 w-4" />
+              <ExclamationTriangleIcon className="size-4" />
               <span className="text-sm">Dữ liệu cần cập nhật</span>
             </div>
           )}
@@ -314,14 +315,14 @@ const AdminDashboardOverview = () => {
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            <ChartBarIcon className="h-4 w-4" />
+            <ChartBarIcon className="size-4" />
             <span>{showCharts ? 'Ẩn biểu đồ' : 'Hiện biểu đồ'}</span>
           </button>
           <button
             onClick={refreshMetrics}
             className="flex items-center space-x-2 rounded-lg bg-green-100 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-200"
           >
-            <ArrowPathIcon className="h-4 w-4" />
+            <ArrowPathIcon className="size-4" />
             <span>Làm mới</span>
           </button>
         </div>
@@ -329,11 +330,11 @@ const AdminDashboardOverview = () => {
 
       {/* Real-time Charts Section */}
       {showCharts && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="rounded-lg border border-gray-200 bg-white p-6">
+          <div className="mb-6 flex items-center justify-between">
             <h3 className="text-xl font-semibold text-gray-900">Real-time Analytics Dashboard</h3>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="size-2 animate-pulse rounded-full bg-green-400"></div>
               <span className="text-sm text-gray-500">Live Data</span>
             </div>
           </div>
@@ -422,28 +423,28 @@ const AdminDashboardOverview = () => {
 
       {/* Enhanced User Engagement Metrics */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">User Engagement</h3>
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-medium text-gray-900">User Engagement</h3>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Active Users</span>
               <span className="font-semibold text-gray-600">
                 {(stats.userStats?.activeUsers || 0).toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Avg Session (min)</span>
               <span className="font-semibold text-gray-600">
                 {(stats.userStats?.avgSessionDuration || 0).toFixed(1)}
               </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Bounce Rate</span>
               <span className="font-semibold text-gray-600">
                 {(stats.userStats?.bounceRate || 0).toFixed(1)}%
               </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Retention Rate</span>
               <span className="font-semibold text-gray-600 ">
                 {(stats.userStats?.retentionRate || 0).toFixed(1)}%
@@ -452,28 +453,28 @@ const AdminDashboardOverview = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Content Performance</h3>
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-medium text-gray-900">Content Performance</h3>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Homepage Views</span>
               <span className="font-semibold text-gray-600">
                 {(stats?.performanceStats?.totalHomepageViews ?? 0).toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Detail Views</span>
               <span className="font-semibold text-gray-600 ">
                 {(stats?.performanceStats?.totalDetailViews ?? 0).toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Search Appearances</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Trailer Plays</span>
               <span className="font-semibold text-gray-600">
                 {(stats?.performanceStats?.totalSearchAppearances ?? 0).toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Approval Rate</span>
               <span className="font-semibold text-gray-600">
                 {(stats?.moderationStats?.approvedContentRatio ?? 0).toFixed(1)}%
@@ -482,26 +483,26 @@ const AdminDashboardOverview = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">System Health</h3>
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-medium text-gray-900">System Health</h3>
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">API Calls/min</span>
               <span className="font-semibold text-gray-600">
                 {stats.systemStats.apiCallsPerMinute}
               </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Response Time</span>
               <span className="font-semibold text-gray-600 ">
                 {stats.systemStats.responseTime}ms
               </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Cache Hit Rate</span>
               <span className="font-semibold text-gray-600">{stats.systemStats.cacheHitRate}%</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Server Load</span>
               <span className="font-semibold text-gray-600">{stats.systemStats.serverLoad}%</span>
             </div>
@@ -510,23 +511,23 @@ const AdminDashboardOverview = () => {
       </div>
 
       {/* Recent Activity with Enhanced Info */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Hoạt động gần đây</h3>
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 text-lg font-medium text-gray-900">Hoạt động gần đây</h3>
         <div className="space-y-3">
           {recentActivity.map(activity => (
             <div
               key={activity.id}
-              className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg"
+              className="flex items-start space-x-3 rounded-lg p-3 hover:bg-gray-50"
             >
               <span className="text-lg">{getActivityIcon(activity.type)}</span>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900">{activity.content}</p>
                 <p className="text-xs text-gray-500">
                   {activity.user} • {activity.time}
                 </p>
               </div>
               <span
-                className={`text-xs font-medium px-2 py-1 rounded-full ${getPriorityColor(activity.priority)}`}
+                className={`rounded-full px-2 py-1 text-xs font-medium ${getPriorityColor(activity.priority)}`}
               >
                 {activity.priority}
               </span>

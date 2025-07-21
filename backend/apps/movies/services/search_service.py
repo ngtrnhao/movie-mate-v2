@@ -212,6 +212,16 @@ class MovieSearchService:
                 if params.get('is_published') is not None:
                     search = search.filter('term', is_published=params['is_published'])
 
+                # 🎯 VISIBILITY FILTERS (is_popular, is_top_rated, is_upcoming)
+                if params.get('is_popular') is not None:
+                    search = search.filter('term', is_popular=params['is_popular'])
+
+                if params.get('is_top_rated') is not None:
+                    search = search.filter('term', is_top_rated=params['is_top_rated'])
+
+                if params.get('is_upcoming') is not None:
+                    search = search.filter('term', is_upcoming=params['is_upcoming'])
+
                 # 📊 ADVANCED QUALITY FILTERS (admin only)
                 if params.get('quality_score_min'):
                     search = search.filter('range', quality_score={'gte': float(params['quality_score_min'])})
@@ -468,31 +478,42 @@ class MovieSearchService:
             language = params.get('language', 'en')
 
             if language == 'vi':
-                # Vietnamese-optimized search
-                    search = search.query(
-                        'bool',
-                        should=[
-                        # Title search with high boost
-                            {
-                                'multi_match': {
-                                    'query': query_text,
-                                'fields': ['title_vi^5', 'title_en^4', 'title^3'],
-                                    'type': 'cross_fields',
-                                    'operator': 'or',
-                                    'minimum_should_match': '60%',
-                                    'analyzer': 'vietnamese_analyzer'
-                                }
-                            },
+                # Vietnamese-optimized search: hỗ trợ cả có dấu và không dấu
+                search = search.query(
+                    'bool',
+                    should=[
+                        # Title search with high boost (có dấu)
+                        {
+                            'multi_match': {
+                                'query': query_text,
+                                'fields': ['title_vi^6', 'title_vi_no_diacritic^4', 'title_en^2', 'title^1'],
+                                'type': 'cross_fields',
+                                'operator': 'or',
+                                'minimum_should_match': '60%',
+                                'analyzer': 'vietnamese_analyzer_keep_diacritic'
+                            }
+                        },
+                        # Title search không dấu (boost thấp hơn)
+                        {
+                            'multi_match': {
+                                'query': query_text,
+                                'fields': ['title_vi_no_diacritic^6', 'title_vi^3', 'title_en^2', 'title^1'],
+                                'type': 'cross_fields',
+                                'operator': 'or',
+                                'minimum_should_match': '60%',
+                                'analyzer': 'vietnamese_analyzer_no_diacritic'
+                            }
+                        },
                         # Overview search
-                            {
-                                'multi_match': {
-                                    'query': query_text,
+                        {
+                            'multi_match': {
+                                'query': query_text,
                                 'fields': ['overview_vi^3', 'overview_en^2'],
-                                    'type': 'best_fields',
-                                    'operator': 'or',
-                                    'minimum_should_match': '50%',
-                                    'analyzer': 'vietnamese_analyzer'
-                                }
+                                'type': 'best_fields',
+                                'operator': 'or',
+                                'minimum_should_match': '50%',
+                                'analyzer': 'vietnamese_analyzer_keep_diacritic'
+                            }
                         },
                         # Quality-weighted content search
                         {
@@ -511,35 +532,35 @@ class MovieSearchService:
                                 'type': 'phrase_prefix',
                                 'boost': 0.3
                             }
-                            }
-                        ]
-                    )
+                        }
+                    ]
+                )
             else:
-                # English-optimized search
-                    search = search.query(
-                        'bool',
-                        should=[
+                # English-optimized search giữ nguyên
+                search = search.query(
+                    'bool',
+                    should=[
                         # Title search with high boost
-                            {
-                                'multi_match': {
-                                    'query': query_text,
+                        {
+                            'multi_match': {
+                                'query': query_text,
                                 'fields': ['title_en^5', 'title_vi^3', 'title^4', 'original_title^3'],
-                                    'type': 'cross_fields',
-                                    'operator': 'or',
-                                    'minimum_should_match': '60%',
-                                    'analyzer': 'english'
-                                }
-                            },
+                                'type': 'cross_fields',
+                                'operator': 'or',
+                                'minimum_should_match': '60%',
+                                'analyzer': 'english'
+                            }
+                        },
                         # Overview search
-                            {
-                                'multi_match': {
-                                    'query': query_text,
+                        {
+                            'multi_match': {
+                                'query': query_text,
                                 'fields': ['overview_en^3', 'overview_vi^2'],
-                                    'type': 'best_fields',
-                                    'operator': 'or',
-                                    'minimum_should_match': '50%',
-                                    'analyzer': 'english'
-                                }
+                                'type': 'best_fields',
+                                'operator': 'or',
+                                'minimum_should_match': '50%',
+                                'analyzer': 'english'
+                            }
                         },
                         # Fuzzy search for typos
                         {
@@ -898,53 +919,149 @@ class MovieSearchService:
             logger.info(f"Getting suggestions for query: {query}, language: {language}, limit: {limit}")
             search = Search(using=self.client, index=self.index)
 
-            # Build multi-match query for better suggestions
+            # Build multi-match query for better suggestions with exact match support
             if language == 'vi':
                 logger.debug("Using Vietnamese search fields")
+                should_clauses = [
+                    # Exact match with high boost
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_vi.raw^10', 'title_en.raw^8', 'title.raw^6'],
+                            'type': 'phrase',
+                            'boost': 10
+                        }
+                    },
+                    # Prefix match for suggestions
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_vi^4', 'title_en^3', 'title^2'],
+                            'type': 'phrase_prefix',
+                            'boost': 5
+                        }
+                    },
+                    # General match for broader suggestions
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_vi^3', 'title_en^2', 'title^1', 'overview_vi^0.5', 'overview_en^0.3'],
+                            'type': 'cross_fields',
+                            'operator': 'or',
+                            'minimum_should_match': '30%',
+                            'analyzer': 'vietnamese_analyzer',
+                            'boost': 1
+                        }
+                    },
+                    # Fuzzy match for typo correction (NEW)
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_vi^2', 'title^1', 'title_en^1'],
+                            'type': 'most_fields',
+                            'fuzziness': 'AUTO',
+                            'prefix_length': 1,
+                            'boost': 0.3
+                        }
+                    }
+                ]
                 search = search.query(
-                    'multi_match',
-                    query=query,
-                    fields=['title_vi^4', 'title_en^3', 'title^2', 'overview_vi^1', 'overview_en^0.5'],
-                    type='cross_fields',
-                    operator='or',
-                    minimum_should_match='60%',
-                    analyzer='standard'
+                    'bool',
+                    should=should_clauses,
+                    minimum_should_match=1
                 )
             else:
                 logger.debug("Using English search fields")
+                should_clauses = [
+                    # Exact match with high boost
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_en.raw^10', 'title.raw^8', 'title_vi.raw^6'],
+                            'type': 'phrase',
+                            'boost': 10
+                        }
+                    },
+                    # Prefix match for suggestions
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_en^4', 'title^3', 'title_vi^2'],
+                            'type': 'phrase_prefix',
+                            'boost': 5
+                        }
+                    },
+                    # General match for broader suggestions
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_en^3', 'title^2', 'title_vi^1', 'overview_en^0.5', 'overview_vi^0.3'],
+                            'type': 'cross_fields',
+                            'operator': 'or',
+                            'minimum_should_match': '40%',
+                            'analyzer': 'standard',
+                            'boost': 1
+                        }
+                    },
+                    # Fuzzy match for typo correction (NEW)
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_en^2', 'title^1', 'title_vi^1'],
+                            'type': 'most_fields',
+                            'fuzziness': 'AUTO',
+                            'prefix_length': 1,
+                            'boost': 0.3
+                        }
+                    }
+                ]
                 search = search.query(
-                    'multi_match',
-                    query=query,
-                    fields=['title_en^4', 'title^3', 'title_vi^2', 'overview_en^1', 'overview_vi^0.5'],
-                    type='cross_fields',
-                    operator='or',
-                    minimum_should_match='60%',
-                    analyzer='standard'
+                    'bool',
+                    should=should_clauses,
+                    minimum_should_match=1
                 )
 
-            # Filter conditions for quality suggestions
-            search = search.filter('exists', field='poster_url')
-            search = search.filter('range', poster_url={'gt': ''})
-            search = search.filter('exists', field='release_date')
-            search = search.filter('term', status='RELEASED')
-            search = search.filter('range', vote_count={'gt': 100})  # Ensure movie has sufficient votes
-            search = search.filter('range', vote_average={'gt': 0})  # Ensure movie has rating
+            # Basic filter conditions for suggestions (very permissive)
+            # Only filter out completely empty poster URLs
+            search = search.filter(
+                'bool',
+                should=[
+                    {'exists': {'field': 'poster_url'}},
+                    {'range': {'poster_url': {'gt': ''}}}
+                ],
+                minimum_should_match=1
+            )
 
-            # Language-specific filters
+            # Optional: Only filter by status if it exists
+            # search = search.filter('term', status='RELEASED')
+
+            # Optional: Only filter by vote count if it exists and is reasonable
+            # search = search.filter('range', vote_count={'gt': 10})  # Lower threshold
+
+            # Language-specific filters (less restrictive)
             if language == 'vi':
-                # For Vietnamese, ensure title_vi and overview_vi exist and are not empty
-                search = search.filter('exists', field='title_vi')
-                search = search.filter('range', title_vi={'gt': ''})
-                search = search.filter('exists', field='overview_vi')
-                search = search.filter('range', overview_vi={'gt': ''})
+                # For Vietnamese, boost movies with Vietnamese content but don't require it
+                search = search.query(
+                    'bool',
+                    should=[
+                        {'exists': {'field': 'title_vi'}},
+                        {'exists': {'field': 'overview_vi'}}
+                    ],
+                    minimum_should_match=0,  # Don't require any Vietnamese content
+                    boost=1.5  # Boost Vietnamese content
+                )
             else:
-                # For English, ensure title_en and overview_en exist and are not empty
-                search = search.filter('exists', field='title_en')
-                search = search.filter('range', title_en={'gt': ''})
-                search = search.filter('exists', field='overview_en')
-                search = search.filter('range', overview_en={'gt': ''})
+                # For English, prefer movies with English content but don't require it
+                search = search.query(
+                    'bool',
+                    should=[
+                        {'exists': {'field': 'title_en'}},
+                        {'exists': {'field': 'overview_en'}}
+                    ],
+                    minimum_should_match=0  # Don't require any English content
+                )
 
-            # Boost more popular and recent movies
+            # Boost more popular and recent movies (reduced weight for suggestions)
             search = search.query(
                 'function_score',
                 query=search.query,
@@ -957,7 +1074,7 @@ class MovieSearchService:
                                 'decay': 0.5
                             }
                         },
-                        'weight': 5
+                        'weight': 2  # Reduced from 5
                     },
                     {
                         'field_value_factor': {
@@ -966,7 +1083,7 @@ class MovieSearchService:
                             'modifier': 'log1p',
                             'missing': 0
                         },
-                        'weight': 3
+                        'weight': 1.5  # Reduced from 3
                     },
                     {
                         'field_value_factor': {
@@ -975,7 +1092,7 @@ class MovieSearchService:
                             'modifier': 'log1p',
                             'missing': 0
                         },
-                        'weight': 2
+                        'weight': 1  # Reduced from 2
                     }
                 ],
                 score_mode='sum',
@@ -995,31 +1112,51 @@ class MovieSearchService:
             response = search.execute()
             logger.info(f"Found {len(response.hits)} suggestions")
 
-            # Format suggestions with more detailed information
+            # Format suggestions with more detailed information and better fallbacks
             suggestions = []
             for hit in response.hits:
                 movie_data = hit.to_dict()
-                # Fallback title logic
+
+                # Enhanced fallback title logic
                 if language == 'vi':
-                    title = movie_data.get('title_vi') or movie_data.get('title_en') or movie_data.get('title')
+                    title = (movie_data.get('title_vi') or
+                            movie_data.get('title_en') or
+                            movie_data.get('title') or
+                            'Phim không xác định')
                 else:
-                    title = movie_data.get('title_en') or movie_data.get('title_vi') or movie_data.get('title')
+                    title = (movie_data.get('title_en') or
+                            movie_data.get('title_vi') or
+                            movie_data.get('title') or
+                            'Unknown Movie')
+
+                # Enhanced rating fallbacks
+                imdb_rating = movie_data.get('cached_imdb_rating')
+                tmdb_rating = movie_data.get('cached_tmdb_rating')
+                vote_average = movie_data.get('vote_average')
+
+                rating = {
+                    'imdb': float(imdb_rating) if imdb_rating and imdb_rating > 0 else None,
+                    'tmdb': float(tmdb_rating) if tmdb_rating and tmdb_rating > 0 else None,
+                    'vote_average': float(vote_average) if vote_average and vote_average > 0 else None,
+                    'vote_count': movie_data.get('vote_count', 0)
+                }
+
+                # Enhanced poster URL fallback
+                poster_url = movie_data.get('poster_url')
+                if not poster_url or poster_url.strip() == '':
+                    poster_url = '/images/placeholder-poster.jpg'
+
                 suggestion = {
                     'id': hit.meta.id,
                     'title': title,
-                    'title_en': movie_data.get('title_en'),
-                    'title_vi': movie_data.get('title_vi'),
-                    'poster_url': movie_data.get('poster_url'),
+                    'title_en': movie_data.get('title_en') or movie_data.get('title'),
+                    'title_vi': movie_data.get('title_vi') or movie_data.get('title'),
+                    'poster_url': poster_url,
                     'release_date': movie_data.get('release_date'),
-                    'rating': {
-                        'imdb': float(movie_data.get('cached_imdb_rating')) if movie_data.get('cached_imdb_rating') else None,
-                        'tmdb': float(movie_data.get('cached_tmdb_rating')) if movie_data.get('cached_tmdb_rating') else None,
-                        'vote_average': float(movie_data.get('vote_average')) if movie_data.get('vote_average') else None,
-                        'vote_count': movie_data.get('vote_count')
-                    },
+                    'rating': rating,
                     'genres': movie_data.get('genres', [])[:3],  # Limit to top 3 genres
-                    'status': movie_data.get('status'),
-                    'popularity': movie_data.get('popularity')
+                    'status': movie_data.get('status') or 'unknown',
+                    'popularity': movie_data.get('popularity', 0)
                 }
                 logger.debug(f"Formatted suggestion: {suggestion}")
                 suggestions.append(suggestion)

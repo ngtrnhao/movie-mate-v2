@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import useUserTracking from '../../hooks/useUserTracking';
+import { useRef } from 'react';
 
 const mockMovie = {
   title: 'The Shawshank Redemption',

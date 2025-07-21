@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { memo, useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Actions from './Actions';
@@ -225,7 +225,7 @@ const MovieCard = memo(
                 onLoadDone={() => setPosterLoaded(true)}
               />
               {/* Favorite button overlay */}
-              <div className="absolute top-2 right-2">
+              <div className="absolute right-2 top-2">
                 <FavoriteButton movie={movieData} size="xs" variant="overlay" />
               </div>
               {/* Simplified title overlay */}

@@ -2,12 +2,10 @@ import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
-  FireIcon,
   EyeIcon,
   MagnifyingGlassIcon,
   UserGroupIcon,
   PlayIcon,
-  ClockIcon,
   StarIcon,
 } from '@heroicons/react/24/outline';
 import {
@@ -133,12 +131,12 @@ const ProductionMetricsCard = ({ movie }) => {
       </div>
 
       {/* Performance Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* Performance Score */}
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="rounded-lg bg-gray-50 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <ChartBarIcon className="size-6 text-gray-400 mr-2" />
+              <ChartBarIcon className="mr-2 size-6 text-gray-400" />
               <span className="text-sm font-medium text-gray-700">Performance</span>
             </div>
             <div className={`text-2xl font-bold ${getPerformanceScoreColor(performanceScore)}`}>
@@ -146,7 +144,7 @@ const ProductionMetricsCard = ({ movie }) => {
             </div>
           </div>
           <div className="mt-2">
-            <div className="bg-gray-200 rounded-full h-2">
+            <div className="h-2 rounded-full bg-gray-200">
               <div
                 className={`h-2 rounded-full ${
                   performanceScore >= 8
@@ -164,10 +162,10 @@ const ProductionMetricsCard = ({ movie }) => {
         </div>
 
         {/* Engagement Rate */}
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="rounded-lg bg-gray-50 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <UserGroupIcon className="size-6 text-gray-400 mr-2" />
+              <UserGroupIcon className="mr-2 size-6 text-gray-400" />
               <span className="text-sm font-medium text-gray-700">Engagement</span>
             </div>
             <div className={`text-2xl font-bold ${getEngagementColor(engagementRate)}`}>
@@ -175,7 +173,7 @@ const ProductionMetricsCard = ({ movie }) => {
             </div>
           </div>
           <div className="mt-2">
-            <div className="bg-gray-200 rounded-full h-2">
+            <div className="h-2 rounded-full bg-gray-200">
               <div
                 className={`h-2 rounded-full ${
                   engagementRate >= 10
@@ -193,10 +191,10 @@ const ProductionMetricsCard = ({ movie }) => {
         </div>
 
         {/* Trending Score */}
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="rounded-lg bg-gray-50 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <ArrowTrendingUpIcon className="size-6 text-gray-400 mr-2" />
+              <ArrowTrendingUpIcon className="mr-2 size-6 text-gray-400" />
               <span className="text-sm font-medium text-gray-700">Trending</span>
             </div>
             <div className="text-2xl font-bold text-purple-600">
@@ -210,8 +208,8 @@ const ProductionMetricsCard = ({ movie }) => {
       </div>
 
       {/* Detailed Metrics */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <h4 className="text-md font-medium text-gray-900 mb-3">Chi tiết metrics</h4>
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <h4 className="text-md mb-3 font-medium text-gray-900">Chi tiết metrics</h4>
 
         <div className="space-y-1">
           <MetricItem
@@ -262,9 +260,9 @@ const ProductionMetricsCard = ({ movie }) => {
       </div>
 
       {/* Quality & Admin Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-blue-900 mb-2">Chất lượng content</h4>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <h4 className="mb-2 text-sm font-medium text-blue-900">Chất lượng content</h4>
           <div className="space-y-1">
             <div className="flex justify-between text-sm">
               <span className="text-blue-700">Completeness:</span>
@@ -283,8 +281,8 @@ const ProductionMetricsCard = ({ movie }) => {
           </div>
         </div>
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-green-900 mb-2">Admin Status</h4>
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <h4 className="mb-2 text-sm font-medium text-green-900">Admin Status</h4>
           <div className="space-y-1">
             <div className="flex justify-between text-sm">
               <span className="text-green-700">Featured:</span>

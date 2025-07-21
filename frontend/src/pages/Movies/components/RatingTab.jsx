@@ -699,7 +699,7 @@ const RatingTab = ({ movieId }) => {
                           // Edit Mode
                           <div className="mb-3 space-y-5 pt-5">
                             {/* Rating Edit */}
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="mb-2 flex items-center gap-2">
                               <span className="text-sm text-gray-400">Đánh giá:</span>
                               <StarRating
                                 rating={editingRating}

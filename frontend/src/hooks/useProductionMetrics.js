@@ -7,6 +7,7 @@ export const useProductionMetrics = (options = {}) => {
     refreshInterval = 30000, // 30 seconds
     includeMovieDetails = true,
     includeTrendingData = true,
+    disableAutoRefresh = false, // New option to disable auto-refresh
   } = options;
 
   const [data, setData] = useState(null);
@@ -132,11 +133,11 @@ export const useProductionMetrics = (options = {}) => {
   useEffect(() => {
     fetchData(); // Initial fetch
 
-    if (autoRefresh) {
+    if (autoRefresh && !disableAutoRefresh) {
       const interval = setInterval(fetchData, refreshInterval);
       return () => clearInterval(interval);
     }
-  }, [fetchData, autoRefresh, refreshInterval]);
+  }, [fetchData, autoRefresh, refreshInterval, disableAutoRefresh]);
 
   return {
     data,

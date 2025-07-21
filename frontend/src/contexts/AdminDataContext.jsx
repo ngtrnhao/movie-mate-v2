@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useReducer,
-  useCallback,
-  useEffect,
-  useRef,
-} from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import {
   getDashboardOverview,
   getProductionMetrics,
@@ -23,6 +16,8 @@ const ACTIONS = {
   SET_USER_INTERACTION_STATS: 'SET_USER_INTERACTION_STATS',
   SET_LAST_UPDATED: 'SET_LAST_UPDATED',
   CLEAR_ERROR: 'CLEAR_ERROR',
+  SET_ACTIVE_TAB: 'SET_ACTIVE_TAB',
+  UPDATE_TAB_REFRESH_MAP: 'UPDATE_TAB_REFRESH_MAP',
 };
 
 // Initial state
@@ -60,6 +55,19 @@ const initialState = {
   // Settings
   autoRefresh: true,
   refreshInterval: 30000, // 30 seconds default
+
+  // Tab-based control
+  activeTab: null,
+  tabRefreshMap: {
+    overview: ['dashboard', 'production', 'trending', 'userInteraction'],
+    realtime_analytics: ['production', 'trending', 'userInteraction'],
+    auto_processing: ['dashboard'],
+    movies: ['dashboard', 'production'],
+    visibility: ['production'],
+    user_interactions: ['userInteraction'],
+    trending_analytics: ['trending'],
+    content: ['dashboard', 'production'],
+  },
 };
 
 // Reducer
@@ -132,6 +140,18 @@ const adminDataReducer = (state, action) => {
         },
       };
 
+    case ACTIONS.SET_ACTIVE_TAB:
+      return {
+        ...state,
+        activeTab: action.tab,
+      };
+
+    case ACTIONS.UPDATE_TAB_REFRESH_MAP:
+      return {
+        ...state,
+        tabRefreshMap: action.map,
+      };
+
     default:
       return state;
   }
@@ -145,6 +165,7 @@ export const AdminDataProvider = ({ children }) => {
   const [state, dispatch] = useReducer(adminDataReducer, initialState);
   const intervalsRef = useRef({});
   const abortControllersRef = useRef({});
+  const refreshFunctionsRef = useRef({});
 
   // Helper function to check if data is stale
   const isDataStale = useCallback(
@@ -272,30 +293,68 @@ export const AdminDataProvider = ({ children }) => {
     [fetchData, fetchUserInteraction]
   );
 
-  // Refresh all data
-  const refreshAllData = useCallback(
-    async (force = false) => {
-      console.log('🔄 [AdminDataContext] Refreshing all data...', { force });
-      await Promise.allSettled([
-        refreshDashboard(force),
-        refreshProductionMetrics(force),
-        refreshTrendingAnalytics(force),
-        refreshUserInteractionStats(force),
-      ]);
+  // Store refresh functions in ref to prevent infinite loops
+  useEffect(() => {
+    refreshFunctionsRef.current = {
+      dashboard: refreshDashboard,
+      production: refreshProductionMetrics,
+      trending: refreshTrendingAnalytics,
+      userInteraction: refreshUserInteractionStats,
+    };
+  }, [
+    refreshDashboard,
+    refreshProductionMetrics,
+    refreshTrendingAnalytics,
+    refreshUserInteractionStats,
+  ]);
+
+  // Tab control functions
+  const setActiveTab = useCallback(
+    tab => {
+      console.log('🔄 [AdminDataContext] Setting active tab to:', tab);
+      dispatch({ type: ACTIONS.SET_ACTIVE_TAB, tab });
     },
-    [
-      refreshDashboard,
-      refreshProductionMetrics,
-      refreshTrendingAnalytics,
-      refreshUserInteractionStats,
-    ]
+    [dispatch]
   );
+
+  const updateTabRefreshMap = useCallback(
+    map => {
+      dispatch({ type: ACTIONS.UPDATE_TAB_REFRESH_MAP, map });
+    },
+    [dispatch]
+  );
+
+  // Refresh all data
+  const refreshAllData = useCallback(async (force = false) => {
+    console.log('🔄 [AdminDataContext] Refreshing all data...', { force });
+    await Promise.allSettled([
+      refreshFunctionsRef.current.dashboard(force),
+      refreshFunctionsRef.current.production(force),
+      refreshFunctionsRef.current.trending(force),
+      refreshFunctionsRef.current.userInteraction(force),
+    ]);
+  }, []);
 
   // Setup auto-refresh intervals
   useEffect(() => {
     if (!state.autoRefresh) return;
 
-    console.log('⏰ [AdminDataContext] Setting up auto-refresh intervals');
+    console.log(
+      '⏰ [AdminDataContext] Setting up auto-refresh intervals for tab:',
+      state.activeTab
+    );
+
+    // Clear existing intervals first
+    Object.values(intervalsRef.current).forEach(clearInterval);
+    intervalsRef.current = {};
+
+    // Get data types that should be refreshed for current tab
+    const activeTabDataTypes = state.activeTab ? state.tabRefreshMap[state.activeTab] || [] : [];
+
+    if (activeTabDataTypes.length === 0) {
+      console.log('⏰ [AdminDataContext] No data types to refresh for current tab');
+      return;
+    }
 
     // Different refresh intervals for different data types
     const intervals = {
@@ -305,43 +364,56 @@ export const AdminDataProvider = ({ children }) => {
       userInteraction: 120000, // 2 minutes
     };
 
-    // Set up intervals
-    Object.entries(intervals).forEach(([dataType, interval]) => {
-      intervalsRef.current[dataType] = setInterval(() => {
-        console.log(`⏰ [AdminDataContext] Auto-refreshing ${dataType}`);
-        switch (dataType) {
-          case 'dashboard':
-            refreshDashboard();
-            break;
-          case 'production':
-            refreshProductionMetrics();
-            break;
-          case 'trending':
-            refreshTrendingAnalytics();
-            break;
-          case 'userInteraction':
-            refreshUserInteractionStats();
-            break;
-        }
-      }, interval);
+    // Set up intervals ONLY for data types relevant to current tab
+    activeTabDataTypes.forEach(dataType => {
+      const interval = intervals[dataType];
+      if (interval) {
+        intervalsRef.current[dataType] = setInterval(() => {
+          console.log(
+            `⏰ [AdminDataContext] Auto-refreshing ${dataType} for tab: ${state.activeTab}`
+          );
+          switch (dataType) {
+            case 'dashboard':
+              refreshFunctionsRef.current.dashboard();
+              break;
+            case 'production':
+              refreshFunctionsRef.current.production();
+              break;
+            case 'trending':
+              refreshFunctionsRef.current.trending();
+              break;
+            case 'userInteraction':
+              refreshFunctionsRef.current.userInteraction();
+              break;
+          }
+        }, interval);
+      }
     });
 
-    // Initial fetch for all data
-    refreshAllData();
+    // Initial fetch for relevant data only
+    const initialFetchPromises = activeTabDataTypes.map(dataType => {
+      switch (dataType) {
+        case 'dashboard':
+          return refreshFunctionsRef.current.dashboard();
+        case 'production':
+          return refreshFunctionsRef.current.production();
+        case 'trending':
+          return refreshFunctionsRef.current.trending();
+        case 'userInteraction':
+          return refreshFunctionsRef.current.userInteraction();
+        default:
+          return Promise.resolve();
+      }
+    });
+
+    Promise.allSettled(initialFetchPromises);
 
     // Cleanup intervals
     return () => {
       Object.values(intervalsRef.current).forEach(clearInterval);
       intervalsRef.current = {};
     };
-  }, [
-    state.autoRefresh,
-    refreshDashboard,
-    refreshProductionMetrics,
-    refreshTrendingAnalytics,
-    refreshUserInteractionStats,
-    refreshAllData,
-  ]);
+  }, [state.autoRefresh, state.activeTab, state.tabRefreshMap]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -398,6 +470,11 @@ export const AdminDataProvider = ({ children }) => {
       trending: state.trendingAnalytics,
       userInteraction: state.userInteractionStats,
     },
+
+    // Tab control
+    activeTab: state.activeTab,
+    setActiveTab: setActiveTab,
+    updateTabRefreshMap: updateTabRefreshMap,
   };
 
   return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>;

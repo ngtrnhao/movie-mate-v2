@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -57,7 +57,7 @@ const RealTimeCharts = () => {
     data: productionMetrics,
     loading: metricsLoading,
     refreshMetrics: refetchMetrics,
-  } = useProductionMetrics();
+  } = useProductionMetrics({ disableAutoRefresh: true }); // Disable auto-refresh, rely on AdminDataContext
 
   const [realTimeData, setRealTimeData] = useState({
     userActivity: [],
@@ -91,23 +91,23 @@ const RealTimeCharts = () => {
     }
   }, [userStats, trendingData, productionMetrics]);
 
-  // Set up real-time data refresh
-  useEffect(() => {
-    const refreshData = () => {
-      refetchUserStats();
-      refetchTrending();
-      refetchMetrics();
-    };
+  // Remove separate interval - rely on AdminDataContext for auto-refresh
+  // useEffect(() => {
+  //   const refreshData = () => {
+  //     refetchUserStats();
+  //     refetchTrending();
+  //     refetchMetrics();
+  //   };
 
-    // Refresh every 30 seconds for real-time feel
-    intervalRef.current = setInterval(refreshData, 30000);
+  //   // Refresh every 30 seconds for real-time feel
+  //   intervalRef.current = setInterval(refreshData, 30000);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [refetchUserStats, refetchTrending, refetchMetrics]);
+  //   return () => {
+  //     if (intervalRef.current) {
+  //       clearInterval(intervalRef.current);
+  //     }
+  //   };
+  // }, [refetchUserStats, refetchTrending, refetchMetrics]);
 
   // Process real backend data
   const processRealTimeData = (userInteractionStats, trendingAnalytics, productionMetrics) => {
@@ -373,12 +373,12 @@ const RealTimeCharts = () => {
 
   if (userLoading || trendingLoading || metricsLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <div key={i} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
-              <div className="h-64 bg-gray-200 rounded"></div>
+              <div className="mb-4 h-4 w-1/3 rounded bg-gray-200"></div>
+              <div className="h-64 rounded bg-gray-200"></div>
             </div>
           </div>
         ))}
@@ -389,19 +389,19 @@ const RealTimeCharts = () => {
   return (
     <div className="space-y-6">
       {/* Real-time Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm">Total Users</p>
+              <p className="text-sm text-blue-100">Total Users</p>
               <p className="text-2xl font-bold">
                 {userStats?.data?.overview?.total_users || userStats?.overview?.total_users || 0}
               </p>
             </div>
-            <UsersIcon className="h-8 w-8 text-blue-200" />
+            <UsersIcon className="size-8 text-blue-200" />
           </div>
-          <div className="flex items-center mt-2">
-            <ArrowTrendingUpIcon className="h-4 w-4 text-green-300 mr-1" />
+          <div className="mt-2 flex items-center">
+            <ArrowTrendingUpIcon className="mr-1 size-4 text-green-300" />
             <span className="text-sm text-blue-100">
               {userStats?.data?.trends?.daily_growth > 0 ? '+' : ''}
               {userStats?.data?.trends?.daily_growth || 0}% hôm nay
@@ -409,20 +409,20 @@ const RealTimeCharts = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
+        <div className="rounded-lg bg-gradient-to-r from-green-500 to-green-600 p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm">Total Interactions</p>
+              <p className="text-sm text-green-100">Total Interactions</p>
               <p className="text-2xl font-bold">
                 {userStats?.data?.overview?.total_interactions ||
                   userStats?.overview?.total_interactions ||
                   0}
               </p>
             </div>
-            <EyeIcon className="h-8 w-8 text-green-200" />
+            <EyeIcon className="size-8 text-green-200" />
           </div>
-          <div className="flex items-center mt-2">
-            <ArrowTrendingUpIcon className="h-4 w-4 text-green-300 mr-1" />
+          <div className="mt-2 flex items-center">
+            <ArrowTrendingUpIcon className="mr-1 size-4 text-green-300" />
             <span className="text-sm text-green-100">
               {userStats?.data?.trends?.weekly_growth > 0 ? '+' : ''}
               {userStats?.data?.trends?.weekly_growth || 0}% tuần này
@@ -430,21 +430,21 @@ const RealTimeCharts = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+        <div className="rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-sm">Avg Performance</p>
+              <p className="text-sm text-purple-100">Avg Performance</p>
               <p className="text-2xl font-bold">
                 {productionMetrics?.data?.summary?.avg_performance_score?.toFixed(1) || '0.0'}
               </p>
             </div>
-            <ChartBarIcon className="h-8 w-8 text-purple-200" />
+            <ChartBarIcon className="size-8 text-purple-200" />
           </div>
-          <div className="flex items-center mt-2">
+          <div className="mt-2 flex items-center">
             {(productionMetrics?.data?.summary?.avg_performance_score || 0) > 70 ? (
-              <CheckCircleIcon className="h-4 w-4 text-green-300 mr-1" />
+              <CheckCircleIcon className="mr-1 size-4 text-green-300" />
             ) : (
-              <ExclamationTriangleIcon className="h-4 w-4 text-yellow-300 mr-1" />
+              <ExclamationTriangleIcon className="mr-1 size-4 text-yellow-300" />
             )}
             <span className="text-sm text-purple-100">
               {(productionMetrics?.data?.summary?.avg_performance_score || 0) > 70
@@ -454,10 +454,10 @@ const RealTimeCharts = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-4 text-white">
+        <div className="rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-orange-100 text-sm">Session Duration</p>
+              <p className="text-sm text-orange-100">Session Duration</p>
               <p className="text-2xl font-bold">
                 {userStats?.data?.session_stats?.avg_duration_seconds
                   ? Math.round(userStats.data.session_stats.avg_duration_seconds / 60)
@@ -465,19 +465,19 @@ const RealTimeCharts = () => {
                 <span className="text-sm">min</span>
               </p>
             </div>
-            <ClockIcon className="h-8 w-8 text-orange-200" />
+            <ClockIcon className="size-8 text-orange-200" />
           </div>
-          <div className="flex items-center mt-2">
-            <ArrowTrendingUpIcon className="h-4 w-4 text-green-300 mr-1" />
+          <div className="mt-2 flex items-center">
+            <ArrowTrendingUpIcon className="mr-1 size-4 text-green-300" />
             <span className="text-sm text-orange-100">Từ dữ liệu thực tế</span>
           </div>
         </div>
       </div>
 
       {/* Data freshness indicator */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3">
         <div className="flex items-center">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></div>
+          <div className="mr-2 size-2 animate-pulse rounded-full bg-green-400"></div>
           <span className="text-sm text-blue-800">
             Dữ liệu được cập nhật lúc: {realTimeData.lastUpdated.toLocaleTimeString('vi-VN')}
           </span>
@@ -488,20 +488,20 @@ const RealTimeCharts = () => {
             refetchTrending();
             refetchMetrics();
           }}
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          className="text-sm font-medium text-blue-600 hover:text-blue-800"
         >
           Làm mới ngay
         </button>
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Real-time User Activity */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Real-time User Activity</h3>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="size-2 animate-pulse rounded-full bg-green-400"></div>
               <span className="text-sm text-gray-500">Live Data</span>
             </div>
           </div>
@@ -511,8 +511,8 @@ const RealTimeCharts = () => {
         </div>
 
         {/* User Actions Breakdown */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-medium text-gray-900">
             User Actions Breakdown (Real Data)
           </h3>
           <div style={{ height: '300px' }}>
@@ -521,28 +521,28 @@ const RealTimeCharts = () => {
         </div>
 
         {/* Device Breakdown */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Device Usage Distribution</h3>
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-medium text-gray-900">Device Usage Distribution</h3>
           <div style={{ height: '300px' }}>
             <Doughnut data={doughnutData} options={doughnutOptions} />
           </div>
           <div className="mt-4 grid grid-cols-3 gap-4 text-center">
             <div className="flex flex-col items-center">
-              <ComputerDesktopIcon className="h-6 w-6 text-blue-500 mb-1" />
+              <ComputerDesktopIcon className="mb-1 size-6 text-blue-500" />
               <span className="text-sm text-gray-600">Desktop</span>
               <span className="font-semibold text-gray-600">
                 {realTimeData.deviceBreakdown.desktop || 0}
               </span>
             </div>
             <div className="flex flex-col items-center">
-              <DevicePhoneMobileIcon className="h-6 w-6 text-green-500 mb-1" />
+              <DevicePhoneMobileIcon className="mb-1 size-6 text-green-500" />
               <span className="text-sm text-gray-600">Mobile</span>
               <span className="font-semibold  text-gray-600">
                 {realTimeData.deviceBreakdown.mobile || 0}
               </span>
             </div>
             <div className="flex flex-col items-center">
-              <ChartBarIcon className="h-6 w-6 text-yellow-500 mb-1" />
+              <ChartBarIcon className="mb-1 size-6 text-yellow-500" />
               <span className="text-sm text-gray-600">Tablet</span>
               <span className="font-semibold  text-gray-600">
                 {realTimeData.deviceBreakdown.tablet || 0}
@@ -552,22 +552,22 @@ const RealTimeCharts = () => {
         </div>
 
         {/* Performance Metrics */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Production Metrics (Real Data)</h3>
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-medium text-gray-900">Production Metrics (Real Data)</h3>
           <div className="space-y-4">
             {realTimeData.performanceMetrics.map((metric, index) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium text-gray-600">{metric.metric}</span>
                   {metric.status === 'good' && (
-                    <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                    <CheckCircleIcon className="size-4 text-green-500" />
                   )}
                   {metric.status === 'warning' && (
-                    <ExclamationTriangleIcon className="h-4 w-4 text-yellow-500" />
+                    <ExclamationTriangleIcon className="size-4 text-yellow-500" />
                   )}
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className="w-32 bg-gray-200 rounded-full h-2">
+                  <div className="h-2 w-32 rounded-full bg-gray-200">
                     <div
                       className={`h-2 rounded-full transition-all duration-500 ${
                         metric.status === 'good'
@@ -581,7 +581,7 @@ const RealTimeCharts = () => {
                       }}
                     ></div>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900 min-w-[3rem] text-right">
+                  <span className="min-w-12 text-right text-sm font-semibold text-gray-900">
                     {typeof metric.value === 'number' ? metric.value.toFixed(1) : metric.value}
                   </span>
                 </div>

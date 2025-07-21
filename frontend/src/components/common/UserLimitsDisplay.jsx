@@ -1,4 +1,3 @@
-import React from 'react';
 import { useUserLimits } from '../../hooks/useUserLimits';
 import { Heart, List, MessageSquare, Zap } from 'lucide-react';
 
@@ -9,9 +8,9 @@ const UserLimitsDisplay = ({ showDetails = false, className = '' }) => {
     return (
       <div className={`animate-pulse ${className}`}>
         <div className="flex items-center gap-4">
-          <div className="h-4 bg-gray-200 rounded w-20"></div>
-          <div className="h-4 bg-gray-200 rounded w-16"></div>
-          <div className="h-4 bg-gray-200 rounded w-24"></div>
+          <div className="h-4 w-20 rounded bg-gray-200"></div>
+          <div className="h-4 w-16 rounded bg-gray-200"></div>
+          <div className="h-4 w-24 rounded bg-gray-200"></div>
         </div>
       </div>
     );
@@ -74,15 +73,15 @@ const UserLimitsDisplay = ({ showDetails = false, className = '' }) => {
             return (
               <div
                 key={limit.key}
-                className={`p-3 rounded-lg border ${
+                className={`rounded-lg border p-3 ${
                   isAtLimit
-                    ? 'bg-red-50 border-red-200'
+                    ? 'border-red-200 bg-red-50'
                     : isNearLimit
-                      ? 'bg-yellow-50 border-yellow-200'
-                      : 'bg-gray-50 border-gray-200'
+                      ? 'border-yellow-200 bg-yellow-50'
+                      : 'border-gray-200 bg-gray-50'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-2">
+                <div className="mb-2 flex items-center gap-2">
                   <Icon size={16} className={limit.color} />
                   <span className="text-sm font-medium text-gray-700">{limit.label}</span>
                 </div>
@@ -98,7 +97,7 @@ const UserLimitsDisplay = ({ showDetails = false, className = '' }) => {
 
                 {!limit.isUnlimited && (
                   <div className="mt-2">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="h-2 w-full rounded-full bg-gray-200">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${
                           isAtLimit ? 'bg-red-500' : isNearLimit ? 'bg-yellow-500' : 'bg-green-500'
@@ -109,9 +108,9 @@ const UserLimitsDisplay = ({ showDetails = false, className = '' }) => {
                   </div>
                 )}
 
-                {isAtLimit && <p className="text-xs text-red-600 mt-1">Limit reached</p>}
+                {isAtLimit && <p className="mt-1 text-xs text-red-600">Limit reached</p>}
                 {isNearLimit && !isAtLimit && (
-                  <p className="text-xs text-yellow-600 mt-1">Near limit</p>
+                  <p className="mt-1 text-xs text-yellow-600">Near limit</p>
                 )}
               </div>
             );

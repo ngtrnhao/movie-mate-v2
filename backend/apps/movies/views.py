@@ -241,14 +241,14 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """Get 3 featured movies - ULTRA SIMPLIFIED for performance with trailer requirement"""
         try:
             logger.info("Fetching featured movies with ULTRA SIMPLIFIED approach...")
-            cache_key = 'featured_movies_v1_ultra_simple'
+            cache_key = 'featured_movies_v2_ultra_simple'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached featured movies")
                 return Response(cached_data)
 
-            # 🔥 ULTRA SIMPLE: Get top movies with trailers
+            #  ULTRA SIMPLE: Get top movies with trailers
             featured_movies = Movie.objects.select_related(
                 'moviemetadata','admin_control','quality_metrics'
             ).filter(
@@ -259,8 +259,8 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 admin_control__approval_status='APPROVED',
                 quality_metrics__minimum_quality_met=True,
                 admin_control__visibility_status='PUBLISHED',
-                trailers__isnull=False,  # Ensure movie has trailers
-                trailers__type='TRAILER'  # Specifically trailer type
+                trailers__isnull=False,
+                trailers__type='TRAILER'
             ).distinct().order_by(
                 '-admin_control__admin_featured',
                 '-admin_control__admin_priority',
@@ -4057,20 +4057,35 @@ class   AdminMovieViewSet(viewsets.ModelViewSet):
         from rest_framework.exceptions import ValidationError
         params = request.query_params.copy()
         logger.info(f"[ADMIN MOVIE LIST] Request params: {params}")
+        # Kiểm tra các filter quản trị và visibility filters
         admin_filters = [
             'approval_status', 'admin_featured', 'visibility_status', 'is_published', 'admin_priority'
         ]
+        visibility_filters = ['is_popular', 'is_top_rated', 'is_upcoming']
+
         filter_count = 0
+        valid_filters = []
+
+        # Kiểm tra admin filters
         for f in admin_filters:
             param_value = params.get(f)
-            # Chỉ tính filter có giá trị thực sự (không phải None hoặc empty string)
             if param_value is not None and param_value != '':
                 filter_count += 1
-        logger.info(f"[ADMIN MOVIE LIST] Filter count: {filter_count}")
+                valid_filters.append(f)
+
+        # Kiểm tra visibility filters
+        for f in visibility_filters:
+            param_value = params.get(f)
+            if param_value is not None and param_value != '':
+                filter_count += 1
+                valid_filters.append(f)
+
+        logger.info(f"[ADMIN MOVIE LIST] Filter count: {filter_count}, Valid filters: {valid_filters}")
+
         if filter_count == 0:
             logger.warning("[ADMIN MOVIE LIST] Không có filter quản trị hợp lệ, raise ValidationError")
             raise ValidationError({
-                'detail': 'Bạn phải chọn ít nhất 1 filter quản trị (approval_status, visibility_status, is_published, admin_featured, admin_priority) để truy vấn.'
+                'detail': 'Bạn phải chọn ít nhất 1 filter quản trị (approval_status, visibility_status, is_published, admin_featured, admin_priority) hoặc visibility filter (is_popular, is_top_rated, is_upcoming) để truy vấn.'
             })
         # Get after_created_at values - handle multiple values properly
         after_created_at_values = request.query_params.getlist('after_created_at')
@@ -4092,9 +4107,16 @@ class   AdminMovieViewSet(viewsets.ModelViewSet):
         if 'page' in es_params:
             del es_params['page']
         es_params['page_size'] = page_size
+
+        # Thêm admin filters vào es_params
         for f in admin_filters:
             param_value = params.get(f)
-            # Chỉ thêm vào es_params nếu có giá trị thực sự
+            if param_value is not None and param_value != '':
+                es_params[f] = param_value
+
+        # Thêm visibility filters vào es_params
+        for f in visibility_filters:
+            param_value = params.get(f)
             if param_value is not None and param_value != '':
                 es_params[f] = param_value
         if after_created_at:
@@ -5983,5 +6005,101 @@ def admin_enrich_quality_issues(request):
         logger.error(f"Error in quality-based enrichment: {str(e)}")
         return Response({
             'error': f'Quality-based enrichment failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def get_cast_member_detail(request, cast_id):
+    """
+    🎭 Get detailed information about a cast member
+
+    GET /api/movies/cast/{cast_id}/
+    """
+    try:
+        cast_member = MovieCast.objects.select_related('movie').get(id=cast_id)
+
+        # Get movies where this person appears
+        related_movies = MovieCast.objects.filter(
+            name=cast_member.name,
+            imdb_id=cast_member.imdb_id
+        ).select_related('movie').order_by('-movie__release_date')[:10]
+
+        # Get known for movies based on IMDB IDs
+        known_for_movies = []
+        if cast_member.known_for_titles:
+            for imdb_id in cast_member.known_for_titles[:5]:  # Limit to 5 movies
+                try:
+                    movie = Movie.objects.filter(imdb_id=imdb_id).first()
+                    if movie:
+                        known_for_movies.append({
+                            'id': movie.id,
+                            'title': movie.title,
+                            'title_en': movie.title_en,
+                            'title_vi': movie.title_vi,
+                            'poster_url': movie.poster_url,
+                            'release_date': movie.release_date,
+                            'imdb_id': movie.imdb_id,
+                        })
+                except Exception as e:
+                    logger.warning(f"Error fetching known for movie with IMDB ID {imdb_id}: {e}")
+                    continue
+
+        # Prepare cast member data
+        cast_data = {
+            'id': cast_member.id,
+            'name': cast_member.name,
+            'role': cast_member.role,
+            'main_character': cast_member.main_character,
+            'all_characters': cast_member.all_characters,
+            'profile_path': cast_member.profile_path,
+            'biography': cast_member.biography,
+            'birth_year': cast_member.birth_year,
+            'death_year': cast_member.death_year,
+            'place_of_birth': cast_member.place_of_birth,
+            'gender': cast_member.gender,
+            'popularity': float(cast_member.popularity) if cast_member.popularity else None,
+            'primary_profession': cast_member.primary_profession,
+            'known_for_titles': cast_member.known_for_titles,
+            'known_for_movies': known_for_movies,
+            'imdb_id': cast_member.imdb_id,
+            'tmdb_id': cast_member.tmdb_id,
+            'current_movie': {
+                'id': cast_member.movie.id,
+                'title': cast_member.movie.title,
+                'title_en': cast_member.movie.title_en,
+                'title_vi': cast_member.movie.title_vi,
+                'poster_url': cast_member.movie.poster_url,
+                'release_date': cast_member.movie.release_date,
+            } if cast_member.movie else None,
+            'related_movies': [
+                {
+                    'id': movie.movie.id,
+                    'title': movie.movie.title,
+                    'title_en': movie.movie.title_en,
+                    'title_vi': movie.movie.title_vi,
+                    'poster_url': movie.movie.poster_url,
+                    'release_date': movie.movie.release_date,
+                    'role': movie.role,
+                    'main_character': movie.main_character,
+                }
+                for movie in related_movies
+            ],
+            'created_at': cast_member.created_at,
+            'updated_at': cast_member.updated_at,
+        }
+
+        return Response({
+            'success': True,
+            'cast_member': cast_data
+        }, status=status.HTTP_200_OK)
+
+    except MovieCast.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': 'Cast member not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

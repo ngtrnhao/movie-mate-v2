@@ -23,15 +23,15 @@ app.conf.beat_schedule_filename = 'celerybeat-schedule'
 app.conf.beat_schedule = {
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": timedelta(days=5),  # Every 1 minutes
+        "schedule": timedelta(days=5),  # Every 5 days
     },
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(days=5),  # Every 15 minutes
     },
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": timedelta(minutes=15),  # Every 5 days
+        "schedule": timedelta(days=5),  # Every 5 days
     },
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",

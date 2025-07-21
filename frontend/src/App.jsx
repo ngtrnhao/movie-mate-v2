@@ -15,6 +15,7 @@ import ForgotPasswordForm from './components/users/Auth/ForgotPasswordForm';
 import ResetPasswordForm from './components/users/Auth/ResetPasswordForm';
 import MovieDetailsPage from './pages/Movies/MovieDetailsPage';
 import Recommendation from './pages/recommendation';
+import CastMemberDetail from './pages/CastMember';
 import VerifyEmail from './pages/VerifyEmail';
 import Profile from './pages/Profile';
 import PrivateRoute from './components/auth/PrivateRoute';
@@ -192,6 +193,7 @@ function App() {
                             <Route path="/home" element={<HomePage />} />
                             <Route path="/movies" element={<MoviesPage />} />
                             <Route path="/movies/:movieId" element={<MovieDetailsPage />} />
+                            <Route path="/cast/:castId" element={<CastMemberDetail />} />
                             <Route path="/recommendation" element={<Recommendation />} />
                             <Route path="/verify-email" element={<VerifyEmail />} />
                             <Route path="/pricing" element={<PricingPage />} />

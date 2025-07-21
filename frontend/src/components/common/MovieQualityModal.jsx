@@ -5,17 +5,12 @@ import {
   XMarkIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon,
   StarIcon,
   ChartBarIcon,
   DocumentCheckIcon,
   ClockIcon,
   UserIcon,
   PhotoIcon,
-  FilmIcon,
-  SpeakerWaveIcon,
-  GlobeAltIcon,
-  TagIcon,
   PencilIcon,
   ArrowRightIcon,
   BugAntIcon,
@@ -241,13 +236,13 @@ const MovieQualityModal = ({
   const renderOverviewTab = () => (
     <div className="space-y-6">
       {/* Quality Score & Status */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="rounded-lg border border-gray-200 bg-white p-6">
+          <div className="mb-4 flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Quality Score</h3>
             {processedQualityMetrics.quality_score && (
               <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getQualityColor(processedQualityMetrics.quality_score)}`}
+                className={`inline-flex items-center text-gray-900 rounded-full px-3 py-1 text-sm font-medium ${getQualityColor(processedQualityMetrics.quality_score)}`}
               >
                 {parseFloat(processedQualityMetrics.quality_score).toFixed(1)}/10
               </span>
@@ -260,7 +255,7 @@ const MovieQualityModal = ({
                   {[...Array(5)].map((_, i) => (
                     <StarIconSolid
                       key={i}
-                      className={`h-5 w-5 ${
+                      className={`size-5 ${
                         i < Math.round(parseFloat(processedQualityMetrics.quality_score || 0) / 2)
                           ? 'text-yellow-400'
                           : 'text-gray-300'
@@ -273,21 +268,21 @@ const MovieQualityModal = ({
                 </span>
               </>
             ) : (
-              <span className="text-gray-500 italic">Not assessed</span>
+              <span className="italic text-gray-500">Not assessed</span>
             )}
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-6">
+          <div className="mb-4 flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Completeness</h3>
             <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getCompletionColor(processedQualityMetrics.content_completeness)}`}
+              className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getCompletionColor(processedQualityMetrics.content_completeness)}`}
             >
               {parseFloat(processedQualityMetrics.content_completeness).toFixed(1)}%
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="h-3 w-full rounded-full bg-gray-200">
             <div
               className={`h-3 rounded-full transition-all duration-300 ${
                 parseFloat(processedQualityMetrics.content_completeness) >= 70
@@ -301,20 +296,20 @@ const MovieQualityModal = ({
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-6">
+          <div className="mb-4 flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Overall Rating</h3>
             <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getRatingBadgeColor(processedQualityMetrics.overall_quality_rating)}`}
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-medium ${getRatingBadgeColor(processedQualityMetrics.overall_quality_rating)}`}
             >
               {processedQualityMetrics.overall_quality_rating}
             </span>
           </div>
           <div className="flex items-center space-x-2">
             {processedQualityMetrics.minimum_quality_met ? (
-              <CheckCircleIcon className="h-6 w-6 text-green-500" />
+              <CheckCircleIcon className="size-6 text-green-500" />
             ) : (
-              <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
+              <ExclamationTriangleIcon className="size-6 text-red-500" />
             )}
             <span
               className={`text-sm font-medium ${processedQualityMetrics.minimum_quality_met ? 'text-green-700' : 'text-red-700'}`}
@@ -326,11 +321,11 @@ const MovieQualityModal = ({
       </div>
 
       {/* Status Summary */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Quality Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
+        <h3 className="mb-4 text-lg font-medium text-gray-900">Quality Summary</h3>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Status</h4>
+            <h4 className="mb-2 text-sm font-medium text-gray-700">Status</h4>
             <p className="text-sm text-gray-600">
               Completion Status:{' '}
               <span className="font-medium">{processedQualityMetrics.completion_status}</span>
@@ -345,7 +340,7 @@ const MovieQualityModal = ({
             )}
           </div>
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Issues Summary</h4>
+            <h4 className="mb-2 text-sm font-medium text-gray-700">Issues Summary</h4>
             <p className="text-sm text-gray-600">
               Active Issues:{' '}
               <span className="font-medium text-red-600">
@@ -366,29 +361,29 @@ const MovieQualityModal = ({
 
   const renderQualityBreakdownTab = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {qualityBreakdownItems.map(item => {
           const Icon = item.icon;
           const score = qualityBreakdown[item.key] || 0;
           const percentage = (score / 10) * 100;
 
           return (
-            <div key={item.key} className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div key={item.key} className="rounded-lg border border-gray-200 bg-white p-6">
+              <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Icon className="h-6 w-6 text-gray-400" />
+                  <Icon className="size-6 text-gray-400" />
                   <div>
                     <h3 className="text-sm font-medium text-gray-900">{item.label}</h3>
                     <p className="text-xs text-gray-500">{item.description}</p>
                   </div>
                 </div>
                 <span
-                  className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getQualityColor(score)}`}
+                  className={`inline-flex items-center rounded px-2 py-1 text-xs font-medium ${getQualityColor(score)}`}
                 >
                   {parseFloat(score).toFixed(1)}
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="h-2 w-full rounded-full bg-gray-200">
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ${
                     score >= 8
@@ -413,10 +408,10 @@ const MovieQualityModal = ({
     <div className="space-y-6">
       {/* Quality Issues */}
       <div>
-        <div className="flex items-center space-x-2 mb-4">
-          <BugAntIcon className="h-5 w-5 text-red-500" />
+        <div className="mb-4 flex items-center space-x-2">
+          <BugAntIcon className="size-5 text-red-500" />
           <h3 className="text-lg font-medium text-gray-900">Quality Issues</h3>
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
             {processedQualityMetrics.quality_issues?.length || 0}
           </span>
         </div>
@@ -424,25 +419,25 @@ const MovieQualityModal = ({
         {processedQualityMetrics.quality_issues?.length > 0 ? (
           <div className="space-y-3">
             {processedQualityMetrics.quality_issues.map((issue, index) => (
-              <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div key={index} className="rounded-lg border border-red-200 bg-red-50 p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
+                    <div className="mb-2 flex items-center space-x-2">
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${getPriorityColor(issue.priority)}`}
+                        className={`inline-flex items-center rounded border px-2 py-1 text-xs font-medium ${getPriorityColor(issue.priority)}`}
                       >
                         {issue.priority}
                       </span>
                       <span className="text-sm font-medium text-gray-900">{issue.category}</span>
                     </div>
-                    <p className="text-sm text-gray-700 mb-2">{issue.description}</p>
+                    <p className="mb-2 text-sm text-gray-700">{issue.description}</p>
                     {issue.suggested_fix && (
                       <p className="text-sm text-blue-600">
                         <span className="font-medium">Suggested fix:</span> {issue.suggested_fix}
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center space-x-2 ml-4">
+                  <div className="ml-4 flex items-center space-x-2">
                     {editMode && (
                       <input
                         type="checkbox"
@@ -453,7 +448,7 @@ const MovieQualityModal = ({
                     )}
                     <button
                       onClick={() => handleResolveIssue(index)}
-                      className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                      className="inline-flex items-center rounded border border-transparent bg-green-100 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                     >
                       Resolve
                     </button>
@@ -463,8 +458,8 @@ const MovieQualityModal = ({
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <CheckCircleIcon className="h-12 w-12 mx-auto mb-2 text-green-400" />
+          <div className="py-8 text-center text-gray-500">
+            <CheckCircleIcon className="mx-auto mb-2 size-12 text-green-400" />
             <p>No quality issues found</p>
           </div>
         )}
@@ -472,10 +467,10 @@ const MovieQualityModal = ({
 
       {/* Quality Suggestions */}
       <div>
-        <div className="flex items-center space-x-2 mb-4">
-          <LightBulbIcon className="h-5 w-5 text-yellow-500" />
+        <div className="mb-4 flex items-center space-x-2">
+          <LightBulbIcon className="size-5 text-yellow-500" />
           <h3 className="text-lg font-medium text-gray-900">Improvement Suggestions</h3>
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
             {processedQualityMetrics.quality_suggestions?.length || 0}
           </span>
         </div>
@@ -483,20 +478,20 @@ const MovieQualityModal = ({
         {processedQualityMetrics.quality_suggestions?.length > 0 ? (
           <div className="space-y-3">
             {processedQualityMetrics.quality_suggestions.map((suggestion, index) => (
-              <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div key={index} className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
+                    <div className="mb-2 flex items-center space-x-2">
                       <span className="text-sm font-medium text-gray-900">
                         {suggestion.category}
                       </span>
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${getPriorityColor(suggestion.priority)}`}
+                        className={`inline-flex items-center rounded border px-2 py-1 text-xs font-medium ${getPriorityColor(suggestion.priority)}`}
                       >
                         {suggestion.priority}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 mb-2">{suggestion.description}</p>
+                    <p className="mb-2 text-sm text-gray-700">{suggestion.description}</p>
                     {suggestion.expected_impact && (
                       <p className="text-sm text-green-600">
                         <span className="font-medium">Expected impact:</span>{' '}
@@ -504,14 +499,14 @@ const MovieQualityModal = ({
                       </p>
                     )}
                   </div>
-                  <ArrowRightIcon className="h-4 w-4 text-gray-400 mt-1" />
+                  <ArrowRightIcon className="mt-1 size-4 text-gray-400" />
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <LightBulbIcon className="h-12 w-12 mx-auto mb-2 text-yellow-400" />
+          <div className="py-8 text-center text-gray-500">
+            <LightBulbIcon className="mx-auto mb-2 size-12 text-yellow-400" />
             <p>No improvement suggestions available</p>
           </div>
         )}
@@ -522,19 +517,19 @@ const MovieQualityModal = ({
   const renderAssessmentTab = () => (
     <div className="space-y-6">
       {/* Assessment Information */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Quality Assessment</h3>
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="mb-4 text-lg font-medium text-gray-900">Quality Assessment</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Assessed By</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Assessed By</label>
             <p className="text-sm text-gray-900">
               {processedQualityMetrics.assessed_by || 'Not assessed yet'}
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               Last Assessment Date
             </label>
             <p className="text-sm text-gray-900">
@@ -546,7 +541,7 @@ const MovieQualityModal = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Assessment Notes</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Assessment Notes</label>
           {editMode ? (
             <textarea
               value={qualityNotes}
@@ -556,7 +551,7 @@ const MovieQualityModal = ({
               placeholder="Enter quality assessment notes, observations, and recommendations..."
             />
           ) : (
-            <div className="min-h-[120px] p-3 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700">
+            <div className="min-h-[120px] rounded-md border border-gray-300 bg-gray-50 p-3 text-sm text-gray-700">
               {processedQualityMetrics.assessment_notes || 'No assessment notes available'}
             </div>
           )}
@@ -569,14 +564,14 @@ const MovieQualityModal = ({
           <>
             <button
               onClick={() => setEditMode(false)}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
               Cancel
             </button>
             <button
               onClick={handleSaveQuality}
               disabled={loading}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+              className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
             >
               {loading ? 'Saving...' : 'Save Assessment'}
             </button>
@@ -584,9 +579,9 @@ const MovieQualityModal = ({
         ) : (
           <button
             onClick={() => setEditMode(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            <PencilIcon className="h-4 w-4 mr-2" />
+            <PencilIcon className="mr-2 size-4" />
             Edit Assessment
           </button>
         )}
@@ -620,11 +615,11 @@ const MovieQualityModal = ({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-6xl sm:p-6">
+              <Dialog.Panel className="relative overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-6xl sm:p-6">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-gray-200 pb-4 mb-6">
+                <div className="mb-6 flex items-center justify-between border-b border-gray-200 pb-4">
                   <div className="flex items-center space-x-3">
-                    <ChartBarIcon className="h-6 w-6 text-blue-500" />
+                    <ChartBarIcon className="size-6 text-blue-500" />
                     <div>
                       <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
                         Quality Management - {movie?.title}
@@ -640,13 +635,13 @@ const MovieQualityModal = ({
                     onClick={onClose}
                   >
                     <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    <XMarkIcon className="size-6" aria-hidden="true" />
                   </button>
                 </div>
 
                 {/* Tabs */}
                 <Tab.Group selectedIndex={activeTab} onChange={setActiveTab}>
-                  <Tab.List className="flex space-x-1 rounded-xl bg-gray-100 p-1 mb-6">
+                  <Tab.List className="mb-6 flex space-x-1 rounded-xl bg-gray-100 p-1">
                     {tabs.map((tab, index) => {
                       const Icon = tab.icon;
                       return (
@@ -661,7 +656,7 @@ const MovieQualityModal = ({
                           }
                         >
                           <div className="flex items-center justify-center space-x-2">
-                            <Icon className="h-4 w-4" />
+                            <Icon className="size-4" />
                             <span>{tab.name}</span>
                           </div>
                         </Tab>

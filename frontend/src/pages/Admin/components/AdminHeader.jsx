@@ -1,9 +1,8 @@
-import React from 'react';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 const AdminHeader = ({ breadcrumbs, quickActions, handleBulkAction, selectedItems }) => {
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="border-b border-gray-200 bg-white shadow-sm">
       <div className="flex h-16 items-center justify-between px-6">
         {/* Breadcrumbs */}
         <nav className="flex" aria-label="Breadcrumb">
@@ -11,7 +10,7 @@ const AdminHeader = ({ breadcrumbs, quickActions, handleBulkAction, selectedItem
             {breadcrumbs.map((item, index) => (
               <li key={item.name}>
                 <div className="flex items-center">
-                  {index > 0 && <ChevronRightIcon className="h-5 w-5 text-gray-400 mr-4" />}
+                  {index > 0 && <ChevronRightIcon className="mr-4 size-5 text-gray-400" />}
                   <span
                     className={`text-sm font-medium ${
                       index === breadcrumbs.length - 1 ? 'text-gray-900' : 'text-gray-500'
@@ -36,7 +35,7 @@ const AdminHeader = ({ breadcrumbs, quickActions, handleBulkAction, selectedItem
                 className="flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 title={action.label}
               >
-                <ActionIcon className="h-4 w-4" />
+                <ActionIcon className="size-4" />
                 <span className="hidden sm:inline">{action.label}</span>
               </button>
             );
@@ -44,7 +43,7 @@ const AdminHeader = ({ breadcrumbs, quickActions, handleBulkAction, selectedItem
 
           {/* User Info */}
           <div className="flex items-center space-x-2">
-            <div className="h-2 w-2 rounded-full bg-green-400"></div>
+            <div className="size-2 rounded-full bg-green-400"></div>
             <span className="text-sm text-gray-600">Administrator</span>
           </div>
         </div>

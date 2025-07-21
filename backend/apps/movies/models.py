@@ -1908,7 +1908,7 @@ class MovieQualityMetrics(models.Model):
         related_name='quality_metrics'
     )
 
-    # 📊 QUALITY SCORES
+    # QUALITY SCORES
     quality_score = models.DecimalField(
         max_digits=3, decimal_places=1,
         null=True, blank=True,
@@ -1924,7 +1924,7 @@ class MovieQualityMetrics(models.Model):
         help_text="Đạt tiêu chuẩn chất lượng tối thiểu"
     )
 
-    # 🔍 QUALITY BREAKDOWN (for future calculation services)
+    # QUALITY BREAKDOWN (for future calculation services)
     basic_info_score = models.DecimalField(
         max_digits=3, decimal_places=1, default=0,
         help_text="Điểm thông tin cơ bản (title, overview, date)"
@@ -1942,7 +1942,7 @@ class MovieQualityMetrics(models.Model):
         help_text="Điểm tính hợp lệ của rating"
     )
 
-    # 📝 QUALITY DETAILS
+    # QUALITY DETAILS
     quality_issues = models.JSONField(
         default=list, blank=True,
         help_text="Danh sách các vấn đề chất lượng được phát hiện"
@@ -1956,7 +1956,7 @@ class MovieQualityMetrics(models.Model):
         help_text="Lần kiểm tra chất lượng cuối cùng"
     )
 
-    # 🤖 AUTOMATION FLAGS
+    # AUTOMATION FLAGS
     auto_calculated = models.BooleanField(
         default=True,
         help_text="Được tính toán tự động bởi hệ thống"
@@ -1966,7 +1966,7 @@ class MovieQualityMetrics(models.Model):
         help_text="Phiên bản thuật toán tính toán"
     )
 
-    # ⏰ TIMESTAMPS
+    # TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

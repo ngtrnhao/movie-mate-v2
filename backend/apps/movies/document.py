@@ -17,7 +17,11 @@ class MovieDocument(Document):
         fields={'raw': fields.KeywordField()}
     )
     title_vi = fields.TextField(
-        analyzer='standard',
+        analyzer='vietnamese_analyzer_keep_diacritic',
+        fields={'raw': fields.KeywordField()}
+    )
+    title_vi_no_diacritic = fields.TextField(
+        analyzer='vietnamese_analyzer_no_diacritic',
         fields={'raw': fields.KeywordField()}
     )
     original_title = fields.TextField(
@@ -29,7 +33,7 @@ class MovieDocument(Document):
         fields={'raw': fields.KeywordField()}
     )
     overview_vi = fields.TextField(
-        analyzer='vietnamese_analyzer',
+        analyzer='vietnamese_analyzer_keep_diacritic',
         fields={'raw': fields.KeywordField()}
     )
 
@@ -81,7 +85,7 @@ class MovieDocument(Document):
     admin_featured = fields.BooleanField()
     admin_priority = fields.IntegerField()
 
-    # 📊 NEW: Quality Metrics Fields (from MovieQualityMetrics)
+    # NEW: Quality Metrics Fields (from MovieQualityMetrics)
     quality_score = fields.FloatField()
     content_completeness = fields.FloatField()
     basic_info_score = fields.FloatField()
@@ -98,7 +102,7 @@ class MovieDocument(Document):
     overall_quality_rating = fields.KeywordField()  # Excellent, Good, Fair, Poor
     completion_status = fields.KeywordField()  # Complete, Nearly Complete, Partial, Incomplete
 
-    # 📅 NEW: Scheduling Fields (from MovieScheduling)
+    # NEW: Scheduling Fields (from MovieScheduling)
     scheduling_publish_date = fields.DateField()
     scheduling_unpublish_date = fields.DateField()
     scheduling_featured_from = fields.DateField()
@@ -167,11 +171,21 @@ class MovieDocument(Document):
             'number_of_replicas': 0,
             'analysis': {
                 'analyzer': {
-                    'vietnamese_analyzer': {
-                        'type': 'custom',
-                        'tokenizer': 'standard',
-                        'filter': ['lowercase', 'asciifolding']
-                    }
+                    'vietnamese_analyzer_keep_diacritic': {
+                    'type': 'custom',
+                    'tokenizer': 'standard',
+                    'filter': ['lowercase', 'word_delimiter_graph']
+                },
+                'vietnamese_analyzer_no_diacritic': {
+                    'type': 'custom',
+                    'tokenizer': 'standard',
+                    'filter': ['lowercase', 'asciifolding', 'word_delimiter_graph']
+                },
+                'vietnamese_analyzer': {
+                    'type': 'custom',
+                    'tokenizer': 'standard',
+                    'filter': ['lowercase', 'asciifolding', 'word_delimiter_graph']
+                }
                 }
             }
         }
@@ -726,6 +740,15 @@ class MovieDocument(Document):
     def prepare_title(self, instance):
         """Prepare title field"""
         return instance.title_en or instance.title_vi or instance.title or ""
+
+    def prepare_title_vi_no_diacritic(self, instance):
+        """Chuẩn hóa title_vi thành không dấu để index cho trường title_vi_no_diacritic"""
+        import unicodedata
+        title = instance.title_vi or ''
+        # Loại bỏ dấu tiếng Việt
+        title_no_diacritic = unicodedata.normalize('NFD', title)
+        title_no_diacritic = ''.join([c for c in title_no_diacritic if unicodedata.category(c) != 'Mn'])
+        return title_no_diacritic
 
     def prepare_cached_imdb_rating(self, instance):
         """Prepare cached IMDB rating"""

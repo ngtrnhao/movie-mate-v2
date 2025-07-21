@@ -178,9 +178,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
             }`}
           >
             <Plus
-              className={`isTogglingWatchlist ? 'animate-pulse' :
-                '' } transition-transform duration-200 group-hover:scale-110
-              sm:size-8 ${isInList ? 'rotate-45' : ''}`}
+              className={`size-3 transition-transform duration-200 group-hover:scale-110 sm:size-8 ${isInList ? 'rotate-45' : ''} ${isTogglingWatchlist ? 'animate-pulse' : ''}`}
             />
             <span className="hidden sm:inline">
               {isTogglingWatchlist

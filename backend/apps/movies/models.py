@@ -558,7 +558,7 @@ class MovieNews(models.Model):
 
 
 class MovieRating(models.Model):
-    movie = models.OneToOneField(Movie, on_delete=models.CASCADE, related_name="ratings")
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="ratings")
     imdb_rating = models.DecimalField(
         max_digits=3, decimal_places=1, null=True, blank=True
     )
@@ -2109,7 +2109,7 @@ class MovieScheduling(models.Model):
         related_name='scheduling'
     )
 
-    # PUBLICATION SCHEDULING
+    # 📅 PUBLICATION SCHEDULING
     publish_date = models.DateTimeField(
         null=True, blank=True,
         help_text="Thời gian xuất bản"
@@ -2127,7 +2127,7 @@ class MovieScheduling(models.Model):
         help_text="Tự động ngừng hiển thị vào thời điểm đã lên lịch"
     )
 
-    # FEATURED SCHEDULING
+    # ⭐ FEATURED SCHEDULING
     featured_from = models.DateTimeField(
         null=True, blank=True,
         help_text="Bắt đầu featured"
@@ -2145,7 +2145,7 @@ class MovieScheduling(models.Model):
         help_text="Tự động bỏ featured vào thời điểm đã lên lịch"
     )
 
-    # RECURRING SCHEDULES (for future features)
+    # 🔄 RECURRING SCHEDULES (for future features)
     recurring_pattern = models.JSONField(
         default=dict, blank=True,
         help_text="Mẫu lặp lại cho nội dung theo mùa"
@@ -2155,7 +2155,7 @@ class MovieScheduling(models.Model):
         help_text="Múi giờ cho lịch trình"
     )
 
-    # STATUS TRACKING
+    # 📊 STATUS TRACKING
     next_scheduled_action = models.CharField(
         max_length=50, null=True, blank=True,
         help_text="Hành động được lên lịch tiếp theo (publish, unpublish, feature, unfeature)"
@@ -2173,7 +2173,7 @@ class MovieScheduling(models.Model):
         help_text="Thời gian thực hiện hành động cuối cùng"
     )
 
-    # CAMPAIGN INFO (for future marketing features)
+    # 🎯 CAMPAIGN INFO (for future marketing features)
     campaign_name = models.CharField(
         max_length=255, null=True, blank=True,
         help_text="Tên chiến dịch marketing"
@@ -2194,7 +2194,7 @@ class MovieScheduling(models.Model):
         help_text="Độ ưu tiên chiến dịch (0-10)"
     )
 
-    # TIMESTAMPS
+    # ⏰ TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

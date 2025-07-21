@@ -4,6 +4,7 @@ import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import { useFavorites } from '../../../hooks/useFavorites';
 import { useWatchlistContext } from '../../../context/WatchlistContext';
 import useUserTracking from '../../../hooks/useUserTracking';
+import userInteractionService from '../../../services/userInteractionService';
 const ActionPanel = ({ movie, onTrailerClick }) => {
   const { t } = useTranslation('movies');
 
@@ -44,7 +45,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
       const movieId = parseInt(movie.id);
       const wasInWatchlist = isInWatchlist(movieId);
 
-      // ✅ Track watchlist action BEFORE the action
+      // Track watchlist action BEFORE the action
       trackWatchlist(movieId, !wasInWatchlist);
       if (wasInWatchlist) {
         // Find the watchlist that contains this movie
@@ -83,7 +84,7 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
 
     const wasFavorited = isFavorited(movieId);
 
-    // ✅ Track favorite action BEFORE the action
+    // Track favorite action BEFORE the action
     trackFavorite(movieId, !wasFavorited);
 
     const result = await toggleFavorite(movieId, movie);
@@ -95,6 +96,10 @@ const ActionPanel = ({ movie, onTrailerClick }) => {
   };
 
   const handleShare = () => {
+    // Tracking share action
+    const shareType = navigator.share ? 'native_share' : 'copy_link';
+    userInteractionService.trackShare(movie.id, shareType);
+
     if (navigator.share) {
       navigator.share({
         title: movie.title,

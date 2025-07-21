@@ -34,7 +34,7 @@ class ProductionMetricsService:
     def calculate_production_metrics(self, movie: Movie, save: bool = True) -> Dict:
         """
         Tính toán toàn bộ production metrics cho một movie
-        🔥 ENHANCED: Sử dụng UserInteraction data cho tính toán chính xác
+         ENHANCED: Sử dụng UserInteraction data cho tính toán chính xác
 
         Args:
             movie: Movie instance
@@ -60,7 +60,7 @@ class ProductionMetricsService:
                 }
             )
 
-            # 🔥 ENHANCED: Calculate metrics from UserInteraction data
+            # ENHANCED: Calculate metrics from UserInteraction data
             interaction_metrics = self._calculate_metrics_from_interactions(movie)
 
             # Calculate current metrics (combines UserInteraction + existing data)
@@ -111,7 +111,7 @@ class ProductionMetricsService:
             raise
 
     def _calculate_metrics_from_interactions(self, movie: Movie) -> Dict:
-        """🔥 NEW: Tính toán metrics từ UserInteraction data"""
+        """NEW: Tính toán metrics từ UserInteraction data"""
         try:
             # Get interactions for this movie (last 30 days for freshness)
             thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -181,7 +181,7 @@ class ProductionMetricsService:
             return {}
 
     def _calculate_current_metrics(self, movie: Movie, production_metrics: ProductionMetrics, interaction_metrics: Dict) -> Dict:
-        """🔥 ENHANCED: Combine ProductionMetrics + UserInteraction data"""
+        """ENHANCED: Combine ProductionMetrics + UserInteraction data"""
 
         # Combine data from both sources (UserInteraction takes precedence if available)
         homepage_views = max(
@@ -375,7 +375,7 @@ class ProductionMetricsService:
         return round(overall_score, 2)
 
     def _calculate_trending_metrics(self, movie: Movie, current_metrics: Dict, interaction_metrics: Dict) -> Dict:
-        """🔥 ENHANCED: Tính toán trending metrics với UserInteraction data"""
+        """ENHANCED: Tính toán trending metrics với UserInteraction data"""
 
         # Enhanced trending calculation using interaction data
         recent_activity = interaction_metrics.get('interaction_recent_activity', 0)

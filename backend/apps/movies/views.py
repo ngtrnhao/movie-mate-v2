@@ -241,14 +241,14 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """Get 3 featured movies - ULTRA SIMPLIFIED for performance with trailer requirement"""
         try:
             logger.info("Fetching featured movies with ULTRA SIMPLIFIED approach...")
-            cache_key = 'featured_movies_v1_ultra_simple'
+            cache_key = 'featured_movies_v2_ultra_simple'
             cached_data = cache.get(cache_key)
 
             if cached_data:
                 logger.info("Returning cached featured movies")
                 return Response(cached_data)
 
-            # 🔥 ULTRA SIMPLE: Get top movies with trailers
+            #  ULTRA SIMPLE: Get top movies with trailers
             featured_movies = Movie.objects.select_related(
                 'moviemetadata','admin_control','quality_metrics'
             ).filter(
@@ -259,8 +259,8 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
                 admin_control__approval_status='APPROVED',
                 quality_metrics__minimum_quality_met=True,
                 admin_control__visibility_status='PUBLISHED',
-                trailers__isnull=False,  # Ensure movie has trailers
-                trailers__type='TRAILER'  # Specifically trailer type
+                trailers__isnull=False,
+                trailers__type='TRAILER'
             ).distinct().order_by(
                 '-admin_control__admin_featured',
                 '-admin_control__admin_priority',

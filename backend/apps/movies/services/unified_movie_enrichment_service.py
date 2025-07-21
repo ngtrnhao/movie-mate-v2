@@ -325,7 +325,7 @@ class UnifiedMovieEnrichmentService:
 
     def _enrich_basic_information(self, movie: Movie, force_refresh: bool = False) -> Dict:
         """
-        📝 Enrich basic movie information (titles, overviews, release date)
+        Enrich basic movie information (titles, overviews, release date)
         """
         results = {
             'success': False,
@@ -368,7 +368,7 @@ class UnifiedMovieEnrichmentService:
 
     def _enrich_visual_assets(self, movie: Movie, force_refresh: bool = False) -> Dict:
         """
-        🖼️ Enrich visual assets (poster, backdrop, additional images)
+        Enrich visual assets (poster, backdrop, additional images)
         """
         results = {
             'success': False,
@@ -411,7 +411,7 @@ class UnifiedMovieEnrichmentService:
 
     def _enrich_metadata_richness(self, movie: Movie, force_refresh: bool = False) -> Dict:
         """
-        🎭 Enrich metadata richness (cast, genres, trailers, keywords)
+        Enrich metadata richness (cast, genres, trailers, keywords)
         """
         results = {
             'success': False,
@@ -460,7 +460,7 @@ class UnifiedMovieEnrichmentService:
 
     def _enrich_rating_information(self, movie: Movie, force_refresh: bool = False) -> Dict:
         """
-        ⭐ Enrich rating information from multiple sources
+        Enrich rating information from multiple sources
         """
         results = {
             'success': False,
@@ -494,7 +494,7 @@ class UnifiedMovieEnrichmentService:
 
     def _enrich_additional_tmdb_data(self, movie: Movie) -> Dict:
         """
-        🔄 Use existing MovieTMDBEnrichService for comprehensive TMDB data
+        Use existing MovieTMDBEnrichService for comprehensive TMDB data
         """
         try:
             if not movie.tmdb_id:
@@ -748,29 +748,23 @@ class UnifiedMovieEnrichmentService:
             return {'success': False, 'error': str(e)}
 
     def _update_cached_ratings(self, movie: Movie) -> Dict:
-        """Update cached rating fields for performance"""
+        """Update cached rating fields for performance (không cần source, lấy từng trường theo tên)"""
         try:
             updated_fields = []
-
-            # Get ratings from related MovieRating objects
-            ratings = movie.ratings.first()
+            ratings = movie.ratings.order_by('-id').first()
             if ratings:
                 if ratings.imdb_rating and ratings.imdb_rating != movie.cached_imdb_rating:
                     movie.cached_imdb_rating = ratings.imdb_rating
                     updated_fields.append('cached_imdb_rating')
-
                 if ratings.imdb_votes and ratings.imdb_votes != movie.cached_imdb_votes:
                     movie.cached_imdb_votes = ratings.imdb_votes
                     updated_fields.append('cached_imdb_votes')
-
                 if ratings.tmdb_rating and ratings.tmdb_rating != movie.cached_tmdb_rating:
                     movie.cached_tmdb_rating = ratings.tmdb_rating
                     updated_fields.append('cached_tmdb_rating')
-
                 if ratings.tmdb_votes and ratings.tmdb_votes != movie.cached_tmdb_votes:
                     movie.cached_tmdb_votes = ratings.tmdb_votes
                     updated_fields.append('cached_tmdb_votes')
-
             if updated_fields:
                 movie.save(update_fields=updated_fields + ['updated_at'])
                 return {
@@ -778,9 +772,7 @@ class UnifiedMovieEnrichmentService:
                     'message': f'Updated cached ratings: {", ".join(updated_fields)}',
                     'updated_fields': updated_fields
                 }
-
             return {'success': False, 'message': 'No rating updates needed'}
-
         except Exception as e:
             logger.error(f"❌ Error updating cached ratings for movie {movie.id}: {str(e)}")
             return {'success': False, 'error': str(e)}

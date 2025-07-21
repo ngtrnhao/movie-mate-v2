@@ -431,19 +431,23 @@ const MovieEnrichmentPanel = () => {
                   {/* Quality Metrics */}
                   {enrichmentStatus.enrichment_status?.quality_metrics && (
                     <div className="rounded-lg bg-green-50 p-4">
-                      <h4 className="text-md mb-3 font-medium text-gray-900">📈 Quality Metrics</h4>
+                      <h4 className="text-md mb-3 font-medium text-gray-700">📈 Quality Metrics</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="text-sm">
-                          <span className="font-medium">Quality Score:</span>{' '}
-                          {enrichmentStatus.enrichment_status.quality_metrics.quality_score ||
-                            'N/A'}
-                          /10
+                          <span className="font-medium text-gray-700">Quality Score:</span>{' '}
+                          <span className="font-medium text-gray-700">
+                            {enrichmentStatus.enrichment_status.quality_metrics.quality_score ||
+                              'N/A'}
+                            /10
+                          </span>
                         </div>
                         <div className="text-sm">
-                          <span className="font-medium">Completeness:</span>{' '}
-                          {enrichmentStatus.enrichment_status.quality_metrics
-                            .content_completeness || 0}
-                          %
+                          <span className="font-medium text-gray-700">Completeness:</span>{' '}
+                          <span className="font-medium text-gray-700">
+                            {enrichmentStatus.enrichment_status.quality_metrics
+                              .content_completeness || 0}
+                            %
+                          </span>
                         </div>
                       </div>
                     </div>

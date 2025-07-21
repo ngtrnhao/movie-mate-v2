@@ -49,7 +49,7 @@ export const getProductionMetrics = async () => {
 // === MOVIE ENRICHMENT SERVICES ===
 
 /**
- * Enrich a specific movie with comprehensive data
+ * Enrich a specific movie with comprehensive data (async, poll for result)
  * @param {number} movieId - ID of the movie to enrich
  * @param {Object} options - Enrichment options
  * @param {boolean} options.forceRefresh - Force refresh existing data
@@ -63,7 +63,24 @@ export const enrichMovie = async (movieId, options = {}) => {
       focus_areas: options.focusAreas || null,
       enrich_type: options.enrichType || 'comprehensive',
     });
-    return response.data;
+    // Poll enrichment-status endpoint until result is ready
+    const pollStatus = async (retries = 60, interval = 2000) => {
+      for (let i = 0; i < retries; i++) {
+        const statusResp = await axiosInstance.get(
+          `/api/admin/movies/${movieId}/enrichment-status/`
+        );
+        if (
+          statusResp.data &&
+          statusResp.data.enrichment_status &&
+          statusResp.data.enrichment_status.quality_metrics
+        ) {
+          return statusResp.data;
+        }
+        await new Promise(res => setTimeout(res, interval));
+      }
+      throw new Error('Enrichment timed out');
+    };
+    return await pollStatus();
   } catch (error) {
     handleError(error, 'enrich movie');
   }

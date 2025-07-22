@@ -23,14 +23,17 @@ class TMDBService:
     ) -> Optional[Dict]:
         """Make request to TMDB API with rate limiting, retry mechanism and caching"""
         import os
+        import hashlib
 
         api_key = getattr(settings, "TMDB_API_KEY", None) or os.getenv("TMDB_API_KEY")
         if not api_key:
             logger.error("TMDB_API_KEY is not set in environment or settings.")
             return None
 
-        # Generate cache key
-        cache_key = f"tmdb_{endpoint}_{json.dumps(params or {})}"
+        # Generate safe cache key for Memcached
+        params_str = json.dumps(params or {}, sort_keys=True)
+        raw_key = f"tmdb_{endpoint}_{params_str}"
+        cache_key = "tmdb_" + hashlib.md5(raw_key.encode("utf-8")).hexdigest()
 
         # Try to get from cache first if caching is enabled
         if use_cache:

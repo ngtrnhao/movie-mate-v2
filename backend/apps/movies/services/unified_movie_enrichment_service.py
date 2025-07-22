@@ -11,6 +11,7 @@ from .movie_title_genre_service import MovieTitleGenreService
 from .movie_overview_service import MovieOverviewService
 from .movie_tmdb_enrich_service import MovieTMDBEnrichService
 from .quality_calculation_service import QualityCalculationService
+from .cast_profile_enrichment_service import CastProfileEnrichmentService
 from ..models import Movie, MovieQualityMetrics, MovieImage, MovieTrailer, MovieCast
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ class UnifiedMovieEnrichmentService:
         focus_areas: List[str] = None
     ) -> Dict:
         """
-        🔥 Main method: Comprehensive movie enrichment
+        Main method: Comprehensive movie enrichment
 
         Args:
             movie: Movie instance to enrich
@@ -705,18 +706,32 @@ class UnifiedMovieEnrichmentService:
             return {'success': False, 'error': str(e)}
 
     def _enrich_cast_information(self, movie: Movie) -> Dict:
-        """Enrich cast and crew information"""
+        """Enrich cast and crew information, bao gồm enrich profile_path cho cast"""
         try:
             # Use existing TMDB enrich service for cast
             if not movie.tmdb_id:
                 return {'success': False, 'message': 'No TMDB ID for cast enrichment'}
 
-            # This will be handled by the comprehensive TMDB enrichment
-            return {
-                'success': True,
-                'message': 'Cast enrichment delegated to TMDB service'
-            }
-
+            # Enrich cast thông thường (nếu có logic ở TMDBEnrichService)
+            # (Giữ lại logic cũ nếu có)
+            # Gọi enrich profile_path cho cast chưa có profile_path
+            cast_profile_result = CastProfileEnrichmentService().enrich_movie_cast_profiles(movie.id, limit=20)
+            updated_count = cast_profile_result.get('updated_count', 0)
+            if cast_profile_result.get('success'):
+                msg = f"Cast enrichment (profile_path) completed: {updated_count} profiles updated"
+                logger.info(msg)
+                return {
+                    'success': True,
+                    'message': msg,
+                    'updated_profiles': updated_count
+                }
+            else:
+                msg = f"Cast enrichment (profile_path) failed: {cast_profile_result.get('error')}"
+                logger.error(msg)
+                return {
+                    'success': False,
+                    'message': msg
+                }
         except Exception as e:
             logger.error(f"❌ Error enriching cast for movie {movie.id}: {str(e)}")
             return {'success': False, 'error': str(e)}

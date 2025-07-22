@@ -915,106 +915,27 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
                 return Response(response_data)
 
-            # Fallback to ORM search if Elasticsearch fails
-            logger.info("Falling back to ORM search")
-            queryset = self._get_optimized_user_queryset()
+            # Fallback to ORM search using service
+            logger.info("Falling back to ORM search via MovieSearchService.fallback_search")
+            orm_response = search_service.fallback_search(params, admin_mode=False)
+            if orm_response:
+                response_data = {
+                    'status': 'success',
+                    'count': orm_response['total_count'],
+                    'data': self._optimize_search_results(orm_response['results']),
+                    'search_engine': orm_response.get('search_engine', 'django_orm'),
+                    'next_search_after': orm_response.get('next_search_after'),
+                    'from_cache': False
+                }
+                return Response(response_data)
 
-            # Apply search filters
-            if params.get('q'):
-                from django.db.models import Q as Django_Q
-                query = params['q'].strip()
-                # PERFORMANCE: Use database indexes efficiently
-                queryset = queryset.filter(
-                    Django_Q(title__icontains=query) |
-                    Django_Q(title_en__icontains=query) |
-                    Django_Q(title_vi__icontains=query) |
-                    Django_Q(overview_en__icontains=query) |
-                    Django_Q(overview_vi__icontains=query)
-                )
-
-            # Apply other filters
-            if params.get('genres'):
-                # Handle multiple format: comma-separated string, list, or single value
-                genre_list = params['genres']
-                if isinstance(genre_list, str):
-                    # Could be comma-separated or single value
-                    genre_list = [g.strip() for g in genre_list.split(',') if g.strip()]
-                elif not isinstance(genre_list, list):
-                    genre_list = [genre_list]
-
-                # Filter by genre names (not IDs) to match Elasticsearch behavior
-                queryset = queryset.filter(genres__name__in=genre_list).distinct()
-
-            if params.get('countries'):
-                country_list = params['countries']
-                if isinstance(country_list, str):
-                    country_list = [c.strip() for c in country_list.split(',') if c.strip()]
-                elif not isinstance(country_list, list):
-                    country_list = [country_list]
-                queryset = queryset.filter(production_countries__overlap=country_list)
-
-            if params.get('status'):
-                status_list = params['status']
-                if isinstance(status_list, str):
-                    status_list = [s.strip() for s in status_list.split(',') if s.strip()]
-                elif not isinstance(status_list, list):
-                    status_list = [status_list]
-                queryset = queryset.filter(status__in=status_list)
-
-            if params.get('year_from'):
-                queryset = queryset.filter(release_date__year__gte=params['year_from'])
-
-            if params.get('year_to'):
-                queryset = queryset.filter(release_date__year__lte=params['year_to'])
-
-            # Apply sorting with field mapping for ORM fallback
-            sort_field = params.get('sort_by', '-combined_rating_score')
-
-            # Map Elasticsearch fields to ORM fields
-            field_mapping = {
-                'popularity': 'combined_rating_score',
-                'vote_average': 'combined_rating_score',
-                'rating': 'combined_rating_score',
-                'vote_count': 'cached_imdb_votes',
-                'title': 'title_en',
-                'runtime': 'runtime',
-                'release_date': 'release_date',
-                'created_at': 'created_at'
-            }
-
-            # Apply field mapping
-            clean_sort_field = sort_field.lstrip('-')
-            if clean_sort_field in field_mapping:
-                mapped_field = field_mapping[clean_sort_field]
-                sort_field = sort_field.replace(clean_sort_field, mapped_field)
-
-            # Handle order
-            if params.get('order') == 'asc':
-                sort_field = sort_field.lstrip('-')
-            elif not sort_field.startswith('-'):
-                sort_field = f'-{sort_field}'
-
-            queryset = queryset.order_by(sort_field)
-
-            # Apply pagination
-            page = self.paginate_queryset(queryset)
-            serializer = self.get_serializer(page, many=True)
-
-            # Standardize response format to match Elasticsearch
-            paginated_response = self.get_paginated_response(serializer.data)
-
-            # Convert to our standard format
-            response_data = {
-                'status': 'success',
-                'count': paginated_response.data.get('count', 0),
-                'data': self._optimize_search_results(paginated_response.data.get('results', [])),
-                'search_engine': 'django_orm',
-                'next': paginated_response.data.get('next'),
-                'previous': paginated_response.data.get('previous'),
-                'from_cache': False
-            }
-
-            return Response(response_data)
+            # Nếu vẫn không có kết quả, trả về lỗi
+            return Response({
+                'status': 'error',
+                'message': 'Search service temporarily unavailable',
+                'data': [],
+                'count': 0
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.error(f"❌ Error in user search: {str(e)}")

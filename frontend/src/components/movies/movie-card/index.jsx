@@ -36,7 +36,7 @@ const MovieCard = memo(
     const viewObserverRef = useRef(null);
 
     // Initialize user tracking with memoized functions
-    const { trackMovieClick, trackTrailerView } = useUserTracking();
+    const { trackMovieClick, trackTrailerView, createViewObserver } = useUserTracking();
 
     // Optimized tracking using the enhanced userInteractionService
     // Bỏ trackHomepageViewMemoized vì service đã handle deduplication
@@ -152,52 +152,19 @@ const MovieCard = memo(
       }
     }, [hasAnimated, movie.id]);
 
-    // Optimized view tracking với intersection observer
+    // Optimized view tracking với intersection observer (tích hợp createViewObserver)
     useEffect(() => {
-      let timeoutId;
-
       if (cardRef.current && !minimal) {
-        const observer = new IntersectionObserver(
-          entries => {
-            entries.forEach(entry => {
-              if (entry.isIntersecting) {
-                // Clear any existing timeout
-                if (timeoutId) {
-                  clearTimeout(timeoutId);
-                }
-
-                // Use userInteractionService's optimized tracking
-                // Service sẽ tự handle deduplication và authentication check
-                userInteractionService.trackHomepageView(movieData.id, {
-                  component: 'movie_card',
-                  position: index,
-                  page_type: 'homepage',
-                  viewport_ratio: entry.intersectionRatio,
-                });
-              }
-            });
-          },
-          {
-            threshold: 0.5, // Track when 50% visible
-            rootMargin: '0px 0px -10% 0px',
-          }
-        );
-
-        observer.observe(cardRef.current);
-        viewObserverRef.current = observer;
+        // Sử dụng createViewObserver từ useUserTracking
+        const cleanup = createViewObserver(cardRef.current, movieData.id, {
+          component: 'movie_card',
+          position: index,
+          page_type: 'homepage',
+        });
+        return cleanup;
       }
-
-      return () => {
-        // Clear timeout to prevent memory leaks
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        if (viewObserverRef.current) {
-          viewObserverRef.current.disconnect();
-        }
-      };
-    }, [movieData.id, index, minimal]); // Removed trackHomepageViewMemoized dependency
+      return undefined;
+    }, [movieData.id, index, minimal, createViewObserver]);
 
     // Minimal rendering cho fast scroll - chỉ hiển thị poster và title
     if (minimal) {

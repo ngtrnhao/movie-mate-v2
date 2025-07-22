@@ -7,6 +7,7 @@ from apps.metadata.models import Genre
 from ..serializers import OptimizedMovieListSerializer
 from ..models import Movie, MovieQualityMetrics, MovieScheduling, MovieTrailer
 from django.db.models import Prefetch, Q as Django_Q
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -727,22 +728,26 @@ class MovieSearchService:
 
     def fallback_search(self, params, admin_mode=False):
         """Fallback database search with optimized queries for normalized structure"""
+        logger.info("[DEBUG] Entered fallback_search (ORM fallback is being used)")
         try:
             logger.info("Using fallback database search with normalized structure")
 
-            # Enhanced queryset with normalized relationships
+            # Filter tối giản: chỉ giữ minimum_quality_met và poster_url
             queryset = Movie.objects.select_related(
-                'moviemetadata',
-                'quality_metrics',  # NEW: Include quality metrics
-                'scheduling',       # NEW: Include scheduling
-                'production_metrics'  # NEW: Include production metrics
+                'moviemetadata', 'admin_control', 'quality_metrics'
             ).prefetch_related(
-                'genres',
-                'ratings',
-                Prefetch('trailers', queryset=MovieTrailer.objects.filter(type='TRAILER'))
+                Prefetch('genres', to_attr='prefetched_genres'),
+                Prefetch('ratings', to_attr='prefetched_ratings')
+            ).filter(
+                quality_metrics__isnull=False,
+                quality_metrics__minimum_quality_met=True,
+                poster_url__isnull=False,
+                poster_url__gt='',
+            ).exclude(
+                title__exact=''
             )
 
-            # Basic filtering
+            # Áp dụng filter động từ params (giống logic ES)
             if params.get('q'):
                 query_text = params['q']
                 queryset = queryset.filter(
@@ -751,87 +756,47 @@ class MovieSearchService:
                     Django_Q(overview_en__icontains=query_text) |
                     Django_Q(overview_vi__icontains=query_text)
                 )
-
-            # Quality filters (NEW)
-            if params.get('quality_score_min'):
-                queryset = queryset.filter(quality_metrics__quality_score__gte=params['quality_score_min'])
-
-            if params.get('content_completeness_min'):
-                queryset = queryset.filter(quality_metrics__content_completeness__gte=params['content_completeness_min'])
-
-            if params.get('minimum_quality_met') is not None:
-                queryset = queryset.filter(quality_metrics__minimum_quality_met=params['minimum_quality_met'])
-
-            # Scheduling filters (NEW)
-            if params.get('is_published_now') is not None:
-                queryset = queryset.filter(scheduling__is_published_now=params['is_published_now'])
-
-            if params.get('is_featured_now') is not None:
-                queryset = queryset.filter(scheduling__is_featured_now=params['is_featured_now'])
-
-            if params.get('campaign_type'):
-                queryset = queryset.filter(scheduling__campaign_type__in=params['campaign_type'])
-
-            # Performance filters (NEW)
-            if params.get('performance_score_min'):
-                queryset = queryset.filter(production_metrics__performance_score__gte=params['performance_score_min'])
-
-            if params.get('trending_category'):
-                queryset = queryset.filter(production_metrics__trending_category__in=params['trending_category'])
-
-            # Existing filters
             if params.get('genres'):
                 genre_values = params['genres'] if isinstance(params['genres'], list) else [params['genres']]
-
-                # Handle both genre IDs and names
-                genre_ids = []
-                genre_names = []
-                for value in genre_values:
-                    try:
-                        # Try to convert to int - if successful, it's an ID
-                        genre_id = int(value)
-                        genre_ids.append(genre_id)
-                    except ValueError:
-                        # Not an integer, assume it's a name
-                        genre_names.append(value)
-
-                # Filter by both IDs and names
-                if genre_ids and genre_names:
-                    queryset = queryset.filter(
-                        Django_Q(genres__id__in=genre_ids) | Django_Q(genres__name__in=genre_names)
-                    )
-                elif genre_ids:
-                    queryset = queryset.filter(genres__id__in=genre_ids)
-                elif genre_names:
-                    queryset = queryset.filter(genres__name__in=genre_names)
-
+                queryset = queryset.filter(genres__name__in=genre_values)
             if params.get('year_from'):
                 queryset = queryset.filter(release_date__year__gte=params['year_from'])
-
             if params.get('year_to'):
                 queryset = queryset.filter(release_date__year__lte=params['year_to'])
-
             if params.get('rating_min'):
                 queryset = queryset.filter(combined_rating_score__gte=params['rating_min'])
-
+            if params.get('rating_max'):
+                queryset = queryset.filter(combined_rating_score__lte=params['rating_max'])
+            if params.get('runtime_min'):
+                queryset = queryset.filter(runtime__gte=params['runtime_min'])
+            if params.get('runtime_max'):
+                queryset = queryset.filter(runtime__lte=params['runtime_max'])
+            if params.get('status'):
+                status_values = params['status']
+                if isinstance(status_values, str):
+                    status_values = [status_values]
+                queryset = queryset.filter(status__in=status_values)
+            if params.get('countries'):
+                country_values = params['countries']
+                if isinstance(country_values, str):
+                    country_values = [country_values]
+                queryset = queryset.filter(moviemetadata__production_countries__overlap=country_values)
             if params.get('adult') is not None:
-                # Convert string boolean to actual boolean
                 adult_value = params['adult']
                 if isinstance(adult_value, str):
                     adult_value = adult_value.lower() in ('true', '1', 'yes')
-                elif isinstance(adult_value, bool):
-                    adult_value = adult_value
-                else:
-                    adult_value = bool(adult_value)
                 queryset = queryset.filter(is_adult=adult_value)
 
-            # Enhanced sorting with new fields
+            # Phân trang: keyset (search_after) hoặc page-based (page)
+            page_size = int(params.get('page_size', 20))
             sort_mapping = {
                 'quality_score': 'quality_metrics__quality_score',
                 'content_completeness': 'quality_metrics__content_completeness',
                 'performance_score': 'production_metrics__performance_score',
                 'trending_score': 'production_metrics__trending_score',
                 'engagement_rate': 'production_metrics__engagement_rate',
+                'homepage_views': 'production_metrics__homepage_views',
+                'user_favorites': 'production_metrics__user_favorites_count',
                 'campaign_priority': 'scheduling__campaign_priority',
                 'popularity': 'combined_rating_score',
                 'rating': 'combined_rating_score',
@@ -841,69 +806,91 @@ class MovieSearchService:
                 'vote_count': 'cached_imdb_votes',
                 'created_at': 'created_at'
             }
-
-            sort_by = params.get('sort_by', 'popularity')
+            sort_by = params.get('sort_by', 'created_at')
             order = params.get('order', 'desc')
+            sort_field = sort_mapping.get(sort_by, 'created_at')
+            order_prefix = '-' if order == 'desc' else ''
+            queryset = queryset.order_by(f"{order_prefix}{sort_field}", f"{order_prefix}id")
 
-            if sort_by in sort_mapping:
-                order_prefix = '-' if order == 'desc' else ''
-                queryset = queryset.order_by(f"{order_prefix}{sort_mapping[sort_by]}")
-
-                        # Pagination with keyset support for ORM fallback
-            page_size = int(params.get('page_size', 20))
-            order = params.get('order', 'desc')
-
-            # Handle keyset pagination for ORM
+            # Phân trang
+            use_keyset = False
+            start = 0
+            next_search_after = None
+            has_next_page = False
             if params.get('search_after'):
-                # For ORM fallback, we use created_at and id for pagination
+                use_keyset = True
                 search_after_values = params['search_after']
                 if isinstance(search_after_values, list) and len(search_after_values) >= 2:
-                    created_at_value = search_after_values[0]
+                    sort_value = search_after_values[0]
                     id_value = search_after_values[1]
-                    # Filter for keyset pagination
                     if order == 'desc':
                         queryset = queryset.filter(
-                            Django_Q(created_at__lt=created_at_value) |
-                            Django_Q(created_at=created_at_value, id__lt=id_value)
+                            Django_Q(**{f"{sort_field}__lt": sort_value}) |
+                            (Django_Q(**{f"{sort_field}": sort_value}) & Django_Q(id__lt=id_value))
                         )
                     else:
                         queryset = queryset.filter(
-                            Django_Q(created_at__gt=created_at_value) |
-                            Django_Q(created_at=created_at_value, id__gt=id_value)
+                            Django_Q(**{f"{sort_field}__gt": sort_value}) |
+                            (Django_Q(**{f"{sort_field}": sort_value}) & Django_Q(id__gt=id_value))
                         )
+                start = 0
             elif params.get('page'):
-                # Fallback to page-based pagination
                 page = int(params.get('page', 1))
                 start = (page - 1) * page_size
-                queryset = queryset[start:start + page_size]
             else:
-                # Default: first page
-                queryset = queryset[:page_size]
+                start = 0
 
+            # Log explain cho count và select như trước
+            start_time = time.time()
+            explain_plan_count = None
+            try:
+                explain_plan_count = queryset.explain()
+            except Exception as e:
+                logger.warning(f"Could not get explain plan for count: {e}")
             total_count = queryset.count()
-            results = list(queryset[:page_size])
+            elapsed = time.time() - start_time
+            logger.info(f"[ORM SEARCH] queryset.count() took {elapsed:.2f}s, total_count={total_count}")
+            if explain_plan_count:
+                logger.info(f"[ORM SEARCH] EXPLAIN PLAN (COUNT):\n{explain_plan_count}")
 
-            # Calculate next_search_after for keyset pagination (ORM version)
-            next_search_after = None
-            if results and len(results) == page_size:
-                last_result = results[-1]
-                # Use created_at and id as sort values
-                next_search_after = [
-                    last_result.created_at.isoformat(),
-                    last_result.id
-                ]
+            # Lấy thêm 1 bản ghi để xác định has_next_page hoặc next_search_after
+            results_qs = queryset[start:start + page_size + 1]
+            explain_plan_select = None
+            try:
+                explain_plan_select = results_qs.explain()
+            except Exception as e:
+                logger.warning(f"Could not get explain plan for select: {e}")
+            results = list(results_qs)
+            if explain_plan_select:
+                logger.info(f"[ORM SEARCH] EXPLAIN PLAN (SELECT LIMIT):\n{explain_plan_select}")
 
-            # Serialize results
+            if use_keyset:
+                # Keyset: next_search_after nếu còn trang tiếp theo
+                if len(results) > page_size:
+                    last_result = results[page_size - 1]
+                    next_search_after = [getattr(last_result, sort_field), last_result.id]
+                    results = results[:page_size]
+                else:
+                    next_search_after = None
+            else:
+                # Page-based: has_next_page nếu còn trang tiếp theo
+                has_next_page = len(results) > page_size
+                results = results[:page_size]
+
             serializer = OptimizedMovieListSerializer(results, many=True)
 
-            return {
+            response = {
                 'total_count': total_count,
                 'results': serializer.data,
                 'search_engine': 'django_orm_fallback',
                 'enhanced_with_normalized_data': True,
-                'next_search_after': next_search_after,
                 'from_cache': False
             }
+            if use_keyset:
+                response['next_search_after'] = next_search_after
+            else:
+                response['has_next_page'] = has_next_page
+            return response
 
         except Exception as e:
             logger.error(f"Fallback search failed: {str(e)}")

@@ -21,7 +21,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--batch-size',
             type=int,
-            default=50,  # Giảm batch size mặc định để tránh timeout
+            default=50,
             help='Number of movies to process per batch (default: 50)'
         )
         parser.add_argument(

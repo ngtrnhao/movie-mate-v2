@@ -8,7 +8,7 @@ import { getPosterUrl } from '../../../utils/imageUtils';
 const imageCache = new Set();
 const loadingQueue = new Map(); // Track loading priority
 let activeLoading = 0;
-const MAX_CONCURRENT_LOADING = 5; // Limit concurrent image loads
+const MAX_CONCURRENT_LOADING = 8; // Limit concurrent image loads
 
 // Cache để track poster đã từng hiển thị (để tránh animate lại)
 // const shownPosters = new Set();
@@ -116,8 +116,8 @@ const Poster = memo(({ movie, title, priority = false, onLoadDone }) => {
   // Load image when conditions are met
   useEffect(() => {
     if (shouldLoadImage && posterUrl && !isImageLoaded && !imageError) {
-      // Delay loading khi fast scrolling để prevent flooding
-      const delay = isFastScrolling ? 100 : 0;
+      // Luôn delay = 0 để load ngay khi vào viewport
+      const delay = 0;
 
       const loadTimer = setTimeout(() => {
         loadImageWithQueue(posterUrl)
@@ -230,7 +230,7 @@ const Poster = memo(({ movie, title, priority = false, onLoadDone }) => {
   );
 
   return (
-    <div ref={ref} className="relative aspect-[2/3] w-full overflow-hidden">
+    <div ref={ref} className="relative aspect-[2/3] w-full overflow-hidden min-h-[180px]">
       {/* Image component */}
       {imageComponent}
 

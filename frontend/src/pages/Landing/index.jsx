@@ -40,6 +40,15 @@ const TABS = [
   { key: 'upcoming', label: 'latestReleases.tabs.upcoming' },
 ];
 
+// Hàm cắt overview không cắt ngang từ
+function truncateText(text, maxLength = 200) {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  const truncated = text.slice(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return truncated.slice(0, lastSpace) + '...';
+}
+
 const LandingPage = () => {
   const { t, i18n, app_language } = useTranslation('landing');
   const navigate = useNavigate();
@@ -458,10 +467,13 @@ const LandingPage = () => {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="mb-8 flex justify-center"
             >
-              <div className="flex min-h-[80px] max-w-2xl items-center">
-                <p className="text-lg text-gray-300">
-                  {currentMovie?.[i18n.language === 'en' ? 'overview_en' : 'overview_vi'] ||
-                    'Khám phá bộ phim yêu thích tiếp theo của bạn với các đề xuất được cá nhân hóa của chúng tôi.'}
+              <div className="flex min-h-[100px] max-w-2xl items-center w-full">
+                <p className="text-lg text-gray-300 w-full min-h-[100px]">
+                  {truncateText(
+                    currentMovie?.[i18n.language === 'en' ? 'overview_en' : 'overview_vi'] ||
+                      'Khám phá bộ phim yêu thích tiếp theo của bạn với các đề xuất được cá nhân hóa của chúng tôi.',
+                    200
+                  )}
                 </p>
               </div>
             </motion.div>

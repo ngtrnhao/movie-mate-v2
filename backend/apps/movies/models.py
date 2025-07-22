@@ -200,6 +200,11 @@ class Movie(models.Model):
                     backdrop_url__gt=''
                 )
             ),
+            models.Index(
+                fields=["poster_url", "is_adult", "title", "combined_rating_score"],
+                name="idx_mv_pstr_adlt_ttl_rt",
+                condition=models.Q(poster_url__isnull=False) & models.Q(poster_url__gt='') & models.Q(title__gt=''),
+            ),
         ]
 
     def __str__(self):
@@ -2001,6 +2006,11 @@ class MovieQualityMetrics(models.Model):
             # Temporal indexes
             models.Index(fields=['updated_at'], name='idx_quality_updated'),
             models.Index(fields=['created_at'], name='idx_quality_created'),
+            models.Index(
+                fields=["movie"],
+                name="idx_quality_minimum_met_true",
+                condition=models.Q(minimum_quality_met=True),
+            ),
         ]
 
         constraints = [

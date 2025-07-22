@@ -19,7 +19,25 @@ const useUserTracking = (options = {}) => {
   const viewTimeoutRef = useRef(null);
   const sessionStartTime = useRef(Date.now());
   const viewCounts = useRef(new Map()); // movieId -> { count, lastViewTime }
+  const sentViews = useRef(new Set()); // NEW: Track sent movieIds in memory
   const sessionId = useRef(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+
+  // NEW: Load sentViews from sessionStorage on mount
+  useEffect(() => {
+    const stored = sessionStorage.getItem('sentHomepageViews');
+    if (stored) {
+      try {
+        sentViews.current = new Set(JSON.parse(stored));
+      } catch (e) {
+        sentViews.current = new Set();
+      }
+    }
+  }, []);
+
+  // NEW: Save sentViews to sessionStorage when updated
+  const saveSentViews = () => {
+    sessionStorage.setItem('sentHomepageViews', JSON.stringify(Array.from(sentViews.current)));
+  };
 
   /**
    * Check if session has expired
@@ -48,6 +66,13 @@ const useUserTracking = (options = {}) => {
     // Reset session if expired
     if (isSessionExpired()) {
       resetSession();
+      sentViews.current = new Set();
+      saveSentViews();
+    }
+
+    // NEW: Check if already sent in this session
+    if (sentViews.current.has(movieId)) {
+      return false;
     }
 
     const now = Date.now();
@@ -56,6 +81,8 @@ const useUserTracking = (options = {}) => {
     if (!movieData) {
       // First view of this movie in session
       viewCounts.current.set(movieId, { count: 1, lastViewTime: now });
+      sentViews.current.add(movieId); // Mark as sent
+      saveSentViews();
       return true;
     }
 
@@ -72,6 +99,8 @@ const useUserTracking = (options = {}) => {
     // Update view data
     movieData.count += 1;
     movieData.lastViewTime = now;
+    sentViews.current.add(movieId); // Mark as sent
+    saveSentViews();
     return true;
   };
 
@@ -193,24 +222,18 @@ const useUserTracking = (options = {}) => {
   const createViewObserver = (element, movieId, metadata = {}) => {
     if (!element || !movieId || !enableAutoView) return null;
 
+    let timeoutId = null;
     const observer = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting && entry.intersectionRatio >= viewThreshold) {
-            // Clear any existing timeout
-            if (viewTimeoutRef.current) {
-              clearTimeout(viewTimeoutRef.current);
-            }
-
-            // Set timeout for view tracking
-            viewTimeoutRef.current = setTimeout(() => {
+            timeoutId = setTimeout(() => {
               trackHomepageView(movieId, metadata);
             }, viewDelay);
           } else {
-            // Clear timeout if element is no longer in view
-            if (viewTimeoutRef.current) {
-              clearTimeout(viewTimeoutRef.current);
-              viewTimeoutRef.current = null;
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
             }
           }
         });
@@ -222,7 +245,12 @@ const useUserTracking = (options = {}) => {
     );
 
     observer.observe(element);
-    return observer;
+
+    // Return cleanup function
+    return () => {
+      observer.disconnect();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   };
 
   /**

@@ -49,14 +49,17 @@ class IMDBService:
     ) -> Optional[Dict]:
         """Make request to IMDB API with improved rate limiting, retry mechanism and caching"""
         import os
+        import hashlib
 
         api_key = getattr(settings, "IMDB_API_KEY", None) or os.getenv("IMDB_API_KEY")
         if not api_key:
             logger.error("IMDB_API_KEY is not set in environment or settings.")
             return None
 
-        # Generate cache key
-        cache_key = f"imdb_{endpoint}_{json.dumps(params or {})}"
+        # Generate safe cache key for Memcached
+        params_str = json.dumps(params or {}, sort_keys=True)
+        raw_key = f"imdb_{endpoint}_{params_str}"
+        cache_key = "imdb_" + hashlib.md5(raw_key.encode("utf-8")).hexdigest()
 
         # Try to get from cache first if caching is enabled
         if use_cache:

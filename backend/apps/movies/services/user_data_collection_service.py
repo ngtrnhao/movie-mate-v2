@@ -470,10 +470,10 @@ class UserDataCollectionService:
 
                 # Calculate overall performance score
                 performance_factors = [
-                    min(10.0, production_metrics.click_through_rate * 10),  # CTR factor
-                    min(10.0, production_metrics.engagement_rate * 50),    # Engagement factor
-                    production_metrics.trending_score,                     # Trending factor
-                    min(10.0, total_views / 100)                         # Views factor
+                    min(10.0, float(production_metrics.click_through_rate) * 10),  # CTR factor
+                    min(10.0, float(production_metrics.engagement_rate) * 50),    # Engagement factor
+                    float(production_metrics.trending_score),                     # Trending factor
+                    min(10.0, float(total_views) / 100)                         # Views factor
                 ]
 
                 production_metrics.performance_score = sum(performance_factors) / len(performance_factors)

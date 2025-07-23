@@ -1455,7 +1455,7 @@ class ProductionMetrics(models.Model):
     movie = models.OneToOneField(Movie, on_delete=models.CASCADE,
                                 related_name='production_metrics')
 
-    # 📈 CORE ENGAGEMENT METRICS
+    # CORE ENGAGEMENT METRICS
     homepage_views = models.IntegerField(default=0,
                                         help_text="Views on homepage/landing page")
     detail_page_views = models.IntegerField(default=0,
@@ -1463,7 +1463,7 @@ class ProductionMetrics(models.Model):
     trailer_plays = models.IntegerField(default=0,
                                        help_text="Number of trailer plays")
 
-    # 🎯 PERFORMANCE METRICS
+    # PERFORMANCE METRICS
     click_through_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
                                            help_text="CTR from homepage to detail page (%)")
     engagement_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
@@ -1471,12 +1471,12 @@ class ProductionMetrics(models.Model):
     trailer_completion_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
                                                  help_text="Trailer completion rate (%)")
 
-    # 📱 DEVICE BREAKDOWN
+    # DEVICE BREAKDOWN (MOBILE, DESKTOP, TABLET)    
     mobile_views = models.IntegerField(default=0, help_text="Views from mobile devices")
     desktop_views = models.IntegerField(default=0, help_text="Views from desktop")
     tablet_views = models.IntegerField(default=0, help_text="Views from tablet")
 
-    # 📊 CALCULATED SCORES
+    # CALCULATED SCORES
     performance_score = models.DecimalField(max_digits=4, decimal_places=2, default=0,
                                           help_text="Calculated performance score (0-100)")
     trending_score = models.DecimalField(max_digits=4, decimal_places=2, default=0,
@@ -1494,30 +1494,30 @@ class ProductionMetrics(models.Model):
         help_text="Trending category based on recent activity"
     )
 
-    # 📝 CONTENT METRICS
+    # CONTENT METRICS
     review_count = models.IntegerField(default=0, help_text="Total user reviews")
     average_user_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True,
                                             help_text="Average user rating")
 
-    # 🎯 USER ACTIONS
+    # USER ACTIONS
     user_favorites_count = models.IntegerField(default=0, help_text="Number of users who favorited this movie")
     user_watchlist_count = models.IntegerField(default=0, help_text="Number of users who added to watchlist")
     user_shares_count = models.IntegerField(default=0, help_text="Number of times movie was shared")
     user_likes_count = models.IntegerField(default=0, help_text="Number of user likes")
 
-    # 🌐 TRACKING
+    # TRACKING
     last_interaction_date = models.DateTimeField(null=True, blank=True,
                                                 help_text="Last time there was user interaction")
     last_featured_date = models.DateTimeField(null=True, blank=True,
                                              help_text="Last time movie was featured")
 
-    # ⏰ TIMESTAMPS
+    # TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_calculated_at = models.DateTimeField(null=True, blank=True,
                                              help_text="Last time metrics were calculated")
 
-    # 🤖 AUTOMATION
+    # AUTOMATION
     auto_calculated = models.BooleanField(default=True,
                                          help_text="Whether metrics were calculated automatically")
     calculation_version = models.CharField(max_length=10, default='2.0',

@@ -16,6 +16,7 @@ import {
   PlusIcon,
   DocumentArrowDownIcon,
   ChartBarSquareIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import {
   ChartBarIcon as ChartBarIconSolid,
@@ -47,6 +48,8 @@ import AutoProcessingStatus from './components/AutoProcessingStatus';
 import MovieEnrichmentPanel from './components/MovieEnrichmentPanel';
 import AdminSidebar from './components/AdminSidebar';
 import AdminHeader from './components/AdminHeader';
+import ContentModerationDashboard from '../Moderator/components/ContentModerationDashboard';
+import ReportsList from '../Moderator/components/ReportsList';
 // import AdminStatsCards from './components/AdminStatsCards';
 import {
   AdminDataProvider,
@@ -61,6 +64,7 @@ const AdminDashboardContent = () => {
   const [loading, setLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState('dashboard'); // dashboard, kanban, queue
+  const [kanbanViewMode, setKanbanViewMode] = useState('kanban'); // Add for moderation view toggle
 
   const { dashboardData, setActiveTab, activeTab } = useAdminData();
   const { data: realTimeMetrics, isStale } = useAdminRealTimeMetrics();
@@ -147,6 +151,36 @@ const AdminDashboardContent = () => {
         description: 'Điều khiển hiển thị và featured content',
       },
       {
+        id: 'moderation',
+        label: 'Queue kiểm duyệt',
+        icon: ShieldCheckIcon,
+        iconSolid: ShieldCheckIconSolid,
+        color: 'orange',
+        group: 'moderation',
+        priority: 'high',
+        description: 'Hệ thống kiểm duyệt và workflow',
+      },
+      {
+        id: 'content_moderation',
+        label: 'Kiểm duyệt nội dung',
+        icon: ShieldCheckIcon,
+        iconSolid: ShieldCheckIconSolid,
+        color: 'orange',
+        group: 'moderation',
+        priority: 'high',
+        description: 'Hệ thống kiểm duyệt nội dung',
+      },
+      {
+        id: 'reports',
+        label: 'Báo cáo vi phạm',
+        icon: ChartPieIcon,
+        iconSolid: ChartPieIconSolid,
+        color: 'red',
+        group: 'moderation',
+        priority: 'high',
+        description: 'Báo cáo vi phạm từ người dùng',
+      },
+      {
         id: 'users',
         label: 'Người dùng',
         icon: UsersIcon,
@@ -155,16 +189,6 @@ const AdminDashboardContent = () => {
         group: 'management',
         priority: 'high',
         description: 'Quản lý người dùng và phân quyền',
-      },
-      {
-        id: 'moderation',
-        label: 'Kiểm duyệt',
-        icon: ShieldCheckIcon,
-        iconSolid: ShieldCheckIconSolid,
-        color: 'orange',
-        group: 'management',
-        priority: 'high',
-        description: 'Hệ thống kiểm duyệt và workflow',
       },
       {
         id: 'user_interactions',
@@ -197,8 +221,8 @@ const AdminDashboardContent = () => {
         description: 'Thống kê nội dung và chất lượng',
       },
       {
-        id: 'reports',
-        label: 'Báo cáo',
+        id: 'analytics',
+        label: 'Phân tích & Báo cáo',
         icon: ChartPieIcon,
         iconSolid: ChartPieIconSolid,
         color: 'indigo',
@@ -208,7 +232,7 @@ const AdminDashboardContent = () => {
       },
       {
         id: 'settings',
-        label: 'Cài đặt',
+        label: 'Cài đặt hệ thống',
         icon: Cog6ToothIcon,
         iconSolid: Cog6ToothIconSolid,
         color: 'gray',
@@ -378,24 +402,73 @@ const AdminDashboardContent = () => {
         return <ContentAnalytics />;
       case 'visibility':
         return <VisibilityControl />;
+      case 'content_moderation':
+        return <ContentModerationDashboard />;
       case 'moderation':
         return (
-          <KanbanBoard
-            selectedItems={selectedItems}
-            onSelectItem={handleSelectItem}
-            onBulkAction={handleBulkAction}
-            isAdmin={true}
-          />
+          <div>
+            {/* Toggle Kanban/Queue like Moderator dashboard */}
+            <div className="mb-6">
+              <div className="mb-4 flex justify-center">
+                <div className="flex rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                  <button
+                    onClick={() => setKanbanViewMode('kanban')}
+                    className={`flex items-center rounded-lg px-6 py-3 text-sm font-medium transition-all duration-200 ${
+                      kanbanViewMode === 'kanban'
+                        ? 'bg-green-100 text-green-700 shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <ClipboardDocumentListIcon className="mr-2 size-5" />
+                    <div className="text-left">
+                      <div className="font-semibold">Kanban Board</div>
+                      <div className="text-xs opacity-75">Quản lý theo cột</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setKanbanViewMode('queue')}
+                    className={`flex items-center rounded-lg px-6 py-3 text-sm font-medium transition-all duration-200 ${
+                      kanbanViewMode === 'queue'
+                        ? 'bg-green-100 text-green-700 shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <DocumentTextIcon className="mr-2 size-5" />
+                    <div className="text-left">
+                      <div className="font-semibold">Queue List</div>
+                      <div className="text-xs opacity-75">Danh sách đơn giản</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+            {kanbanViewMode === 'kanban' ? (
+              <KanbanBoard
+                selectedItems={selectedItems}
+                onSelectItem={handleSelectItem}
+                onBulkAction={handleBulkAction}
+                isAdmin={true}
+              />
+            ) : (
+              <QueueList
+                selectedItems={selectedItems}
+                onSelectItem={handleSelectItem}
+                onSelectAll={handleSelectAll}
+                onClearSelection={handleClearSelection}
+                isAdmin={true}
+              />
+            )}
+          </div>
         );
       case 'reports':
+        // Use ReportsList for violation reports, like Moderator dashboard
         return (
-          <QueueList
+          <ReportsList
             selectedItems={selectedItems}
             onSelectItem={handleSelectItem}
             onSelectAll={handleSelectAll}
             onClearSelection={handleClearSelection}
             isAdmin={true}
-            filterType="reports"
           />
         );
       case 'user_interactions':
@@ -436,8 +509,9 @@ const AdminDashboardContent = () => {
   const groupLabels = {
     main: 'Tổng quan & Analytics',
     content: 'Quản lý nội dung',
-    management: 'Quản lý hệ thống',
-    analytics: 'Phân tích & Báo cáo',
+    moderation: 'Kiểm duyệt & Báo cáo vi phạm',
+    analytics: 'Phân tích & Thống kê',
+    management: 'Quản lý người dùng & phân quyền',
     system: 'Cài đặt hệ thống',
   };
 

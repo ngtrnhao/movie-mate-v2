@@ -1272,6 +1272,21 @@ def user_interactions(request):
                     error_count += 1
                     continue
 
+                # Track search history if action is 'search' and user_id is present
+                if action == 'search' and user_id:
+                    search_query = metadata.get('search_query')
+                    result_count = metadata.get('result_count', 0)
+                    try:
+                        user = User.objects.get(id=user_id)
+                        if search_query:
+                            SearchHistory.objects.create(
+                                user=user,
+                                search_query=search_query,
+                                search_results_count=result_count
+                            )
+                    except User.DoesNotExist:
+                        logger.warning(f"User {user_id} not found for search history tracking.")
+
                 # Some actions don't require movie_id (like search)
                 if not movie_id and action not in ['search']:
                     error_count += 1
@@ -1332,7 +1347,7 @@ def user_interaction_stats(request):
         last_7_days = now - timedelta(days=7)
         last_30_days = now - timedelta(days=30)
 
-        # 🔥 REAL INTERACTION STATISTICS
+        # REAL INTERACTION STATISTICS
 
         # Today's interactions
         today_interactions = UserInteraction.objects.filter(timestamp__gte=today_start)

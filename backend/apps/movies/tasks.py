@@ -963,26 +963,33 @@ def calculate_production_metrics_auto(self, movie_ids=None):
 @shared_task(bind=True)
 def sync_trending_categories_auto(self):
     """
-    🔥 Auto-sync trending categories
+    🔥 Auto-sync trending categories (Top N viral logic)
     """
     try:
-        logger.info("🔥 Auto-syncing trending categories")
-
-        # Set task status
-        cache.set('task_status_sync_trending', 'running', timeout=3600)
-
+        logger.info("🔥 Auto-syncing trending categories (Top N viral logic)")
         from apps.movies.models import ProductionMetrics
+        from django.utils import timezone
+        from datetime import timedelta
 
-        def calculate_trending_category(trending_score):
-            """Calculate trending category based on score"""
-            if trending_score >= 80:
-                return 'viral'
-            elif trending_score >= 60:
-                return 'hot'
-            elif trending_score >= 30:
-                return 'rising'
-            else:
-                return 'stable'
+        # Settings (should match management command)
+        TOP_N_VIRAL = 5
+        VIRAL_ENGAGEMENT_DAYS = 7
+        now = timezone.now()
+        viral_cutoff = now - timedelta(days=VIRAL_ENGAGEMENT_DAYS)
+
+        # Find top N viral candidates
+        viral_candidates = list(
+            ProductionMetrics.objects.filter(
+                trending_score__gte=80,
+                last_interaction_date__gte=viral_cutoff
+            ).order_by(
+                '-trending_score',
+                '-last_interaction_date',
+                '-movie__release_date',
+                'movie__id'
+            )[:TOP_N_VIRAL]
+        )
+        viral_ids = set(m.id for m in viral_candidates)
 
         updated_count = 0
         total_checked = 0
@@ -990,16 +997,24 @@ def sync_trending_categories_auto(self):
         # Process in batches to avoid memory issues
         for metrics in ProductionMetrics.objects.all().iterator(chunk_size=100):
             total_checked += 1
-            expected_category = calculate_trending_category(metrics.trending_score)
-
-            if metrics.trending_category != expected_category:
-                metrics.trending_category = expected_category
+            old_category = metrics.trending_category
+            if metrics.id in viral_ids:
+                new_category = 'viral'
+            else:
+                if metrics.trending_score >= 60:
+                    new_category = 'hot'
+                elif metrics.trending_score >= 30:
+                    new_category = 'rising'
+                else:
+                    new_category = 'stable'
+            if old_category != new_category:
+                metrics.trending_category = new_category
                 metrics.save(update_fields=['trending_category'])
                 updated_count += 1
 
         # Cache result
         cache.set('last_trending_sync_result', {
-            'timestamp': timezone.now().isoformat(),
+            'timestamp': now.isoformat(),
             'updated_count': updated_count,
             'total_checked': total_checked
         }, timeout=7200)

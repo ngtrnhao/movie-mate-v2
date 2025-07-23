@@ -9,12 +9,17 @@ from django.db import transaction
 from apps.movies.services.production_metrics_service import ProductionMetricsService
 from apps.movies.models import ProductionMetrics
 import logging
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
     help = 'Sync trending categories for all movies based on trending scores'
+
+    # === Viral logic settings ===
+    TOP_N_VIRAL = 5  # Number of viral slots
+    VIRAL_ENGAGEMENT_DAYS = 7  # Days for recent engagement
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -59,6 +64,22 @@ class Command(BaseCommand):
 
             self.stdout.write(f'📊 Total records to check: {total_records}')
 
+            # --- NEW: Find top N viral candidates ---
+            now = timezone.now()
+            viral_cutoff = now - timedelta(days=self.VIRAL_ENGAGEMENT_DAYS)
+            viral_candidates = list(
+                ProductionMetrics.objects.filter(
+                    trending_score__gte=80,
+                    last_interaction_date__gte=viral_cutoff
+                ).order_by(
+                    '-trending_score',
+                    '-last_interaction_date',
+                    '-movie__release_date',
+                    'movie__id'  # Tie-breaker
+                )[:self.TOP_N_VIRAL]
+            )
+            viral_ids = set(m.id for m in viral_candidates)
+
             updated_count = 0
             checked_count = 0
 
@@ -69,26 +90,27 @@ class Command(BaseCommand):
                 with transaction.atomic():
                     for metrics in batch_metrics:
                         checked_count += 1
-
-                        # Calculate expected trending category
-                        expected_category = self._calculate_trending_category(metrics.trending_score)
-
-                        # Check if update is needed
-                        if force_update or metrics.trending_category != expected_category:
-                            old_category = metrics.trending_category
-
+                        old_category = metrics.trending_category
+                        # --- NEW: Assign viral only to top N ---
+                        if metrics.id in viral_ids:
+                            new_category = 'viral'
+                        else:
+                            # Fallback to score-based logic for others
+                            if metrics.trending_score >= 60:
+                                new_category = 'hot'
+                            elif metrics.trending_score >= 30:
+                                new_category = 'rising'
+                            else:
+                                new_category = 'stable'
+                        if force_update or old_category != new_category:
                             if not dry_run:
-                                metrics.trending_category = expected_category
+                                metrics.trending_category = new_category
                                 metrics.save(update_fields=['trending_category'])
-
                             updated_count += 1
-
                             if self.verbosity >= 2:
                                 self.stdout.write(
-                                    f'  📝 Movie {metrics.movie.id}: {old_category} → {expected_category} '
-                                    f'(Score: {metrics.trending_score})'
+                                    f'  📝 Movie {metrics.movie.id}: {old_category} → {new_category} (Score: {metrics.trending_score})'
                                 )
-
                         # Progress update
                         if checked_count % 500 == 0:
                             self.stdout.write(f'   📊 Processed {checked_count}/{total_records} records...')

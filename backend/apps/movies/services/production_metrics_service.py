@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class ProductionMetricsService:
     """
     Service để tính toán production metrics tự động cho movies
-    🔥 ENHANCED: Tích hợp với UserInteraction data cho tính toán chính xác
+    ENHANCED: Tích hợp với UserInteraction data cho tính toán chính xác
     """
 
     # Performance score weights

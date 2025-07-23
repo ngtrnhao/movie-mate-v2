@@ -16,12 +16,13 @@ import animationCache from '../../utils/animationCache';
 import ImagePreloader from '../../components/common/ImagePreloader';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useUserTracking from '../../hooks/useUserTracking';
+import { useRef } from 'react';
 
 const MoviesPage = () => {
   const { t } = useTranslation('movies');
   const navigate = useNavigate();
   const location = useLocation();
-  const { trackInteraction } = useUserTracking();
+  const { trackInteraction, trackSearch } = useUserTracking();
   const [showFilters, setShowFilters] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [genres, setGenres] = useState([]);
@@ -334,6 +335,23 @@ const MoviesPage = () => {
 
     return uniqueMovies;
   }, [data]);
+
+  // Tracking search thực tế khi có query và kết quả
+  const lastTrackedQueryRef = useRef('');
+  const lastTrackedIdsRef = useRef([]);
+  useEffect(() => {
+    if (filters.query && movies.length > 0) {
+      const resultIds = movies.map(movie => movie.id);
+      // Chỉ gửi nếu query hoặc danh sách id thay đổi
+      const isSameQuery = lastTrackedQueryRef.current === filters.query;
+      const isSameIds = JSON.stringify(lastTrackedIdsRef.current) === JSON.stringify(resultIds);
+      if (!isSameQuery || !isSameIds) {
+        trackSearch(filters.query, resultIds);
+        lastTrackedQueryRef.current = filters.query;
+        lastTrackedIdsRef.current = resultIds;
+      }
+    }
+  }, [filters.query, movies, trackSearch]);
 
   // Safe count extraction
   const totalCount = useMemo(() => {

@@ -729,6 +729,13 @@ class MovieSearchService:
     def fallback_search(self, params, admin_mode=False):
         """Fallback database search with optimized queries for normalized structure"""
         logger.info("[DEBUG] Entered fallback_search (ORM fallback is being used)")
+
+        def resolve_attr(obj, attr_path):
+            """Resolve Django ORM double-underscore attribute path on a model instance."""
+            for part in attr_path.split("__"):
+                obj = getattr(obj, part)
+            return obj
+
         try:
             logger.info("Using fallback database search with normalized structure")
 
@@ -868,7 +875,7 @@ class MovieSearchService:
                 # Keyset: next_search_after nếu còn trang tiếp theo
                 if len(results) > page_size:
                     last_result = results[page_size - 1]
-                    next_search_after = [getattr(last_result, sort_field), last_result.id]
+                    next_search_after = [resolve_attr(last_result, sort_field), last_result.id]
                     results = results[:page_size]
                 else:
                     next_search_after = None

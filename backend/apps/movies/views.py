@@ -31,6 +31,7 @@ from .services.quality_calculation_service import QualityCalculationService
 from .services.user_data_collection_service import UserDataCollectionService
 from .services.production_metrics_service import ProductionMetricsService
 from .services.unified_movie_enrichment_service import UnifiedMovieEnrichmentService
+from apps.movies.services.elasticsearch_service import bulk_update_movie_index
 
 class AdminMoviePagination(PageNumberPagination):
     """Custom pagination for admin movies with smaller page size"""
@@ -99,19 +100,19 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         base_filter = Q(
             admin_control__isnull=False,
             quality_metrics__isnull=False,
-            # ✅ BASIC REQUIREMENTS
+            #  BASIC REQUIREMENTS
             admin_control__is_published=True,
             poster_url__isnull=False,
             poster_url__gt='',
-            # ✅ APPROVAL STATUS
+            # APPROVAL STATUS
             admin_control__approval_status='APPROVED',
-            # ✅ QUALITY GATES
+            #  QUALITY GATES
             quality_metrics__minimum_quality_met=True,
-            # ✅ VISIBILITY STATUS
+            #  VISIBILITY STATUS
             admin_control__visibility_status='PUBLISHED',
         )
 
-        # 🚀 Add scheduling filters using MovieScheduling
+        # Add scheduling filters using MovieScheduling
         scheduling_filter = Q()
 
         # Check publish date from scheduling
@@ -141,7 +142,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             admin_control__admin_featured=True,
         )
 
-        # 🚀 Add featured scheduling filters using MovieScheduling
+        # Add featured scheduling filters using MovieScheduling
         featured_filter = Q()
 
         # Check featured_from date from scheduling
@@ -4361,6 +4362,9 @@ class   AdminMovieViewSet(viewsets.ModelViewSet):
             message = f'Unpublished {updated} movies'
         else:
             return Response({'status': 'error', 'message': 'Invalid action'}, status=400)
+
+        # Gọi cập nhật lại index Elasticsearch cho các movie vừa cập nhật trạng thái
+        bulk_update_movie_index(movie_ids)
 
         return Response({'status': 'success', 'message': message, 'affected_count': updated})
 

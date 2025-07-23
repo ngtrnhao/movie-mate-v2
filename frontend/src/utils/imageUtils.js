@@ -14,14 +14,18 @@ const FALLBACK_URLS = {
 /**
  * Get the full image URL from various possible formats
  * @param {string} path - The image path or URL
- * @param {string} [size='original'] - The size for TMDB images (original, w500, etc.)
+ * @param {string} [size='w342'] - The size for TMDB images (w342, w500, etc.)
  * @returns {string|null} The full image URL or null if no valid path
  */
-export const getImageUrl = (path, size = 'original') => {
+export const getImageUrl = (path, size = 'w342') => {
   if (!path) return null;
 
   // Case 1: Already a full URL (including Amazon, IMDB, etc)
   if (path.startsWith('http') || path.startsWith('https')) {
+    // Nếu là TMDB, thay /original/ bằng /w342/ hoặc size chỉ định
+    if (path.includes('tmdb.org/t/p/')) {
+      return path.replace('/original/', `/${size}/`);
+    }
     return path;
   }
 
@@ -37,10 +41,10 @@ export const getImageUrl = (path, size = 'original') => {
 /**
  * Get the backdrop URL from movie object
  * @param {Object} movie - The movie object
- * @param {string} [size='original'] - The size for TMDB images
+ * @param {string} [size='w780'] - The size for TMDB images
  * @returns {string|null} The backdrop URL or null if not found
  */
-export const getBackdropUrl = (movie, size = 'original') => {
+export const getBackdropUrl = (movie, size = 'w780') => {
   if (!movie) return FALLBACK_URLS.backdrop;
 
   // Try all possible backdrop fields
@@ -57,10 +61,10 @@ export const getBackdropUrl = (movie, size = 'original') => {
 /**
  * Get the poster URL from movie object
  * @param {Object} movie - The movie object
- * @param {string} [size='original'] - The size for TMDB images
+ * @param {string} [size='w342'] - The size for TMDB images
  * @returns {string|null} The poster URL or null if not found
  */
-export const getPosterUrl = (movie, size = 'original') => {
+export const getPosterUrl = (movie, size = 'w342') => {
   if (!movie) return FALLBACK_URLS.poster;
 
   // Try all possible poster fields

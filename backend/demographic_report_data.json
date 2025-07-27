@@ -1,0 +1,209 @@
+{
+  "overview": {
+    "total_users": 6275,
+    "users_with_location": 2,
+    "coverage_percentage": 0.03,
+    "total_movies": 717980,
+    "total_reviews": 10327,
+    "avg_reviews_per_user": 1.65
+  },
+  "vector_structure": {
+    "total_features": 30,
+    "age_features": [
+      "age_0_18",
+      "age_18_25",
+      "age_25_35",
+      "age_35_45",
+      "age_45_55",
+      "age_55_100"
+    ],
+    "gender_features": [
+      "gender_M",
+      "gender_F",
+      "gender_O"
+    ],
+    "occupation_features": [
+      "occupation_technical",
+      "occupation_creative",
+      "occupation_business",
+      "occupation_education",
+      "occupation_healthcare",
+      "occupation_service",
+      "occupation_manual",
+      "occupation_other"
+    ],
+    "location_features": [
+      "location_north_america",
+      "location_europe",
+      "location_asia",
+      "location_southeast_asia",
+      "location_other"
+    ],
+    "user_type_features": [
+      "user_type_member",
+      "user_type_premium_basic",
+      "user_type_premium_standard",
+      "user_type_premium_vip"
+    ],
+    "behavioral_features": []
+  },
+  "users_data": [
+    {
+      "user_id": 6840,
+      "username": "jkay",
+      "age": 21,
+      "age_group": "18-24",
+      "gender": "M",
+      "occupation": "technician/engineer",
+      "location": "Thành phố Hồ Chí Minh, Việt Nam",
+      "zip_code": "71716",
+      "user_type": "member",
+      "profile_complete": true
+    },
+    {
+      "user_id": 1,
+      "username": "nguyentruongnhathao1922",
+      "age": 21,
+      "age_group": "18-24",
+      "gender": "M",
+      "occupation": "academic/educator",
+      "location": "Thành phố Hồ Chí Minh, Việt Nam",
+      "zip_code": "71509",
+      "user_type": "premium_vip",
+      "profile_complete": true
+    }
+  ],
+  "vectors_matrix": [
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.7647058963775635,
+      0.7923875451087952,
+      0.17000000178813934,
+      1.0
+    ]
+  ],
+  "similarity_matrix": [
+    [
+      0.975,
+      0.675
+    ],
+    [
+      0.675,
+      0.975
+    ]
+  ],
+  "age_distribution": {
+    "25-34": 2096,
+    "unknown": 233,
+    "45-49": 550,
+    "18-24": 1105,
+    "35-44": 1193,
+    "56+": 380,
+    "Under 18": 222,
+    "50-55": 496
+  },
+  "gender_distribution": {
+    "M": 4333,
+    "unknown": 233,
+    "F": 1709
+  },
+  "region_distribution": {
+    "southeast_asia": 2
+  },
+  "location_regions": {
+    "north_america": [
+      "US",
+      "CA",
+      "MX"
+    ],
+    "europe": [
+      "GB",
+      "DE",
+      "FR",
+      "IT",
+      "ES",
+      "NL",
+      "BE",
+      "CH",
+      "AT",
+      "SE",
+      "NO",
+      "DK",
+      "FI"
+    ],
+    "asia": [
+      "JP",
+      "KR",
+      "CN",
+      "IN"
+    ],
+    "southeast_asia": [
+      "VN",
+      "SG",
+      "MY",
+      "ID",
+      "PH",
+      "TH",
+      "TW",
+      "HK"
+    ],
+    "other": []
+  }
+}

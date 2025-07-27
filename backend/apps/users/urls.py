@@ -24,7 +24,11 @@ from .views import (
     CustomTokenRefreshView,
     AdminDashboardViewSet,
     ModeratorDashboardViewSet,
-    UserUsageStatsView
+    UserUsageStatsView,
+    ProfileUpdateView,
+    LocationDetectionView,
+    ProfileChoicesView,
+    ProfileCompletionStatusView
 )
 
 router = DefaultRouter()
@@ -58,4 +62,10 @@ urlpatterns = [
     # User interaction tracking endpoints
     path('user-interactions/', views.user_interactions, name='user_interactions'),
     path('user-interaction-stats/', views.user_interaction_stats, name='user_interaction_stats'),
+
+    # Profile update and completion endpoints
+    path('profile/update/', ProfileUpdateView.as_view(), name='profile-update'),
+    path('profile/completion-status/', ProfileCompletionStatusView.as_view(), name='profile-completion-status'),
+    path('profile/choices/', ProfileChoicesView.as_view(), name='profile-choices'),
+    path('profile/detect-location/', LocationDetectionView.as_view(), name='detect-location'),
 ]

@@ -9,5 +9,6 @@ urlpatterns = [
     path('', include('apps.core.urls')),
     path('', include('apps.movies.urls')),
     path('', include('apps.metadata.urls')),
+    path('', include('apps.recommendations.urls')),
     path('subscriptions/', include('apps.subscriptions.urls')),
 ]

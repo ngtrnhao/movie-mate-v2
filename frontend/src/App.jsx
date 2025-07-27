@@ -18,11 +18,18 @@ import Recommendation from './pages/recommendation';
 import CastMemberDetail from './pages/CastMember';
 import VerifyEmail from './pages/VerifyEmail';
 import Profile from './pages/Profile';
+import ProfileEdit from './pages/Profile/ProfileEdit';
 import PrivateRoute from './components/auth/PrivateRoute';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
-import { rehydrateAuth } from './store/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  rehydrateAuth,
+  hideProfileCompletionModal,
+  selectShowProfileCompletionModal,
+} from './store/slices/authSlice';
+import ProfileCompletionModal from './components/modals/ProfileCompletionModal';
+import EmailVerificationChecker from './components/auth/EmailVerificationChecker';
 // import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
@@ -63,6 +70,12 @@ if (typeof window !== 'undefined') {
 
 function App() {
   const dispatch = useDispatch();
+  const showProfileCompletionModal = useSelector(selectShowProfileCompletionModal);
+
+  // Debug logging for modal state
+  useEffect(() => {
+    console.log('🔍 App.jsx - showProfileCompletionModal:', showProfileCompletionModal);
+  }, [showProfileCompletionModal]);
 
   // Prevent automatic scroll restoration for better UX
   useEffect(() => {
@@ -213,6 +226,14 @@ function App() {
                                 </PrivateRoute>
                               }
                             />
+                            <Route
+                              path="/profile/edit"
+                              element={
+                                <PrivateRoute>
+                                  <ProfileEdit />
+                                </PrivateRoute>
+                              }
+                            />
 
                             <Route path="*" element={<ErrorPage />} />
                           </Routes>
@@ -233,6 +254,19 @@ function App() {
 
                 {/* Ad Wait Message - hiển thị countdown cho eligible users */}
                 {/* <AdWaitMessage /> */}
+
+                {/* Email Verification Checker */}
+                <EmailVerificationChecker />
+
+                {/* Profile Completion Modal */}
+                <ProfileCompletionModal
+                  open={showProfileCompletionModal}
+                  onClose={() => dispatch(hideProfileCompletionModal())}
+                  onComplete={updatedUser => {
+                    console.log('Profile completed:', updatedUser);
+                    dispatch(hideProfileCompletionModal());
+                  }}
+                />
               </QueryProvider>
               <ToastContainer
                 position="bottom-right"

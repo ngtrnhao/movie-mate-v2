@@ -580,6 +580,42 @@ export const clearPendingRequests = () => {
   console.log('Pending requests cache cleared');
 };
 
+/**
+ * Tạo mới phim (Admin)
+ */
+export const createAdminMovie = async data => {
+  try {
+    const response = await axiosInstance.post('/api/admin/movies/', data);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'tạo mới phim');
+  }
+};
+
+/**
+ * Cập nhật phim (Admin)
+ */
+export const updateAdminMovie = async (movieId, data) => {
+  try {
+    const response = await axiosInstance.put(`/api/admin/movies/${movieId}/`, data);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'cập nhật phim');
+  }
+};
+
+/**
+ * Xóa phim (Admin)
+ */
+export const deleteAdminMovie = async movieId => {
+  try {
+    const response = await axiosInstance.delete(`/api/admin/movies/${movieId}/`);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'xóa phim');
+  }
+};
+
 // Export all functions as default object for easier importing
 export default {
   // Dashboard
@@ -591,6 +627,9 @@ export default {
   // Movie Management
   getAdminMovies,
   getAdminMovieDetails,
+  createAdminMovie,
+  updateAdminMovie,
+  deleteAdminMovie,
 
   // Movie Actions
   toggleMovieFeatured,

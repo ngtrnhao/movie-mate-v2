@@ -36,7 +36,7 @@ export const updateProfileAPI = async (userId, userData) => {
 //Upload profile avatar
 export const uploadAvatarAPI = async (userId, formData) => {
   try {
-    const response = await axiosInstance.post(`/api/auth/profile/${userId}/avatar/`, formData, {
+    const response = await axiosInstance.put(`/api/auth/profile/${userId}/avatar/`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -317,4 +317,88 @@ export const createPaymentAPI = async paymentData => {
   } catch (error) {
     throw error.response?.data || { error: 'Failed to create payment' };
   }
+};
+
+// ========================================
+// NEW API FUNCTIONS FOR PROFILE COMPLETION SYSTEM
+// ========================================
+
+// Update current user profile (new endpoint)
+export const updateCurrentUserProfileAPI = async userData => {
+  try {
+    const response = await axiosInstance.patch('/api/auth/profile/update/', userData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to update profile' };
+  }
+};
+
+// Get current user profile data
+export const getCurrentUserProfileAPI = async () => {
+  try {
+    const response = await axiosInstance.get('/api/auth/profile/update/');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to fetch profile' };
+  }
+};
+
+// Get profile completion status
+export const getProfileCompletionStatusAPI = async () => {
+  try {
+    const response = await axiosInstance.get('/api/auth/profile/completion-status/');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to fetch profile completion status' };
+  }
+};
+
+// Get profile field choices (occupation, gender, etc.)
+export const getProfileChoicesAPI = async () => {
+  try {
+    const response = await axiosInstance.get('/api/auth/profile/choices/');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to fetch profile choices' };
+  }
+};
+
+// Detect and update user location
+export const detectLocationAPI = async (locationData = {}) => {
+  try {
+    const response = await axiosInstance.post('/api/auth/profile/detect-location/', locationData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Failed to detect location' };
+  }
+};
+
+// Auto-detect location using browser geolocation
+export const autoDetectLocationAPI = async () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject({ error: 'Geolocation is not supported by this browser' });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async position => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const result = await detectLocationAPI({ latitude, longitude });
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      },
+      error => {
+        // Fallback to IP-based detection if geolocation fails
+        detectLocationAPI().then(resolve).catch(reject);
+      },
+      {
+        timeout: 10000,
+        enableHighAccuracy: false,
+      }
+    );
+  });
 };

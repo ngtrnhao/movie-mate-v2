@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import useUserTracking from '../../hooks/useUserTracking';
 import {
@@ -18,8 +18,15 @@ import {
   selectUserRatings,
   selectFavoriteGenres,
 } from '../../store/selectors/profileSelectors';
-import { CircularProgress, Alert, Tabs, Tab, IconButton } from '@mui/material';
-import { LocationOn, CalendarToday, Email, Share, MoreVert } from '@mui/icons-material';
+import { CircularProgress, Alert, Tabs, Tab, IconButton, Button } from '@mui/material';
+import {
+  LocationOn,
+  CalendarToday,
+  Email,
+  Share,
+  MoreVert,
+  Edit as EditIcon,
+} from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 // import ReviewList from './components/ReviewList';
 import RatingList from './components/RatingList';
@@ -29,6 +36,7 @@ import UserBadge from '../../components/common/UserBadge';
 import { format } from 'date-fns';
 import FavoritesList from './components/FavoritesList';
 import WatchlistComponent from './components/WatchlistComponent';
+import ProfileEdit from './ProfileEdit';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -63,6 +71,7 @@ const StyledTabs = styled(Tabs)({
 
 const Profile = () => {
   const { userId } = useParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const [tabValue, setTabValue] = React.useState(0);
   const { trackInteraction } = useUserTracking();
@@ -74,6 +83,12 @@ const Profile = () => {
   const reviews = useSelector(selectUserReviews);
   const ratings = useSelector(selectUserRatings);
   const favoriteGenres = useSelector(selectFavoriteGenres);
+
+  // Get current user from auth state
+  const { user: currentUser } = useSelector(state => state.auth);
+
+  // Check if current user is viewing their own profile
+  const isOwnProfile = currentUser && userId && currentUser.id.toString() === userId.toString();
 
   // Track profile page view
   useEffect(() => {
@@ -228,6 +243,29 @@ const Profile = () => {
                 {profile.bio || 'Movie enthusiast exploring the world of cinema 🎬'}
               </p>
 
+              {/* Profile Completion Status */}
+              {isOwnProfile && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-300">Profile Completion</span>
+                    <span className="text-sm text-gray-400">
+                      {profile.profile_completion_percentage || 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-red-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${profile.profile_completion_percentage || 0}%` }}
+                    ></div>
+                  </div>
+                  {profile.profile_completion_percentage < 80 && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Complete your profile for better recommendations
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="mb-4 flex flex-wrap gap-4 text-sm text-gray-400">
                 {profile.location && (
                   <div className="flex items-center gap-1">
@@ -299,6 +337,7 @@ const Profile = () => {
                   <Tab label="Ratings & Reviews" className="py-4" />
                   <Tab label="Favorites" className="py-4" />
                   <Tab label="Watchlist" className="py-4" />
+                  {isOwnProfile && <Tab label="Edit Profile" className="py-4" />}
                   <Tab label="Activity" className="py-4" />
                 </StyledTabs>
 
@@ -326,7 +365,13 @@ const Profile = () => {
                   <WatchlistComponent />
                 </TabPanel>
 
-                <TabPanel value={tabValue} index={3}>
+                {isOwnProfile && (
+                  <TabPanel value={tabValue} index={3}>
+                    <ProfileEdit />
+                  </TabPanel>
+                )}
+
+                <TabPanel value={tabValue} index={isOwnProfile ? 4 : 3}>
                   <div className="p-12 text-center">
                     <h3 className="text-xl font-semibold text-gray-300">
                       Activity feed coming soon...

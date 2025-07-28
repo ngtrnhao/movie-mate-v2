@@ -1,0 +1,43 @@
+# Working ML Requirements for Python 3.13
+# These packages have been tested and work with the current environment
+
+# Core ML & Data Processing (WORKING)
+numpy>=2.2.4               # Numerical computations
+pandas>=2.2.3              # Data manipulation and analysis
+scipy>=1.16.0              # Scientific computing
+scikit-learn>=1.7.1        # Machine learning algorithms
+joblib>=1.5.1              # Parallel processing
+
+# Visualization (WORKING)
+matplotlib>=3.10.3         # Plotting library
+seaborn>=0.13.2            # Statistical visualization
+plotly>=6.2.0              # Interactive plots
+
+# NLP & Text Processing (WORKING)
+nltk>=3.9.1                # Natural language processing
+
+# Feature Engineering (WORKING)
+category-encoders>=2.8.1   # Categorical encoding methods
+
+# Utilities (WORKING)
+tqdm>=4.67.1               # Progress bars
+python-dotenv>=1.1.0       # Environment variables
+
+# Statistical Modeling (WORKING)
+statsmodels>=0.14.5        # Statistical models
+
+# Additional packages that should work but not yet tested
+# Uncomment when needed:
+#
+# gensim                    # Topic modeling (may work)
+# optuna                    # Hyperparameter optimization (may work)
+# mlflow                    # ML experiment tracking (may work)
+# implicit                  # Fast collaborative filtering (may work)
+
+# PROBLEMATIC PACKAGES (DO NOT INSTALL)
+# scikit-surprise==1.1.4   # Cython compilation issues with Python 3.13
+# tensorflow==2.15.0       # May have compatibility issues
+# spacy==3.7.2             # May need special installation
+
+# INSTALLATION INSTRUCTIONS:
+# pip install -r requirements/ml_requirements_working.txt

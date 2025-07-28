@@ -262,25 +262,27 @@ class UserDataCollectionService:
                 }
             )
 
-            # Update specific metrics based on action
+            update_fields = {}
             if action == 'homepage_view':
-                production_metrics.homepage_views = F('homepage_views') + 1
+                update_fields['homepage_views'] = F('homepage_views') + 1
             elif action == 'detail_view':
-                production_metrics.detail_page_views = F('detail_page_views') + 1
+                update_fields['detail_page_views'] = F('detail_page_views') + 1
             elif action == 'favorite':
-                production_metrics.user_favorites_count = F('user_favorites_count') + 1
+                update_fields['user_favorites_count'] = F('user_favorites_count') + 1
             elif action == 'watchlist':
-                production_metrics.user_watchlist_count = F('user_watchlist_count') + 1
+                update_fields['user_watchlist_count'] = F('user_watchlist_count') + 1
             elif action == 'like':
-                production_metrics.user_likes_count = F('user_likes_count') + 1
+                update_fields['user_likes_count'] = F('user_likes_count') + 1
             elif action == 'share':
-                production_metrics.user_shares_count = F('user_shares_count') + 1
+                update_fields['user_shares_count'] = F('user_shares_count') + 1
 
+            if update_fields:
+                ProductionMetrics.objects.filter(pk=production_metrics.pk).update(**update_fields)
+
+            # Reload lại instance để lấy giá trị thực
+            production_metrics.refresh_from_db()
             production_metrics.last_interaction_date = timezone.now()
-            production_metrics.save()
-
-            # Mark interaction as processed
-            # interaction.mark_as_processed()
+            production_metrics.save(update_fields=['last_interaction_date'])
 
             logger.info(f"✅ Immediate metrics updated for movie {movie.id}, action: {action}")
 

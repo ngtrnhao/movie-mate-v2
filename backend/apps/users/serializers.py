@@ -108,14 +108,22 @@ class UserSerializer(serializers.ModelSerializer):
     Serializer for the User model, used for general user data responses.
     """
     groups = serializers.SerializerMethodField()
+    is_profile_complete = serializers.ReadOnlyField()
+    profile_completion_percentage = serializers.ReadOnlyField()
+    occupation_display = serializers.CharField(source='get_occupation_display', read_only=True)
+    gender_display = serializers.CharField(source='get_gender_display', read_only=True)
+    age_group_display = serializers.CharField(source='get_age_group_display', read_only=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
-            'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
-            'groups',
+            'id', 'username', 'email', 'first_name', 'last_name', 'avatar_url', 'bio',
+            'birth_date', 'age', 'age_group', 'gender', 'location', 'occupation', 'zip_code',
+            'is_email_verified', 'created_at', 'updated_at', 'user_type',
+            'groups', 'is_profile_complete', 'profile_completion_percentage',
+            'occupation_display', 'gender_display', 'age_group_display'
         ]
+        read_only_fields = ['age', 'age_group', 'is_profile_complete', 'profile_completion_percentage']
 
     def get_groups(self, obj):
         """Get user groups for permission checking"""
@@ -132,13 +140,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
     subscription_start_date = serializers.SerializerMethodField()
     subscription_end_date = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
+    is_profile_complete = serializers.ReadOnlyField()
+    profile_completion_percentage = serializers.ReadOnlyField()
+    occupation_display = serializers.CharField(source='get_occupation_display', read_only=True)
+    gender_display = serializers.CharField(source='get_gender_display', read_only=True)
+    age_group_display = serializers.CharField(source='get_age_group_display', read_only=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'avatar_url', 'bio', 'age', 'gender',
-            'location', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
-            'subscription_start_date', 'subscription_end_date', 'groups','date_joined'
+            'id', 'username', 'email', 'first_name', 'last_name', 'avatar_url', 'bio',
+            'birth_date', 'age', 'age_group', 'gender', 'location', 'occupation', 'zip_code',
+            'is_email_verified', 'created_at', 'updated_at', 'user_type', 'date_joined',
+            'subscription_start_date', 'subscription_end_date', 'groups',
+            'is_profile_complete', 'profile_completion_percentage',
+            'occupation_display', 'gender_display', 'age_group_display'
+        ]
+        read_only_fields = [
+            'email', 'is_email_verified', 'created_at', 'updated_at', 'user_type',
+            'subscription_start_date', 'subscription_end_date', 'age', 'age_group',
+            'is_profile_complete', 'profile_completion_percentage'
         ]
 
     def get_groups(self, obj):
@@ -151,7 +172,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
             }
             for group in obj.groups.all()
         ]
-        read_only_fields = ['email', 'is_email_verified', 'created_at', 'updated_at', 'user_type', 'subscription_start_date', 'subscription_end_date']
 
     def get_subscription_start_date(self, obj):
         """Get the latest subscription start date from PaymentTransaction"""
@@ -178,6 +198,83 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ).order_by('-end_date').first()
 
         return latest_transaction.end_date if latest_transaction else None
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating user profile information, especially for new users.
+    """
+    birth_date = serializers.DateField(required=False, help_text="Birth date (YYYY-MM-DD format)")
+    gender = serializers.ChoiceField(choices=User.GENDER_CHOICES, required=False)
+    occupation = serializers.ChoiceField(choices=User.OCCUPATION_CHOICES, required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            'first_name', 'last_name', 'bio', 'birth_date', 'gender',
+            'location', 'occupation', 'zip_code', 'avatar_url'
+        ]
+
+    def validate_birth_date(self, value):
+        """Validate birth date is not in the future and user is not too old"""
+        from datetime import date
+        today = date.today()
+
+        if value > today:
+            raise serializers.ValidationError("Birth date cannot be in the future.")
+
+        age = today.year - value.year
+        if today < date(today.year, value.month, value.day):
+            age -= 1
+
+        if age > 120:
+            raise serializers.ValidationError("Please enter a valid birth date.")
+        if age < 13:
+            raise serializers.ValidationError("You must be at least 13 years old to use this service.")
+
+        return value
+
+    def update(self, instance, validated_data):
+        """Update user profile and auto-calculate age fields"""
+        # Update all provided fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        # Save will trigger auto-calculation of age and age_group
+        instance.save()
+        return instance
+
+class LocationDetectionSerializer(serializers.Serializer):
+    """
+    Serializer for handling location detection data
+    """
+    ip_address = serializers.IPAddressField(required=False)
+    latitude = serializers.FloatField(required=False)
+    longitude = serializers.FloatField(required=False)
+    country = serializers.CharField(max_length=100, required=False)
+    region = serializers.CharField(max_length=100, required=False)
+    city = serializers.CharField(max_length=100, required=False)
+    zip_code = serializers.CharField(max_length=20, required=False)
+
+class ProfileChoicesSerializer(serializers.Serializer):
+    """
+    Serializer for returning choices for profile fields
+    """
+    occupation_choices = serializers.SerializerMethodField()
+    gender_choices = serializers.SerializerMethodField()
+    age_group_choices = serializers.SerializerMethodField()
+    user_type_choices = serializers.SerializerMethodField()
+
+    def get_occupation_choices(self, obj):
+        return [{'value': choice[0], 'label': choice[1]} for choice in User.OCCUPATION_CHOICES]
+
+    def get_gender_choices(self, obj):
+        return [{'value': choice[0], 'label': choice[1]} for choice in User.GENDER_CHOICES]
+
+    def get_age_group_choices(self, obj):
+        return [{'value': choice[0], 'label': choice[1]} for choice in User.AGE_GROUP_CHOICES]
+
+    def get_user_type_choices(self, obj):
+        return [{'value': choice[0], 'label': choice[1]} for choice in User.USER_TYPE_CHOICES]
 
 class UserStatsSerializer(serializers.Serializer):
     # Basic counts

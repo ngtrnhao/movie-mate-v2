@@ -89,7 +89,7 @@ export const getProfileAPI = async () => {
 
 // Update User Profile
 export const updateProfileAPI = async userData => {
-  const response = await axiosInstance.put('/api/auth/profile/', userData);
+  const response = await axiosInstance.patch('/api/auth/profile/update/', userData);
   return response.data;
 };
 

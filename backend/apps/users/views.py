@@ -1,4 +1,5 @@
 from django.shortcuts import render
+import requests
 from rest_framework import status, generics, serializers, viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -19,7 +20,10 @@ from .serializers import (
     UserWatchlistItemSerializer,
     UserFavoriteGenreSerializer,
     UserFavoriteMovieSerializer,
-    GoogleAuthSerializer
+    GoogleAuthSerializer,
+    ProfileUpdateSerializer,
+    LocationDetectionSerializer,
+    ProfileChoicesSerializer
 
 )
 from .services import send_verification_email, send_password_reset_email
@@ -118,6 +122,7 @@ class LoginView(generics.CreateAPIView):
             if user.is_google_account:
                 # If it's a Google account, check if they have set a password
                 if not user.has_usable_password():
+                    logger.warning(f"Google account without password: {user.email}")
                     return Response(
                         {
                             "error": "Google account",
@@ -130,6 +135,7 @@ class LoginView(generics.CreateAPIView):
             # Bypass email verification for admin users
             is_admin = user.groups.filter(name='Administrators').exists() or user.is_superuser
             if not user.is_email_verified and not is_admin:
+                logger.warning(f"Email not verified for user: {user.email}")
                 return Response(
                     {
                         "error": "Email not verified",
@@ -140,6 +146,7 @@ class LoginView(generics.CreateAPIView):
                 )
 
             if not user.check_password(serializer.validated_data['password']):
+                logger.warning(f"Password check failed for user: {user.email}")
                 return Response(
                     {
                         "error": "Invalid password",
@@ -1491,3 +1498,270 @@ def user_interaction_stats(request):
             'status': 'error',
             'message': f'Error getting user interaction stats: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# Profile Update and Location Detection Views
+
+class ProfileUpdateView(APIView):
+    """
+    API view for updating user profile information
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get current user profile data"""
+        from .serializers import UserProfileSerializer
+        serializer = UserProfileSerializer(request.user)
+        return Response({
+            'status': 'success',
+            'data': serializer.data
+        })
+
+    def patch(self, request):
+        """Update user profile"""
+        from .serializers import ProfileUpdateSerializer
+
+        serializer = ProfileUpdateSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+            updated_user = serializer.save()
+
+            # Return updated user data
+            response_serializer = UserProfileSerializer(updated_user)
+
+            return Response({
+                'status': 'success',
+                'message': 'Profile updated successfully',
+                'data': response_serializer.data
+            })
+
+        return Response({
+            'status': 'error',
+            'message': 'Validation failed',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class ProfileChoicesView(APIView):
+    """
+    API view for getting profile field choices
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """Get all choices for profile fields"""
+        from .serializers import ProfileChoicesSerializer
+
+        # We don't need an actual object, just return choices
+        serializer = ProfileChoicesSerializer({})
+
+        return Response({
+            'status': 'success',
+            'data': {
+                'occupation_choices': serializer.get_occupation_choices(None),
+                'gender_choices': serializer.get_gender_choices(None),
+                'age_group_choices': serializer.get_age_group_choices(None),
+                'user_type_choices': serializer.get_user_type_choices(None),
+            }
+        })
+
+class LocationDetectionView(APIView):
+    """
+    API view for detecting and updating user location
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Detect location from IP or coordinates"""
+        from .serializers import LocationDetectionSerializer
+        import requests
+
+        serializer = LocationDetectionSerializer(data=request.data)
+
+        if serializer.is_valid():
+            location_data = serializer.validated_data
+
+            # Try to get location from different sources
+            detected_location = None
+
+            # Method 1: Use provided coordinates
+            if 'latitude' in location_data and 'longitude' in location_data:
+                detected_location = self._get_location_from_coordinates(
+                    location_data['latitude'],
+                    location_data['longitude']
+                )
+
+            # Method 2: Use IP address
+            elif 'ip_address' in location_data:
+                detected_location = self._get_location_from_ip(location_data['ip_address'])
+
+            # Method 3: Use client IP
+            else:
+                client_ip = self._get_client_ip(request)
+                if client_ip:
+                    detected_location = self._get_location_from_ip(client_ip)
+
+            if detected_location:
+                # Update user location
+                user = request.user
+                if detected_location.get('city') and detected_location.get('country'):
+                    location_string = f"{detected_location['city']}, {detected_location['country']}"
+                    user.location = location_string
+
+                if detected_location.get('zip_code'):
+                    user.zip_code = detected_location['zip_code']
+
+                user.save()
+
+                return Response({
+                    'status': 'success',
+                    'message': 'Location detected and updated successfully',
+                    'data': {
+                        'location': user.location,
+                        'zip_code': user.zip_code,
+                        'detected_data': detected_location
+                    }
+                })
+
+            return Response({
+                'status': 'error',
+                'message': 'Could not detect location'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'status': 'error',
+            'message': 'Invalid data',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    def _get_client_ip(self, request):
+        """Get client IP address from request"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+
+    def _get_location_from_ip(self, ip_address):
+        """Get location data from IP address using ip-api.com (free service)"""
+        try:
+            # Skip local/private IPs
+            if ip_address in ['127.0.0.1', '::1'] or ip_address.startswith('192.168.') or ip_address.startswith('10.'):
+                return None
+
+            response = requests.get(f'http://ip-api.com/json/{ip_address}', timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+
+                if data.get('status') == 'success':
+                    return {
+                        'country': data.get('country'),
+                        'region': data.get('regionName'),
+                        'city': data.get('city'),
+                        'zip_code': data.get('zip'),
+                        'latitude': data.get('lat'),
+                        'longitude': data.get('lon'),
+                    }
+        except Exception as e:
+            logger.error(f"Error getting location from IP {ip_address}: {str(e)}")
+
+        return None
+
+    def _get_location_from_coordinates(self, latitude, longitude):
+        """Get location data from coordinates using reverse geocoding"""
+        try:
+            # Using OpenStreetMap Nominatim service (free, no API key required)
+            url = f'https://nominatim.openstreetmap.org/reverse'
+            params = {
+                'lat': latitude,
+                'lon': longitude,
+                'format': 'json',
+                'addressdetails': 1,
+            }
+
+            headers = {
+                'User-Agent': 'MovieMate/1.0'  # Required by Nominatim
+            }
+
+            response = requests.get(url, params=params, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                address = data.get('address', {})
+
+                return {
+                    'country': address.get('country'),
+                    'region': address.get('state') or address.get('region'),
+                    'city': address.get('city') or address.get('town') or address.get('village'),
+                    'zip_code': address.get('postcode'),
+                    'latitude': latitude,
+                    'longitude': longitude,
+                }
+        except Exception as e:
+            logger.error(f"Error getting location from coordinates ({latitude}, {longitude}): {str(e)}")
+
+        return None
+
+class ProfileCompletionStatusView(APIView):
+    """
+    API view for checking profile completion status
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get profile completion status for current user"""
+        user = request.user
+
+        return Response({
+            'status': 'success',
+            'data': {
+                'is_complete': user.is_profile_complete,
+                'completion_percentage': user.profile_completion_percentage,
+                'missing_fields': self._get_missing_fields(user),
+                'required_fields': ['birth_date', 'gender', 'occupation'],
+                'optional_fields': ['location', 'bio', 'first_name', 'last_name', 'avatar_url', 'zip_code']
+            }
+        })
+
+    def _get_missing_fields(self, user):
+        """Get list of missing fields"""
+        missing = []
+
+        required_fields = {
+            'birth_date': user.birth_date,
+            'gender': user.gender,
+            'occupation': user.occupation,
+        }
+
+        optional_fields = {
+            'location': user.location,
+            'bio': user.bio,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'avatar_url': user.avatar_url,
+            'zip_code': user.zip_code,
+        }
+
+        # Check required fields
+        for field_name, field_value in required_fields.items():
+            if not field_value or str(field_value).strip() == '':
+                missing.append({
+                    'field': field_name,
+                    'type': 'required',
+                    'label': field_name.replace('_', ' ').title()
+                })
+
+        # Check optional fields
+        for field_name, field_value in optional_fields.items():
+            if not field_value or str(field_value).strip() == '':
+                missing.append({
+                    'field': field_name,
+                    'type': 'optional',
+                    'label': field_name.replace('_', ' ').title()
+                })
+
+        return missing

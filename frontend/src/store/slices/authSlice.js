@@ -18,14 +18,19 @@ const initialState = {
     lastName: null,
     avatarUrl: null,
     bio: null,
+    birth_date: null,
     age: null,
+    age_group: null,
     gender: null,
+    occupation: null,
     location: null,
-    isEmailVerified: false,
+    zip_code: null,
     createdAt: null,
     updatedAt: null,
     user_type: null,
     groups: [], // Thêm groups để lưu thông tin quyền
+    is_profile_complete: false,
+    profile_completion_percentage: 0,
   },
   isAuthenticated: false,
   isRehydrated: false,
@@ -38,6 +43,8 @@ const initialState = {
     language: 'en',
     theme: 'dark',
   },
+  showProfileCompletionModal: false,
+  profileDataLoaded: false, // Thêm flag để track profile data đã load chưa
 };
 
 // Async Thunks
@@ -76,8 +83,8 @@ export const register = createAsyncThunk('auth/register', async (userData, { rej
     return {
       ...response,
       user: {
-        ...response.user,
-        isEmailVerified: false,
+        ...response.user, // Remove hardcoded isEmailVerified to use backend data
+
         avatarUrl: null,
         bio: null,
         age: null,
@@ -201,7 +208,7 @@ const authSlice = createSlice({
         age: null,
         gender: null,
         location: null,
-        isEmailVerified: false,
+        // Remove hardcoded isEmailVerified to use backend data
         createdAt: null,
         updatedAt: null,
         user_type: null,
@@ -247,6 +254,9 @@ const authSlice = createSlice({
           state.token = token;
           state.refreshToken = refreshToken;
           state.user = { ...initialState.user, ...userData };
+
+          // Check if we should show profile completion modal after rehydration
+          authSlice.caseReducers.checkAndShowProfileModal(state);
         } catch (error) {
           // If user data is corrupted, clear everything
           console.error('Failed to parse user data:', error);
@@ -276,6 +286,72 @@ const authSlice = createSlice({
       state.user = { ...state.user, ...action.payload };
       localStorage.setItem('user', JSON.stringify(state.user));
     },
+    showProfileCompletionModal: state => {
+      state.showProfileCompletionModal = true;
+    },
+    hideProfileCompletionModal: state => {
+      state.showProfileCompletionModal = false;
+    },
+    updateProfileCompletion: (state, action) => {
+      state.user.is_profile_complete = action.payload.is_profile_complete;
+      state.user.profile_completion_percentage = action.payload.profile_completion_percentage;
+
+      // Hide modal if profile is now complete
+      if (action.payload.is_profile_complete) {
+        state.showProfileCompletionModal = false;
+      }
+    },
+    setProfileDataLoaded: (state, action) => {
+      state.profileDataLoaded = action.payload;
+    },
+    // Helper function to check if profile completion modal should be shown
+    checkAndShowProfileModal: state => {
+      const user = state.user;
+
+      // Don't check modal if profile data hasn't loaded yet
+      if (!state.profileDataLoaded) {
+        console.log('🔍 checkAndShowProfileModal - Profile data not loaded yet, skipping check');
+        return;
+      }
+
+      // Debug logging
+      console.log('🔍 checkAndShowProfileModal - Current state:', {
+        isAuthenticated: state.isAuthenticated,
+        userEmailVerified: user?.is_email_verified, // Use snake_case only
+        userProfileComplete: user?.is_profile_complete,
+        userCompletionPercentage: user?.profile_completion_percentage,
+        userExists: !!user,
+        userKeys: user ? Object.keys(user) : 'No user',
+        userEmailVerifiedType: typeof user?.is_email_verified,
+        userEmailVerifiedValue: user?.is_email_verified,
+        userStringified: user ? JSON.stringify(user) : 'No user',
+        profileDataLoaded: state.profileDataLoaded,
+      });
+
+      // Only show modal if:
+      // 1. User is authenticated
+      // 2. Profile data is loaded
+      // 3. Email is verified
+      // 4. Profile is not complete
+      // 5. Profile completion percentage is less than 80%
+      const shouldShow = !!(
+        state.isAuthenticated &&
+        state.profileDataLoaded &&
+        user?.is_email_verified && // Use snake_case only
+        !user?.is_profile_complete &&
+        user?.profile_completion_percentage < 80
+      );
+
+      console.log('🔍 checkAndShowProfileModal - Should show modal:', shouldShow);
+
+      if (shouldShow) {
+        state.showProfileCompletionModal = true;
+        console.log('✅ Modal will be shown');
+      } else {
+        state.showProfileCompletionModal = false;
+        console.log('❌ Modal will be hidden');
+      }
+    },
   },
   extraReducers: builder => {
     builder
@@ -294,6 +370,19 @@ const authSlice = createSlice({
         localStorage.setItem('token', action.payload.access);
         localStorage.setItem('refreshToken', action.payload.refresh);
         localStorage.setItem('user', JSON.stringify(action.payload.user));
+
+        console.log('🔍 login.fulfilled - User data received:', {
+          user: action.payload.user,
+          isEmailVerified: action.payload.user?.is_email_verified, // Use snake_case only
+          isProfileComplete: action.payload.user?.is_profile_complete,
+          profileCompletionPercentage: action.payload.user?.profile_completion_percentage,
+        });
+
+        // Set profile data as loaded
+        state.profileDataLoaded = true;
+
+        // Check if we should show profile completion modal using new logic
+        authSlice.caseReducers.checkAndShowProfileModal(state);
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -308,6 +397,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.error = null;
+
+        // For new users, don't show modal immediately - wait for email verification
+        // Modal will be shown after email verification and login
+        state.showProfileCompletionModal = false;
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -413,6 +506,11 @@ export const {
   rehydrateAuth,
   clearAuthData,
   updateUser,
+  showProfileCompletionModal,
+  hideProfileCompletionModal,
+  updateProfileCompletion,
+  setProfileDataLoaded,
+  checkAndShowProfileModal,
 } = authSlice.actions;
 
 // Selectors
@@ -437,5 +535,12 @@ export const selectHasAdminAccess = state => {
   const groups = state.auth.user?.groups || [];
   return groups.some(group => group.name === 'Administrators' || group.name === 'Moderators');
 };
+
+// Profile completion selectors
+export const selectShowProfileCompletionModal = state => state.auth.showProfileCompletionModal;
+export const selectIsProfileComplete = state => state.auth.user?.is_profile_complete || false;
+export const selectProfileCompletionPercentage = state =>
+  state.auth.user?.profile_completion_percentage || 0;
+export const selectProfileDataLoaded = state => state.auth.profileDataLoaded;
 
 export default authSlice.reducer;

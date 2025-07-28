@@ -39,9 +39,13 @@ import {
   getMovieEnrichmentStatus,
   batchEnrichMovies,
   enrichMoviesWithQualityIssues,
+  createAdminMovie,
+  updateAdminMovie,
+  deleteAdminMovie,
 } from '../../../api/adminMovieService';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useRefreshDashboard } from '../../../hooks/useDashboardData';
+import MovieFormModal from '../../../components/common/MovieFormModal';
 
 // UTILITY FUNCTIONS FOR NEW NORMALIZED STRUCTURE
 const getAdminField = (movie, field, fallback = null) => {
@@ -187,6 +191,10 @@ const MovieManagement = () => {
   const [currentAfter, setCurrentAfter] = useState(null); // Current after_created_at
   const [hasNext, setHasNext] = useState(false);
   const [hasPrevious, setHasPrevious] = useState(false);
+
+  // State cho modal tạo/sửa phim
+  const [showMovieForm, setShowMovieForm] = useState(false);
+  const [editMovie, setEditMovie] = useState(null);
 
   // Fetch Movies (keyset)
   const fetchMovies = useCallback(
@@ -635,6 +643,40 @@ const MovieManagement = () => {
     setMetricsModalOpen(true);
   }, []);
 
+  // Xử lý tạo mới phim
+  const handleCreateMovie = async movieData => {
+    try {
+      await createAdminMovie(movieData);
+      setShowMovieForm(false);
+      fetchMovies();
+    } catch (error) {
+      alert(error.error || 'Không thể tạo phim mới');
+    }
+  };
+
+  // Xử lý cập nhật phim
+  const handleEditMovie = async (movieId, movieData) => {
+    try {
+      await updateAdminMovie(movieId, movieData);
+      setShowMovieForm(false);
+      setEditMovie(null);
+      fetchMovies();
+    } catch (error) {
+      alert(error.error || 'Không thể cập nhật phim');
+    }
+  };
+
+  // Xử lý xóa phim
+  const handleDeleteMovie = async movieId => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa phim này?')) return;
+    try {
+      await deleteAdminMovie(movieId);
+      fetchMovies();
+    } catch (error) {
+      alert(error.error || 'Không thể xóa phim');
+    }
+  };
+
   // Status Badge Component with Fixed Tailwind Classes
   const getStatusBadge = (status, type = 'approval') => {
     const approvalStatusStyles = {
@@ -1018,6 +1060,23 @@ const MovieManagement = () => {
                   </div>
                 </div>
               )}
+              <div className="flex space-x-2 mt-2">
+                <button
+                  onClick={() => {
+                    setEditMovie(movie);
+                    setShowMovieForm(true);
+                  }}
+                  className="inline-flex items-center rounded-md border border-yellow-500 bg-yellow-50 px-3 py-1 text-xs font-medium text-yellow-700 hover:bg-yellow-100"
+                >
+                  Sửa
+                </button>
+                <button
+                  onClick={() => handleDeleteMovie(movie.id)}
+                  className="inline-flex items-center rounded-md border border-red-500 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                >
+                  Xóa
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1080,6 +1139,16 @@ const MovieManagement = () => {
           </div>
 
           <div className="flex items-center space-x-3">
+            <button
+              onClick={() => {
+                setEditMovie(null);
+                setShowMovieForm(true);
+              }}
+              className="inline-flex items-center rounded-md border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            >
+              <FilmIcon className="mr-2 size-4" />
+              Thêm phim mới
+            </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
@@ -1608,10 +1677,14 @@ const MovieManagement = () => {
                     onChange={e =>
                       setEnrichmentOptions(prev => ({ ...prev, enrichType: e.target.value }))
                     }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                    className="block w-full rounded-md text-gray-500 border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
                   >
-                    <option value="comprehensive">Toàn diện</option>
-                    <option value="quality_based">Dựa trên chất lượng</option>
+                    <option className="text-gray-500" value="comprehensive">
+                      Toàn diện
+                    </option>
+                    <option className="text-gray-500" value="quality_based">
+                      Dựa trên chất lượng
+                    </option>
                   </select>
                 </div>
 
@@ -1672,6 +1745,17 @@ const MovieManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Movie Form Modal */}
+      <MovieFormModal
+        open={showMovieForm}
+        onClose={() => {
+          setShowMovieForm(false);
+          setEditMovie(null);
+        }}
+        onSubmit={editMovie ? data => handleEditMovie(editMovie.id, data) : handleCreateMovie}
+        movie={editMovie}
+      />
     </div>
   );
 };

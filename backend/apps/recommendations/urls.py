@@ -10,33 +10,35 @@ app_name = 'recommendations'
 
 urlpatterns = [
     # Include viewset URLs
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 
     # Additional standalone endpoints
-    path('api/stats/', views.recommendation_stats, name='recommendation-stats'),
+    path('stats/', views.recommendation_stats, name='recommendation-stats'),
+    path('health/', views.system_health_check, name='system-health-check'),
+    path('task-status/', views.RecommendationViewSet.as_view({'get': 'check_task_status'}), name='task-status'),
 
     # Alternative URL patterns for better API structure
-    path('api/collaborative/',
+    path('collaborative/',
          views.RecommendationViewSet.as_view({'get': 'collaborative'}),
          name='collaborative-recommendations'),
 
-    path('api/demographic/',
+    path('demographic/',
          views.RecommendationViewSet.as_view({'get': 'demographic'}),
          name='demographic-recommendations'),
 
-    path('api/hybrid/',
+    path('hybrid/',
          views.RecommendationViewSet.as_view({'get': 'hybrid'}),
          name='hybrid-recommendations'),
 
-    path('api/personalized/',
+    path('personalized/',
          views.RecommendationViewSet.as_view({'get': 'personalized'}),
          name='personalized-recommendations'),
 
-    path('api/feedback/',
+    path('feedback/',
          views.RecommendationViewSet.as_view({'post': 'feedback'}),
          name='recommendation-feedback'),
 
-    path('api/profile/',
+    path('profile/',
          views.RecommendationViewSet.as_view({'get': 'user_profile'}),
          name='user-recommendation-profile'),
 ]

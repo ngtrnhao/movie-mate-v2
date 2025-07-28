@@ -1,1 +1,1 @@
- 
+# Management commands for recommendations app 

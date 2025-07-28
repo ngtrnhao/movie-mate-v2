@@ -1527,7 +1527,31 @@ class ProfileUpdateView(APIView):
         )
 
         if serializer.is_valid():
+            # Check if profile was incomplete before update
+            was_incomplete_before = not request.user.is_profile_complete
+
             updated_user = serializer.save()
+
+            # Check if profile is now complete after update
+            is_complete_after = updated_user.is_profile_complete
+
+            # If profile just became complete, trigger recommendation generation
+            if was_incomplete_before and is_complete_after:
+                logger.info(f"User {updated_user.id} has complete profile - generating new recommendations")
+
+                # Clear any existing recommendations to force regeneration
+                from apps.recommendations.models import RecommendationResult
+                RecommendationResult.objects.filter(
+                    user=updated_user,
+                    context='homepage'
+                ).delete()
+
+                # Trigger recommendation generation in background
+                try:
+                    from apps.recommendations.tasks import generate_user_recommendations_async
+                    generate_user_recommendations_async.delay(updated_user.id, 'homepage')
+                except Exception as e:
+                    logger.warning(f"Failed to trigger recommendation generation for user {updated_user.id}: {str(e)}")
 
             # Return updated user data
             response_serializer = UserProfileSerializer(updated_user)
@@ -1535,7 +1559,8 @@ class ProfileUpdateView(APIView):
             return Response({
                 'status': 'success',
                 'message': 'Profile updated successfully',
-                'data': response_serializer.data
+                'data': response_serializer.data,
+                'profile_completed': was_incomplete_before and is_complete_after
             })
 
         return Response({

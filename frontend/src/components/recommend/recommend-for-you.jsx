@@ -1,6 +1,17 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import {
+  loadPersonalizedRecommendations,
+  markMovieClicked,
+} from '../../store/slices/recommendationSlice';
+import { trackRecommendationInteraction } from '../../api/recommendationService';
 import MovieCard from '../movies/movie-card';
 
+const MOVIES_PER_VIEW = 5;
+const CARD_WIDTH = 270; // px (desktop)
+const SCROLL_AMOUNT = MOVIES_PER_VIEW * CARD_WIDTH + (MOVIES_PER_VIEW - 1) * 28;
+
+// Fallback mock data for when API is not available
 const mockRecommendations = [
   {
     id: 101,
@@ -49,12 +60,32 @@ const mockRecommendations = [
   },
 ];
 
-const MOVIES_PER_VIEW = 5;
-const CARD_WIDTH = 270; // px (desktop)
-const SCROLL_AMOUNT = MOVIES_PER_VIEW * CARD_WIDTH + (MOVIES_PER_VIEW - 1) * 28;
-
 const RecommendForYou = () => {
   const scrollRef = useRef(null);
+  const dispatch = useDispatch();
+
+  // Get data from Redux store
+  const { recommendations, loading, error, isInitialized } = useSelector(
+    state => state.recommendations
+  );
+
+  const { isAuthenticated } = useSelector(state => state.auth);
+
+  // Load personalized recommendations
+  useEffect(() => {
+    if (isAuthenticated && !isInitialized) {
+      dispatch(
+        loadPersonalizedRecommendations({
+          context: 'homepage',
+          limit: 10,
+        })
+      );
+    }
+  }, [dispatch, isAuthenticated, isInitialized]);
+
+  // Get personalized recommendations or fallback to mock data
+  const movies = recommendations.homepage?.personalized || [];
+  const displayMovies = movies.length > 0 ? movies : isAuthenticated ? [] : mockRecommendations;
 
   const handleScroll = direction => {
     if (scrollRef.current) {
@@ -65,64 +96,195 @@ const RecommendForYou = () => {
     }
   };
 
+  const handleMovieClick = async movie => {
+    // Track interaction if it's a real recommendation
+    if (movies.length > 0 && isAuthenticated) {
+      dispatch(
+        markMovieClicked({
+          movieId: movie.id,
+          recommendationType: movie.recommendationType || 'personalized',
+          context: 'homepage',
+        })
+      );
+
+      // Track in backend
+      await trackRecommendationInteraction(
+        movie.id,
+        movie.recommendationType || 'personalized',
+        'homepage',
+        'clicked'
+      );
+    }
+  };
+
+  // Show loading state
+  if (loading.personalized && displayMovies.length === 0) {
+    return (
+      <div className="px-4 py-8 md:px-8">
+        <div className="mx-auto max-w-[1400px]">
+          <h2 className="mb-6 text-2xl font-bold text-white">Recommended for You</h2>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-white">Loading personalized recommendations...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state with fallback
+  if (error.personalized && displayMovies.length === 0) {
+    return (
+      <div className="px-4 py-8 md:px-8">
+        <div className="mx-auto max-w-[1400px]">
+          <h2 className="mb-6 text-2xl font-bold text-white">Recommended for You</h2>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-red-400">
+              Failed to load recommendations. Please try again later.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <section className="mb-8 mt-12 w-full">
-      <div className="ml-2 sm:ml-8 md:ml-14">
+    <div className="px-4 py-8 md:px-8">
+      <div className="mx-auto max-w-[1400px]">
+        {/* Section Header */}
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white sm:text-3xl">Recommend For You</h2>
-          <div className="flex items-center gap-2">
+          <div>
+            <h2 className="text-2xl font-bold text-white">
+              {isAuthenticated ? 'Recommended for You' : 'Popular Movies'}
+            </h2>
+            {isAuthenticated && movies.length > 0 && (
+              <p className="text-sm text-gray-400 mt-1">
+                Based on your preferences and viewing history
+              </p>
+            )}
+          </div>
+
+          {/* Navigation buttons */}
+          <div className="flex gap-2">
             <button
-              className="rounded-full p-2 text-gray-700 hover:bg-gray-200"
               onClick={() => handleScroll('left')}
+              className="rounded-full bg-gray-800/50 p-2 text-white transition hover:bg-gray-800"
               aria-label="Scroll left"
             >
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="15 18 9 12 15 6" />
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
             <button
-              className="rounded-full p-2 text-gray-700 hover:bg-gray-200"
               onClick={() => handleScroll('right')}
+              className="rounded-full bg-gray-800/50 p-2 text-white transition hover:bg-gray-800"
               aria-label="Scroll right"
             >
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="9 6 15 12 9 18" />
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </button>
           </div>
         </div>
+
+        {/* Movies Scroll Container */}
         <div
           ref={scrollRef}
-          className="scrollbar-none md:scrollbar-thin md:scrollbar-thumb-gray-700 md:scrollbar-track-gray-900 flex gap-4 overflow-x-auto pb-2 md:gap-6 lg:gap-7"
-          style={{ scrollBehavior: 'smooth' }}
+          className="flex gap-7 overflow-x-auto scroll-smooth pb-4"
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitScrollbar: { display: 'none' },
+          }}
         >
-          {mockRecommendations.map(movie => (
-            <div
-              key={movie.id}
-              className="min-w-[70vw] max-w-[70vw] shrink-0 sm:min-w-[40vw] sm:max-w-[40vw] md:min-w-[210px] md:max-w-[210px] lg:min-w-[240px] lg:max-w-[240px] xl:min-w-[270px] xl:max-w-[270px]"
-            >
-              <MovieCard movie={movie} />
-            </div>
-          ))}
+          {displayMovies.map((movie, index) => {
+            // Calculate match percentage
+            const match =
+              movie.match ||
+              (movie.predicted_rating ? Math.round((movie.predicted_rating / 5.0) * 100) : null) ||
+              (movie.confidence_score ? Math.round(movie.confidence_score * 100) : null);
+
+            // Format movie data for MovieCard component
+            const formattedMovie = {
+              ...movie,
+              // Ensure poster path is correct
+              poster_path: movie.poster_path || movie.poster_url,
+              // Add recommendation-specific data
+              match,
+              recommendReason: movie.explanation?.reason || movie.recommendReason,
+              // Add rank for debugging
+              rank: movie.rank || index + 1,
+            };
+
+            return (
+              <div key={movie.id} className="min-w-[270px]">
+                <MovieCard
+                  movie={formattedMovie}
+                  onClick={() => handleMovieClick(movie)}
+                  showRecommendationInfo={isAuthenticated && movies.length > 0}
+                />
+
+                {/* Recommendation-specific info */}
+                {isAuthenticated && movies.length > 0 && (
+                  <div className="mt-2 px-2">
+                    {match && (
+                      <div className="text-xs text-green-400 font-medium">{match}% match</div>
+                    )}
+                    {movie.explanation?.reason && (
+                      <div className="text-xs text-gray-400 mt-1 line-clamp-2">
+                        {movie.explanation.reason}
+                      </div>
+                    )}
+
+                    {/* Debug info in development */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Type: {movie.recommendationType || 'personalized'} | Rank:{' '}
+                        {movie.rank || index + 1}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+
+        {/* Empty state for authenticated users */}
+        {isAuthenticated && movies.length === 0 && !loading.personalized && !error.personalized && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="text-gray-400 mb-4">
+              <svg
+                className="h-16 w-16 mx-auto mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2h4a1 1 0 110 2h-1v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6H3a1 1 0 110-2h4zM6 6v12h12V6H6zm4-2V3h4v1H10z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-white mb-2">No recommendations yet</h3>
+            <p className="text-gray-400 max-w-md">
+              Start rating some movies to get personalized recommendations tailored to your taste!
+            </p>
+          </div>
+        )}
       </div>
-    </section>
+    </div>
   );
 };
 

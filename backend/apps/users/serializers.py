@@ -202,17 +202,59 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class ProfileUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating user profile information, especially for new users.
+    Enhanced to handle complete demographic profile data.
     """
     birth_date = serializers.DateField(required=False, help_text="Birth date (YYYY-MM-DD format)")
     gender = serializers.ChoiceField(choices=User.GENDER_CHOICES, required=False)
     occupation = serializers.ChoiceField(choices=User.OCCUPATION_CHOICES, required=False)
 
+    # Enhanced fields from frontend calculation
+    age = serializers.IntegerField(required=False, read_only=True, help_text="Calculated from birth_date")
+    age_group = serializers.CharField(required=False, read_only=True, help_text="Calculated age group")
+    demographic_complete = serializers.BooleanField(required=False, help_text="Frontend flag for complete profile")
+
     class Meta:
         model = User
         fields = [
             'first_name', 'last_name', 'bio', 'birth_date', 'gender',
-            'location', 'occupation', 'zip_code', 'avatar_url'
+            'location', 'occupation', 'zip_code', 'avatar_url',
+            'age', 'age_group', 'demographic_complete'
         ]
+
+    def validate(self, data):
+        """Validate complete demographic profile for recommendation generation"""
+        # Check if this is a complete profile submission
+        demographic_complete = data.get('demographic_complete', False)
+
+        if demographic_complete:
+            # Validate all required demographic fields are present
+            required_fields = {
+                'first_name': 'First name is required for complete profile',
+                'last_name': 'Last name is required for complete profile',
+                'birth_date': 'Birth date is required for personalized recommendations',
+                'gender': 'Gender is required for demographic recommendations',
+                'occupation': 'Occupation is required for recommendation algorithms'
+            }
+
+            for field, error_message in required_fields.items():
+                # Check both current data and existing instance data
+                field_value = data.get(field) or (getattr(self.instance, field, None) if self.instance else None)
+                if not field_value:
+                    raise serializers.ValidationError({field: error_message})
+
+            # Validate calculated age from birth_date
+            birth_date = data.get('birth_date') or (getattr(self.instance, 'birth_date', None) if self.instance else None)
+            if birth_date:
+                from datetime import date
+                today = date.today()
+                age = today.year - birth_date.year
+                if today < date(today.year, birth_date.month, birth_date.day):
+                    age -= 1
+
+                if age < 13:
+                    raise serializers.ValidationError({'birth_date': 'You must be at least 13 years old'})
+
+        return data
 
     def validate_birth_date(self, value):
         """Validate birth date is not in the future and user is not too old"""
@@ -235,11 +277,25 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update user profile and auto-calculate age fields"""
+        # Remove read-only fields from validated_data before updating
+        demographic_complete = validated_data.pop('demographic_complete', False)
+        validated_data.pop('age', None)  # Remove read-only age field
+        validated_data.pop('age_group', None)  # Remove read-only age_group field
+
         # Update all provided fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        # Save will trigger auto-calculation of age and age_group
+        # Note: age and age_group will be auto-calculated by User.save() method
+        # No need to manually calculate here since User model handles it properly
+
+        # Log profile completion attempt
+        if demographic_complete:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Complete demographic profile update for user {instance.id}: age={getattr(instance, 'age', None)}, gender={instance.gender}, occupation={instance.occupation}")
+
+        # Save will trigger signal - only after complete data is set
         instance.save()
         return instance
 

@@ -82,11 +82,11 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       // Log current conditions for debugging
       console.log('Profile Completion Modal Conditions:', {
         isAuthenticated: true,
-        isEmailVerified: user.isEmailVerified,
+        isEmailVerified: user.is_email_verified,
         isProfileComplete: user.is_profile_complete,
         profileCompletionPercentage: user.profile_completion_percentage,
         shouldShowModal:
-          user.isEmailVerified &&
+          user.is_email_verified &&
           !user.is_profile_complete &&
           user.profile_completion_percentage < 80,
       });

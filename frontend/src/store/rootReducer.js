@@ -5,6 +5,8 @@ import profileReducer from './slices/profileSlice';
 import favoritesReducer from './slices/favoritesSlice';
 import watchlistReducer from './slices/watchlistSlice';
 import dashboardReducer from './slices/dashboardSlice';
+import recommendationReducer from './slices/recommendationSlice';
+
 const rootReducer = combineReducers({
   auth: authReducer,
   movies: movieReducer,
@@ -12,6 +14,7 @@ const rootReducer = combineReducers({
   favorites: favoritesReducer,
   watchlist: watchlistReducer,
   dashboard: dashboardReducer,
+  recommendations: recommendationReducer,
 });
 
 export default rootReducer;

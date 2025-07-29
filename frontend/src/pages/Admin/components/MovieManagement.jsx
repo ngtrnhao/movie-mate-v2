@@ -42,10 +42,12 @@ import {
   createAdminMovie,
   updateAdminMovie,
   deleteAdminMovie,
+  scheduleMovieAction,
 } from '../../../api/adminMovieService';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useRefreshDashboard } from '../../../hooks/useDashboardData';
 import MovieFormModal from '../../../components/common/MovieFormModal';
+import SchedulePublishModal from './SchedulePublishModal';
 
 // UTILITY FUNCTIONS FOR NEW NORMALIZED STRUCTURE
 const getAdminField = (movie, field, fallback = null) => {
@@ -195,6 +197,8 @@ const MovieManagement = () => {
   // State cho modal tạo/sửa phim
   const [showMovieForm, setShowMovieForm] = useState(false);
   const [editMovie, setEditMovie] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedMovieForSchedule, setSelectedMovieForSchedule] = useState(null);
 
   // Fetch Movies (keyset)
   const fetchMovies = useCallback(
@@ -677,6 +681,31 @@ const MovieManagement = () => {
     }
   };
 
+  // Xử lý mở modal lên lịch xuất bản phim
+  const handleOpenScheduleModal = movie => {
+    setSelectedMovieForSchedule(movie);
+    setShowScheduleModal(true);
+  };
+
+  // Xử lý lên lịch xuất bản phim từ modal
+  const handleSchedulePublish = async scheduleData => {
+    try {
+      const fullScheduleData = {
+        movie_id: selectedMovieForSchedule.id,
+        action_type: 'publish',
+        ...scheduleData,
+      };
+
+      await scheduleMovieAction(fullScheduleData);
+      alert('Đã lên lịch xuất bản phim thành công!');
+      setShowScheduleModal(false);
+      setSelectedMovieForSchedule(null);
+      fetchMovies();
+    } catch (error) {
+      alert(error.error || 'Không thể lên lịch xuất bản phim');
+    }
+  };
+
   // Status Badge Component with Fixed Tailwind Classes
   const getStatusBadge = (status, type = 'approval') => {
     const approvalStatusStyles = {
@@ -911,8 +940,9 @@ const MovieManagement = () => {
                   Xem chi tiết
                 </button>
 
-                {/* Approval actions for movies needing review */}
-                {approvalInfo?.status === 'NEEDS_REVIEW' && (
+                {/* Approval actions for movies needing review or pending */}
+                {(approvalInfo?.status === 'NEEDS_REVIEW' ||
+                  approvalInfo?.status === 'PENDING') && (
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => approveMovieAction(movie.id)}
@@ -931,6 +961,17 @@ const MovieManagement = () => {
                       Từ chối
                     </button>
                   </div>
+                )}
+
+                {/* Schedule publish button for pending movies */}
+                {approvalInfo?.status === 'PENDING' && (
+                  <button
+                    onClick={() => handleOpenScheduleModal(movie)}
+                    className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    <CalendarIcon className="mr-1.5 size-4" />
+                    Lên lịch xuất bản
+                  </button>
                 )}
               </div>
 
@@ -1755,6 +1796,17 @@ const MovieManagement = () => {
         }}
         onSubmit={editMovie ? data => handleEditMovie(editMovie.id, data) : handleCreateMovie}
         movie={editMovie}
+      />
+
+      {/* Schedule Publish Modal */}
+      <SchedulePublishModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setSelectedMovieForSchedule(null);
+        }}
+        onSchedule={handleSchedulePublish}
+        movieTitle={selectedMovieForSchedule?.title}
       />
     </div>
   );

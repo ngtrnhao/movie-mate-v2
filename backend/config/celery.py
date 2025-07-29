@@ -94,6 +94,42 @@ app.conf.beat_schedule = {
         "schedule": timedelta(days=1),  # Daily
         "options": {"priority": 2}  # Very low priority
     },
+
+    # 🎯 Recommendation system tasks
+    "update_user_similarities": {
+        "task": "apps.users.tasks.update_user_similarities_batch",
+        "schedule": timedelta(hours=6),  # Every 6 hours
+        "options": {"priority": 7}  # Medium priority
+    },
+    "generate_recommendations_active_users": {
+        "task": "apps.users.tasks.generate_recommendations_for_active_users",
+        "schedule": timedelta(hours=2),  # Every 2 hours
+        "options": {"priority": 8}  # High priority
+    },
+    "refresh_demographic_clusters": {
+        "task": "apps.recommendations.tasks.refresh_demographic_clusters",
+        "schedule": timedelta(days=1),  # Daily
+        "options": {"priority": 5}  # Normal priority
+    },
+    "cleanup_expired_recommendations": {
+        "task": "apps.recommendations.tasks.cleanup_expired_recommendations",
+        "schedule": timedelta(hours=12),  # Twice daily
+        "options": {"priority": 3}  # Low priority
+    },
+
+    # 🤖 Auto-management for large user bases (100+ users)
+    "auto_manage_large_user_base": {
+        "task": "apps.recommendations.tasks.auto_manage_large_user_base",
+        "schedule": timedelta(hours=6),  # Every 6 hours
+        "options": {"priority": 8}  # High priority - orchestrates other tasks
+    },
+
+    # 🔄 Bulk recommendation refresh (triggered by auto-management)
+    "bulk_refresh_stale_recommendations_weekly": {
+        "task": "apps.recommendations.tasks.bulk_refresh_stale_recommendations",
+        "schedule": timedelta(days=1),  # Daily safety net
+        "options": {"priority": 6}  # Medium priority
+    },
 }
 
 # Task time limits are now configured in Django settings

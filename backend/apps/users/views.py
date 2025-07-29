@@ -36,7 +36,7 @@ from django.utils import timezone
 from datetime import timedelta
 from apps.users.permissions import IsAdmin, IsModerator, IsModeratorOrAdmin, is_admin, is_moderator
 from apps.movies.models import MovieReview, Movie
-from apps.users.models import UserActivityLog, SearchHistory
+from apps.users.models import  SearchHistory
 from apps.movies.serializers import MovieReviewSerializer
 from django.db import models
 from rest_framework.decorators import api_view, permission_classes
@@ -833,17 +833,29 @@ class AdminDashboardViewSet(viewsets.ViewSet):
             count=Count('id')
         ).order_by('date')
 
-        # User activity
-        active_users_30d = UserActivityLog.objects.filter(
-            created_at__gte=last_30_days
-        ).values('user').distinct().count()
+        # User activity - Commented out as UserActivityLog is not used
+        # active_users_30d = UserActivityLog.objects.filter(
+        #     created_at__gte=last_30_days
+        # ).values('user').distinct().count()
 
-        # Top users by activity
-        top_active_users = UserActivityLog.objects.filter(
-            created_at__gte=last_30_days
-        ).values('user__username').annotate(
-            activity_count=Count('id')
-        ).order_by('-activity_count')[:10]
+        # Top users by activity - Commented out as UserActivityLog is not used
+        # top_active_users = UserActivityLog.objects.filter(
+        #     created_at__gte=last_30_days
+        # ).values('user__username').annotate(
+        #     activity_count=Count('id')
+        # ).order_by('-activity_count')[:10]
+
+        # Alternative: Use User model for basic stats
+        active_users_30d = User.objects.filter(
+            last_login__gte=last_30_days
+        ).count()
+
+        # Top users by login activity
+        top_active_users = User.objects.filter(
+            last_login__gte=last_30_days
+        ).values('username').annotate(
+            login_count=Count('id')
+        ).order_by('-login_count')[:10]
 
         # Group distribution
         group_stats = User.objects.values('groups__name').annotate(
@@ -1527,7 +1539,31 @@ class ProfileUpdateView(APIView):
         )
 
         if serializer.is_valid():
+            # Check if profile was incomplete before update
+            was_incomplete_before = not request.user.is_profile_complete
+
             updated_user = serializer.save()
+
+            # Check if profile is now complete after update
+            is_complete_after = updated_user.is_profile_complete
+
+            # If profile just became complete, trigger recommendation generation
+            if was_incomplete_before and is_complete_after:
+                logger.info(f"User {updated_user.id} has complete profile - generating new recommendations")
+
+                # Clear any existing recommendations to force regeneration
+                from apps.recommendations.models import RecommendationResult
+                RecommendationResult.objects.filter(
+                    user=updated_user,
+                    context='homepage'
+                ).delete()
+
+                # Trigger recommendation generation in background
+                try:
+                    from apps.recommendations.tasks import generate_user_recommendations_async
+                    generate_user_recommendations_async.delay(updated_user.id, 'homepage')
+                except Exception as e:
+                    logger.warning(f"Failed to trigger recommendation generation for user {updated_user.id}: {str(e)}")
 
             # Return updated user data
             response_serializer = UserProfileSerializer(updated_user)
@@ -1535,7 +1571,8 @@ class ProfileUpdateView(APIView):
             return Response({
                 'status': 'success',
                 'message': 'Profile updated successfully',
-                'data': response_serializer.data
+                'data': response_serializer.data,
+                'profile_completed': was_incomplete_before and is_complete_after
             })
 
         return Response({

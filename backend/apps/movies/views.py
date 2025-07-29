@@ -4961,6 +4961,225 @@ class   AdminMovieViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])
+    def scheduled_actions(self, request):
+        """Get all scheduled actions for movies"""
+        try:
+            from .models import MovieScheduling
+            from django.utils import timezone
+
+            now = timezone.now()
+
+            # Get all scheduling records with upcoming actions
+            schedulings = MovieScheduling.objects.select_related('movie').filter(
+                models.Q(publish_date__gte=now) |
+                models.Q(unpublish_date__gte=now) |
+                models.Q(featured_from__gte=now) |
+                models.Q(featured_until__gte=now)
+            ).order_by('publish_date', 'featured_from')
+
+            actions = []
+            for scheduling in schedulings:
+                movie = scheduling.movie
+
+                # Publish actions
+                if scheduling.publish_date and scheduling.publish_date >= now:
+                    actions.append({
+                        'id': f'publish_{scheduling.id}',
+                        'movie_id': movie.id,
+                        'movie_title': movie.title,
+                        'action_type': 'publish',
+                        'scheduled_datetime': scheduling.publish_date,
+                        'status': 'PENDING',
+                        'auto_action': scheduling.auto_publish
+                    })
+
+                # Unpublish actions
+                if scheduling.unpublish_date and scheduling.unpublish_date >= now:
+                    actions.append({
+                        'id': f'unpublish_{scheduling.id}',
+                        'movie_id': movie.id,
+                        'movie_title': movie.title,
+                        'action_type': 'unpublish',
+                        'scheduled_datetime': scheduling.unpublish_date,
+                        'status': 'PENDING',
+                        'auto_action': scheduling.auto_unpublish
+                    })
+
+                # Feature actions
+                if scheduling.featured_from and scheduling.featured_from >= now:
+                    actions.append({
+                        'id': f'feature_{scheduling.id}',
+                        'movie_id': movie.id,
+                        'movie_title': movie.title,
+                        'action_type': 'feature',
+                        'scheduled_datetime': scheduling.featured_from,
+                        'status': 'PENDING',
+                        'auto_action': scheduling.auto_feature
+                    })
+
+                # Unfeature actions
+                if scheduling.featured_until and scheduling.featured_until >= now:
+                    actions.append({
+                        'id': f'unfeature_{scheduling.id}',
+                        'movie_id': movie.id,
+                        'movie_title': movie.title,
+                        'action_type': 'unfeature',
+                        'scheduled_datetime': scheduling.featured_until,
+                        'status': 'PENDING',
+                        'auto_action': scheduling.auto_unfeature
+                    })
+
+            return Response({
+                'status': 'success',
+                'data': actions,
+                'count': len(actions)
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting scheduled actions: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': 'Failed to get scheduled actions'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def schedule_action(self, request):
+        """Schedule a movie action"""
+        try:
+            movie_id = request.data.get('movie_id')
+            action_type = request.data.get('action_type')  # publish, unpublish, feature, unfeature
+            scheduled_datetime = request.data.get('scheduled_datetime')
+            end_datetime = request.data.get('end_datetime')
+            campaign_name = request.data.get('campaign_name', '')
+            priority = request.data.get('priority', 1)
+
+            if not movie_id or not action_type or not scheduled_datetime:
+                return Response({
+                    'status': 'error',
+                    'message': 'movie_id, action_type, and scheduled_datetime are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            movie = Movie.objects.get(id=movie_id)
+            scheduling, created = MovieScheduling.objects.get_or_create(movie=movie)
+            admin_control = self.get_object_admin_control(movie)
+
+            from django.utils.dateparse import parse_datetime
+            from django.utils import timezone
+
+            start_dt = parse_datetime(scheduled_datetime)
+            end_dt = parse_datetime(end_datetime) if end_datetime else None
+
+            if action_type == 'publish':
+                scheduling.publish_date = start_dt
+                scheduling.unpublish_date = end_dt
+                scheduling.auto_publish = True
+                scheduling.auto_unpublish = bool(end_dt)
+
+            elif action_type == 'unpublish':
+                scheduling.unpublish_date = start_dt
+                scheduling.auto_unpublish = True
+
+            elif action_type == 'feature':
+                scheduling.featured_from = start_dt
+                scheduling.featured_until = end_dt
+                scheduling.auto_feature = True
+                scheduling.auto_unfeature = bool(end_dt)
+                admin_control.admin_featured = True
+                admin_control.admin_priority = priority
+
+            elif action_type == 'unfeature':
+                scheduling.featured_until = start_dt
+                scheduling.auto_unfeature = True
+
+            else:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid action_type'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            scheduling.campaign_name = campaign_name
+            scheduling.campaign_priority = priority
+            scheduling.save()
+
+            if action_type in ['feature']:
+                admin_control.save()
+
+            return Response({
+                'status': 'success',
+                'message': f'{action_type} action scheduled successfully',
+                'scheduled_datetime': start_dt.isoformat(),
+                'end_datetime': end_dt.isoformat() if end_dt else None
+            })
+
+        except Movie.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Movie not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error scheduling action: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': 'Failed to schedule action'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['delete'])
+    def cancel_scheduled_action(self, request, action_id=None):
+        """Cancel a scheduled action"""
+        try:
+            if not action_id:
+                return Response({
+                    'status': 'error',
+                    'message': 'action_id is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Parse action_id format: action_type_scheduling_id
+            parts = action_id.split('_')
+            if len(parts) != 2:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid action_id format'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            action_type, scheduling_id = parts
+
+            try:
+                scheduling = MovieScheduling.objects.get(id=scheduling_id)
+            except MovieScheduling.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': 'Scheduled action not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Cancel the specific action
+            if action_type == 'publish':
+                scheduling.publish_date = None
+                scheduling.auto_publish = False
+            elif action_type == 'unpublish':
+                scheduling.unpublish_date = None
+                scheduling.auto_unpublish = False
+            elif action_type == 'feature':
+                scheduling.featured_from = None
+                scheduling.auto_feature = False
+            elif action_type == 'unfeature':
+                scheduling.featured_until = None
+                scheduling.auto_unfeature = False
+
+            scheduling.save()
+
+            return Response({
+                'status': 'success',
+                'message': f'{action_type} action cancelled successfully'
+            })
+
+        except Exception as e:
+            logger.error(f"Error cancelling scheduled action: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': 'Failed to cancel scheduled action'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
     def auto_processing_status(self, request):
         """
         🔄 Get status of auto-processing tasks

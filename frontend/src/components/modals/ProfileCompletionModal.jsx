@@ -82,11 +82,11 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       // Log current conditions for debugging
       console.log('Profile Completion Modal Conditions:', {
         isAuthenticated: true,
-        isEmailVerified: user.isEmailVerified,
+        isEmailVerified: user.is_email_verified,
         isProfileComplete: user.is_profile_complete,
         profileCompletionPercentage: user.profile_completion_percentage,
         shouldShowModal:
-          user.isEmailVerified &&
+          user.is_email_verified &&
           !user.is_profile_complete &&
           user.profile_completion_percentage < 80,
       });
@@ -239,15 +239,83 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
     }
   };
 
+  const validateCompleteProfile = () => {
+    const newErrors = {};
+
+    // Validate ALL required demographic fields for complete profile
+    if (!formData.first_name.trim()) {
+      newErrors.first_name = 'First name is required for complete profile';
+    }
+    if (!formData.last_name.trim()) {
+      newErrors.last_name = 'Last name is required for complete profile';
+    }
+    if (!formData.birth_date) {
+      newErrors.birth_date = 'Birth date is required for personalized recommendations';
+    } else {
+      // Validate age (13-120)
+      const birthDate = new Date(formData.birth_date);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      if (age < 13) {
+        newErrors.birth_date = 'You must be at least 13 years old';
+      } else if (age > 120) {
+        newErrors.birth_date = 'Please enter a valid birth date';
+      }
+    }
+    if (!formData.gender) {
+      newErrors.gender = 'Gender is required for demographic recommendations';
+    }
+    if (!formData.occupation) {
+      newErrors.occupation = 'Occupation is required for recommendation algorithms';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const calculateDemographicData = formData => {
+    // Calculate age from birth_date
+    const age = formData.birth_date
+      ? new Date().getFullYear() - new Date(formData.birth_date).getFullYear()
+      : null;
+
+    // Calculate age_group (must match backend User.calculate_age_group())
+    let age_group = null;
+    if (age) {
+      if (age < 18) age_group = 'Under 18';
+      else if (age >= 18 && age <= 24) age_group = '18-24';
+      else if (age >= 25 && age <= 34) age_group = '25-34';
+      else if (age >= 35 && age <= 44) age_group = '35-44';
+      else if (age >= 45 && age <= 49) age_group = '45-49';
+      else if (age >= 50 && age <= 55) age_group = '50-55';
+      else age_group = '56+';
+    }
+
+    return {
+      ...formData,
+      age,
+      age_group,
+      // Ensure all demographic fields are present
+      demographic_complete: !!(age && formData.gender && formData.occupation),
+    };
+  };
+
   const handleSubmit = async () => {
-    if (!validateCurrentStep()) {
+    // Validate COMPLETE profile before submission
+    if (!validateCompleteProfile()) {
+      toast.error('Please complete all required fields for personalized recommendations');
       return;
     }
 
     setLoading(true);
     try {
-      // Update profile via API
-      const result = await updateCurrentUserProfileAPI(formData);
+      // Calculate enhanced demographic data
+      const enhancedFormData = calculateDemographicData(formData);
+
+      console.log('Submitting COMPLETE profile data:', enhancedFormData);
+
+      // Update profile via API with COMPLETE demographic data
+      const result = await updateCurrentUserProfileAPI(enhancedFormData);
 
       if (result.status === 'success') {
         // Update Redux store with new user data
@@ -440,11 +508,19 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
               />
             </Grid>
             <Grid item xs={12}>
-              <Alert severity="success">
+              <Alert severity="info">
                 <Typography variant="body2">
-                  🎉 <strong>Almost done!</strong> Your profile is ready for personalized
-                  recommendations. You can always update this information later in your profile
-                  settings.
+                  📍 <strong>Optional Location Info</strong> - This helps provide region-specific
+                  movie recommendations and local cinema information.
+                </Typography>
+              </Alert>
+            </Grid>
+            <Grid item xs={12}>
+              <Alert severity="warning">
+                <Typography variant="body2">
+                  🎯 <strong>Ready to Complete!</strong> Click "Complete Profile" to generate your
+                  personalized movie recommendations. This will create your demographic profile and
+                  recommendations based on your preferences.
                 </Typography>
               </Alert>
             </Grid>
@@ -457,7 +533,8 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
   };
 
   const getCompletionPercentage = () => {
-    const fields = [
+    // Required fields for demographic recommendations
+    const requiredFields = [
       formData.first_name,
       formData.last_name,
       formData.birth_date,
@@ -465,8 +542,24 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       formData.occupation,
     ];
 
-    const completed = fields.filter(field => field && field.toString().trim() !== '').length;
-    return Math.round((completed / fields.length) * 100);
+    // Optional fields that enhance recommendations
+    const optionalFields = [formData.location, formData.zip_code, formData.bio];
+
+    const completedRequired = requiredFields.filter(
+      field => field && field.toString().trim() !== ''
+    ).length;
+    const completedOptional = optionalFields.filter(
+      field => field && field.toString().trim() !== ''
+    ).length;
+
+    // Weight required fields more heavily (80% of total)
+    const requiredWeight = 0.8;
+    const optionalWeight = 0.2;
+
+    const requiredScore = (completedRequired / requiredFields.length) * requiredWeight;
+    const optionalScore = (completedOptional / optionalFields.length) * optionalWeight;
+
+    return Math.round((requiredScore + optionalScore) * 100);
   };
 
   return (

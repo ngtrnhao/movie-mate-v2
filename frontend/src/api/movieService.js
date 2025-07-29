@@ -325,6 +325,17 @@ export const submitMovieRating = async (movieId, rating, review = '') => {
 
 // Watchlist functionality has been moved to profileService.js
 
+// Get production companies
+export const getProductionCompanies = async () => {
+  try {
+    const response = await axiosInstance.get('/api/movies/production_companies/');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching production companies:', error);
+    throw error;
+  }
+};
+
 // Enhanced search movies with caching and request cancellation
 let searchController = null; // Store AbortController for request cancellation
 
@@ -350,6 +361,11 @@ export const searchMovies = async (filters = {}, pageOrSearchAfter = 1, pageSize
     // Add country filter
     if (filters.country) {
       params.append('countries', filters.country);
+    }
+
+    // Add production company filter
+    if (filters.productionCompany) {
+      params.append('production_companies', filters.productionCompany);
     }
 
     // Add status filter

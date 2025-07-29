@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Optional, TYPE_CHECKING, Any
 from collections import defaultdict
 from decimal import Decimal
 import logging
+import time
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db import models, transaction
@@ -14,6 +15,7 @@ from django.conf import settings
 import math
 import random
 import json
+
 
 # Advanced ML Libraries for Enhanced Demographic Filtering
 try:
@@ -44,6 +46,96 @@ from .models import (
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+class RecommendationLockService:
+    """
+    Service to handle locking for recommendation generation to prevent race conditions
+    """
+
+    @staticmethod
+    def get_lock_key(user_id: int, context: str = 'homepage') -> str:
+        """Generate cache key for recommendation lock"""
+        return f"rec_lock:user_{user_id}:context_{context}"
+
+    @staticmethod
+    def acquire_lock(user_id: int, context: str = 'homepage', timeout: int = 300) -> bool:
+        """
+        Acquire lock for recommendation generation
+        Returns True if lock acquired, False if already locked
+        """
+        lock_key = RecommendationLockService.get_lock_key(user_id, context)
+
+        # Try to acquire lock with 5-minute timeout
+        acquired = cache.set(lock_key, True, timeout=timeout, nx=True)
+
+        if acquired:
+            logger.info(f"Acquired recommendation lock for user {user_id}, context {context}")
+        else:
+            logger.warning(f"Failed to acquire recommendation lock for user {user_id}, context {context} - already locked")
+
+        return acquired
+
+    @staticmethod
+    def release_lock(user_id: int, context: str = 'homepage'):
+        """Release lock for recommendation generation"""
+        lock_key = RecommendationLockService.get_lock_key(user_id, context)
+        cache.delete(lock_key)
+        logger.info(f"Released recommendation lock for user {user_id}, context {context}")
+
+    @staticmethod
+    def is_locked(user_id: int, context: str = 'homepage') -> bool:
+        """Check if user recommendation generation is currently locked"""
+        lock_key = RecommendationLockService.get_lock_key(user_id, context)
+        return cache.get(lock_key) is not None
+
+    @staticmethod
+    def wait_for_lock_release(user_id: int, context: str = 'homepage', max_wait: int = 60):
+        """
+        Wait for lock to be released (for cooperative tasks)
+        Returns True when lock is released, False if timeout
+        """
+        start_time = time.time()
+
+        while RecommendationLockService.is_locked(user_id, context):
+            if time.time() - start_time > max_wait:
+                logger.warning(f"Timeout waiting for lock release for user {user_id}, context {context}")
+                return False
+
+            time.sleep(1)  # Wait 1 second before checking again
+
+        logger.info(f"Lock released for user {user_id}, context {context} after {time.time() - start_time:.1f}s")
+        return True
+
+
+def with_recommendation_lock(func):
+    """
+    Decorator to ensure recommendation generation is locked
+    """
+    def wrapper(self, user, *args, **kwargs):
+        user_id = user.id if hasattr(user, 'id') else user
+        context = kwargs.get('context', 'homepage')
+
+        # Try to acquire lock
+        if not RecommendationLockService.acquire_lock(user_id, context):
+            logger.warning(f"Skipping {func.__name__} for user {user_id} - already generating recommendations")
+
+            # For API calls, wait briefly and try to return existing recommendations
+            if hasattr(self, '_return_existing_recommendations'):
+                RecommendationLockService.wait_for_lock_release(user_id, context, max_wait=10)
+                return self._return_existing_recommendations(user, *args, **kwargs)
+
+            return []  # Return empty for background tasks
+
+        try:
+            # Execute the original function
+            result = func(self, user, *args, **kwargs)
+            return result
+        finally:
+            # Always release lock
+            RecommendationLockService.release_lock(user_id, context)
+
+    return wrapper
+
+
 class CollaborativeFilteringService:
     """
     Enhanced Collaborative Filtering Service với multiple algorithms
@@ -57,28 +149,27 @@ class CollaborativeFilteringService:
 
     def calculate_user_similarity(self, user1, user2, method='pearson') -> float:
         """
-        Calculate similarity between two users using various methods
-
-        Args:
-            user1, user2: Django User instances
-            method: 'pearson', 'cosine', 'jaccard', 'euclidean'
-
-        Returns:
-            Similarity score between -1 and 1 (for pearson/cosine) or 0 and 1 (for jaccard)
+        Calculate similarity between two users using specified method
         """
         try:
-            # Get ratings for both users
+            # Get ratings for both users and cast to float
             user1_ratings = dict(MovieReview.objects.filter(
                 user=user1,
                 review_type='USER',
                 rating__isnull=False
             ).values_list('movie_id', 'rating'))
 
+            # Cast Decimal to float
+            user1_ratings = {movie_id: float(rating) for movie_id, rating in user1_ratings.items()}
+
             user2_ratings = dict(MovieReview.objects.filter(
                 user=user2,
                 review_type='USER',
                 rating__isnull=False
             ).values_list('movie_id', 'rating'))
+
+            # Cast Decimal to float
+            user2_ratings = {movie_id: float(rating) for movie_id, rating in user2_ratings.items()}
 
             if not user1_ratings or not user2_ratings:
                 return 0.0
@@ -212,7 +303,9 @@ class CollaborativeFilteringService:
             else:
                 # Calculate similarities on-the-fly
                 candidate_users = User.objects.filter(
-                    movie_interactions__movie_id__in=user_rated_movies
+                    moviereview__movie_id__in=user_rated_movies,
+                    moviereview__review_type='USER',
+                    moviereview__rating__isnull=False
                 ).exclude(
                     id=user.id
                 ).distinct()[:500]  # Limit candidates for performance
@@ -253,6 +346,7 @@ class CollaborativeFilteringService:
                 review_type='USER',
                 rating__isnull=False
             ).aggregate(avg_rating=Avg('rating'))['avg_rating'] or 3.0
+            user_avg = float(user_avg)  # Cast to float
 
             for similar_user, similarity in similar_users:
                 # Get similar user's rating for this movie
@@ -270,6 +364,7 @@ class CollaborativeFilteringService:
                         review_type='USER',
                         rating__isnull=False
                     ).aggregate(avg_rating=Avg('rating'))['avg_rating'] or 3.0
+                    similar_avg = float(similar_avg)  # Cast to float
 
                     # Normalize rating
                     normalized_rating = float(similar_user_rating.rating) - similar_avg
@@ -563,7 +658,63 @@ class EnhancedDemographicFilteringService:
             logger.error(f"Error getting user demographic cluster: {str(e)}")
             return None
 
-    def generate_demographic_recommendations(self, user, limit=20, context='homepage') -> List[any]:
+    def assign_user_to_cluster(self, user) -> Optional[any]:
+        """
+        Assign a user to the most appropriate demographic cluster
+        """
+        try:
+            if not user.age or not user.gender:
+                logger.info(f"User {user.id} lacks demographic data for clustering")
+                return None
+
+            # Find matching cluster based on demographics
+            cluster = DemographicCluster.objects.filter(
+                age_range_min__lte=user.age,
+                age_range_max__gte=user.age,
+                primary_gender=user.gender
+            ).first()
+
+            if cluster:
+                # Update user preference
+                user_pref, created = UserPreference.objects.get_or_create(user=user)
+                user_pref.demographic_cluster = cluster.cluster_id
+                user_pref.save()
+
+                # Update cluster user count
+                cluster.user_count = User.objects.filter(
+                    recommendation_preference__demographic_cluster=cluster.cluster_id
+                ).count()
+                cluster.save()
+
+                logger.info(f"Assigned user {user.id} to cluster {cluster.cluster_id}")
+                return cluster
+            else:
+                # Create a new cluster if none exists for this demographic
+                cluster_id = f"demo_{user.age}_{user.gender}_{timezone.now().timestamp()}"
+                cluster = DemographicCluster.objects.create(
+                    cluster_id=cluster_id,
+                    name=f"Age {user.age} - {user.gender}",
+                    description=f"Users aged {user.age}, gender {user.gender}",
+                    age_range_min=max(0, user.age - 2),
+                    age_range_max=user.age + 2,
+                    primary_gender=user.gender,
+                    user_count=1,
+                    average_rating=3.0  # Default
+                )
+
+                # Assign user to new cluster
+                user_pref, created = UserPreference.objects.get_or_create(user=user)
+                user_pref.demographic_cluster = cluster.cluster_id
+                user_pref.save()
+
+                logger.info(f"Created new cluster {cluster_id} for user {user.id}")
+                return cluster
+
+        except Exception as e:
+            logger.error(f"Error assigning user {user.id} to cluster: {str(e)}")
+            return None
+
+    def generate_demographic_recommendations(self, user, limit=20, context='homepage', store=True) -> List[any]:
         """
         Generate recommendations based on user's demographic cluster
         """
@@ -642,8 +793,9 @@ class EnhancedDemographicFilteringService:
             recommendations.sort(key=lambda x: x['score'], reverse=True)
             top_recommendations = recommendations[:limit]
 
-            # Store recommendations
-            self._store_recommendations(user, top_recommendations, 'demographic', context)
+            # Store recommendations only if requested
+            if store:
+                self._store_recommendations(user, top_recommendations, 'demographic', context)
 
             return [rec['movie'] for rec in top_recommendations]
 
@@ -690,18 +842,40 @@ class EnhancedDemographicFilteringService:
             recommendation_objects = []
 
             for rank, rec in enumerate(recommendations, 1):
+                # Convert all values to ensure JSON serialization
+                predicted_rating = float(rec.get('predicted_rating', 0)) if rec.get('predicted_rating') is not None else None
+                confidence_score = float(rec.get('confidence', 0.5))
+                novelty_score = float(rec.get('novelty_score', 0.5))
+                score = float(rec['score']) if isinstance(rec['score'], (int, float, str)) else 0.5
+
+                # Ensure explanation is JSON serializable
+                explanation = rec.get('explanation', {})
+                if isinstance(explanation, dict):
+                    # Convert any Decimal values to float recursively
+                    def convert_decimals(obj):
+                        if hasattr(obj, '__float__'):
+                            return float(obj)
+                        elif isinstance(obj, dict):
+                            return {key: convert_decimals(value) for key, value in obj.items()}
+                        elif isinstance(obj, list):
+                            return [convert_decimals(item) for item in obj]
+                        else:
+                            return obj
+
+                    explanation = convert_decimals(explanation)
+
                 recommendation_objects.append(
                     RecommendationResult(
                         user=user,
                         movie=rec['movie'],
                         recommendation_type=rec_type,
                         context=context,
-                        predicted_rating=rec.get('predicted_rating'),
-                        confidence_score=rec.get('confidence', 0.5),
-                        novelty_score=rec.get('novelty_score', 0.5),
+                        predicted_rating=predicted_rating,
+                        confidence_score=confidence_score,
+                        novelty_score=novelty_score,
                         rank=rank,
-                        score=rec['score'],
-                        explanation=rec.get('explanation', {})
+                        score=score,
+                        explanation=explanation
                     )
                 )
 
@@ -709,9 +883,11 @@ class EnhancedDemographicFilteringService:
 
         except Exception as e:
             logger.error(f"Error storing recommendations: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     def generate_enhanced_demographic_recommendations(self, user, limit: int = 20,
-                                                    context: str = 'homepage') -> List[Movie]:
+                                                    context: str = 'homepage', store: bool = False) -> List[Movie]:
         """
         Generate enhanced demographic recommendations using advanced ML techniques
         """
@@ -721,12 +897,53 @@ class EnhancedDemographicFilteringService:
             # Check if advanced features are available
             if not SKLEARN_AVAILABLE:
                 logger.warning("Scikit-learn not available. Using basic demographic filtering.")
-                return self.generate_demographic_recommendations(user, limit, context)
+                return self.generate_demographic_recommendations(user, limit, context, store=store)
 
             # Get users with demographic data (limit for performance in testing)
-            users_with_demographics = User.objects.filter(
-                Q(age__isnull=False) | Q(gender__isnull=False) | Q(occupation__isnull=False)
-            ).exclude(id=user.id)[:100]  # Limit to 100 users for better performance
+            # First, try to get users from the same demographic cluster
+            user_cluster = self.get_user_demographic_cluster(user)
+
+            # If user doesn't have a cluster, try to assign them to one
+            if not user_cluster and user.age and user.gender:
+                user_cluster = self.assign_user_to_cluster(user)
+                logger.info(f"Assigned user {user.id} to cluster {user_cluster.cluster_id if user_cluster else 'None'}")
+
+            if user_cluster:
+                # Get users from the same cluster for better similarity
+                users_with_demographics = User.objects.filter(
+                    recommendation_preference__demographic_cluster=user_cluster.cluster_id,
+                    moviereview__review_type='USER',
+                    moviereview__rating__isnull=False
+                ).exclude(id=user.id).distinct()[:20]  # Get users with ratings
+
+                logger.info(f"Using {len(users_with_demographics)} users with ratings from same cluster {user_cluster.cluster_id}")
+
+                # If not enough users in cluster, add some from similar clusters
+                if len(users_with_demographics) < 5:  # Giảm threshold
+                    similar_clusters = DemographicCluster.objects.filter(
+                        age_range_min__lte=user.age or 25,
+                        age_range_max__gte=user.age or 25,
+                        primary_gender=user.gender
+                    ).exclude(cluster_id=user_cluster.cluster_id)[:2]  # Giảm từ 3 xuống 2
+
+                    for cluster in similar_clusters:
+                        additional_users = User.objects.filter(
+                            recommendation_preference__demographic_cluster=cluster.cluster_id,
+                            moviereview__review_type='USER',
+                            moviereview__rating__isnull=False
+                        ).exclude(id=user.id).distinct()[:5]  # Get users with ratings
+                        users_with_demographics = list(users_with_demographics) + list(additional_users)
+
+                    logger.info(f"Added users from similar clusters, total: {len(users_with_demographics)}")
+            else:
+                # Fallback: get users with similar demographics and ratings
+                users_with_demographics = User.objects.filter(
+                    (Q(age__isnull=False) | Q(gender__isnull=False) | Q(occupation__isnull=False)) &
+                    Q(moviereview__review_type='USER') &
+                    Q(moviereview__rating__isnull=False)
+                ).exclude(id=user.id).distinct()[:15]  # Get users with ratings
+
+                logger.info(f"No cluster found, using {len(users_with_demographics)} users with similar demographics and ratings")
 
             if not users_with_demographics.exists():
                 logger.warning("No users with demographic data found")
@@ -761,8 +978,14 @@ class EnhancedDemographicFilteringService:
 
             if len(top_similar_users) < self.min_similar_users:
                 logger.warning(f"Only found {len(top_similar_users)} similar users, need at least {self.min_similar_users}")
-                # Fallback to basic demographic filtering
-                return self.generate_demographic_recommendations(user, limit, context)
+
+                # If we have a cluster but not enough similar users, try cluster-based recommendations
+                if user_cluster:
+                    logger.info(f"Falling back to cluster-based recommendations for cluster {user_cluster.cluster_id}")
+                    return self.generate_demographic_recommendations(user, limit, context, store=store)
+                else:
+                    # Fallback to basic demographic filtering
+                    return self.generate_demographic_recommendations(user, limit, context, store=store)
 
             # Generate recommendations from similar users
             recommendations = self._generate_recommendations_from_similar_users(
@@ -778,15 +1001,16 @@ class EnhancedDemographicFilteringService:
             scored_recommendations.sort(key=lambda x: x['final_score'], reverse=True)
             top_recommendations = scored_recommendations[:limit]
 
-            # Store recommendations
-            self._store_enhanced_recommendations(user, top_recommendations, context)
+            # Store recommendations only if store=True
+            if store:
+                self._store_enhanced_recommendations(user, top_recommendations, context)
 
             return [rec['movie'] for rec in top_recommendations]
 
         except Exception as e:
             logger.error(f"Error generating enhanced demographic recommendations: {str(e)}")
             # Fallback to basic demographic filtering
-            return self.generate_demographic_recommendations(user, limit, context)
+            return self.generate_demographic_recommendations(user, limit, context, store=store)
 
     def _generate_recommendations_from_similar_users(self, target_user,
                                                    similar_users: List[Tuple],
@@ -913,15 +1137,27 @@ class EnhancedDemographicFilteringService:
             recommendation_objects = []
 
             for rank, rec in enumerate(recommendations, 1):
-                explanation = {
-                    'type': 'enhanced_demographic',
-                    'avg_similarity': float(rec['avg_similarity']),
-                    'support': int(rec['support']),
-                    'demographic_bonus': float(rec['demographic_bonus']),
-                    'similarity_bonus': float(rec.get('similarity_bonus', 0)),
-                    'confidence': float(rec['confidence']),
-                    'method': 'advanced_vectorization'
-                }
+                # Convert all values to ensure JSON serialization
+                predicted_rating = float(rec.get('predicted_rating', 0)) if rec.get('predicted_rating') is not None else None
+                confidence_score = float(rec.get('confidence', 0.5))
+                novelty_score = float(rec.get('novelty_score', 0.5))
+                score = float(rec.get('final_score', rec.get('avg_weighted_score', 0.5))) if isinstance(rec.get('final_score', rec.get('avg_weighted_score', 0.5)), (int, float, str)) else 0.5
+
+                # Ensure explanation is JSON serializable
+                explanation = rec.get('explanation', {})
+                if isinstance(explanation, dict):
+                    # Convert any Decimal values to float recursively
+                    def convert_decimals(obj):
+                        if hasattr(obj, '__float__'):
+                            return float(obj)
+                        elif isinstance(obj, dict):
+                            return {key: convert_decimals(value) for key, value in obj.items()}
+                        elif isinstance(obj, list):
+                            return [convert_decimals(item) for item in obj]
+                        else:
+                            return obj
+
+                    explanation = convert_decimals(explanation)
 
                 recommendation_objects.append(
                     RecommendationResult(
@@ -929,11 +1165,11 @@ class EnhancedDemographicFilteringService:
                         movie=rec['movie'],
                         recommendation_type='demographic',
                         context=context,
-                        predicted_rating=float(rec['avg_rating']),
-                        confidence_score=float(rec['confidence']),
-                        novelty_score=0.5,  # Could be enhanced
+                        predicted_rating=predicted_rating,
+                        confidence_score=confidence_score,
+                        novelty_score=novelty_score,
                         rank=rank,
-                        score=float(rec['final_score']),
+                        score=score,
                         explanation=explanation
                     )
                 )
@@ -944,6 +1180,8 @@ class EnhancedDemographicFilteringService:
 
         except Exception as e:
             logger.error(f"Error storing enhanced recommendations: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     def _get_user_demographic_cluster(self, user) -> Optional[DemographicCluster]:
         """Get user's demographic cluster"""
@@ -1004,9 +1242,9 @@ class HybridRecommendationService:
                 user, limit=limit*2, context=context
             )
 
-            # Get enhanced demographic filtering recommendations
+            # Get enhanced demographic filtering recommendations (DON'T auto-store)
             demographic_recs = self.demographic_service.generate_enhanced_demographic_recommendations(
-                user, limit=limit*2, context=context
+                user, limit=limit*2, context=context, store=False
             )
 
             # Get content-based recommendations (using existing genre preferences)
@@ -1063,26 +1301,43 @@ class HybridRecommendationService:
                 reverse=True
             )
 
-            # Prepare for storage
+            # Prepare for storage with full metadata
             final_recommendations = []
             for rec in sorted_recommendations[:limit]:
+                # Calculate predicted rating based on methods used
+                predicted_rating = None
+                if 'collaborative' in rec['methods']:
+                    predicted_rating = min(5.0, 3.5 + (rec['score'] * 1.5))
+                elif 'demographic' in rec['methods']:
+                    predicted_rating = min(5.0, 3.0 + (rec['score'] * 2.0))
+                else:
+                    predicted_rating = min(5.0, 2.5 + (rec['score'] * 2.5))
+
+                confidence = min(1.0, len(rec['methods']) / 4.0)
+                novelty = 0.5 + (0.3 if 'trending' in rec['methods'] else 0.0)
+
                 final_recommendations.append({
                     'movie': rec['movie'],
                     'score': rec['score'],
-                    'confidence': min(1.0, len(rec['methods']) / 4.0),
-                    'novelty_score': 0.5,
+                    'predicted_rating': predicted_rating,
+                    'confidence': confidence,
+                    'novelty_score': novelty,
                     'explanation': {
                         'type': 'hybrid',
                         'methods': rec['methods'],
-                        'combined_score': rec['score']
+                        'combined_score': rec['score'],
+                        'predicted_rating': predicted_rating,
+                        'algorithm_count': len(rec['methods'])
                     }
                 })
 
-            # Store hybrid recommendations
-            self.demographic_service._store_recommendations(
-                user, final_recommendations, 'hybrid', context
-            )
+            # Store hybrid recommendations using proper method
+            # Don't auto-store - let the calling code handle storage
+            # self.demographic_service._store_recommendations(
+            #     user, final_recommendations, 'hybrid', context
+            # )
 
+            # Return list of Movie objects
             return [rec['movie'] for rec in final_recommendations]
 
         except Exception as e:

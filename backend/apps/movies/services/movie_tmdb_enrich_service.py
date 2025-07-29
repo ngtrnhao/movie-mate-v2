@@ -101,7 +101,7 @@ class MovieTMDBEnrichService:
                 content=review.get("content"),
                 rating=review.get("author_details", {}).get("rating"),
                 source="TMDB",
-                source_url=review.get("url"),
+                # source_url=review.get("url"),
                 published_at=review.get("created_at"),
             )
 

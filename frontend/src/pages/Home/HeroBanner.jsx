@@ -1,35 +1,49 @@
-import { useRef, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useRef, useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  loadPersonalizedRecommendations,
-  markMovieClicked,
-} from '../../store/slices/recommendationSlice';
-import { trackRecommendationInteraction } from '../../api/recommendationService';
+  getPersonalizedRecommendations,
+  trackRecommendationInteraction,
+} from '../../api/recommendationService';
 
 const HeroBannerRecommendation = () => {
   const heroRef = useRef(null);
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  // Get data from Redux store
-  const { heroBannerMovie, loading, error, isInitialized } = useSelector(
-    state => state.recommendations
-  );
+  const [heroBannerMovie, setHeroBannerMovie] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const { isAuthenticated } = useSelector(state => state.auth);
 
   // Load recommendations on component mount
   useEffect(() => {
-    if (isAuthenticated && !isInitialized) {
-      dispatch(
-        loadPersonalizedRecommendations({
-          context: 'homepage',
-          limit: 1, // Just need one movie for hero banner
-        })
-      );
-    }
-  }, [dispatch, isAuthenticated, isInitialized]);
+    const fetchHeroMovie = async () => {
+      if (!isAuthenticated) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await getPersonalizedRecommendations(1, 'homepage');
+
+        if (response.status === 'success' && response.data?.recommendations?.length > 0) {
+          setHeroBannerMovie(response.data.recommendations[0]);
+        } else {
+          setError('No recommendations available');
+        }
+      } catch (err) {
+        console.error('Error fetching hero movie:', err);
+        setError(err.message || 'Failed to load recommendations');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHeroMovie();
+  }, [isAuthenticated]);
 
   // Fallback to default movie if no recommendations available
   const mockMovie = {
@@ -60,21 +74,11 @@ const HeroBannerRecommendation = () => {
   const handleViewDetails = async () => {
     // Track interaction
     if (heroBannerMovie) {
-      dispatch(
-        markMovieClicked({
-          movieId: movie.id,
-          recommendationType: movie.recommendationType || 'personalized',
-          context: 'homepage',
-        })
-      );
-
-      // Track in backend
-      await trackRecommendationInteraction(
-        movie.id,
-        movie.recommendationType || 'personalized',
-        'homepage',
-        'clicked'
-      );
+      try {
+        await trackRecommendationInteraction(movie.id, 'click', 'personalized', 'homepage');
+      } catch (error) {
+        console.error('Error tracking interaction:', error);
+      }
     }
 
     navigate(`/movies/${movie.id}`);
@@ -93,7 +97,7 @@ const HeroBannerRecommendation = () => {
   };
 
   // Show loading state
-  if (loading.personalized && !heroBannerMovie) {
+  if (loading && !heroBannerMovie) {
     return (
       <section className="relative min-h-[105vh] w-full bg-gray-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading personalized recommendations...</div>
@@ -102,8 +106,8 @@ const HeroBannerRecommendation = () => {
   }
 
   // Show error state (but still show fallback movie)
-  if (error.personalized && !heroBannerMovie) {
-    console.warn('Failed to load recommendations, using fallback movie:', error.personalized);
+  if (error && !heroBannerMovie) {
+    console.warn('Failed to load recommendations, using fallback movie:', error);
   }
 
   return (

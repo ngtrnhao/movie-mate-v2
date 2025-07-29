@@ -149,28 +149,27 @@ class CollaborativeFilteringService:
 
     def calculate_user_similarity(self, user1, user2, method='pearson') -> float:
         """
-        Calculate similarity between two users using various methods
-
-        Args:
-            user1, user2: Django User instances
-            method: 'pearson', 'cosine', 'jaccard', 'euclidean'
-
-        Returns:
-            Similarity score between -1 and 1 (for pearson/cosine) or 0 and 1 (for jaccard)
+        Calculate similarity between two users using specified method
         """
         try:
-            # Get ratings for both users
+            # Get ratings for both users and cast to float
             user1_ratings = dict(MovieReview.objects.filter(
                 user=user1,
                 review_type='USER',
                 rating__isnull=False
             ).values_list('movie_id', 'rating'))
 
+            # Cast Decimal to float
+            user1_ratings = {movie_id: float(rating) for movie_id, rating in user1_ratings.items()}
+
             user2_ratings = dict(MovieReview.objects.filter(
                 user=user2,
                 review_type='USER',
                 rating__isnull=False
             ).values_list('movie_id', 'rating'))
+
+            # Cast Decimal to float
+            user2_ratings = {movie_id: float(rating) for movie_id, rating in user2_ratings.items()}
 
             if not user1_ratings or not user2_ratings:
                 return 0.0
@@ -304,7 +303,9 @@ class CollaborativeFilteringService:
             else:
                 # Calculate similarities on-the-fly
                 candidate_users = User.objects.filter(
-                    movie_interactions__movie_id__in=user_rated_movies
+                    moviereview__movie_id__in=user_rated_movies,
+                    moviereview__review_type='USER',
+                    moviereview__rating__isnull=False
                 ).exclude(
                     id=user.id
                 ).distinct()[:500]  # Limit candidates for performance
@@ -345,6 +346,7 @@ class CollaborativeFilteringService:
                 review_type='USER',
                 rating__isnull=False
             ).aggregate(avg_rating=Avg('rating'))['avg_rating'] or 3.0
+            user_avg = float(user_avg)  # Cast to float
 
             for similar_user, similarity in similar_users:
                 # Get similar user's rating for this movie
@@ -362,6 +364,7 @@ class CollaborativeFilteringService:
                         review_type='USER',
                         rating__isnull=False
                     ).aggregate(avg_rating=Avg('rating'))['avg_rating'] or 3.0
+                    similar_avg = float(similar_avg)  # Cast to float
 
                     # Normalize rating
                     normalized_rating = float(similar_user_rating.rating) - similar_avg
@@ -839,18 +842,40 @@ class EnhancedDemographicFilteringService:
             recommendation_objects = []
 
             for rank, rec in enumerate(recommendations, 1):
+                # Convert all values to ensure JSON serialization
+                predicted_rating = float(rec.get('predicted_rating', 0)) if rec.get('predicted_rating') is not None else None
+                confidence_score = float(rec.get('confidence', 0.5))
+                novelty_score = float(rec.get('novelty_score', 0.5))
+                score = float(rec['score']) if isinstance(rec['score'], (int, float, str)) else 0.5
+
+                # Ensure explanation is JSON serializable
+                explanation = rec.get('explanation', {})
+                if isinstance(explanation, dict):
+                    # Convert any Decimal values to float recursively
+                    def convert_decimals(obj):
+                        if hasattr(obj, '__float__'):
+                            return float(obj)
+                        elif isinstance(obj, dict):
+                            return {key: convert_decimals(value) for key, value in obj.items()}
+                        elif isinstance(obj, list):
+                            return [convert_decimals(item) for item in obj]
+                        else:
+                            return obj
+
+                    explanation = convert_decimals(explanation)
+
                 recommendation_objects.append(
                     RecommendationResult(
                         user=user,
                         movie=rec['movie'],
                         recommendation_type=rec_type,
                         context=context,
-                        predicted_rating=rec.get('predicted_rating'),
-                        confidence_score=rec.get('confidence', 0.5),
-                        novelty_score=rec.get('novelty_score', 0.5),
+                        predicted_rating=predicted_rating,
+                        confidence_score=confidence_score,
+                        novelty_score=novelty_score,
                         rank=rank,
-                        score=rec['score'],
-                        explanation=rec.get('explanation', {})
+                        score=score,
+                        explanation=explanation
                     )
                 )
 
@@ -858,6 +883,8 @@ class EnhancedDemographicFilteringService:
 
         except Exception as e:
             logger.error(f"Error storing recommendations: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     def generate_enhanced_demographic_recommendations(self, user, limit: int = 20,
                                                     context: str = 'homepage', store: bool = False) -> List[Movie]:
@@ -884,10 +911,12 @@ class EnhancedDemographicFilteringService:
             if user_cluster:
                 # Get users from the same cluster for better similarity
                 users_with_demographics = User.objects.filter(
-                    recommendation_preference__demographic_cluster=user_cluster.cluster_id
-                ).exclude(id=user.id)[:20]  # Giảm từ 50 xuống 20 để cải thiện performance
+                    recommendation_preference__demographic_cluster=user_cluster.cluster_id,
+                    moviereview__review_type='USER',
+                    moviereview__rating__isnull=False
+                ).exclude(id=user.id).distinct()[:20]  # Get users with ratings
 
-                logger.info(f"Using {len(users_with_demographics)} users from same cluster {user_cluster.cluster_id}")
+                logger.info(f"Using {len(users_with_demographics)} users with ratings from same cluster {user_cluster.cluster_id}")
 
                 # If not enough users in cluster, add some from similar clusters
                 if len(users_with_demographics) < 5:  # Giảm threshold
@@ -899,18 +928,22 @@ class EnhancedDemographicFilteringService:
 
                     for cluster in similar_clusters:
                         additional_users = User.objects.filter(
-                            recommendation_preference__demographic_cluster=cluster.cluster_id
-                        ).exclude(id=user.id)[:5]  # Giảm từ 10 xuống 5
+                            recommendation_preference__demographic_cluster=cluster.cluster_id,
+                            moviereview__review_type='USER',
+                            moviereview__rating__isnull=False
+                        ).exclude(id=user.id).distinct()[:5]  # Get users with ratings
                         users_with_demographics = list(users_with_demographics) + list(additional_users)
 
                     logger.info(f"Added users from similar clusters, total: {len(users_with_demographics)}")
             else:
-                # Fallback: get users with similar demographics
+                # Fallback: get users with similar demographics and ratings
                 users_with_demographics = User.objects.filter(
-                    Q(age__isnull=False) | Q(gender__isnull=False) | Q(occupation__isnull=False)
-                ).exclude(id=user.id)[:15]  # Giảm từ 30 xuống 15 để cải thiện performance
+                    (Q(age__isnull=False) | Q(gender__isnull=False) | Q(occupation__isnull=False)) &
+                    Q(moviereview__review_type='USER') &
+                    Q(moviereview__rating__isnull=False)
+                ).exclude(id=user.id).distinct()[:15]  # Get users with ratings
 
-                logger.info(f"No cluster found, using {len(users_with_demographics)} users with similar demographics")
+                logger.info(f"No cluster found, using {len(users_with_demographics)} users with similar demographics and ratings")
 
             if not users_with_demographics.exists():
                 logger.warning("No users with demographic data found")
@@ -1108,15 +1141,23 @@ class EnhancedDemographicFilteringService:
                 predicted_rating = float(rec.get('predicted_rating', 0)) if rec.get('predicted_rating') is not None else None
                 confidence_score = float(rec.get('confidence', 0.5))
                 novelty_score = float(rec.get('novelty_score', 0.5))
-                score = float(rec['score']) if isinstance(rec['score'], (int, float, str)) else 0.5
+                score = float(rec.get('final_score', rec.get('avg_weighted_score', 0.5))) if isinstance(rec.get('final_score', rec.get('avg_weighted_score', 0.5)), (int, float, str)) else 0.5
 
                 # Ensure explanation is JSON serializable
                 explanation = rec.get('explanation', {})
                 if isinstance(explanation, dict):
-                    # Convert any Decimal values to float
-                    for key, value in explanation.items():
-                        if hasattr(value, '__float__'):
-                            explanation[key] = float(value)
+                    # Convert any Decimal values to float recursively
+                    def convert_decimals(obj):
+                        if hasattr(obj, '__float__'):
+                            return float(obj)
+                        elif isinstance(obj, dict):
+                            return {key: convert_decimals(value) for key, value in obj.items()}
+                        elif isinstance(obj, list):
+                            return [convert_decimals(item) for item in obj]
+                        else:
+                            return obj
+
+                    explanation = convert_decimals(explanation)
 
                 recommendation_objects.append(
                     RecommendationResult(
@@ -1139,6 +1180,8 @@ class EnhancedDemographicFilteringService:
 
         except Exception as e:
             logger.error(f"Error storing enhanced recommendations: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     def _get_user_demographic_cluster(self, user) -> Optional[DemographicCluster]:
         """Get user's demographic cluster"""

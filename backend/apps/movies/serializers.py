@@ -2,9 +2,9 @@ from django.db.models import Q, Count
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
-    Movie, MovieRating, MovieAward, MovieCast,
+    Movie, MovieRating, MovieCast,
     MovieReview, MovieBoxOffice, MovieMetadata,
-    MovieGenre, MovieTrailer, MovieImage, MovieNews,
+    MovieGenre, MovieTrailer, MovieImage,
     ReviewReport, MovieAdminControl, MovieQualityMetrics,
     MovieScheduling, ProductionMetrics, UserInteraction
 )
@@ -407,10 +407,10 @@ class MovieRatingSerializer(serializers.ModelSerializer):
         model = MovieRating
         fields = '__all__'
 
-class MovieAwardSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MovieAward
-        fields = '__all__'
+# class MovieAwardSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = MovieAward
+#         fields = '__all__'
 
 class UnifiedMovieReviewSerializer(serializers.ModelSerializer):
     """Unified serializer for both user and external reviews"""
@@ -427,7 +427,7 @@ class UnifiedMovieReviewSerializer(serializers.ModelSerializer):
             'id', 'title', 'content', 'rating', 'rating_stars', 'review_type',
             'reviewer_name', 'reviewer_avatar', 'is_verified_reviewer',
             'helpful_votes', 'total_votes', 'helpfulness_ratio',
-            'is_spoiler', 'is_public', 'source', 'source_url',
+            'is_spoiler', 'is_public', 'source',
             'created_at', 'time_ago'
         ]
         read_only_fields = ['reviewer_name', 'reviewer_avatar', 'is_verified_reviewer', 'rating_stars']
@@ -727,10 +727,10 @@ class MovieImageSerializer(serializers.ModelSerializer):
         model = MovieImage
         fields = '__all__'
 
-class MovieNewsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MovieNews
-        fields = '__all__'
+# class MovieNewsSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = MovieNews
+#         fields = '__all__'
 
 class UnifiedMovieReviewWithDetailsSerializer(serializers.ModelSerializer):
     rating_stars = serializers.SerializerMethodField()
@@ -760,7 +760,6 @@ class UnifiedMovieReviewWithDetailsSerializer(serializers.ModelSerializer):
             'is_spoiler',
             'is_public',
             'source',
-            'source_url',
             'is_approved',
             'moderated_by',
             'moderated_at',

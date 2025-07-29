@@ -36,7 +36,7 @@ from django.utils import timezone
 from datetime import timedelta
 from apps.users.permissions import IsAdmin, IsModerator, IsModeratorOrAdmin, is_admin, is_moderator
 from apps.movies.models import MovieReview, Movie
-from apps.users.models import UserActivityLog, SearchHistory
+from apps.users.models import  SearchHistory
 from apps.movies.serializers import MovieReviewSerializer
 from django.db import models
 from rest_framework.decorators import api_view, permission_classes
@@ -833,17 +833,29 @@ class AdminDashboardViewSet(viewsets.ViewSet):
             count=Count('id')
         ).order_by('date')
 
-        # User activity
-        active_users_30d = UserActivityLog.objects.filter(
-            created_at__gte=last_30_days
-        ).values('user').distinct().count()
+        # User activity - Commented out as UserActivityLog is not used
+        # active_users_30d = UserActivityLog.objects.filter(
+        #     created_at__gte=last_30_days
+        # ).values('user').distinct().count()
 
-        # Top users by activity
-        top_active_users = UserActivityLog.objects.filter(
-            created_at__gte=last_30_days
-        ).values('user__username').annotate(
-            activity_count=Count('id')
-        ).order_by('-activity_count')[:10]
+        # Top users by activity - Commented out as UserActivityLog is not used
+        # top_active_users = UserActivityLog.objects.filter(
+        #     created_at__gte=last_30_days
+        # ).values('user__username').annotate(
+        #     activity_count=Count('id')
+        # ).order_by('-activity_count')[:10]
+
+        # Alternative: Use User model for basic stats
+        active_users_30d = User.objects.filter(
+            last_login__gte=last_30_days
+        ).count()
+
+        # Top users by login activity
+        top_active_users = User.objects.filter(
+            last_login__gte=last_30_days
+        ).values('username').annotate(
+            login_count=Count('id')
+        ).order_by('-login_count')[:10]
 
         # Group distribution
         group_stats = User.objects.values('groups__name').annotate(

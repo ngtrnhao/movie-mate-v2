@@ -546,20 +546,20 @@ class MovieImage(models.Model):
         ]
 
 
-class MovieNews(models.Model):
-    movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
-    title = models.CharField(max_length=255)
-    content = models.TextField()
-    source_url = models.CharField(max_length=255, blank=True, null=True)
-    published_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+# class MovieNews(models.Model):
+#     movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
+#     title = models.CharField(max_length=255)
+#     content = models.TextField()
+#     source_url = models.CharField(max_length=255, blank=True, null=True)
+#     published_at = models.DateTimeField(blank=True, null=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        db_table = "movies_movienews"
-        indexes = [
-            models.Index(fields=["movie"]),
-            models.Index(fields=["published_at"]),
-        ]
+#     class Meta:
+#         db_table = "movies_movienews"
+#         indexes = [
+#             models.Index(fields=["movie"]),
+#             models.Index(fields=["published_at"]),
+#         ]
 
 
 class MovieRating(models.Model):
@@ -600,25 +600,25 @@ class MovieRating(models.Model):
         ]
 
 
-class MovieAward(models.Model):
-    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="awards")
-    name = models.CharField(max_length=255)
-    category = models.CharField(max_length=255)
-    year = models.IntegerField()
-    won = models.BooleanField(default=False)
-    nomination = models.BooleanField(default=False)
-    is_prestigious = models.BooleanField(default=False)
-    award_event = models.CharField(max_length=255, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+# class MovieAward(models.Model):
+#     movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="awards")
+#     name = models.CharField(max_length=255)
+#     category = models.CharField(max_length=255)
+#     year = models.IntegerField()
+#     won = models.BooleanField(default=False)
+#     nomination = models.BooleanField(default=False)
+#     is_prestigious = models.BooleanField(default=False)
+#     award_event = models.CharField(max_length=255, null=True, blank=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        db_table = "movies_award"
-        indexes = [
-            models.Index(fields=["movie", "year"]),
-            models.Index(fields=["name", "category"]),
-            models.Index(fields=["is_prestigious"]),
-        ]
+#     class Meta:
+#         db_table = "movies_award"
+#         indexes = [
+#             models.Index(fields=["movie", "year"]),
+#             models.Index(fields=["name", "category"]),
+#             models.Index(fields=["is_prestigious"]),
+#         ]
 
 class MovieCast(models.Model):
     ROLE_CHOICES = [
@@ -740,8 +740,8 @@ class MovieReview(models.Model):
                                         help_text="Review ID from external source")
     source = models.CharField(max_length=50, null=True, blank=True,
                             help_text="External source name (IMDB, TMDB, etc.)")
-    source_url = models.URLField(max_length=500, null=True, blank=True,
-                               help_text="URL to original review")
+    # source_url = models.URLField(max_length=500, null=True, blank=True,
+    #                            help_text="URL to original review")
     external_published_at = models.DateTimeField(null=True, blank=True,
                                                 help_text="Original publish date from external source")
 
@@ -1471,7 +1471,7 @@ class ProductionMetrics(models.Model):
     trailer_completion_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
                                                  help_text="Trailer completion rate (%)")
 
-    # DEVICE BREAKDOWN (MOBILE, DESKTOP, TABLET)    
+    # DEVICE BREAKDOWN (MOBILE, DESKTOP, TABLET)
     mobile_views = models.IntegerField(default=0, help_text="Views from mobile devices")
     desktop_views = models.IntegerField(default=0, help_text="Views from desktop")
     tablet_views = models.IntegerField(default=0, help_text="Views from tablet")

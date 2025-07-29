@@ -23,8 +23,6 @@ from .models import (
     MovieReview,
     MovieTrailer,
     MovieImage,
-    MovieAward,
-    MovieNews,
     MovieScheduling,
     MovieAdminControl,
     MovieQualityMetrics
@@ -1144,8 +1142,22 @@ def process_scheduled_actions_auto(self):
                         'admin_featured', 'admin_priority'
                     ])
 
-                    # Update scheduling record's last action
-                    scheduling.last_action_executed = f"auto_{actions_processed}"
+                    # Update scheduling record's last action - Fixed to use shorter action description
+                    action_summary = []
+                    if actions_processed['published'] > 0:
+                        action_summary.append('pub')
+                    if actions_processed['unpublished'] > 0:
+                        action_summary.append('unpub')
+                    if actions_processed['featured'] > 0:
+                        action_summary.append('feat')
+                    if actions_processed['unfeatured'] > 0:
+                        action_summary.append('unfeat')
+
+                    last_action = f"auto_{'_'.join(action_summary)}" if action_summary else "auto_none"
+                    # Ensure it doesn't exceed 50 characters
+                    last_action = last_action[:50]
+
+                    scheduling.last_action_executed = last_action
                     scheduling.last_action_date = now
                     scheduling.save(update_fields=['last_action_executed', 'last_action_date'])
 
@@ -1210,25 +1222,8 @@ def update_scheduling_status_auto(self):
         for scheduling in MovieScheduling.objects.select_related('movie').iterator(chunk_size=100):
             status_updated = False
 
-            # Update is_published_now
-            new_is_published_now = scheduling.is_published_now
-            expected_is_published_now = (
-                (not scheduling.publish_date or scheduling.publish_date <= now) and
-                (not scheduling.unpublish_date or scheduling.unpublish_date > now)
-            )
-            if new_is_published_now != expected_is_published_now:
-                scheduling.is_published_now = expected_is_published_now
-                status_updated = True
-
-            # Update is_featured_now
-            new_is_featured_now = scheduling.is_featured_now
-            expected_is_featured_now = (
-                (not scheduling.featured_from or scheduling.featured_from <= now) and
-                (not scheduling.featured_until or scheduling.featured_until > now)
-            )
-            if new_is_featured_now != expected_is_featured_now:
-                scheduling.is_featured_now = expected_is_featured_now
-                status_updated = True
+            # Note: is_published_now and is_featured_now are computed properties,
+            # so we don't need to save them as database fields
 
             # Update next_action_date and next_scheduled_action
             next_actions = []
@@ -1258,7 +1253,6 @@ def update_scheduling_status_auto(self):
             # Save if updated
             if status_updated:
                 scheduling.save(update_fields=[
-                    'is_published_now', 'is_featured_now',
                     'next_action_date', 'next_scheduled_action'
                 ])
                 updated_count += 1

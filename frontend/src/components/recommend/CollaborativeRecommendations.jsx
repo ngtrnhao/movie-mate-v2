@@ -1,17 +1,17 @@
 import { useRef, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import {
-  getPersonalizedRecommendations,
+  getCollaborativeRecommendations,
   trackRecommendationInteraction,
 } from '../../api/recommendationService';
 import MovieCard from '../movies/movie-card';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const MOVIES_PER_VIEW = 5;
-const CARD_WIDTH = 270; // px (desktop)
+const CARD_WIDTH = 270;
 const SCROLL_AMOUNT = MOVIES_PER_VIEW * CARD_WIDTH + (MOVIES_PER_VIEW - 1) * 28;
 
-const RecommendForYou = () => {
+const CollaborativeRecommendations = () => {
   const scrollRef = useRef(null);
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ const RecommendForYou = () => {
 
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
 
-  // Fetch recommendations
+  // Fetch collaborative recommendations
   useEffect(() => {
     const fetchRecommendations = async () => {
       if (!isAuthenticated) {
@@ -32,16 +32,16 @@ const RecommendForYou = () => {
         setLoading(true);
         setError(null);
 
-        const response = await getPersonalizedRecommendations(20, 'homepage');
+        const response = await getCollaborativeRecommendations(20);
 
         if (response.status === 'success' && response.data?.recommendations) {
           setRecommendations(response.data.recommendations);
         } else {
-          setError('No recommendations available');
+          setError('No collaborative recommendations available');
         }
       } catch (err) {
-        console.error('Error fetching recommendations:', err);
-        setError(err.message || 'Failed to load recommendations');
+        console.error('Error fetching collaborative recommendations:', err);
+        setError(err.message || 'Failed to load collaborative recommendations');
       } finally {
         setLoading(false);
       }
@@ -74,7 +74,12 @@ const RecommendForYou = () => {
   // Handle movie click
   const handleMovieClick = async movie => {
     try {
-      await trackRecommendationInteraction(movie.id, 'click', 'personalized', 'homepage');
+      await trackRecommendationInteraction(
+        movie.id,
+        'click',
+        'collaborative_filtering',
+        'homepage'
+      );
     } catch (error) {
       console.error('Error tracking movie click:', error);
     }
@@ -85,7 +90,12 @@ const RecommendForYou = () => {
     return (
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
-          <h2 className="mb-6 text-2xl font-semibold text-white">Recommended for You</h2>
+          <h2 className="mb-6 text-2xl font-semibold text-white">
+            <span className="text-blue-500">🤝</span> Collaborative Recommendations
+          </h2>
+          <p className="mb-4 text-sm text-gray-400">
+            Based on users with similar taste preferences
+          </p>
           <div className="flex justify-center py-8">
             <LoadingSpinner />
           </div>
@@ -99,12 +109,17 @@ const RecommendForYou = () => {
     return (
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
-          <h2 className="mb-6 text-2xl font-semibold text-white">Recommended for You</h2>
+          <h2 className="mb-6 text-2xl font-semibold text-white">
+            <span className="text-blue-500">🤝</span> Collaborative Recommendations
+          </h2>
+          <p className="mb-4 text-sm text-gray-400">
+            Based on users with similar taste preferences
+          </p>
           <div className="text-center py-8">
             <p className="text-gray-400">{error}</p>
             {!isAuthenticated && (
               <p className="text-sm text-gray-500 mt-2">
-                Sign in to get personalized recommendations
+                Sign in to get collaborative recommendations
               </p>
             )}
           </div>
@@ -118,12 +133,17 @@ const RecommendForYou = () => {
     return (
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
-          <h2 className="mb-6 text-2xl font-semibold text-white">Recommended for You</h2>
+          <h2 className="mb-6 text-2xl font-semibold text-white">
+            <span className="text-blue-500">🤝</span> Collaborative Recommendations
+          </h2>
+          <p className="mb-4 text-sm text-gray-400">
+            Based on users with similar taste preferences
+          </p>
           <div className="text-center py-8">
             <p className="text-gray-400">
               {!isAuthenticated
-                ? 'Sign in to get personalized recommendations'
-                : 'No recommendations available yet. Try rating some movies!'}
+                ? 'Sign in to get collaborative recommendations'
+                : 'No collaborative recommendations available yet. Try rating some movies!'}
             </p>
           </div>
         </div>
@@ -134,7 +154,10 @@ const RecommendForYou = () => {
   return (
     <section className="w-full py-8">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
-        <h2 className="mb-6 text-2xl font-semibold text-white">Recommended for You</h2>
+        <h2 className="mb-6 text-2xl font-semibold text-white">
+          <span className="text-blue-500">🤝</span> Collaborative Recommendations
+        </h2>
+        <p className="mb-4 text-sm text-gray-400">Based on users with similar taste preferences</p>
 
         <div className="relative">
           {/* Navigation buttons */}
@@ -200,7 +223,7 @@ const RecommendForYou = () => {
                     });
                   }}
                   className={`h-2 w-2 rounded-full transition ${
-                    index === currentIndex ? 'bg-yellow-500' : 'bg-gray-600'
+                    index === currentIndex ? 'bg-blue-500' : 'bg-gray-600'
                   }`}
                 />
               )
@@ -212,4 +235,4 @@ const RecommendForYou = () => {
   );
 };
 
-export default RecommendForYou;
+export default CollaborativeRecommendations;

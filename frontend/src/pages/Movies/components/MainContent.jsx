@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 // Import existing components to reuse
 import CastSection from '../../../components/movies/movie-details/CastSection';
 import MovieReviewSection from './MovieReviewSection';
+import ProductionCompanies from '../../../components/movies/ProductionCompanies';
 
 const MainContent = ({
   movie,
@@ -240,24 +241,11 @@ const TechnicalSection = ({ movie }) => {
         {/* Production Companies - Enhanced display */}
         {movie.production_info?.production_companies?.length > 0 && (
           <div className="rounded-lg bg-gray-800/50 p-3 sm:p-4">
-            <h4 className="mb-2 text-sm font-semibold text-gray-300 sm:text-base">
-              {t('details.production')}
-            </h4>
-            <div className="flex flex-wrap gap-1">
-              {movie.production_info.production_companies.slice(0, 4).map((company, index) => (
-                <span
-                  key={index}
-                  className="rounded bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm"
-                >
-                  {company.name || company}
-                </span>
-              ))}
-              {movie.production_info.production_companies.length > 4 && (
-                <span className="rounded bg-white/20 px-2 py-1 text-xs font-medium backdrop-blur-sm">
-                  +{movie.production_info.production_companies.length - 4} more
-                </span>
-              )}
-            </div>
+            <ProductionCompanies
+              companies={movie.production_info.production_companies}
+              maxDisplay={4}
+              showDetails={false}
+            />
           </div>
         )}
       </div>

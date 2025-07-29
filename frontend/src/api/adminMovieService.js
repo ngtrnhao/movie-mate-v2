@@ -377,9 +377,41 @@ export const scheduleMovieVisibility = async (movieId, scheduleData) => {
   }
 };
 
-export const getScheduledActions = async () => {};
-export const cancelScheduledAction = async () => {};
-export const scheduleMovieAction = async () => {};
+/**
+ * Get all scheduled actions for movies
+ */
+export const getScheduledActions = async () => {
+  try {
+    const response = await axiosInstance.get('/api/admin/movies/scheduled_actions/');
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'fetch scheduled actions');
+  }
+};
+
+/**
+ * Cancel a scheduled action
+ */
+export const cancelScheduledAction = async actionId => {
+  try {
+    const response = await axiosInstance.delete(`/api/admin/movies/scheduled_actions/${actionId}/`);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'cancel scheduled action');
+  }
+};
+
+/**
+ * Schedule a movie action (publish, unpublish, feature, etc.)
+ */
+export const scheduleMovieAction = async scheduleData => {
+  try {
+    const response = await axiosInstance.post('/api/admin/movies/schedule_action/', scheduleData);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'schedule movie action');
+  }
+};
 
 // === QUALITY MANAGEMENT ===
 

@@ -239,33 +239,31 @@ class UserFavoriteMovie(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.movie.title}"
 
-# UserMovieRating model has been deprecated and unified into MovieReview
-# All user ratings are now handled through movies.MovieReview with review_type='USER'
 
-class Comment(models.Model):
-    user = models.ForeignKey(User,on_delete=models.CASCADE)
-    movie = models.ForeignKey('movies.Movie',on_delete=models.CASCADE)
-    parent = models.ForeignKey('self', on_delete=models.CASCADE,null=True,blank=True)
-    content = models.TextField()
-    likes = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    class Meta:
-        db_table = 'users_comment'
-        indexes = [
-            models.Index(fields=['user']),
-            models.Index(fields=['movie']),
-            models.Index(fields=['parent']),
-        ]
+# class Comment(models.Model):
+#     user = models.ForeignKey(User,on_delete=models.CASCADE)
+#     movie = models.ForeignKey('movies.Movie',on_delete=models.CASCADE)
+#     parent = models.ForeignKey('self', on_delete=models.CASCADE,null=True,blank=True)
+#     content = models.TextField()
+#     likes = models.IntegerField(default=0)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+#     class Meta:
+#         db_table = 'users_comment'
+#         indexes = [
+#             models.Index(fields=['user']),
+#             models.Index(fields=['movie']),
+#             models.Index(fields=['parent']),
+#         ]
 
-class CommentLike(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+# class CommentLike(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
+#     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        db_table = 'users_commentlike'
-        unique_together = ('user','comment')
+#     class Meta:
+#         db_table = 'users_commentlike'
+#         unique_together = ('user','comment')
 
 class Watchlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -322,20 +320,20 @@ class SearchHistory(models.Model):
             models.Index(fields=['user', 'created_at']),
         ]
 
-class UserActivityLog(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    activity_type = models.CharField(max_length=50)
-    activity_data = models.JSONField()
-    ip_address = models.GenericIPAddressField()
-    user_agent = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
+# class UserActivityLog(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     activity_type = models.CharField(max_length=50)
+#     activity_data = models.JSONField()
+#     ip_address = models.GenericIPAddressField()
+#     user_agent = models.TextField()
+#     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        db_table = 'users_useractivitylog'
-        indexes = [
-            models.Index(fields=['user', 'activity_type']),
-            models.Index(fields=['created_at']),
-        ]
+#     class Meta:
+#         db_table = 'users_useractivitylog'
+#         indexes = [
+#             models.Index(fields=['user', 'activity_type']),
+#             models.Index(fields=['created_at']),
+#         ]
 
 class EmailVerificationToken(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

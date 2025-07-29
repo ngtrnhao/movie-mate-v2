@@ -146,10 +146,10 @@ def update_user_similarities_batch():
     try:
         collaborative_service = CollaborativeFilteringService()
 
-        # Get users with ratings
+        # Get users with ratings - Fixed field name from 'reviews' to 'moviereview'
         users_with_ratings = User.objects.filter(
-            reviews__review_type='USER',
-            reviews__rating__isnull=False
+            moviereview__review_type='USER',
+            moviereview__rating__isnull=False
         ).distinct()
 
         batch_size = 50

@@ -1,11 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import {
-  fetchPersonalizedRecommendations,
-  fetchCollaborativeRecommendations,
-  fetchDemographicRecommendations,
-  fetchHybridRecommendations,
-  submitRecommendationFeedback,
-  fetchUserRecommendationProfile,
+  getPersonalizedRecommendations,
+  getCollaborativeRecommendations,
+  getDemographicRecommendations,
+  getRecommendationsWithFallback,
+  trackRecommendationInteraction,
+  getUserPreferences,
 } from '../../api/recommendationService';
 
 // Async thunks for recommendation actions
@@ -13,7 +13,7 @@ export const loadPersonalizedRecommendations = createAsyncThunk(
   'recommendations/loadPersonalized',
   async ({ context = 'homepage', limit = 20, refresh = false }, { rejectWithValue }) => {
     try {
-      const response = await fetchPersonalizedRecommendations({ context, limit, refresh });
+      const response = await getPersonalizedRecommendations(limit, context);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to load recommendations' });
@@ -25,7 +25,7 @@ export const loadCollaborativeRecommendations = createAsyncThunk(
   'recommendations/loadCollaborative',
   async ({ context = 'homepage', limit = 20, refresh = false }, { rejectWithValue }) => {
     try {
-      const response = await fetchCollaborativeRecommendations({ context, limit, refresh });
+      const response = await getCollaborativeRecommendations(limit);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -39,7 +39,7 @@ export const loadDemographicRecommendations = createAsyncThunk(
   'recommendations/loadDemographic',
   async ({ context = 'homepage', limit = 20, refresh = false }, { rejectWithValue }) => {
     try {
-      const response = await fetchDemographicRecommendations({ context, limit, refresh });
+      const response = await getDemographicRecommendations(limit);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -53,7 +53,7 @@ export const loadHybridRecommendations = createAsyncThunk(
   'recommendations/loadHybrid',
   async ({ context = 'homepage', limit = 20, refresh = false }, { rejectWithValue }) => {
     try {
-      const response = await fetchHybridRecommendations({ context, limit, refresh });
+      const response = await getRecommendationsWithFallback('personalized', limit, context);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -67,14 +67,13 @@ export const submitFeedback = createAsyncThunk(
   'recommendations/submitFeedback',
   async ({ movieId, recommendationType, context, feedbackType, action }, { rejectWithValue }) => {
     try {
-      const response = await submitRecommendationFeedback({
-        movie_id: movieId,
-        recommendation_type: recommendationType,
-        context,
-        feedback_type: feedbackType,
+      const response = await trackRecommendationInteraction(
+        movieId,
         action,
-      });
-      return { movieId, feedbackType, action, ...response.data };
+        recommendationType,
+        context
+      );
+      return { movieId, feedbackType, action, ...response };
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to submit feedback' });
     }
@@ -85,7 +84,7 @@ export const loadUserProfile = createAsyncThunk(
   'recommendations/loadUserProfile',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetchUserRecommendationProfile();
+      const response = await getUserPreferences();
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to load user profile' });

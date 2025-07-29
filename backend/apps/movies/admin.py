@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.db.models import Count, Avg
 from .models import (
     Movie, MovieReview, MovieRating, MovieCast, MovieTrailer,
-    MovieImage, MovieNews, MovieBoxOffice, MovieAward, MovieMetadata,
+    MovieImage, MovieBoxOffice, MovieMetadata,
     MovieGenre, ReviewVote, ReviewReport, ModerationConfig, ModerationFeedback
 )
 
@@ -179,7 +179,7 @@ class MovieReviewAdmin(admin.ModelAdmin):
         }),
         ('External Source', {
             'fields': (
-                'external_review_id', 'source', 'source_url', 'external_published_at'
+                'external_review_id', 'source', 'external_published_at'
             ),
             'classes': ('collapse',)
         }),
@@ -202,9 +202,9 @@ admin.site.register(MovieRating)
 admin.site.register(MovieCast)
 admin.site.register(MovieTrailer)
 admin.site.register(MovieImage)
-admin.site.register(MovieNews)
+# admin.site.register(MovieNews)
 admin.site.register(MovieBoxOffice)
-admin.site.register(MovieAward)
+# admin.site.register(MovieAward)
 admin.site.register(MovieMetadata)
 admin.site.register(MovieGenre)
 admin.site.register(ReviewVote)

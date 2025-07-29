@@ -2,6 +2,9 @@ import HeroBannerRecommendation from './HeroBanner';
 import MovieCarousel from '../../components/movies/movie-carousel';
 import FeaturedCategories from '../../components/categories/featured-categories';
 import RecommendForYou from '../../components/recommend/recommend-for-you';
+import CollaborativeRecommendations from '../../components/recommend/CollaborativeRecommendations';
+import DemographicRecommendations from '../../components/recommend/DemographicRecommendations';
+import ContentBasedRecommendations from '../../components/recommend/ContentBasedRecommendations';
 import MovieBuzzSection from '../../components/reviewed/MovieBuzzSection';
 import TopRatedGrid from '../../components/movies/movie-grid/TopRatedGrid';
 import FindSimilarMovies from '../../components/recommendation-tools/SimilarityFinder';
@@ -41,7 +44,14 @@ const HomePage = () => {
         <AdContent position="TOP" />
       </AdWrapper> */}
 
+      {/* Hybrid Recommendations (Personalized) */}
       <RecommendForYou />
+
+      {/* Individual Algorithm Recommendations */}
+      <CollaborativeRecommendations />
+      <DemographicRecommendations />
+      <ContentBasedRecommendations />
+
       <TopRatedGrid />
       <TopGenreRecommendations />
 

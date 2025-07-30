@@ -48,7 +48,7 @@ class Command(BaseCommand):
             '--batch-size',
             type=int,
             default=1000,
-            help='Batch size for processing'
+            help='Batch size for processing (recommended: 100-1000, avoid very small values like 10)'
         )
         parser.add_argument(
             '--dry-run',
@@ -69,6 +69,15 @@ class Command(BaseCommand):
         batch_size = options['batch_size']
         dry_run = options['dry_run']
         skip_existing = options['skip_existing']
+
+        # Warn about small batch sizes
+        if batch_size < 50:
+            self.stdout.write(
+                self.style.WARNING(
+                    f'WARNING: Batch size {batch_size} is very small. This may cause performance issues. '
+                    f'Recommended batch size is 100-1000.'
+                )
+            )
 
         if dry_run:
             self.stdout.write(
@@ -474,10 +483,22 @@ class Command(BaseCommand):
         """Process a batch of user data"""
         created_count = 0
 
-        with transaction.atomic():
-            for user_data in batch_data:
-                try:
+        # Process each user individually to avoid transaction issues
+        for user_data in batch_data:
+            try:
+                with transaction.atomic():
                     profile_data = user_data.pop('profile_data')
+
+                    # Ensure unique email by adding timestamp if needed
+                    original_email = user_data['email']
+                    counter = 0
+                    while User.objects.filter(email=user_data['email']).exists():
+                        counter += 1
+                        user_data['email'] = f"{original_email.split('@')[0]}_{counter}@{original_email.split('@')[1]}"
+
+                    # Generate a secure password for MovieLens users
+                    if 'password' not in user_data:
+                        user_data['password'] = User.objects.make_random_password(length=12)
 
                     if skip_existing:
                         user, created = User.objects.get_or_create(
@@ -486,19 +507,37 @@ class Command(BaseCommand):
                         )
                         if created:
                             created_count += 1
+                            # Update user profile fields if they exist
+                            if profile_data.get('gender'):
+                                user.gender = profile_data['gender']
+                            if profile_data.get('age_group'):
+                                user.age_group = profile_data['age_group']
+                            if profile_data.get('occupation'):
+                                user.occupation = profile_data['occupation']
+                            if profile_data.get('zipcode'):
+                                user.zip_code = profile_data['zipcode']
+                            user.save()
                     else:
                         user = User.objects.create(**user_data)
                         created_count += 1
+                        # Update user profile fields if they exist
+                        if profile_data.get('gender'):
+                            user.gender = profile_data['gender']
+                        if profile_data.get('age_group'):
+                            user.age_group = profile_data['age_group']
+                        if profile_data.get('occupation'):
+                            user.occupation = profile_data['occupation']
+                        if profile_data.get('zipcode'):
+                            user.zip_code = profile_data['zipcode']
+                        user.save()
 
-                    # Store profile data (implement based on your user profile model)
-                    # For now, we'll skip profile data storage
-                    # You can extend this based on your UserProfile model
-
-                except IntegrityError:
-                    continue
-                except Exception as e:
-                    logger.error(f'Error creating user: {str(e)}')
-                    continue
+            except IntegrityError as e:
+                # User already exists, skip
+                logger.debug(f'User already exists: {user_data.get("username", "unknown")} - {str(e)}')
+                continue
+            except Exception as e:
+                logger.error(f'Error creating user: {str(e)}')
+                continue
 
         return created_count
 
@@ -763,9 +802,10 @@ class Command(BaseCommand):
         """Process a batch of rating data"""
         created_count = 0
 
-        with transaction.atomic():
-            for review_data in batch_data:
-                try:
+        # Process each rating individually to avoid transaction issues
+        for review_data in batch_data:
+            try:
+                with transaction.atomic():
                     if skip_existing:
                         review, created = MovieReview.objects.get_or_create(
                             user=review_data['user'],
@@ -779,10 +819,11 @@ class Command(BaseCommand):
                         MovieReview.objects.create(**review_data)
                         created_count += 1
 
-                except IntegrityError:
-                    continue
-                except Exception as e:
-                    logger.error(f'Error creating review: {str(e)}')
-                    continue
+            except IntegrityError:
+                # Review already exists, skip
+                continue
+            except Exception as e:
+                logger.error(f'Error creating review: {str(e)}')
+                continue
 
         return created_count

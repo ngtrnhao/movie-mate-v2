@@ -504,8 +504,203 @@ class EnhancedDemographicFilteringService:
         self.cache_timeout = 3600
         self.vectorizer = AdvancedDemographicVectorizer()
         self.similarity_calculator = AdvancedDemographicSimilarityCalculator(self.vectorizer)
-        self.min_similar_users = 10
+        self.min_similar_users = 1  # Giảm từ 3 xuống 1 để DF có thể hoạt động
         self.similarity_threshold = 0.1
+        self.kmeans_model = None
+        self.use_kmeans_clustering = True  # Flag to enable/disable K-means
+
+    def create_kmeans_clusters(self, recalculate=False, n_clusters=8):
+        """
+        Create demographic clusters using K-means clustering
+        """
+        try:
+            if not SKLEARN_AVAILABLE:
+                logger.warning("Scikit-learn not available. Using rule-based clustering.")
+                return self.create_demographic_clusters(recalculate)
+
+            if not recalculate and DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').exists():
+                logger.info("K-means clusters already exist")
+                return
+
+            logger.info(f"🔄 Creating K-means clusters with {n_clusters} clusters...")
+
+            # Clear existing K-means clusters if recalculating
+            if recalculate:
+                DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').delete()
+
+            # Get users with demographic data
+            users_with_data = User.objects.filter(
+                age__isnull=False,
+                gender__isnull=False
+            ).exclude(age__isnull=True)
+
+            if users_with_data.count() < n_clusters * 5:
+                logger.warning(f"Not enough users for {n_clusters} clusters. Using rule-based clustering.")
+                return self.create_demographic_clusters(recalculate)
+
+            # Create demographic vectors for all users
+            user_vectors = []
+            users_list = []
+
+            logger.info(f"📊 Creating demographic vectors for {users_with_data.count()} users...")
+
+            for user in users_with_data:
+                try:
+                    vector = self.vectorizer.create_demographic_vector(user)
+                    user_vectors.append(vector)
+                    users_list.append(user)
+                except Exception as e:
+                    logger.warning(f"Error creating vector for user {user.id}: {str(e)}")
+                    continue
+
+            if len(user_vectors) < n_clusters * 3:
+                logger.warning("Not enough valid vectors for K-means clustering")
+                return self.create_demographic_clusters(recalculate)
+
+            # Convert to numpy array
+            X = np.array(user_vectors)
+
+            # Standardize features
+            from sklearn.preprocessing import StandardScaler
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+
+            # Perform K-means clustering
+            logger.info("🤖 Running K-means clustering...")
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            cluster_labels = kmeans.fit_predict(X_scaled)
+
+            # Store the model for future use
+            self.kmeans_model = kmeans
+            self.scaler = scaler
+
+            # Create clusters in database
+            logger.info("💾 Creating cluster records in database...")
+
+            for cluster_id in range(n_clusters):
+                # Get users in this cluster
+                cluster_users = [users_list[i] for i in range(len(users_list)) if cluster_labels[i] == cluster_id]
+
+                if len(cluster_users) < 3:  # Skip very small clusters
+                    continue
+
+                # Calculate cluster characteristics
+                ages = [user.age for user in cluster_users if user.age]
+                genders = [user.gender for user in cluster_users if user.gender]
+                occupations = [user.occupation for user in cluster_users if user.occupation]
+
+                # Most common gender
+                from collections import Counter
+                gender_counts = Counter(genders)
+                primary_gender = gender_counts.most_common(1)[0][0] if gender_counts else 'M'
+
+                # Age range
+                age_min = min(ages) if ages else 0
+                age_max = max(ages) if ages else 100
+
+                # Calculate genre preferences for this cluster
+                genre_preferences = self._calculate_cluster_genre_preferences(cluster_users)
+
+                # Calculate average rating
+                rating_stats = MovieReview.objects.filter(
+                    user__in=cluster_users,
+                    review_type='USER',
+                    rating__isnull=False
+                ).aggregate(
+                    avg_rating=Avg('rating'),
+                    count=Count('rating')
+                )
+
+                # Create cluster record
+                cluster = DemographicCluster.objects.create(
+                    cluster_id=f"kmeans_{cluster_id}",
+                    name=f"K-means Cluster {cluster_id}",
+                    description=f"K-means cluster {cluster_id}: {len(cluster_users)} users, age {age_min}-{age_max}, gender {primary_gender}",
+                    age_range_min=age_min,
+                    age_range_max=age_max,
+                    primary_gender=primary_gender,
+                    common_occupations=list(set(occupations))[:5],  # Top 5 occupations
+                    preferred_genres=genre_preferences,
+                    average_rating=rating_stats['avg_rating'] or 3.0,
+                    user_count=len(cluster_users)
+                )
+
+                # Assign users to this cluster
+                for user in cluster_users:
+                    user_pref, created = UserPreference.objects.get_or_create(user=user)
+                    user_pref.demographic_cluster = f"kmeans_{cluster_id}"
+                    user_pref.save()
+
+            logger.info(f"✅ Created {n_clusters} K-means clusters successfully")
+
+        except Exception as e:
+            logger.error(f"Error creating K-means clusters: {str(e)}")
+            # Fallback to rule-based clustering
+            return self.create_demographic_clusters(recalculate)
+
+    def get_user_kmeans_cluster(self, user) -> Optional[any]:
+        """
+        Get K-means cluster for a user using the trained model
+        """
+        try:
+            if not self.kmeans_model or not SKLEARN_AVAILABLE:
+                return self.get_user_demographic_cluster(user)
+
+            # Check if user already has a K-means cluster assigned
+            user_pref = UserPreference.objects.filter(user=user).first()
+            if user_pref and user_pref.demographic_cluster and user_pref.demographic_cluster.startswith('kmeans_'):
+                return DemographicCluster.objects.filter(
+                    cluster_id=user_pref.demographic_cluster
+                ).first()
+
+            # Create user vector and predict cluster
+            if user.age and user.gender:
+                user_vector = self.vectorizer.create_demographic_vector(user)
+                if user_vector is not None:
+                    # Ensure consistent dtype
+                    user_vector = np.array(user_vector, dtype=np.float64)
+                    user_vector_scaled = self.scaler.transform([user_vector])
+                    cluster_label = self.kmeans_model.predict(user_vector_scaled)[0]
+
+                # Find or create cluster
+                cluster = DemographicCluster.objects.filter(
+                    cluster_id=f"kmeans_{cluster_label}"
+                ).first()
+
+                if cluster:
+                    # Update user preference
+                    user_pref, created = UserPreference.objects.get_or_create(user=user)
+                    user_pref.demographic_cluster = f"kmeans_{cluster_label}"
+                    user_pref.save()
+
+                    return cluster
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting user K-means cluster: {str(e)}")
+            return self.get_user_demographic_cluster(user)
+
+    def refresh_clusters(self, method='kmeans', recalculate=True, n_clusters=8):
+        """
+        Refresh demographic clusters using specified method
+
+        Args:
+            method: 'kmeans' or 'rule-based'
+            recalculate: Whether to recalculate existing clusters
+            n_clusters: Number of clusters for K-means
+        """
+        try:
+            logger.info(f"🔄 Refreshing demographic clusters using {method} method...")
+
+            if method == 'kmeans':
+                return self.create_kmeans_clusters(recalculate=recalculate, n_clusters=n_clusters)
+            else:
+                return self.create_demographic_clusters(recalculate=recalculate)
+
+        except Exception as e:
+            logger.error(f"Error refreshing clusters: {str(e)}")
+            raise
 
     def create_demographic_clusters(self, recalculate=False):
         """
@@ -945,7 +1140,7 @@ class EnhancedDemographicFilteringService:
 
                 logger.info(f"No cluster found, using {len(users_with_demographics)} users with similar demographics and ratings")
 
-            if not users_with_demographics.exists():
+            if not users_with_demographics:
                 logger.warning("No users with demographic data found")
                 return []
 
@@ -1482,7 +1677,7 @@ class AdvancedDemographicVectorizer:
         behavioral_vector = self._encode_behavioral_features(user)
         features.extend(behavioral_vector)
 
-        return np.array(features, dtype=np.float32)
+        return np.array(features, dtype=np.float64)
 
     def _encode_age_bins(self, age) -> List[float]:
         """Encode age into bins using one-hot encoding"""
@@ -1564,13 +1759,14 @@ class AdvancedDemographicVectorizer:
                     mapped_location = location_str.replace(country_name.upper(), country_code)
                     break
 
-            # Check regions with word-based matching
+            # Check regions with improved matching
             import re
-            location_words = re.findall(r'\b\w+\b', mapped_location)
+            # Split by spaces and remove punctuation, then filter out empty strings
+            location_words = [word.strip() for word in re.split(r'[,\s]+', mapped_location) if word.strip()]
 
             for i, (region, countries) in enumerate(self.location_regions.items()):
                 for country in countries:
-                    if country in location_words:  # Word-based matching instead of substring
+                    if country in location_words:  # Word-based matching
                         location_vector[i] = 1.0
                         return location_vector
 

@@ -30,8 +30,28 @@ def generate_user_recommendations_async(self, user_id: int, context: str = 'home
         user = User.objects.get(id=user_id)
 
         # Check if user has complete profile
-        if not user.age or not user.gender:
-            logger.info(f"User {user_id} has incomplete profile - skipping recommendation generation")
+        has_complete_profile = (
+            user.age and
+            user.gender and
+            user.occupation and
+            user.location and
+            user.user_type
+        )
+
+        if not has_complete_profile:
+            missing_fields = []
+            if not user.age:
+                missing_fields.append('age')
+            if not user.gender:
+                missing_fields.append('gender')
+            if not user.occupation:
+                missing_fields.append('occupation')
+            if not user.location:
+                missing_fields.append('location')
+            if not user.user_type:
+                missing_fields.append('user_type')
+
+            logger.info(f"User {user_id} has incomplete profile - missing: {missing_fields} - skipping recommendation generation")
             return []
 
         # Clear existing recommendations for this user and context
@@ -200,13 +220,40 @@ def refresh_demographic_clusters(self):
     try:
         logger.info("🔄 Starting demographic cluster refresh...")
 
-        # This would typically involve recalculating demographic clusters
-        # For now, we'll just log that it's running
-        logger.info("✅ Demographic cluster refresh completed (placeholder)")
+        from apps.recommendations.services import EnhancedDemographicFilteringService
+
+        # Initialize service
+        demographic_service = EnhancedDemographicFilteringService()
+
+        # Get current statistics
+        from apps.users.models import User
+        from apps.recommendations.models import DemographicCluster
+
+        total_users = User.objects.count()
+        users_with_demographics = User.objects.filter(
+            age__isnull=False,
+            gender__isnull=False
+        ).count()
+        current_clusters = DemographicCluster.objects.count()
+
+        logger.info(f"📊 Current statistics: {total_users} users, {users_with_demographics} with demographics, {current_clusters} clusters")
+
+        # Create K-means clusters
+        logger.info("🤖 Creating K-means clusters...")
+        demographic_service.create_kmeans_clusters(recalculate=True, n_clusters=8)
+
+        # Get updated statistics
+        new_clusters = DemographicCluster.objects.count()
+        kmeans_clusters = DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').count()
+
+        logger.info(f"✅ Created {kmeans_clusters} K-means clusters (total: {new_clusters})")
 
         return {
             'status': 'success',
-            'message': 'Demographic clusters refreshed'
+            'message': f'Demographic clusters refreshed: {kmeans_clusters} K-means clusters created',
+            'total_clusters': new_clusters,
+            'kmeans_clusters': kmeans_clusters,
+            'users_processed': users_with_demographics
         }
 
     except Exception as e:

@@ -7,6 +7,10 @@ import json
 
 User = get_user_model()
 
+def get_default_expires_at():
+    """Return default expiration time (7 days from now)"""
+    return timezone.now() + timedelta(days=7)
+
 class UserPreference(models.Model):
     """
     Model to store user preferences and characteristics for recommendation
@@ -230,7 +234,7 @@ class RecommendationResult(models.Model):
 
     # TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(default=timezone.now() + timedelta(days=7))
+    expires_at = models.DateTimeField(default=get_default_expires_at)
 
     class Meta:
         db_table = "recommendations_result"

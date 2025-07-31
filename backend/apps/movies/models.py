@@ -345,13 +345,13 @@ class Movie(models.Model):
                 self.cached_tmdb_rating = rating.tmdb_rating
                 self.cached_tmdb_votes = rating.tmdb_votes
 
-                # Use single rating as combined score (priority: IMDB > TMDB > RT)
+                # Use single rating as combined score (priority: IMDB > TMDB)
                 if rating.imdb_rating:
                     self.combined_rating_score = rating.imdb_rating
                 elif rating.tmdb_rating:
                     self.combined_rating_score = rating.tmdb_rating
-                elif rating.rotten_tomatoes_rating:
-                    self.combined_rating_score = rating.rotten_tomatoes_rating
+                # elif rating.rotten_tomatoes_rating:  # COMMENTED: No data in database
+                #     self.combined_rating_score = rating.rotten_tomatoes_rating
                 else:
                     self.combined_rating_score = None
 
@@ -568,19 +568,19 @@ class MovieRating(models.Model):
         max_digits=3, decimal_places=1, null=True, blank=True
     )
     imdb_votes = models.IntegerField(null=True, blank=True)
-    metacritic_rating = models.IntegerField(null=True, blank=True)
-    rotten_tomatoes_rating = models.DecimalField(
-        max_digits=3, decimal_places=1, null=True, blank=True
-    )
-    rotten_tomatoes_votes = models.IntegerField(null=True, blank=True)
+    # metacritic_rating = models.IntegerField(null=True, blank=True)  # COMMENTED: No data in database
+    # rotten_tomatoes_rating = models.DecimalField(
+    #     max_digits=3, decimal_places=1, null=True, blank=True
+    # )  # COMMENTED: No data in database
+    # rotten_tomatoes_votes = models.IntegerField(null=True, blank=True)  # COMMENTED: No data in database
     tmdb_rating = models.DecimalField(
         max_digits=3, decimal_places=1, null=True, blank=True
     )
     tmdb_votes = models.IntegerField(null=True, blank=True)
-    film_affinity_rating = models.DecimalField(
-        max_digits=3, decimal_places=1, null=True, blank=True
-    )
-    film_affinity_votes = models.IntegerField(null=True, blank=True)
+    # film_affinity_rating = models.DecimalField(
+    #     max_digits=3, decimal_places=1, null=True, blank=True
+    # )  # COMMENTED: No data in database
+    # film_affinity_votes = models.IntegerField(null=True, blank=True)  # COMMENTED: No data in database
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -590,8 +590,8 @@ class MovieRating(models.Model):
             models.Index(fields=["movie"]),
             models.Index(fields=["imdb_rating"]),
             models.Index(fields=["imdb_votes"]),
-            models.Index(fields=["metacritic_rating"]),
-            models.Index(fields=["rotten_tomatoes_rating"]),
+            # models.Index(fields=["metacritic_rating"]),  # COMMENTED: No data in database
+            # models.Index(fields=["rotten_tomatoes_rating"]),  # COMMENTED: No data in database
             models.Index(fields=["tmdb_rating"]),
             models.Index(fields=["tmdb_votes"]),
             # Composite indexes for performance

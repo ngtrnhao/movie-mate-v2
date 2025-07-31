@@ -148,6 +148,37 @@ class RecommendationViewSet(viewsets.ViewSet):
             user = request.user
             limit = int(request.query_params.get('limit', 20))
 
+            # Check if user has complete demographic data
+            has_complete_demographic = (
+                user.age and
+                user.gender and
+                user.occupation and
+                user.location and
+                user.user_type
+            )
+
+            if not has_complete_demographic:
+                missing_fields = {
+                    'age': user.age is None,
+                    'gender': user.gender is None,
+                    'occupation': user.occupation is None,
+                    'location': user.location is None,
+                    'user_type': user.user_type is None
+                }
+
+                logger.warning(f"User {user.id} requested demographic recommendations but has incomplete profile - missing: {[k for k, v in missing_fields.items() if v]}")
+                return Response({
+                    'status': 'error',
+                    'message': 'Profile incomplete. Please complete your demographic information to receive personalized recommendations.',
+                    'data': {
+                        'recommendations': [],
+                        'method': 'demographic_filtering',
+                        'total': 0,
+                        'profile_complete': False,
+                        'missing_fields': missing_fields
+                    }
+                }, status=400)
+
             df_service = EnhancedDemographicFilteringService()
             recommendations = df_service.generate_enhanced_demographic_recommendations(
                 user, limit=limit, context='homepage', store=True

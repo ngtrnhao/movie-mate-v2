@@ -25,10 +25,28 @@ def setup_user_recommendation_profile(sender, instance, created, **kwargs):
         return
 
     # Only proceed if user has COMPLETE demographic data
-    has_complete_demographic_data = instance.age and instance.gender
+    has_complete_demographic_data = (
+        instance.age and
+        instance.gender and
+        instance.occupation and
+        instance.location and
+        instance.user_type
+    )
 
     if not has_complete_demographic_data:
-        logger.info(f"User {instance.id} profile incomplete (age: {instance.age}, gender: {instance.gender}) - no setup")
+        missing_fields = []
+        if not instance.age:
+            missing_fields.append('age')
+        if not instance.gender:
+            missing_fields.append('gender')
+        if not instance.occupation:
+            missing_fields.append('occupation')
+        if not instance.location:
+            missing_fields.append('location')
+        if not instance.user_type:
+            missing_fields.append('user_type')
+
+        logger.info(f"User {instance.id} profile incomplete - missing: {missing_fields} - no setup")
         return
 
     # Check if this is the first time user completes their profile
@@ -73,14 +91,31 @@ def setup_user_recommendation_profile(sender, instance, created, **kwargs):
             if pref_created:
                 logger.info(f"Created UserPreference for user {instance.id} after profile completion")
 
-            # Assign to demographic cluster
+            # Assign to demographic cluster - prefer K-means over rule-based
             demographic_service = EnhancedDemographicFilteringService()
-            cluster = demographic_service.assign_user_to_cluster(instance)
 
-            if cluster:
-                user_pref.demographic_cluster = cluster.cluster_id
-                user_pref.save()
-                logger.info(f"Assigned user {instance.id} to demographic cluster {cluster.cluster_id}")
+            # First try to get existing K-means cluster assignment
+            existing_cluster = None
+            if user_pref.demographic_cluster and user_pref.demographic_cluster.startswith('kmeans_'):
+                existing_cluster = demographic_service.get_user_kmeans_cluster(instance)
+
+            # If no existing K-means cluster, try to assign to K-means cluster
+            if not existing_cluster:
+                cluster = demographic_service.get_user_kmeans_cluster(instance)
+                if cluster:
+                    user_pref.demographic_cluster = cluster.cluster_id
+                    user_pref.save()
+                    logger.info(f"Assigned user {instance.id} to K-means cluster {cluster.cluster_id}")
+                else:
+                    # Only fall back to rule-based if no K-means cluster available
+                    cluster = demographic_service.assign_user_to_cluster(instance)
+                    if cluster:
+                        user_pref.demographic_cluster = cluster.cluster_id
+                        user_pref.save()
+                        logger.info(f"Assigned user {instance.id} to rule-based cluster {cluster.cluster_id}")
+            else:
+                # Keep existing K-means cluster assignment
+                logger.info(f"User {instance.id} already assigned to K-means cluster {existing_cluster.cluster_id}")
 
             # Generate initial recommendations
             logger.info(f"Scheduling initial hybrid recommendations for user {instance.id}")
@@ -132,5 +167,4 @@ def setup_user_recommendation_profile(sender, instance, created, **kwargs):
         logger.error(f"Error in profile completion setup for user {instance.id}: {str(e)}")
 
 
-# Remove the old update_demographic_cluster_on_profile_update signal
-# All logic is now handled in the single signal above
+

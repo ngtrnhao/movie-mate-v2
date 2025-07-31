@@ -79,13 +79,11 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
                 return {
                     'imdb': float(rating.imdb_rating) if rating.imdb_rating else None,
                     'imdb_votes': rating.imdb_votes,
-                    'metacritic': rating.metacritic_rating,
+                    # 'metacritic': rating.metacritic_rating,  # COMMENTED: No data in database
                     'tmdb': float(rating.tmdb_rating) if rating.tmdb_rating else None,
                     'tmdb_votes': rating.tmdb_votes,
-                    'rotten_tomatoes': float(rating.rotten_tomatoes_rating) if rating.rotten_tomatoes_rating else None,
-                    'rotten_tomatoes_votes': rating.rotten_tomatoes_votes,
-                    'film_affinity': float(rating.film_affinity_rating) if rating.film_affinity_rating else None,
-                    'film_affinity_votes': rating.film_affinity_votes
+                    # 'rotten_tomatoes': float(rating.rotten_tomatoes_rating) if rating.rotten_tomatoes_rating else None,  # COMMENTED: No data in database
+                    # 'film_affinity': float(rating.film_affinity_rating) if rating.film_affinity_rating else None,  # COMMENTED: No data in database
                 }
 
             # Fallback to database query (least efficient)
@@ -94,13 +92,11 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
                 return {
                     'imdb': float(rating.imdb_rating) if rating.imdb_rating else None,
                     'imdb_votes': rating.imdb_votes,
-                    'metacritic': rating.metacritic_rating,
+                    # 'metacritic': rating.metacritic_rating,  # COMMENTED: No data in database
                     'tmdb': float(rating.tmdb_rating) if rating.tmdb_rating else None,
                     'tmdb_votes': rating.tmdb_votes,
-                    'rotten_tomatoes': float(rating.rotten_tomatoes_rating) if rating.rotten_tomatoes_rating else None,
-                    'rotten_tomatoes_votes': rating.rotten_tomatoes_votes,
-                    'film_affinity': float(rating.film_affinity_rating) if rating.film_affinity_rating else None,
-                    'film_affinity_votes': rating.film_affinity_votes
+                    # 'rotten_tomatoes': float(rating.rotten_tomatoes_rating) if rating.rotten_tomatoes_rating else None,  # COMMENTED: No data in database
+                    # 'film_affinity': float(rating.film_affinity_rating) if rating.film_affinity_rating else None,  # COMMENTED: No data in database
                 }
         except (AttributeError, TypeError, ValueError) as e:
             logger.error(f"Error getting rating for movie {obj.id}: {str(e)}")
@@ -134,8 +130,8 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
                     raw_rating = float(rating.imdb_rating)
                 elif rating.tmdb_rating:
                     raw_rating = float(rating.tmdb_rating)
-                elif rating.rotten_tomatoes_rating:
-                    raw_rating = float(rating.rotten_tomatoes_rating)
+                # elif rating.rotten_tomatoes_rating:  # COMMENTED: No data in database
+                #     raw_rating = float(rating.rotten_tomatoes_rating)
 
             # Fallback to database query
             if raw_rating is None:
@@ -145,8 +141,8 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
                         raw_rating = float(rating.imdb_rating)
                     elif rating.tmdb_rating:
                         raw_rating = float(rating.tmdb_rating)
-                    elif rating.rotten_tomatoes_rating:
-                        raw_rating = float(rating.rotten_tomatoes_rating)
+                    # elif rating.rotten_tomatoes_rating:  # COMMENTED: No data in database
+                    #     raw_rating = float(rating.rotten_tomatoes_rating)
 
             # Convert from 10-star to 5-star scale
             if raw_rating is not None:
@@ -176,8 +172,8 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
                     total_votes += rating.imdb_votes
                 if rating.tmdb_votes:
                     total_votes += rating.tmdb_votes
-                if rating.rotten_tomatoes_votes:
-                    total_votes += rating.rotten_tomatoes_votes
+                # if rating.rotten_tomatoes_votes:  # COMMENTED: No data in database
+                #     total_votes += rating.rotten_tomatoes_votes
                 return total_votes if total_votes > 0 else None
 
             # Fallback to database query
@@ -188,8 +184,8 @@ class OptimizedMovieListSerializer(serializers.ModelSerializer):
                     total_votes += rating.imdb_votes
                 if rating.tmdb_votes:
                     total_votes += rating.tmdb_votes
-                if rating.rotten_tomatoes_votes:
-                    total_votes += rating.rotten_tomatoes_votes
+                # if rating.rotten_tomatoes_votes:  # COMMENTED: No data in database
+                #     total_votes += rating.rotten_tomatoes_votes
                 return total_votes if total_votes > 0 else None
         except (AttributeError, TypeError, ValueError) as e:
             logger.error(f"Error getting vote count for movie {obj.id}: {str(e)}")

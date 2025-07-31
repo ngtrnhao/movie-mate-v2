@@ -9,12 +9,7 @@ from typing import List, Dict
 import logging
 import time
 
-from apps.recommendations.advanced_demographic_filtering import (
-    AdvancedDemographicVectorizer,
-    DemographicSimilarityCalculator,
-    OptimizedDemographicMatrix,
-    EnhancedDemographicRecommendationService
-)
+from apps.recommendations.services import EnhancedDemographicFilteringService
 from apps.recommendations.models import DemographicCluster, RecommendationResult
 from apps.movies.models import MovieReview
 
@@ -176,7 +171,7 @@ class Command(BaseCommand):
         self.stdout.write("\n🔢 3. DEMO QUÁ TRÌNH VECTOR HÓA")
         self.stdout.write("-" * 50)
 
-        vectorizer = AdvancedDemographicVectorizer()
+        demographic_service = EnhancedDemographicFilteringService()
 
         # Get sample users
         sample_users = User.objects.filter(
@@ -188,32 +183,33 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("⚠️ Không có users với demographic data để demo"))
             return
 
-        self.stdout.write("👤 Sample Users và Vectors của họ:")
+        self.stdout.write("👤 Sample Users và Demographics:")
 
         for i, user in enumerate(sample_users, 1):
-            vector = vectorizer.create_demographic_vector(user)
-
             self.stdout.write(f"\n{i}. User ID: {user.id}")
             self.stdout.write(f"   Age: {user.age}, Gender: {user.gender}")
             self.stdout.write(f"   Occupation: {user.occupation or 'N/A'}")
             self.stdout.write(f"   Location: {user.location or 'N/A'}")
-            self.stdout.write(f"   Vector shape: {vector.shape}")
-            self.stdout.write(f"   Vector (first 10): {vector[:10]}")
 
-        # Show feature names
-        feature_names = vectorizer.get_feature_names()
-        self.stdout.write(f"\n📋 Total features: {len(feature_names)}")
-        self.stdout.write(f"🏷️ Feature categories: Age bins({len(vectorizer.age_bins)}), "
-                         f"Gender(3), Occupation({len(vectorizer.occupation_groups)}), "
-                         f"Location({len(vectorizer.location_regions)}), User type(4), Behavioral(4)")
+            # Get user's cluster if exists
+            try:
+                preference = user.recommendation_preference
+                if preference.demographic_cluster:
+                    self.stdout.write(f"   Cluster: {preference.demographic_cluster}")
+                else:
+                    self.stdout.write(f"   Cluster: Not assigned yet")
+            except UserPreference.DoesNotExist:
+                self.stdout.write(f"   Cluster: Not assigned yet")
+
+        self.stdout.write(f"\n📋 Demographic features: Age, Gender, Occupation, Location, Genre Preferences")
+        self.stdout.write(f"🏷️ Feature categories: Age bins, Gender(2), Occupation(15), Location, Behavioral")
 
     def demo_similarity_calculation(self):
         """Demo tính toán similarity giữa users"""
         self.stdout.write("\n🔗 4. DEMO TÍNH TOÁN SIMILARITY")
         self.stdout.write("-" * 50)
 
-        vectorizer = AdvancedDemographicVectorizer()
-        similarity_calculator = DemographicSimilarityCalculator(vectorizer)
+        demographic_service = EnhancedDemographicFilteringService()
 
         # Get sample users
         sample_users = User.objects.filter(
@@ -228,39 +224,33 @@ class Command(BaseCommand):
         self.stdout.write("🔍 Similarity giữa các users:")
 
         users_list = list(sample_users)
-        user_vectors = []
-
-        # Create vectors
-        for user in users_list:
-            vector = vectorizer.create_demographic_vector(user)
-            user_vectors.append(vector)
 
         # Calculate similarities
         for i in range(len(users_list)):
             for j in range(i + 1, len(users_list)):
                 user1, user2 = users_list[i], users_list[j]
-                vector1, vector2 = user_vectors[i], user_vectors[j]
 
-                # Different similarity methods
-                cosine_sim = similarity_calculator.calculate_cosine_similarity(vector1, vector2)
-                euclidean_sim = similarity_calculator.calculate_euclidean_similarity(vector1, vector2)
-                weighted_sim = similarity_calculator.calculate_weighted_similarity(user1, user2)
+                # Simple demographic similarity calculation
+                age_diff = abs(user1.age - user2.age) if user1.age and user2.age else 50
+                gender_same = 1 if user1.gender == user2.gender else 0
+                occupation_same = 1 if user1.occupation == user2.occupation else 0
+
+                # Calculate similarity score (0-1)
+                age_similarity = max(0, 1 - age_diff / 50)  # Age difference penalty
+                demographic_similarity = (age_similarity + gender_same + occupation_same) / 3
 
                 self.stdout.write(f"\n👥 User {user1.id} vs User {user2.id}:")
-                self.stdout.write(f"   Age: {user1.age} vs {user2.age}")
-                self.stdout.write(f"   Gender: {user1.gender} vs {user2.gender}")
-                self.stdout.write(f"   🔸 Cosine similarity: {cosine_sim:.3f}")
-                self.stdout.write(f"   🔹 Euclidean similarity: {euclidean_sim:.3f}")
-                self.stdout.write(f"   🔶 Weighted similarity: {weighted_sim:.3f}")
+                self.stdout.write(f"   Age: {user1.age} vs {user2.age} (diff: {age_diff})")
+                self.stdout.write(f"   Gender: {user1.gender} vs {user2.gender} (same: {gender_same})")
+                self.stdout.write(f"   Occupation: {user1.occupation} vs {user2.occupation} (same: {occupation_same})")
+                self.stdout.write(f"   🔸 Demographic similarity: {demographic_similarity:.3f}")
 
     def demo_similarity_matrix(self):
         """Demo xây dựng similarity matrix"""
         self.stdout.write("\n🏗️ 5. DEMO XÂY DỰNG SIMILARITY MATRIX")
         self.stdout.write("-" * 50)
 
-        vectorizer = AdvancedDemographicVectorizer()
-        similarity_calculator = DemographicSimilarityCalculator(vectorizer)
-        matrix_builder = OptimizedDemographicMatrix(vectorizer, similarity_calculator)
+        demographic_service = EnhancedDemographicFilteringService()
 
         # Get users with demographic data
         users_with_demographics = User.objects.filter(
@@ -271,16 +261,32 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("⚠️ Không có users với demographic data"))
             return
 
-        self.stdout.write(f"🔧 Building similarity matrix cho {len(users_with_demographics)} users...")
+        self.stdout.write(f"🔧 Analyzing demographic clusters cho {len(users_with_demographics)} users...")
 
         start_time = time.time()
-        similarity_matrix = matrix_builder.build_similarity_matrix_batch(users_with_demographics)
+
+        # Analyze cluster distribution
+        cluster_counts = {}
+        for user in users_with_demographics:
+            try:
+                preference = user.recommendation_preference
+                if preference.demographic_cluster:
+                    cluster = preference.demographic_cluster
+                    cluster_counts[cluster] = cluster_counts.get(cluster, 0) + 1
+            except UserPreference.DoesNotExist:
+                pass
+
         build_time = time.time() - start_time
 
-        self.stdout.write(f"✅ Matrix built in {build_time:.2f} seconds")
-        self.stdout.write(f"📐 Matrix shape: {similarity_matrix.shape}")
-        self.stdout.write(f"💾 Matrix density: {similarity_matrix.nnz / (similarity_matrix.shape[0] * similarity_matrix.shape[1]):.4f}")
-        self.stdout.write(f"🔢 Non-zero elements: {similarity_matrix.nnz}")
+        self.stdout.write(f"✅ Cluster analysis completed in {build_time:.2f} seconds")
+        self.stdout.write(f"📊 Total clusters found: {len(cluster_counts)}")
+
+        if cluster_counts:
+            self.stdout.write(f"📈 Cluster distribution:")
+            for cluster, count in sorted(cluster_counts.items()):
+                self.stdout.write(f"   {cluster}: {count} users")
+        else:
+            self.stdout.write(f"⚠️ No clusters found for these users")
 
     def demo_recommendations(self, user_id: int):
         """Demo generate recommendations cho user"""
@@ -311,53 +317,36 @@ class Command(BaseCommand):
         self.stdout.write(f"   Ratings given: {user_ratings}")
 
         # Generate recommendations
-        service = EnhancedDemographicRecommendationService()
+        service = EnhancedDemographicFilteringService()
 
-        self.stdout.write(f"\n🔄 Generating enhanced demographic recommendations...")
+        self.stdout.write(f"\n🔄 Generating demographic recommendations...")
 
         start_time = time.time()
-        recommendations = service.generate_enhanced_demographic_recommendations(
-            user, limit=10, context='demo'
-        )
-        generation_time = time.time() - start_time
+        try:
+            recommendations = service.generate_demographic_recommendations(user, limit=10)
+            generation_time = time.time() - start_time
 
-        self.stdout.write(f"✅ Generated {len(recommendations)} recommendations in {generation_time:.2f} seconds")
+            self.stdout.write(f"✅ Generated {len(recommendations)} recommendations in {generation_time:.2f} seconds")
 
-        if recommendations:
-            self.stdout.write(f"\n🎬 Top Recommendations:")
+            if recommendations:
+                self.stdout.write(f"\n🎬 Top Recommendations:")
 
-            # Get recommendation details from database
-            rec_results = RecommendationResult.objects.filter(
-                user=user,
-                recommendation_type='demographic',
-                context='demo'
-            ).order_by('rank')[:10]
-
-            for i, rec_result in enumerate(rec_results, 1):
-                movie = rec_result.movie
-                explanation = rec_result.explanation
-
-                self.stdout.write(f"\n{i}. {movie.title}")
-                self.stdout.write(f"   Score: {rec_result.score:.3f}")
-                self.stdout.write(f"   Confidence: {rec_result.confidence_score:.3f}")
-                self.stdout.write(f"   Predicted Rating: {rec_result.predicted_rating:.2f}")
-
-                if explanation:
-                    self.stdout.write(f"   Support: {explanation.get('support', 'N/A')}")
-                    self.stdout.write(f"   Avg Similarity: {explanation.get('avg_similarity', 'N/A'):.3f}")
-                    self.stdout.write(f"   Demographic Bonus: {explanation.get('demographic_bonus', 'N/A'):.3f}")
-        else:
-            self.stdout.write(self.style.WARNING("⚠️ Không generate được recommendations"))
+                for i, movie in enumerate(recommendations[:10], 1):
+                    self.stdout.write(f"\n{i}. {movie.title}")
+                    self.stdout.write(f"   Genres: {movie.genres or 'N/A'}")
+                    self.stdout.write(f"   ID: {movie.id}")
+                    self.stdout.write(f"   Status: {movie.status or 'N/A'}")
+            else:
+                self.stdout.write(self.style.WARNING("⚠️ Không generate được recommendations"))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ Error generating recommendations: {str(e)}"))
 
     def benchmark_performance(self):
         """Benchmark performance của hệ thống"""
         self.stdout.write("\n⚡ 7. BENCHMARK PERFORMANCE")
         self.stdout.write("-" * 50)
 
-        vectorizer = AdvancedDemographicVectorizer()
-        similarity_calculator = DemographicSimilarityCalculator(vectorizer)
-        matrix_builder = OptimizedDemographicMatrix(vectorizer, similarity_calculator)
-        service = EnhancedDemographicRecommendationService()
+        demographic_service = EnhancedDemographicFilteringService()
 
         # Get test users
         test_users = User.objects.filter(
@@ -370,24 +359,20 @@ class Command(BaseCommand):
 
         self.stdout.write(f"🧪 Benchmarking với {len(test_users)} users...")
 
-        # 1. Vectorization benchmark
+        # 1. Demographic analysis benchmark
         start_time = time.time()
-        vectors = []
         for user in test_users[:50]:  # 50 users
-            vector = vectorizer.create_demographic_vector(user)
-            vectors.append(vector)
-        vectorization_time = time.time() - start_time
+            try:
+                preference = user.recommendation_preference
+                if preference.demographic_cluster:
+                    pass  # Cluster exists
+            except UserPreference.DoesNotExist:
+                pass  # No preference record
+        analysis_time = time.time() - start_time
 
-        self.stdout.write(f"🔢 Vectorization (50 users): {vectorization_time:.3f}s ({vectorization_time/50*1000:.1f}ms/user)")
+        self.stdout.write(f"🔢 Demographic Analysis (50 users): {analysis_time:.3f}s ({analysis_time/50*1000:.1f}ms/user)")
 
-        # 2. Similarity matrix benchmark
-        start_time = time.time()
-        similarity_matrix = matrix_builder.build_similarity_matrix_batch(test_users[:50])
-        matrix_time = time.time() - start_time
-
-        self.stdout.write(f"🏗️ Similarity Matrix (50x50): {matrix_time:.3f}s")
-
-        # 3. Recommendation generation benchmark
+        # 2. Recommendation generation benchmark
         test_user = test_users[0]
 
         start_time = time.time()

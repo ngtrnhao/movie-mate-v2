@@ -71,10 +71,8 @@ def update_combined_ratings():
                     new_score = rating.tmdb_rating
                     source_used = 'TMDB'
                     changes['tmdb_used'] += 1
-                elif rating.rotten_tomatoes_rating:
-                    new_score = rating.rotten_tomatoes_rating
-                    source_used = 'RT'
-                    changes['rt_used'] += 1
+                # elif rating.rotten_tomatoes_rating:  # COMMENTED: No data in database
+                #     new_score = rating.rotten_tomatoes_rating
                 else:
                     new_score = None
                     changes['no_rating'] += 1
@@ -138,7 +136,8 @@ def update_combined_ratings():
         if rating:
             source = "IMDB" if rating.imdb_rating else ("TMDB" if rating.tmdb_rating else "RT")
             logger.info(f"Movie: {movie.title}")
-            logger.info(f"  IMDB: {rating.imdb_rating} | TMDB: {rating.tmdb_rating} | RT: {rating.rotten_tomatoes_rating}")
+            logger.info(f"  IMDB: {rating.imdb_rating} | TMDB: {rating.tmdb_rating}")
+            # logger.info(f"  IMDB: {rating.imdb_rating} | TMDB: {rating.tmdb_rating} | RT: {rating.rotten_tomatoes_rating}")  # COMMENTED: No data in database
             logger.info(f"  Combined Score: {movie.combined_rating_score} (using {source})")
             logger.info("")
 

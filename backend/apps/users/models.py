@@ -212,7 +212,7 @@ class UserFavoriteGenre(models.Model):
     class Meta:
         db_table = 'users_users_favorite_genres'
         unique_together = ('user', 'genre')
-        ordering = ['-created_at']  # Add default ordering by creation date
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['genre']),
@@ -229,7 +229,7 @@ class UserFavoriteMovie(models.Model):
     class Meta:
         db_table = 'users_users_favorite_movies'
         unique_together = ('user', 'movie')
-        ordering = ['-created_at']  # Add default ordering
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['movie']),
@@ -276,7 +276,7 @@ class Watchlist(models.Model):
 
     class Meta:
         db_table = 'users_watchlist'
-        ordering = ['-created_at']  # Add default ordering
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['created_at']),
@@ -301,7 +301,7 @@ class WatchlistItem(models.Model):
     class Meta:
         db_table = 'users_watchlistitem'
         unique_together = ('watchlist', 'movie')
-        ordering = ['-created_at']  # Add default ordering
+        ordering = ['-created_at']  
         indexes = [
             models.Index(fields=['watchlist', 'movie']),
             models.Index(fields=['status']),

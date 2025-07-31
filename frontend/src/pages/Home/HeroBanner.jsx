@@ -120,11 +120,11 @@ const HeroBannerRecommendation = () => {
           muted
           playsInline
           className="size-full object-cover"
-          poster={movie.poster_path}
+          poster={movie.poster_url}
         >
           <source src={movie.trailer_url} type="video/mp4" />
           {/* Fallback image if video fails to load */}
-          <img src={movie.poster_path} alt={movie.title} className="size-full object-cover" />
+          <img src={movie.poster_url} alt={movie.title} className="size-full object-cover" />
         </video>
         {/* Enhanced Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />

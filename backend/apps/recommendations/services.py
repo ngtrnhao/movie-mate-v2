@@ -643,15 +643,19 @@ class EnhancedDemographicFilteringService:
         Get K-means cluster for a user using the trained model
         """
         try:
-            if not self.kmeans_model or not SKLEARN_AVAILABLE:
-                return self.get_user_demographic_cluster(user)
-
             # Check if user already has a K-means cluster assigned
             user_pref = UserPreference.objects.filter(user=user).first()
             if user_pref and user_pref.demographic_cluster and user_pref.demographic_cluster.startswith('kmeans_'):
-                return DemographicCluster.objects.filter(
+                cluster = DemographicCluster.objects.filter(
                     cluster_id=user_pref.demographic_cluster
                 ).first()
+                if cluster:
+                    return cluster
+
+            # If K-means model is not available, try to find best matching existing cluster
+            if not self.kmeans_model or not SKLEARN_AVAILABLE:
+                logger.info(f"K-means model not available for user {user.id}, finding best matching cluster")
+                return self._find_best_matching_kmeans_cluster(user)
 
             # Create user vector and predict cluster
             if user.age and user.gender:
@@ -679,7 +683,127 @@ class EnhancedDemographicFilteringService:
 
         except Exception as e:
             logger.error(f"Error getting user K-means cluster: {str(e)}")
-            return self.get_user_demographic_cluster(user)
+            return self._find_best_matching_kmeans_cluster(user)
+
+    def _find_best_matching_kmeans_cluster(self, user) -> Optional[any]:
+        """
+        Find the best matching K-means cluster for a user based on demographics
+        when the K-means model is not available
+        """
+        try:
+            if not user.age or not user.gender:
+                return None
+
+            # Get all existing K-means clusters
+            kmeans_clusters = DemographicCluster.objects.filter(
+                cluster_id__startswith='kmeans_'
+            )
+
+            if not kmeans_clusters.exists():
+                logger.info("No K-means clusters found in database")
+                return None
+
+            best_cluster = None
+            best_score = -1
+
+            for cluster in kmeans_clusters:
+                score = 0
+
+                # Create user vector for similarity calculation
+                user_vector = self.vectorizer.create_demographic_vector(user)
+
+                # Get sample users from cluster to calculate average similarity
+                cluster_users = User.objects.filter(
+                    recommendation_preference__demographic_cluster=cluster.cluster_id
+                )[:10]  # Sample 10 users for performance
+
+                if cluster_users.exists():
+                    # Calculate average vector similarity with cluster users
+                    cluster_vectors = []
+                    for cluster_user in cluster_users:
+                        try:
+                            cluster_vector = self.vectorizer.create_demographic_vector(cluster_user)
+                            cluster_vectors.append(cluster_vector)
+                        except Exception as e:
+                            logger.warning(f"Error creating vector for cluster user {cluster_user.id}: {e}")
+                            continue
+
+                    if cluster_vectors:
+                        # Calculate average similarity
+                        from sklearn.metrics.pairwise import cosine_similarity
+                        similarities = cosine_similarity([user_vector], cluster_vectors)[0]
+                        avg_similarity = np.mean(similarities)
+
+                        # Vector similarity is the primary factor (0-1 scale, multiply by 10 for scoring)
+                        score += avg_similarity * 10  # Up to 10 points for perfect similarity
+
+                        logger.debug(f"Cluster {cluster.cluster_id} average similarity: {avg_similarity:.3f}, score: {avg_similarity * 10:.1f}")
+                    else:
+                        # Fallback to old logic if vector creation fails
+                        logger.warning(f"Failed to create vectors for cluster {cluster.cluster_id}, using fallback logic")
+                        if cluster.age_range_min <= user.age <= cluster.age_range_max:
+                            score += 3
+                        if cluster.primary_gender == user.gender:
+                            score += 2
+                else:
+                    # Empty cluster - use basic logic
+                    if cluster.age_range_min <= user.age <= cluster.age_range_max:
+                        score += 3
+                    if cluster.primary_gender == user.gender:
+                        score += 2
+
+                # Check if user has ratings
+                user_has_ratings = MovieReview.objects.filter(
+                    user=user,
+                    review_type='USER',
+                    rating__isnull=False
+                ).exists()
+
+                # Get cluster statistics
+                cluster_users_with_ratings = User.objects.filter(
+                    recommendation_preference__demographic_cluster=cluster.cluster_id,
+                    moviereview__review_type='USER',
+                    moviereview__rating__isnull=False
+                ).distinct().count()
+                cluster_total_users = User.objects.filter(
+                    recommendation_preference__demographic_cluster=cluster.cluster_id
+                ).count()
+                cluster_rating_ratio = cluster_users_with_ratings / cluster_total_users if cluster_total_users > 0 else 0
+
+                # Behavioral compatibility score (secondary factor)
+                if user_has_ratings:
+                    # User has ratings - prefer clusters with more users who have ratings
+                    score += min(cluster_rating_ratio * 2, 2)  # Reduced weight, max 2 points
+                else:
+                    # New user - prefer clusters with users who have ratings
+                    if cluster_rating_ratio > 0.3:
+                        score += 2
+                    elif cluster_rating_ratio > 0.1:
+                        score += 1
+                    else:
+                        score -= 1  # Reduced penalty
+
+                # Prefer clusters with more users (more data)
+                score += min(cluster.user_count / 100, 1)  # Bonus for larger clusters
+
+                if score > best_score:
+                    best_score = score
+                    best_cluster = cluster
+
+            if best_cluster and best_score > 0:
+                # Update user preference
+                user_pref, created = UserPreference.objects.get_or_create(user=user)
+                user_pref.demographic_cluster = best_cluster.cluster_id
+                user_pref.save()
+
+                logger.info(f"Assigned user {user.id} to K-means cluster {best_cluster.cluster_id} with score {best_score}")
+                return best_cluster
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error finding best matching K-means cluster: {str(e)}")
+            return None
 
     def refresh_clusters(self, method='kmeans', recalculate=True, n_clusters=8):
         """
@@ -1104,29 +1228,83 @@ class EnhancedDemographicFilteringService:
                 logger.info(f"Assigned user {user.id} to cluster {user_cluster.cluster_id if user_cluster else 'None'}")
 
             if user_cluster:
-                # Get users from the same cluster for better similarity
-                users_with_demographics = User.objects.filter(
-                    recommendation_preference__demographic_cluster=user_cluster.cluster_id,
-                    moviereview__review_type='USER',
-                    moviereview__rating__isnull=False
-                ).exclude(id=user.id).distinct()[:20]  # Get users with ratings
+                # Check if user has ratings
+                user_has_ratings = MovieReview.objects.filter(
+                    user=user,
+                    review_type='USER',
+                    rating__isnull=False
+                ).exists()
 
-                logger.info(f"Using {len(users_with_demographics)} users with ratings from same cluster {user_cluster.cluster_id}")
+                # Get users from same cluster - prioritize users with ratings for better recommendations
+                if user_has_ratings:
+                    # If user has ratings, get users with ratings from same cluster
+                    users_with_demographics = User.objects.filter(
+                        recommendation_preference__demographic_cluster=user_cluster.cluster_id,
+                        moviereview__review_type='USER',
+                        moviereview__rating__isnull=False
+                    ).exclude(id=user.id).distinct()[:20]
+                    logger.info(f"Using {len(users_with_demographics)} users with ratings from same cluster {user_cluster.cluster_id}")
+                else:
+                    # If user is new (no ratings), use hybrid approach
+                    # First, try to get users with ratings from same cluster
+                    users_with_ratings = User.objects.filter(
+                        recommendation_preference__demographic_cluster=user_cluster.cluster_id,
+                        moviereview__review_type='USER',
+                        moviereview__rating__isnull=False
+                    ).exclude(id=user.id).distinct()[:10]
+
+                    # If not enough users with ratings, add users without ratings from same cluster
+                    if len(users_with_ratings) < 10:
+                        users_without_ratings = User.objects.filter(
+                            recommendation_preference__demographic_cluster=user_cluster.cluster_id,
+                            moviereview__review_type='USER',
+                            moviereview__rating__isnull=True
+                        ).exclude(id=user.id).distinct()[:10 - len(users_with_ratings)]
+                    else:
+                        users_without_ratings = []
+
+                    users_with_demographics = list(users_with_ratings) + list(users_without_ratings)
+                    logger.info(f"New user detected, using {len(users_with_ratings)} users with ratings + {len(users_without_ratings)} users without ratings from cluster {user_cluster.cluster_id}")
+
+                    # If still not enough users, add from similar clusters
+                    if len(users_with_demographics) < 5:
+                        logger.info(f"Not enough users in cluster, adding from similar clusters")
+                        similar_clusters = DemographicCluster.objects.filter(
+                            age_range_min__lte=user.age or 25,
+                            age_range_max__gte=user.age or 25,
+                            primary_gender=user.gender
+                        ).exclude(cluster_id=user_cluster.cluster_id)[:2]
+
+                        for cluster in similar_clusters:
+                            additional_users = User.objects.filter(
+                                recommendation_preference__demographic_cluster=cluster.cluster_id,
+                                moviereview__review_type='USER',
+                                moviereview__rating__isnull=False
+                            ).exclude(id=user.id).distinct()[:5]
+                            users_with_demographics = list(users_with_demographics) + list(additional_users)
 
                 # If not enough users in cluster, add some from similar clusters
-                if len(users_with_demographics) < 5:  # Giảm threshold
+                if len(users_with_demographics) < 5:
                     similar_clusters = DemographicCluster.objects.filter(
                         age_range_min__lte=user.age or 25,
                         age_range_max__gte=user.age or 25,
                         primary_gender=user.gender
-                    ).exclude(cluster_id=user_cluster.cluster_id)[:2]  # Giảm từ 3 xuống 2
+                    ).exclude(cluster_id=user_cluster.cluster_id)[:2]
 
                     for cluster in similar_clusters:
-                        additional_users = User.objects.filter(
-                            recommendation_preference__demographic_cluster=cluster.cluster_id,
-                            moviereview__review_type='USER',
-                            moviereview__rating__isnull=False
-                        ).exclude(id=user.id).distinct()[:5]  # Get users with ratings
+                        if user_has_ratings:
+                            additional_users = User.objects.filter(
+                                recommendation_preference__demographic_cluster=cluster.cluster_id,
+                                moviereview__review_type='USER',
+                                moviereview__rating__isnull=False
+                            ).exclude(id=user.id).distinct()[:5]
+                        else:
+                            # For new users, prioritize users with ratings from similar clusters
+                            additional_users = User.objects.filter(
+                                recommendation_preference__demographic_cluster=cluster.cluster_id,
+                                moviereview__review_type='USER',
+                                moviereview__rating__isnull=False
+                            ).exclude(id=user.id).distinct()[:5]
                         users_with_demographics = list(users_with_demographics) + list(additional_users)
 
                     logger.info(f"Added users from similar clusters, total: {len(users_with_demographics)}")
@@ -1245,7 +1423,17 @@ class EnhancedDemographicFilteringService:
             recommendations = []
 
             for movie, scores in candidate_movies.items():
-                if len(scores) >= 2:  # At least 2 similar users rated it
+                # Check if user has ratings to determine threshold
+                user_has_ratings = MovieReview.objects.filter(
+                    user=target_user,
+                    review_type='USER',
+                    rating__isnull=False
+                ).exists()
+
+                # Lower threshold for new users (1 user) vs users with ratings (2 users)
+                min_support = 1 if not user_has_ratings else 2
+
+                if len(scores) >= min_support:
                     avg_weighted_score = np.mean([s['weighted_score'] for s in scores])
                     avg_similarity = np.mean([s['similarity'] for s in scores])
                     avg_rating = np.mean([s['rating'] for s in scores])

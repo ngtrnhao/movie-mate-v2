@@ -37,20 +37,26 @@ class Command(BaseCommand):
         parser.add_argument(
             '--batch-size',
             type=int,
-            default=100,
-            help='Batch size for processing (default: 100)'
+            default=20,  # Giảm từ 100 xuống 20
+            help='Batch size for processing (default: 20)'
         )
         parser.add_argument(
             '--min-ratings',
             type=int,
-            default=5,
-            help='Minimum ratings required for users/movies (default: 5)'
+            default=10,  # Tăng từ 5 lên 10
+            help='Minimum ratings required for users/movies (default: 10)'
         )
         parser.add_argument(
             '--similarity-threshold',
             type=float,
-            default=0.1,
-            help='Minimum similarity threshold to store (default: 0.1)'
+            default=0.3,  # Tăng từ 0.1 lên 0.3
+            help='Minimum similarity threshold to store (default: 0.3)'
+        )
+        parser.add_argument(
+            '--max-users',
+            type=int,
+            default=100,  # Giới hạn số users để test
+            help='Maximum number of users to process (default: 100)'
         )
         parser.add_argument(
             '--method',
@@ -69,6 +75,11 @@ class Command(BaseCommand):
         # Get users and movies with sufficient ratings
         users_with_ratings = self._get_users_with_ratings(options['min_ratings'])
         movies_with_ratings = self._get_movies_with_ratings(options['min_ratings'])
+
+        # Limit users for faster computation
+        if len(users_with_ratings) > options['max_users']:
+            users_with_ratings = users_with_ratings[:options['max_users']]
+            self.stdout.write(f'⚠️ Limited to {options["max_users"]} users for faster computation')
 
         self.stdout.write(f'👥 Users with ratings: {len(users_with_ratings)}')
         self.stdout.write(f'🎬 Movies with ratings: {len(movies_with_ratings)}')
@@ -135,7 +146,21 @@ class Command(BaseCommand):
             similarities_to_create = []
 
             for j, user1 in enumerate(batch_users):
+                # Get user1 ratings
+                user1_ratings = dict(MovieReview.objects.filter(
+                    user=user1,
+                    review_type='USER',
+                    rating__isnull=False
+                ).values_list('movie_id', 'rating'))
+
                 for k, user2 in enumerate(users[i + j + 1:], i + j + 1):
+                    # Get user2 ratings
+                    user2_ratings = dict(MovieReview.objects.filter(
+                        user=user2,
+                        review_type='USER',
+                        rating__isnull=False
+                    ).values_list('movie_id', 'rating'))
+
                     try:
                         similarity = cf_service.calculate_user_similarity(user1, user2, method)
 
@@ -144,16 +169,18 @@ class Command(BaseCommand):
                                 UserSimilarity(
                                     user1=user1,
                                     user2=user2,
+                                    similarity_type='collaborative',
                                     similarity_score=similarity,
-                                    method=method,
-                                    computed_at=timezone.now()
+                                    calculation_method=method,
+                                    common_ratings_count=len(set(user1_ratings.keys()) & set(user2_ratings.keys()))
                                 ),
                                 UserSimilarity(
                                     user1=user2,
                                     user2=user1,
+                                    similarity_type='collaborative',
                                     similarity_score=similarity,
-                                    method=method,
-                                    computed_at=timezone.now()
+                                    calculation_method=method,
+                                    common_ratings_count=len(set(user1_ratings.keys()) & set(user2_ratings.keys()))
                                 )
                             ])
                     except Exception as e:
@@ -203,16 +230,14 @@ class Command(BaseCommand):
                                 MovieSimilarity(
                                     movie1=movie1,
                                     movie2=movie2,
-                                    similarity_score=similarity,
-                                    method='content_based',
-                                    computed_at=timezone.now()
+                                    similarity_type='content',
+                                    similarity_score=similarity
                                 ),
                                 MovieSimilarity(
                                     movie1=movie2,
                                     movie2=movie1,
-                                    similarity_score=similarity,
-                                    method='content_based',
-                                    computed_at=timezone.now()
+                                    similarity_type='content',
+                                    similarity_score=similarity
                                 )
                             ])
                     except Exception as e:
@@ -240,20 +265,20 @@ class Command(BaseCommand):
             genres = list(movie.genres.values_list('name', flat=True))
 
             # Get average rating
-            avg_rating = movie.reviews.filter(
+            avg_rating = movie.moviereview_set.filter(
                 review_type='USER',
                 rating__isnull=False
             ).aggregate(avg=Avg('rating'))['avg'] or 0
 
             # Get rating count
-            rating_count = movie.reviews.filter(
+            rating_count = movie.moviereview_set.filter(
                 review_type='USER',
                 rating__isnull=False
             ).count()
 
             features[movie.id] = {
                 'genres': set(genres),
-                'avg_rating': avg_rating,
+                'avg_rating': float(avg_rating),
                 'rating_count': rating_count,
                 'release_year': movie.release_date.year if movie.release_date else 0
             }

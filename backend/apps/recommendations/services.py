@@ -507,7 +507,168 @@ class EnhancedDemographicFilteringService:
         self.min_similar_users = 1  # Giảm từ 3 xuống 1 để DF có thể hoạt động
         self.similarity_threshold = 0.1
         self.kmeans_model = None
+        self.scaler = None
         self.use_kmeans_clustering = True  # Flag to enable/disable K-means
+
+        # Tự động load K-means model nếu có clusters trong database
+        self._load_kmeans_model()
+
+    def _get_model_cache_path(self) -> str:
+        """
+        Get the cache path for K-means model
+        """
+        import os
+        from django.conf import settings
+
+        # Tạo thư mục cache nếu chưa tồn tại
+        cache_dir = os.path.join(settings.BASE_DIR, 'cache', 'models')
+        os.makedirs(cache_dir, exist_ok=True)
+
+        return os.path.join(cache_dir, 'kmeans_demographic_model.pkl')
+
+    def _save_model_to_cache(self):
+        """
+        Save K-means model and scaler to cache
+        """
+        try:
+            if self.kmeans_model is None or self.scaler is None:
+                logger.warning("No model to save to cache")
+                return False
+
+            import joblib
+            import os
+
+            cache_path = self._get_model_cache_path()
+
+            # Save both model and scaler
+            model_data = {
+                'kmeans_model': self.kmeans_model,
+                'scaler': self.scaler,
+                'timestamp': time.time()
+            }
+
+            joblib.dump(model_data, cache_path)
+            logger.info(f"✅ Model saved to cache: {cache_path}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error saving model to cache: {str(e)}")
+            return False
+
+    def _load_model_from_cache(self):
+        """
+        Load K-means model and scaler from cache
+        """
+        try:
+            import joblib
+            import os
+            import time
+
+            cache_path = self._get_model_cache_path()
+
+            if not os.path.exists(cache_path):
+                logger.info("No cached model found")
+                return False
+
+            # Check cache age
+            cache_age = time.time() - os.path.getmtime(cache_path)
+            if cache_age > self.cache_timeout:
+                logger.info("Cache expired, will reload model")
+                return False
+
+            # Load model data
+            model_data = joblib.load(cache_path)
+
+            self.kmeans_model = model_data['kmeans_model']
+            self.scaler = model_data['scaler']
+
+            logger.info(f"✅ Model loaded from cache: {cache_path}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error loading model from cache: {str(e)}")
+            return False
+
+    def _load_kmeans_model(self):
+        """
+        Load K-means model from cache or existing clusters in database
+        """
+        try:
+            if not SKLEARN_AVAILABLE:
+                logger.warning("Scikit-learn not available. Cannot load K-means model.")
+                return
+
+            # Thử load từ cache trước
+            if self._load_model_from_cache():
+                logger.info("✅ Model loaded from cache successfully")
+                return
+
+            # Nếu không có cache, tạo lại từ database
+            logger.info("🔄 Cache not available, creating model from database...")
+
+            # Kiểm tra xem có K-means clusters trong database không
+            kmeans_clusters = DemographicCluster.objects.filter(cluster_id__startswith='kmeans_')
+            if not kmeans_clusters.exists():
+                logger.info("No K-means clusters found in database")
+                return
+
+            logger.info(f"🔄 Loading K-means model from {kmeans_clusters.count()} existing clusters...")
+
+            # Lấy users với demographics để tạo lại model
+            users_with_data = User.objects.filter(
+                age__isnull=False,
+                gender__isnull=False
+            ).exclude(age__isnull=True)
+
+            if users_with_data.count() < 10:
+                logger.warning("Not enough users with demographics to load K-means model")
+                return
+
+            # Tạo demographic vectors cho tất cả users
+            user_vectors = []
+            users_list = []
+
+            for user in users_with_data:
+                try:
+                    vector = self.vectorizer.create_demographic_vector(user)
+                    user_vectors.append(vector)
+                    users_list.append(user)
+                except Exception as e:
+                    logger.warning(f"Error creating vector for user {user.id}: {str(e)}")
+                    continue
+
+            if len(user_vectors) < 10:
+                logger.warning("Not enough valid vectors to load K-means model")
+                return
+
+            # Convert to numpy array
+            X = np.array(user_vectors)
+
+            # Standardize features
+            from sklearn.preprocessing import StandardScaler
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+
+            # Tạo K-means model với số clusters bằng với số clusters trong database
+            n_clusters = kmeans_clusters.count()
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+
+            # Fit model với dữ liệu hiện tại
+            cluster_labels = kmeans.fit_predict(X_scaled)
+
+            # Lưu model và scaler
+            self.kmeans_model = kmeans
+            self.scaler = scaler
+
+            # Lưu vào cache để lần sau load nhanh hơn
+            self._save_model_to_cache()
+
+            logger.info(f"✅ Successfully loaded K-means model with {n_clusters} clusters")
+
+        except Exception as e:
+            logger.error(f"Error loading K-means model: {str(e)}")
+            self.kmeans_model = None
+            self.scaler = None
 
     def create_kmeans_clusters(self, recalculate=False, n_clusters=8):
         """
@@ -520,6 +681,9 @@ class EnhancedDemographicFilteringService:
 
             if not recalculate and DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').exists():
                 logger.info("K-means clusters already exist")
+                # Load model nếu chưa có
+                if self.kmeans_model is None:
+                    self._load_kmeans_model()
                 return
 
             logger.info(f"🔄 Creating K-means clusters with {n_clusters} clusters...")
@@ -632,6 +796,9 @@ class EnhancedDemographicFilteringService:
                     user_pref.save()
 
             logger.info(f"✅ Created {n_clusters} K-means clusters successfully")
+
+            # Lưu model vào cache để lần sau load nhanh hơn
+            self._save_model_to_cache()
 
         except Exception as e:
             logger.error(f"Error creating K-means clusters: {str(e)}")
@@ -1219,13 +1386,18 @@ class EnhancedDemographicFilteringService:
                 return self.generate_demographic_recommendations(user, limit, context, store=store)
 
             # Get users with demographic data (limit for performance in testing)
-            # First, try to get users from the same demographic cluster
-            user_cluster = self.get_user_demographic_cluster(user)
+            # First, try to get users from the same K-means cluster (preferred)
+            user_cluster = self.get_user_kmeans_cluster(user)
 
-            # If user doesn't have a cluster, try to assign them to one
+            # If K-means cluster not available, fallback to rule-based cluster
             if not user_cluster and user.age and user.gender:
-                user_cluster = self.assign_user_to_cluster(user)
-                logger.info(f"Assigned user {user.id} to cluster {user_cluster.cluster_id if user_cluster else 'None'}")
+                user_cluster = self.get_user_demographic_cluster(user)
+                if user_cluster:
+                    logger.info(f"Using rule-based cluster {user_cluster.cluster_id} for user {user.id} (K-means not available)")
+                else:
+                    # If no cluster exists, try to assign them to one
+                    user_cluster = self.assign_user_to_cluster(user)
+                    logger.info(f"Assigned user {user.id} to cluster {user_cluster.cluster_id if user_cluster else 'None'}")
 
             if user_cluster:
                 # Check if user has ratings

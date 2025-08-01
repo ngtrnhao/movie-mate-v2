@@ -23,15 +23,15 @@ app.conf.beat_schedule_filename = 'celerybeat-schedule'
 app.conf.beat_schedule = {
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(days=5),
     },
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": timedelta(days=5),  # Every 15 minutes
+        "schedule": timedelta(days=5),
     },
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": timedelta(days=5),  # Every 5 days
+        "schedule": timedelta(days=5),
     },
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",
@@ -39,96 +39,96 @@ app.conf.beat_schedule = {
     },
     "refresh_genre_summary": {
         "task": "apps.metadata.tasks.refresh_genre_summary_task",
-        "schedule": timedelta(hours=6),  # Every 6 hours
+        "schedule": timedelta(hours=6),
     },
 
-    # 🔄 Auto-processing tasks
+    # Auto-processing tasks
     "process_user_interactions_frequent": {
         "task": "apps.movies.tasks.process_user_interactions_auto",
-        "schedule": timedelta(minutes=15),  # Every 15 minutes
-        "kwargs": {"hours": 1}  # Process last 1 hour (changed from 0.25)
+        "schedule": timedelta(minutes=15),
+        "kwargs": {"hours": 1}
     },
     "process_user_interactions_hourly": {
         "task": "apps.movies.tasks.process_user_interactions_auto",
-        "schedule": timedelta(hours=0.25),  # Every hour
-        "kwargs": {"hours": 1}  # Last 1 hour
+        "schedule": timedelta(hours=0.25),
+        "kwargs": {"hours": 1}
     },
     "sync_trending_categories": {
         "task": "apps.movies.tasks.sync_trending_categories_auto",
-        "schedule": timedelta(minutes=15),  # Every 6 hours
+        "schedule": timedelta(minutes=15),
     },
 
-    # 📅 Scheduling automation tasks
+    # Scheduling automation tasks
     "process_scheduled_actions": {
         "task": "apps.movies.tasks.process_scheduled_actions_auto",
-        "schedule": timedelta(minutes=5),  # Every 5 minutes
-        "options": {"priority": 9}  # High priority for timely execution
+        "schedule": timedelta(minutes=5),
+        "options": {"priority": 9}
     },
     "update_scheduling_status": {
         "task": "apps.movies.tasks.update_scheduling_status_auto",
-        "schedule": timedelta(hours=1),  # Every hour
-        "options": {"priority": 5}  # Normal priority
+        "schedule": timedelta(hours=1),
+        "options": {"priority": 5}
     },
 
-    # 📊 Quality automation tasks
+    # Quality automation tasks
     "calculate_quality_new_movies": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(hours=2),  # Every 2 hours
+        "schedule": timedelta(hours=2),
         "kwargs": {"target_type": "new", "batch_size": 25, "max_movies": 100},
-        "options": {"priority": 6}  # Medium priority
+        "options": {"priority": 6}
     },
     "calculate_quality_low_quality": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(hours=12),  # Twice daily
+        "schedule": timedelta(hours=12),
         "kwargs": {"target_type": "low_quality", "batch_size": 20, "max_movies": 50},
-        "options": {"priority": 4}  # Lower priority
+        "options": {"priority": 4}
     },
     "calculate_quality_outdated": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(days=1),  # Daily
+        "schedule": timedelta(days=1),
         "kwargs": {"target_type": "outdated", "batch_size": 30, "max_movies": 200},
-        "options": {"priority": 3}  # Low priority
+        "options": {"priority": 3}
     },
     "quality_maintenance": {
         "task": "apps.movies.tasks.quality_maintenance_auto",
-        "schedule": timedelta(days=1),  # Daily
-        "options": {"priority": 2}  # Very low priority
+        "schedule": timedelta(days=1),
+        "options": {"priority": 2}
     },
 
-    # 🎯 Recommendation system tasks
+    # Recommendation system tasks
     "update_user_similarities": {
         "task": "apps.users.tasks.update_user_similarities_batch",
-        "schedule": timedelta(hours=6),  # Every 6 hours
-        "options": {"priority": 7}  # Medium priority
+        "schedule": timedelta(hours=6),
+        "options": {"priority": 7}
     },
     "generate_recommendations_active_users": {
         "task": "apps.users.tasks.generate_recommendations_for_active_users",
-        "schedule": timedelta(hours=2),  # Every 2 hours
-        "options": {"priority": 8}  # High priority
+        "schedule": timedelta(hours=2),
+        "options": {"priority": 8}
     },
     "refresh_demographic_clusters": {
         "task": "apps.recommendations.tasks.refresh_demographic_clusters",
-        "schedule": timedelta(days=1),  # Daily
-        "options": {"priority": 5}  # Normal priority
+        "schedule": timedelta(days=1),
+        "options": {"priority": 5}
     },
     "cleanup_expired_recommendations": {
         "task": "apps.recommendations.tasks.cleanup_expired_recommendations",
-        "schedule": timedelta(hours=12),  # Twice daily
-        "options": {"priority": 3}  # Low priority
+        "schedule": timedelta(hours=12),
+        "options": {"priority": 3}
     },
 
-    # 🤖 Auto-management for large user bases (100+ users)
+    # Auto-management for large user bases (100+ users)
     "auto_manage_large_user_base": {
         "task": "apps.recommendations.tasks.auto_manage_large_user_base",
-        "schedule": timedelta(hours=6),  # Every 6 hours
-        "options": {"priority": 8}  # High priority - orchestrates other tasks
+        "schedule": timedelta(hours=6),
+        "options": {"priority": 8}
     },
 
-    # 🔄 Bulk recommendation refresh (triggered by auto-management)
+    # Bulk recommendation refresh (triggered by auto-management)
     "bulk_refresh_stale_recommendations_weekly": {
         "task": "apps.recommendations.tasks.bulk_refresh_stale_recommendations",
-        "schedule": timedelta(days=1),  # Daily safety net
-        "options": {"priority": 6}  # Medium priority
+        "schedule": timedelta(days=1),
+        "options": {"priority": 6}
     },
 }
 

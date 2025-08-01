@@ -1775,11 +1775,11 @@ class MovieAdminControl(models.Model):
         help_text="Admin override settings"
     )
 
-    #  TARGETING & RESTRICTIONS
-    target_regions = models.JSONField(
-        default=list, blank=True,
-        help_text="Danh sách regions hiển thị"
-    )
+    # #  TARGETING & RESTRICTIONS
+    # target_regions = models.JSONField(
+    #     default=list, blank=True,
+    #     help_text="Danh sách regions hiển thị"
+    # )
     age_rating = models.CharField(
         max_length=10, blank=True, null=True,
         help_text="Phân loại độ tuổi"

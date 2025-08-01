@@ -961,10 +961,10 @@ def calculate_production_metrics_auto(self, movie_ids=None):
 @shared_task(bind=True)
 def sync_trending_categories_auto(self):
     """
-    🔥 Auto-sync trending categories (Top N viral logic)
+    Auto-sync trending categories (Top N viral logic)
     """
     try:
-        logger.info("🔥 Auto-syncing trending categories (Top N viral logic)")
+        logger.info(" Auto-syncing trending categories (Top N viral logic)")
         from apps.movies.models import ProductionMetrics
         from django.utils import timezone
         from datetime import timedelta

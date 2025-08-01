@@ -20,7 +20,7 @@ ALLOWED_HOSTS = [
     'movie-mate-v2.onrender.com',
     'localhost',
     '127.0.0.1',
-    '.onrender.com',  # This will allow all subdomains of onrender.com
+    '.onrender.com',
 ]
 
 # Application definition
@@ -40,9 +40,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'whitenoise.runserver_nostatic',
-    'django_redis',  # Add django-redis
-    'django_elasticsearch_dsl',  # Add Elasticsearch DSL
-
+    'django_redis',
+    'django_elasticsearch_dsl',
     # Local apps
     'apps.core.apps.CoreConfig',
     'apps.movies.apps.MoviesConfig',
@@ -95,7 +94,7 @@ DATABASES = {
         'PASSWORD': env('POSTGRES_PASSWORD'),
         'HOST': env('POSTGRES_HOST'),
         'PORT': env('POSTGRES_PORT', default='5432'),
-        'CONN_MAX_AGE': 300,  # Reduced from 600 to 5 minutes
+        'CONN_MAX_AGE': 300,
         'OPTIONS': {
             'connect_timeout': 10,
             'application_name': 'movie_mate_v2',
@@ -103,25 +102,24 @@ DATABASES = {
     }
 }
 
-# Redis settings (must be defined before CACHES)
+
 REDIS_HOST = env('REDIS_HOST', default='localhost')
 REDIS_PORT = env('REDIS_PORT', default='6379')
 REDIS_USERNAME = env('REDIS_USERNAME', default='')
 REDIS_PASSWORD = env('REDIS_PASSWORD', default='')
 
-# Construct Redis URL with conditional authentication
+
 if REDIS_USERNAME and REDIS_PASSWORD:
-    # Redis Cloud with authentication
+
     REDIS_URL = f"redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
 else:
-    # Local Redis without authentication
     REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 
-# Cache configuration
+
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,  # Use the same Redis URL as Celery
+        'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'SOCKET_CONNECT_TIMEOUT': 5,
@@ -133,11 +131,11 @@ CACHES = {
     }
 }
 
-# Session configuration
+
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
 
-# REST framework
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -156,7 +154,7 @@ REST_FRAMEWORK = {
     ],
 }
 
-# JWT Settings
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
@@ -169,7 +167,7 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
-# CORS
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -196,26 +194,26 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Static files
+
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom User Model
+
 AUTH_USER_MODEL = 'users.User'
 
-# Internationalization
+
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Email settings
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
@@ -224,10 +222,10 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 
-# Frontend URL for email verification
+
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 
-# Celery Configuration
+
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ['json']
@@ -238,10 +236,10 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
-# IMDB API Configuration
+
 IMDB_API_KEY = env('IMDB_API_KEY', default='your-rapidapi-key-here')
 
-# Logging configuration
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -280,7 +278,7 @@ LOGGING = {
     },
 }
 
-# Security settings
+
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
@@ -292,11 +290,11 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Elasticsearch settings
+
 ELASTICSEARCH_DSL_AUTOSYNC = env.bool('ELASTICSEARCH_DSL_AUTOSYNC', True)
 ELASTICSEARCH_DSL_AUTO_REFRESH = env.bool('ELASTICSEARCH_DSL_AUTO_REFRESH', True)
 
-# Default Elasticsearch configuration (for local development)
+
 ELASTICSEARCH_DSL = {
     'default': {
         'hosts': [env('ELASTICSEARCH_HOST', default='localhost:9200')],
@@ -306,12 +304,12 @@ ELASTICSEARCH_DSL = {
     }
 }
 
-# Elasticsearch Cloud Configuration (for production)
+
 ELASTICSEARCH_CLOUD_ID = env('ELASTICSEARCH_CLOUD_ID', default=None)
 ELASTICSEARCH_USERNAME = env('ELASTICSEARCH_USERNAME', default=None)
 ELASTICSEARCH_PASSWORD = env('ELASTICSEARCH_PASSWORD', default=None)
 
-# If cloud configuration is available, use it instead of local config
+
 if ELASTICSEARCH_CLOUD_ID and ELASTICSEARCH_USERNAME and ELASTICSEARCH_PASSWORD:
     ELASTICSEARCH_DSL = {
         'default': {
@@ -323,10 +321,10 @@ if ELASTICSEARCH_CLOUD_ID and ELASTICSEARCH_USERNAME and ELASTICSEARCH_PASSWORD:
         }
     }
 
-# Migration settings
+
 MIGRATION_SECRET_KEY = env('MIGRATION_SECRET_KEY', default='your-secret-key-here')
 
-# # AWS settings (if using)
+
 # AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID', default=None)
 # AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default=None)
 # AWS_STORAGE_BUCKET_NAME = env('AWS_STORAGE_BUCKET_NAME', default=None)

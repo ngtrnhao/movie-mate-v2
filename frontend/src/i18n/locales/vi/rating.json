@@ -1,0 +1,75 @@
+{
+  "overview": {
+    "title": "Tổng quan đánh giá",
+    "averageRating": "Điểm trung bình",
+    "totalRatings": "đánh giá",
+    "distribution": "Phân bố đánh giá"
+  },
+  "ratingLabels": {
+    "1": "Rất tệ",
+    "2": "Tệ",
+    "3": "Bình thường",
+    "4": "Hay",
+    "5": "Xuất sắc"
+  },
+  "userRating": {
+    "title": "Đánh giá phim này",
+    "updateTitle": "Cập nhật đánh giá",
+    "placeholder": {
+      "5": "Phim tuyệt vời! Hãy chia sẻ những điều bạn thích nhất về bộ phim này...",
+      "4": "Phim hay! Điều gì khiến bạn ấn tượng nhất?",
+      "3": "Phim ổn. Bạn nghĩ gì về nội dung và cách thể hiện?",
+      "2": "Có vẻ phim không hợp với bạn. Điều gì khiến bạn thất vọng?",
+      "1": "Phim không hay. Hãy chia sẻ lý do tại sao bạn không thích...",
+      "default": "Chia sẻ cảm nhận chi tiết của bạn về bộ phim này (ít nhất 10 ký tự)..."
+    },
+    "characterCount": "{{count}} / 500",
+    "minLengthError": "Đánh giá phải có ít nhất 10 ký tự",
+    "spoilerToggle": "Chứa spoiler",
+    "spoilerNote": "(Review sẽ bị ẩn khỏi công khai)",
+    "submitButton": "Gửi đánh giá",
+    "updateButton": "Cập nhật đánh giá",
+    "loginRequired": "Bạn cần đăng nhập để đánh giá phim này",
+    "loginButton": "Đăng nhập ngay"
+  },
+  "reviews": {
+    "title": "Đánh giá từ người dùng",
+    "count": "{{visible}}/{{total}}",
+    "rejectedCount": "({{count}} bị từ chối)",
+    "sortBy": {
+      "label": "Sắp xếp theo",
+      "recent": "Mới nhất",
+      "rating": "Đánh giá cao",
+      "helpful": "Hữu ích"
+    },
+    "showRejected": "Hiện Review bị từ chối ({{count}})",
+    "hideRejected": "Ẩn Review bị từ chối ({{count}})",
+    "noReviews": "Chưa có đánh giá nào cho phim này.",
+    "noApprovedReviews": "Chưa có đánh giá được phê duyệt nào cho phim này.",
+    "showRejectedButton": "Hiện {{count}} review bị từ chối"
+  },
+  "reviewItem": {
+    "rating": "Đánh giá:",
+    "spoilerWarning": "Nhấn để xem spoiler",
+    "hideSpoiler": "Ẩn spoiler",
+    "moderationReason": "Lý do từ chối:",
+    "editMode": {
+      "save": "Lưu",
+      "cancel": "Hủy"
+    }
+  },
+  "pagination": {
+    "previous": "Trước",
+    "next": "Sau",
+    "pageInfo": "Trang {{current}} / {{total}}"
+  },
+  "tabs": {
+    "comments": "Bình luận"
+  },
+  "loading": "Đang tải đánh giá...",
+  "error": "Không thể tải đánh giá.",
+  "submitError": "Không thể gửi đánh giá. Vui lòng thử lại.",
+  "updateError": "Không thể cập nhật đánh giá. Vui lòng thử lại.",
+  "deleteConfirm": "Bạn có chắc muốn xóa đánh giá này?",
+  "deleteError": "Không thể xóa đánh giá."
+}

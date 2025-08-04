@@ -56,12 +56,12 @@ export const getModerationQueueStats = async () => {
 };
 
 // =====================================================
-// DASHBOARD OVERVIEW API
+// DASHBOARD OVERVIEW API - OPTIMIZED
 // =====================================================
 
 /**
- * Get dashboard overview data
- * Replaces all hardcoded data in DashboardOverview.jsx
+ * Get comprehensive dashboard overview data
+ * Single API call that returns all dashboard data to prevent duplicates
  */
 export const getDashboardOverview = async () => {
   try {
@@ -78,13 +78,15 @@ export const getDashboardOverview = async () => {
 
 /**
  * Get recent moderation activities
- * Replaces hardcoded recentActivities in DashboardOverview.jsx
+ * DEPRECATED: Use getDashboardOverview instead to prevent duplicate API calls
+ * @deprecated Use getDashboardOverview and extract recent_activities from response
  */
 export const getRecentModerationActivities = async (limit = 10) => {
+  console.warn('⚠️ getRecentModerationActivities is deprecated. Use getDashboardOverview instead.');
   try {
-    const response = await axiosInstance.get('/api/admin/movies/dashboard_overview_data/');
+    const response = await getDashboardOverview();
     return {
-      data: response.data?.data?.recent_activities || [],
+      data: response?.data?.recent_activities || [],
     };
   } catch (error) {
     console.error('Error fetching recent activities:', error);
@@ -97,13 +99,17 @@ export const getRecentModerationActivities = async (limit = 10) => {
 
 /**
  * Get moderation performance metrics
- * Replaces hardcoded performance metrics in DashboardOverview.jsx
+ * DEPRECATED: Use getDashboardOverview instead to prevent duplicate API calls
+ * @deprecated Use getDashboardOverview and extract performance_metrics from response
  */
 export const getModerationPerformanceMetrics = async () => {
+  console.warn(
+    '⚠️ getModerationPerformanceMetrics is deprecated. Use getDashboardOverview instead.'
+  );
   try {
-    const response = await axiosInstance.get('/api/admin/movies/dashboard_overview_data/');
+    const response = await getDashboardOverview();
     return {
-      data: response.data?.data?.performance_metrics || {},
+      data: response?.data?.performance_metrics || {},
     };
   } catch (error) {
     console.error('Error fetching performance metrics:', error);

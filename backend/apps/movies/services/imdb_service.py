@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 class IMDBService:
     BASE_URL = "https://imdb8.p.rapidapi.com"
     RAPID_API_HOST = "imdb8.p.rapidapi.com"
-    RATE_LIMIT_DELAY = 5.0  # Increase delay to 5 seconds between requests
-    MAX_RETRIES = 5  # Reduce max retries to avoid excessive requests
-    INITIAL_BACKOFF = 10.0  # Increase initial backoff to 10 seconds
-    MAX_BACKOFF = 120.0  # Increase max backoff to 2 minutes
-    CACHE_TIMEOUT = 3600  # 1 hour cache timeout
-    MAX_REQUESTS_PER_MINUTE = 10  # Limit requests per minute
+    RATE_LIMIT_DELAY = 5.0
+    MAX_RETRIES = 5
+    INITIAL_BACKOFF = 10.0
+    MAX_BACKOFF = 120.0
+    CACHE_TIMEOUT = 3600
+    MAX_REQUESTS_PER_MINUTE = 10
 
-    # Class variable to track request timestamps
+
     _request_timestamps = []
 
     @classmethod
@@ -56,12 +56,11 @@ class IMDBService:
             logger.error("IMDB_API_KEY is not set in environment or settings.")
             return None
 
-        # Generate safe cache key for Memcached
         params_str = json.dumps(params or {}, sort_keys=True)
         raw_key = f"imdb_{endpoint}_{params_str}"
         cache_key = "imdb_" + hashlib.md5(raw_key.encode("utf-8")).hexdigest()
 
-        # Try to get from cache first if caching is enabled
+        #Kiểm tra cache trước
         if use_cache:
             cached_data = cache.get(cache_key)
             if cached_data:
@@ -76,15 +75,15 @@ class IMDBService:
 
         while retries < cls.MAX_RETRIES:
             try:
-                # Enforce rate limit before making request
+                # Áp dụng giới hạn tốc độ trước khi gửi request
                 cls._enforce_rate_limit()
 
-                # Additional delay between requests
+                # Thêm delay giữa các request
                 time.sleep(cls.RATE_LIMIT_DELAY)
 
                 response = requests.get(url, headers=headers, params=params)
 
-                # Log response details for debugging
+
                 logger.debug(f"Response status: {response.status_code}")
                 logger.debug(f"Response headers: {response.headers}")
                 logger.debug(

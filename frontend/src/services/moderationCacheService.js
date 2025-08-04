@@ -10,8 +10,10 @@ class ModerationCacheService {
     this.defaultTTL = 30000; // 30 seconds default TTL
     this.apiTTLConfig = {
       // Different TTL for different APIs based on data freshness needs
+      dashboard_overview_optimized: 60000, // 60s - Dashboard data can be cached longer
       unified_moderation_queue: 30000, // 30s - Most dynamic
       moderation_queue_optimized: 45000, // 45s - Semi-dynamic
+      ultra_optimized_moderation_queue: 30000, // 30s - Ultra-fast, shorter cache
       spoiler_statistics_optimized: 60000, // 60s - Stats change slowly
       auto_marked_reviews: 45000, // 45s - Semi-dynamic
       moderation_analytics: 120000, // 2min - Analytics data
@@ -75,8 +77,11 @@ class ModerationCacheService {
    * Get API name from endpoint for TTL configuration
    */
   getApiNameFromEndpoint(endpoint) {
+    if (endpoint.includes('dashboard_overview_optimized')) return 'dashboard_overview_optimized';
     if (endpoint.includes('unified_moderation_queue')) return 'unified_moderation_queue';
     if (endpoint.includes('moderation_queue_optimized')) return 'moderation_queue_optimized';
+    if (endpoint.includes('ultra_optimized_moderation_queue'))
+      return 'ultra_optimized_moderation_queue';
     if (endpoint.includes('spoiler_statistics_optimized')) return 'spoiler_statistics_optimized';
     if (endpoint.includes('auto_marked_reviews')) return 'auto_marked_reviews';
     if (endpoint.includes('moderation_analytics')) return 'moderation_analytics';

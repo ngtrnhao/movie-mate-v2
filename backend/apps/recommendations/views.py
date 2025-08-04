@@ -100,9 +100,10 @@ class RecommendationViewSet(viewsets.ViewSet):
         try:
             user = request.user
             limit = int(request.query_params.get('limit', 20))
+            context = request.query_params.get('context', 'homepage')
 
             cf_service = CollaborativeFilteringService()
-            recommendations = cf_service.generate_collaborative_recommendations(user, limit=limit)
+            recommendations = cf_service.generate_collaborative_recommendations(user, limit=limit, context=context)
 
             # Format recommendations for JSON serialization
             formatted_recommendations = []
@@ -142,11 +143,60 @@ class RecommendationViewSet(viewsets.ViewSet):
             }, status=500)
 
     @action(detail=False, methods=['get'])
+    def hybrid(self, request):
+        """Get hybrid recommendations"""
+        try:
+            user = request.user
+            limit = int(request.query_params.get('limit', 20))
+            context = request.query_params.get('context', 'homepage')
+
+            hybrid_service = HybridRecommendationService()
+            recommendations = hybrid_service.generate_hybrid_recommendations(user, limit=limit, context=context)
+
+            # Format recommendations for JSON serialization
+            formatted_recommendations = []
+            for movie in recommendations:
+                formatted_recommendations.append({
+                    'id': movie.id,
+                    'title': movie.title,
+                    'title_vi': getattr(movie, 'title_vi', None),
+                    'title_en': getattr(movie, 'title_en', None),
+                    'poster_url': movie.poster_url,
+                    'backdrop_url': movie.backdrop_url,
+                    'overview': getattr(movie, 'overview_en', None),
+                    'overview_vi': getattr(movie, 'overview_vi', None),
+                    'overview_en': getattr(movie, 'overview_en', None),
+                    'release_date': movie.release_date,
+                    'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
+                    'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
+                    'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()],
+                    'recommendation_score': float(getattr(movie, 'recommendation_score', 0.0)),
+                    'recommendation_reason': getattr(movie, 'recommendation_reason', ''),
+                })
+
+            return Response({
+                'status': 'success',
+                'data': {
+                    'recommendations': formatted_recommendations,
+                    'method': 'hybrid',
+                    'total': len(formatted_recommendations)
+                }
+            })
+        except Exception as e:
+            logger.error(f"Error in hybrid recommendations: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': 'Failed to generate hybrid recommendations',
+                'error': str(e)
+            }, status=500)
+
+    @action(detail=False, methods=['get'])
     def demographic(self, request):
         """Get demographic filtering recommendations"""
         try:
             user = request.user
             limit = int(request.query_params.get('limit', 20))
+            context = request.query_params.get('context', 'homepage')
 
             # Check if user has complete demographic data
             has_complete_demographic = (
@@ -180,8 +230,8 @@ class RecommendationViewSet(viewsets.ViewSet):
                 }, status=400)
 
             df_service = EnhancedDemographicFilteringService()
-            recommendations = df_service.generate_enhanced_demographic_recommendations(
-                user, limit=limit, context='homepage', store=True
+            recommendations = df_service.generate_demographic_recommendations(
+                user, limit=limit, context=context, store=True
             )
 
             # Format recommendations for JSON serialization

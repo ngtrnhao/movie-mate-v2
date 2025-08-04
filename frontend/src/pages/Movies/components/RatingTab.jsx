@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Star, Filter, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from '../../../i18n/hooks/useTranslation';
 import {
   getMovieReviews,
   submitMovieReview,
@@ -19,14 +20,15 @@ import SpoilerBadge from '../../../components/common/SpoilerBadge';
 
 const StarRating = ({ rating, onRatingChange, editable = false, size = 20, showLabel = false }) => {
   const [hoverRating, setHoverRating] = useState(0);
+  const { t } = useTranslation('rating');
 
   // Text descriptions for each rating level
   const ratingLabels = {
-    1: 'Rất tệ',
-    2: 'Tệ',
-    3: 'Bình thường',
-    4: 'Hay',
-    5: 'Xuất sắc',
+    1: t('ratingLabels.1'),
+    2: t('ratingLabels.2'),
+    3: t('ratingLabels.3'),
+    4: t('ratingLabels.4'),
+    5: t('ratingLabels.5'),
   };
 
   // Color coding for different emotion levels
@@ -99,6 +101,7 @@ const RatingTab = ({ movieId }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+  const { t } = useTranslation('rating');
   const [userRating, setUserRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -202,7 +205,7 @@ const RatingTab = ({ movieId }) => {
       });
     } catch (err) {
       console.error('Error fetching reviews:', err);
-      setError('Không thể tải đánh giá.');
+      setError(t('error'));
     } finally {
       setLoading(false);
     }
@@ -257,7 +260,7 @@ const RatingTab = ({ movieId }) => {
         fetchUserReview();
       } catch (err) {
         console.error('Error submitting review:', err);
-        setError('Không thể gửi đánh giá. Vui lòng thử lại.');
+        setError(t('submitError'));
       }
     }
   };
@@ -293,7 +296,7 @@ const RatingTab = ({ movieId }) => {
       return;
     }
 
-    if (window.confirm('Bạn có chắc muốn xóa đánh giá này?')) {
+    if (window.confirm(t('deleteConfirm'))) {
       try {
         await deleteReview(reviewId);
         fetchReviews();
@@ -304,7 +307,7 @@ const RatingTab = ({ movieId }) => {
         }
       } catch (err) {
         console.error('Error deleting review:', err);
-        setError('Không thể xóa đánh giá.');
+        setError(t('deleteError'));
       }
     }
   };
@@ -371,7 +374,7 @@ const RatingTab = ({ movieId }) => {
       handleCancelEdit();
     } catch (err) {
       console.error('Error updating review:', err);
-      setError('Không thể cập nhật đánh giá. Vui lòng thử lại.');
+      setError(t('updateError'));
     }
   };
 
@@ -383,16 +386,13 @@ const RatingTab = ({ movieId }) => {
 
   const getPlaceholderText = rating => {
     const placeholders = {
-      5: 'Phim tuyệt vời! Hãy chia sẻ những điều bạn thích nhất về bộ phim này...',
-      4: 'Phim hay! Điều gì khiến bạn ấn tượng nhất?',
-      3: 'Phim ổn. Bạn nghĩ gì về nội dung và cách thể hiện?',
-      2: 'Có vẻ phim không hợp với bạn. Điều gì khiến bạn thất vọng?',
-      1: 'Phim không hay. Hãy chia sẻ lý do tại sao bạn không thích...',
+      5: t('userRating.placeholder.5'),
+      4: t('userRating.placeholder.4'),
+      3: t('userRating.placeholder.3'),
+      2: t('userRating.placeholder.2'),
+      1: t('userRating.placeholder.1'),
     };
-    return (
-      placeholders[rating] ||
-      'Chia sẻ cảm nhận chi tiết của bạn về bộ phim này (ít nhất 10 ký tự)...'
-    );
+    return placeholders[rating] || t('userRating.placeholder.default');
   };
 
   const getPercentage = count => {
@@ -407,7 +407,7 @@ const RatingTab = ({ movieId }) => {
   // Check if there are rejected reviews
   const rejectedReviewsCount = reviews.filter(review => review.is_approved === false).length;
 
-  if (loading) return <div className="text-center text-gray-400">Đang tải đánh giá...</div>;
+  if (loading) return <div className="text-center text-gray-400">{t('loading')}</div>;
   if (error) return <div className="text-center text-red-400">{error}</div>;
 
   return (
@@ -420,7 +420,7 @@ const RatingTab = ({ movieId }) => {
             <div className="mb-2 text-4xl font-bold text-white">{stats.averageRating}</div>
             <StarRating rating={parseFloat(stats.averageRating) || 0} size={24} />
             <p className="mt-2 text-sm text-gray-400">
-              {stats.totalRatings.toLocaleString()} đánh giá
+              {stats.totalRatings.toLocaleString()} {t('overview.totalRatings')}
             </p>
           </div>
 
@@ -428,11 +428,11 @@ const RatingTab = ({ movieId }) => {
           <div className="space-y-2">
             {[5, 4, 3, 2, 1].map(stars => {
               const emotionLabels = {
-                5: 'Xuất sắc',
-                4: 'Hay',
-                3: 'Bình thường',
-                2: 'Tệ',
-                1: 'Rất tệ',
+                5: t('ratingLabels.5'),
+                4: t('ratingLabels.4'),
+                3: t('ratingLabels.3'),
+                2: t('ratingLabels.2'),
+                1: t('ratingLabels.1'),
               };
 
               const emotionColors = {
@@ -471,7 +471,7 @@ const RatingTab = ({ movieId }) => {
       {/* User Rating Form */}
       <div className="rounded-lg bg-gray-800/50 p-4">
         <h3 className="mb-4 font-medium text-white">
-          {userReview ? 'Cập nhật đánh giá' : 'Đánh giá phim này'}
+          {userReview ? t('userRating.updateTitle') : t('userRating.title')}
         </h3>
 
         {isAuthenticated ? (
@@ -527,7 +527,9 @@ const RatingTab = ({ movieId }) => {
               )}
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-xs text-gray-400">{ratingComment.length} / 500</span>
+                <span className="text-xs text-gray-400">
+                  {t('userRating.characterCount', { count: ratingComment.length })}
+                </span>
                 {ratingComment.length > 0 && ratingComment.length < 10 && (
                   <span className="text-xs text-red-400">Đánh giá phải có ít nhất 10 ký tự</span>
                 )}
@@ -554,9 +556,9 @@ const RatingTab = ({ movieId }) => {
                   className="flex cursor-pointer items-center text-sm font-semibold text-orange-500"
                   onClick={() => setIsSpoiler(v => !v)}
                 >
-                  <AlertTriangle className="mr-1 size-4" /> Chứa spoiler
+                  <AlertTriangle className="mr-1 size-4" /> {t('userRating.spoilerToggle')}
                 </label>
-                <span className="text-xs text-orange-400">(Review sẽ bị ẩn khỏi công khai)</span>
+                <span className="text-xs text-orange-400">{t('userRating.spoilerNote')}</span>
               </div>
               <button
                 onClick={handleSubmitRating}
@@ -564,18 +566,18 @@ const RatingTab = ({ movieId }) => {
                 className="flex items-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-600"
               >
                 <Star size={16} />
-                {userReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+                {userReview ? t('userRating.updateButton') : t('userRating.submitButton')}
               </button>
             </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center space-y-4 py-6">
-            <p className="text-center text-gray-400">Bạn cần đăng nhập để đánh giá phim này</p>
+            <p className="text-center text-gray-400">{t('userRating.loginRequired')}</p>
             <button
               onClick={handleAuthRequired}
               className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
             >
-              Đăng nhập ngay
+              {t('userRating.loginButton')}
             </button>
           </div>
         )}
@@ -585,11 +587,13 @@ const RatingTab = ({ movieId }) => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <h3 className="font-medium text-white">
-            Đánh giá từ người dùng
+            {t('reviews.title')}
             <span className="ml-2 text-sm text-gray-400">
-              ({filteredReviews.length}/{reviews.length})
+              {t('reviews.count', { visible: filteredReviews.length, total: reviews.length })}
               {rejectedReviewsCount > 0 && (
-                <span className="ml-2 text-red-400">({rejectedReviewsCount} bị từ chối)</span>
+                <span className="ml-2 text-red-400">
+                  {t('reviews.rejectedCount', { count: rejectedReviewsCount })}
+                </span>
               )}
             </span>
           </h3>
@@ -602,9 +606,9 @@ const RatingTab = ({ movieId }) => {
               onChange={e => handleSortChange(e.target.value)}
               className="rounded bg-gray-700 px-3 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
             >
-              <option value="recent">Mới nhất</option>
-              <option value="rating">Đánh giá cao</option>
-              <option value="helpful">Hữu ích</option>
+              <option value="recent">{t('reviews.sortBy.recent')}</option>
+              <option value="rating">{t('reviews.sortBy.rating')}</option>
+              <option value="helpful">{t('reviews.sortBy.helpful')}</option>
             </select>
           </div>
         </div>
@@ -621,7 +625,9 @@ const RatingTab = ({ movieId }) => {
               }`}
             >
               {showRejectedReviews ? <EyeOff size={16} /> : <Eye size={16} />}
-              {showRejectedReviews ? 'Ẩn' : 'Hiện'} Review bị từ chối ({rejectedReviewsCount})
+              {showRejectedReviews
+                ? t('reviews.hideRejected', { count: rejectedReviewsCount })
+                : t('reviews.showRejected', { count: rejectedReviewsCount })}
             </button>
           )}
         </div>
@@ -700,7 +706,9 @@ const RatingTab = ({ movieId }) => {
                           <div className="mb-3 space-y-5 pt-5">
                             {/* Rating Edit */}
                             <div className="mb-2 flex items-center gap-2">
-                              <span className="text-sm text-gray-400">Đánh giá:</span>
+                              <span className="text-sm text-gray-400">
+                                {t('reviewItem.rating')}
+                              </span>
                               <StarRating
                                 rating={editingRating}
                                 onRatingChange={setEditingRating}
@@ -723,11 +731,11 @@ const RatingTab = ({ movieId }) => {
                             {/* Character Count */}
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-gray-400">
-                                {editingContent.length} / 500
+                                {t('userRating.characterCount', { count: editingContent.length })}
                               </span>
                               {editingContent.length > 0 && editingContent.length < 10 && (
                                 <span className="text-xs text-red-400">
-                                  Đánh giá phải có ít nhất 10 ký tự
+                                  {t('userRating.minLengthError')}
                                 </span>
                               )}
                             </div>
@@ -749,7 +757,8 @@ const RatingTab = ({ movieId }) => {
                                 />
                               </button>
                               <label className="flex cursor-pointer items-center text-sm font-semibold text-orange-500">
-                                <AlertTriangle className="mr-1 size-4" /> Chứa spoiler
+                                <AlertTriangle className="mr-1 size-4" />{' '}
+                                {t('userRating.spoilerToggle')}
                               </label>
                             </div>
 
@@ -760,13 +769,13 @@ const RatingTab = ({ movieId }) => {
                                 disabled={!editingContent.trim() || editingContent.length < 10}
                                 className="flex items-center gap-2 rounded-lg bg-yellow-500 px-3 py-1 text-sm font-medium text-black transition-colors hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-600"
                               >
-                                Lưu
+                                {t('reviewItem.editMode.save')}
                               </button>
                               <button
                                 onClick={handleCancelEdit}
                                 className="flex items-center gap-2 rounded-lg bg-gray-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-gray-700"
                               >
-                                Hủy
+                                {t('reviewItem.editMode.cancel')}
                               </button>
                             </div>
                           </div>
@@ -786,7 +795,7 @@ const RatingTab = ({ movieId }) => {
                                   }
                                   className="text-xs text-yellow-400 hover:text-yellow-300"
                                 >
-                                  Nhấn để xem spoiler
+                                  {t('reviewItem.spoilerWarning')}
                                 </button>
                               </div>
                             )}
@@ -802,7 +811,7 @@ const RatingTab = ({ movieId }) => {
                                   }
                                   className="text-xs text-gray-400 hover:text-gray-300"
                                 >
-                                  Ẩn spoiler
+                                  {t('reviewItem.hideSpoiler')}
                                 </button>
                               </div>
                             )}
@@ -815,7 +824,8 @@ const RatingTab = ({ movieId }) => {
                     {isRejected && review.moderation_reason && (
                       <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/20 p-3">
                         <p className="text-sm text-red-300">
-                          <strong>Lý do từ chối:</strong> {review.moderation_reason}
+                          <strong>{t('reviewItem.moderationReason')}</strong>{' '}
+                          {review.moderation_reason}
                         </p>
                       </div>
                     )}
@@ -866,16 +876,14 @@ const RatingTab = ({ movieId }) => {
           })
         ) : (
           <div className="text-center text-gray-400">
-            {showRejectedReviews
-              ? 'Chưa có đánh giá nào cho phim này.'
-              : 'Chưa có đánh giá được phê duyệt nào cho phim này.'}
+            {showRejectedReviews ? t('reviews.noReviews') : t('reviews.noApprovedReviews')}
             {rejectedReviewsCount > 0 && !showRejectedReviews && (
               <div className="mt-2">
                 <button
                   onClick={() => setShowRejectedReviews(true)}
                   className="text-xs text-red-400 underline hover:text-red-300"
                 >
-                  Hiện {rejectedReviewsCount} review bị từ chối
+                  {t('reviews.showRejectedButton', { count: rejectedReviewsCount })}
                 </button>
               </div>
             )}
@@ -890,11 +898,11 @@ const RatingTab = ({ movieId }) => {
               disabled={currentPage === 1}
               className="rounded bg-gray-700 px-3 py-1 text-sm text-white disabled:cursor-not-allowed disabled:bg-gray-800"
             >
-              Trước
+              {t('pagination.previous')}
             </button>
 
             <span className="text-sm text-gray-400">
-              Trang {currentPage} / {totalPages}
+              {t('pagination.pageInfo', { current: currentPage, total: totalPages })}
             </span>
 
             <button
@@ -902,7 +910,7 @@ const RatingTab = ({ movieId }) => {
               disabled={currentPage === totalPages}
               className="rounded bg-gray-700 px-3 py-1 text-sm text-white disabled:cursor-not-allowed disabled:bg-gray-800"
             >
-              Sau
+              {t('pagination.next')}
             </button>
           </div>
         )}

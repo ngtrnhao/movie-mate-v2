@@ -1,0 +1,75 @@
+{
+  "overview": {
+    "title": "Rating Overview",
+    "averageRating": "Average Rating",
+    "totalRatings": "ratings",
+    "distribution": "Rating Distribution"
+  },
+  "ratingLabels": {
+    "1": "Very Bad",
+    "2": "Bad",
+    "3": "Average",
+    "4": "Good",
+    "5": "Excellent"
+  },
+  "userRating": {
+    "title": "Rate this movie",
+    "updateTitle": "Update your rating",
+    "placeholder": {
+      "5": "Amazing movie! Share what you loved most about this film...",
+      "4": "Great movie! What impressed you the most?",
+      "3": "Okay movie. What do you think about the content and presentation?",
+      "2": "Seems like the movie didn't work for you. What disappointed you?",
+      "1": "Bad movie. Please share why you didn't like it...",
+      "default": "Share your detailed thoughts about this movie (at least 10 characters)..."
+    },
+    "characterCount": "{{count}} / 500",
+    "minLengthError": "Review must be at least 10 characters",
+    "spoilerToggle": "Contains spoiler",
+    "spoilerNote": "(Review will be hidden from public)",
+    "submitButton": "Submit Review",
+    "updateButton": "Update Review",
+    "loginRequired": "You need to login to rate this movie",
+    "loginButton": "Login Now"
+  },
+  "reviews": {
+    "title": "User Reviews",
+    "count": "{{visible}}/{{total}}",
+    "rejectedCount": "({{count}} rejected)",
+    "sortBy": {
+      "label": "Sort by",
+      "recent": "Most Recent",
+      "rating": "Highest Rated",
+      "helpful": "Most Helpful"
+    },
+    "showRejected": "Show Rejected Reviews ({{count}})",
+    "hideRejected": "Hide Rejected Reviews ({{count}})",
+    "noReviews": "No reviews for this movie yet.",
+    "noApprovedReviews": "No approved reviews for this movie yet.",
+    "showRejectedButton": "Show {{count}} rejected reviews"
+  },
+  "reviewItem": {
+    "rating": "Rating:",
+    "spoilerWarning": "Click to view spoiler",
+    "hideSpoiler": "Hide spoiler",
+    "moderationReason": "Rejection reason:",
+    "editMode": {
+      "save": "Save",
+      "cancel": "Cancel"
+    }
+  },
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "pageInfo": "Page {{current}} / {{total}}"
+  },
+  "tabs": {
+    "comments": "Comments"
+  },
+  "loading": "Loading reviews...",
+  "error": "Unable to load reviews.",
+  "submitError": "Unable to submit review. Please try again.",
+  "updateError": "Unable to update review. Please try again.",
+  "deleteConfirm": "Are you sure you want to delete this review?",
+  "deleteError": "Unable to delete review."
+}

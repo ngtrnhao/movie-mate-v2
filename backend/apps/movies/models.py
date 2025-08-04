@@ -65,7 +65,7 @@ class Movie(models.Model):
     combined_rating_score = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True,
                                                help_text="Weighted average of all ratings")
 
-    # # 🎛️ PRODUCTION CONTROL FIELDS
+    # # PRODUCTION CONTROL FIELDS
     # is_published = models.BooleanField(default=True,
     #                                  help_text="Hiển thị phim trên production")
     # visibility_status = models.CharField(max_length=20, choices=[
@@ -76,7 +76,7 @@ class Movie(models.Model):
     #     ('RESTRICTED', 'Hạn chế')
     # ], default='PUBLISHED', help_text="Trạng thái hiển thị của phim")
 
-    # # 📅 SCHEDULING FIELDS
+    # # SCHEDULING FIELDS
     # publish_date = models.DateTimeField(null=True, blank=True,
     #                                    help_text="Thời gian xuất bản")
     # unpublish_date = models.DateTimeField(null=True, blank=True,
@@ -86,7 +86,7 @@ class Movie(models.Model):
     # featured_until = models.DateTimeField(null=True, blank=True,
     #                                      help_text="Kết thúc featured")
 
-    # # 👨‍💼 ADMIN CONTROL FIELDS
+    # ADMIN CONTROL FIELDS
     # admin_featured = models.BooleanField(default=False,
     #                                     help_text="Admin manually featured")
     # admin_priority = models.IntegerField(default=0,
@@ -94,7 +94,7 @@ class Movie(models.Model):
     # manual_override = models.JSONField(default=dict, blank=True,
     #                                   help_text="Admin override settings")
 
-    # # ✅ APPROVAL WORKFLOW FIELDS
+    # # APPROVAL WORKFLOW FIELDS
     # approval_status = models.CharField(max_length=20, choices=[
     #     ('PENDING', 'Chờ duyệt'),
     #     ('APPROVED', 'Đã duyệt'),
@@ -108,7 +108,7 @@ class Movie(models.Model):
     # approved_at = models.DateTimeField(null=True, blank=True,
     #                                   help_text="Thời gian duyệt")
 
-    # # 🌍 TARGETING FIELDS
+    # # TARGETING FIELDS
     # target_regions = models.JSONField(default=list, blank=True,
     #                                  help_text="Danh sách regions hiển thị")
     # age_rating = models.CharField(max_length=10, blank=True, null=True,
@@ -116,7 +116,7 @@ class Movie(models.Model):
     # content_warnings = models.JSONField(default=list, blank=True,
     #                                    help_text="Cảnh báo nội dung")
 
-    # # 📊 QUALITY CONTROL FIELDS
+    # # QUALITY CONTROL FIELDS
     # quality_score = models.DecimalField(max_digits=3, decimal_places=1,
     #                                    null=True, blank=True,
     #                                    help_text="Điểm chất lượng content (0-10)")
@@ -143,7 +143,7 @@ class Movie(models.Model):
             models.Index(fields=["poster_url"], name="idx_movie_poster_v2"),
             models.Index(fields=["poster_url", "release_date"], name="idx_movie_poster_rel_v2"),
             models.Index(fields=["poster_url"], name="idx_movie_poster_nn_v2", condition=models.Q(poster_url__isnull=False)),
-            # Composite indexes cho hiệu năng cực cao
+            # Composite indexes cải thiện hiệu năng
             models.Index(fields=["poster_url", "release_date", "status"], name="idx_movie_poster_rel_status"),
             models.Index(fields=["release_date", "poster_url"], name="idx_movie_rel_poster"),
             # Partial index cho movies có poster
@@ -805,6 +805,51 @@ class MovieReview(models.Model):
                     is_spoiler=True
                 )
             ),
+
+            # ULTRA-OPTIMIZED INDEXES FOR MODERATION PERFORMANCE
+            # Primary ultra-optimized moderation queue lookup
+            models.Index(
+                fields=["review_type", "is_public", "is_approved", "created_at"],
+                name="idx_ultra_moderation_queue",
+                condition=models.Q(
+                    review_type='USER',
+                    is_public=True,
+                    is_approved__isnull=True
+                )
+            ),
+
+            # Ultra-optimized high priority reviews (abuse/offensive + spoiler)
+            models.Index(
+                fields=["review_type", "is_public", "is_approved", "is_spoiler", "created_at"],
+                name="idx_ultra_high_priority",
+                condition=models.Q(
+                    review_type='USER',
+                    is_public=True,
+                    is_approved__isnull=True
+                )
+            ),
+
+            # Ultra-optimized language filtering
+            models.Index(
+                fields=["review_type", "is_public", "is_approved", "language", "created_at"],
+                name="idx_ultra_language_filter",
+                condition=models.Q(
+                    review_type='USER',
+                    is_public=True,
+                    is_approved__isnull=True
+                )
+            ),
+
+            # Ultra-optimized date range filtering
+            models.Index(
+                fields=["review_type", "is_public", "is_approved", "created_at"],
+                name="idx_ultra_date_range",
+                condition=models.Q(
+                    review_type='USER',
+                    is_public=True,
+                    is_approved__isnull=True
+                )
+            ),
         ]
         ordering = ['-created_at']  # Add default ordering by creation date
         constraints = [
@@ -1054,6 +1099,26 @@ class ReviewReport(models.Model):
             models.Index(
                 fields=["review", "reason"],
                 name="idx_review_reason_reports"
+            ),
+
+            # ULTRA-OPTIMIZED INDEXES FOR REVIEW REPORTS
+            # Ultra-optimized report reason lookup
+            models.Index(
+                fields=["review", "reason"],
+                name="idx_ultra_report_reason"
+            ),
+
+            # Ultra-optimized report count optimization
+            models.Index(
+                fields=["review"],
+                name="idx_ultra_report_count"
+            ),
+
+            # Ultra-optimized abuse/offensive reports
+            models.Index(
+                fields=["review", "reason", "created_at"],
+                name="idx_ultra_abuse_reports",
+                condition=models.Q(reason__in=['abuse', 'offensive'])
             ),
         ]
         unique_together = ("review", "reported_by", "reason")  # Prevent duplicate reports for same reason

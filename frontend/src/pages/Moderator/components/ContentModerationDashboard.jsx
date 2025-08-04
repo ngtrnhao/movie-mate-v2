@@ -18,6 +18,7 @@ import {
   detectSpoilers,
   analyzeReviewSpoiler,
   getModerationQueueOptimized,
+  getUltraOptimizedModerationQueue,
 } from '../../../api/movieService';
 import moderationCacheService from '../../../services/moderationCacheService';
 import SpoilerDetectionPanel from './SpoilerDetectionPanel';
@@ -55,15 +56,16 @@ const ContentModerationDashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Use cache service for optimized API
+      // Use cache service for ultra-optimized API (handles 400k+ reviews)
       const response = await moderationCacheService.cachedApiCall(
-        'moderation_queue_optimized',
-        async () => await getModerationQueueOptimized(currentPage, 20, filters),
+        'ultra_optimized_moderation_queue',
+        async () => await getUltraOptimizedModerationQueue(currentPage, 20, filters),
         { page: currentPage, pageSize: 20, ...filters }
       );
 
-      setReviews(response.data || []);
-      setTotalPages(response.total_pages || 1);
+      // API returns { results: [...], count: ..., page_info: {...} }
+      setReviews(response.results || []);
+      setTotalPages(response.page_info?.total_pages || 1);
 
       // Update API stats from response
       setApiStats({
@@ -73,7 +75,7 @@ const ContentModerationDashboard = () => {
       });
 
       console.log('✅ Optimized moderation queue loaded:', {
-        count: response.data?.length || 0,
+        count: response.results?.length || 0,
         performance: response.performance_info,
         fromCache: response.__fromCache || false,
       });
@@ -85,25 +87,24 @@ const ContentModerationDashboard = () => {
       try {
         console.log('⚠️ Falling back to original API...');
         const fallbackResponse = await getModerationQueue(currentPage, 20, filters);
-        setReviews(fallbackResponse.data || []);
-        setTotalPages(fallbackResponse.total_pages || 1);
+        setReviews(fallbackResponse.results || fallbackResponse.data || []);
+        setTotalPages(fallbackResponse.page_info?.total_pages || fallbackResponse.total_pages || 1);
 
         // For fallback, calculate stats from current page data (not ideal but better than nothing)
+        const fallbackData = fallbackResponse.results || fallbackResponse.data || [];
         const priorityCounts = {
           high:
-            fallbackResponse.data?.filter(r => r.moderation_analysis?.priority_level === 'high')
-              .length || 0,
+            fallbackData.filter(r => r.moderation_analysis?.priority_level === 'high').length || 0,
           medium:
-            fallbackResponse.data?.filter(r => r.moderation_analysis?.priority_level === 'medium')
-              .length || 0,
+            fallbackData.filter(r => r.moderation_analysis?.priority_level === 'medium').length ||
+            0,
           low:
-            fallbackResponse.data?.filter(r => r.moderation_analysis?.priority_level === 'low')
-              .length || 0,
+            fallbackData.filter(r => r.moderation_analysis?.priority_level === 'low').length || 0,
         };
         setApiStats({
-          count: fallbackResponse.data?.length || 0,
+          count: fallbackData.length || 0,
           priority_stats: priorityCounts,
-          type_stats: { reported: 0, spoiler: 0, total: fallbackResponse.data?.length || 0 },
+          type_stats: { reported: 0, spoiler: 0, total: fallbackData.length || 0 },
         });
       } catch (fallbackErr) {
         console.error('Fallback also failed:', fallbackErr);
@@ -130,7 +131,7 @@ const ContentModerationDashboard = () => {
       setShowModal(false);
 
       // Invalidate cache and refresh moderation queue
-      moderationCacheService.invalidateCache('moderation_queue_optimized');
+      moderationCacheService.invalidateCache('ultra_optimized_moderation_queue');
       await fetchModerationQueue();
 
       // Show success notification

@@ -74,7 +74,7 @@ class UserRatingService:
         try:
             rating_float = float(rating)
 
-            # Handle 5-point scale (most common case)
+            #Xử lý thang điểm 5 từ movies lens
             if 0 <= rating_float <= 5:
                 if rating_float <= 1.5:
                     return Decimal('1.0')
@@ -87,15 +87,14 @@ class UserRatingService:
                 else:  # > 4.5
                     return Decimal('5.0')
 
-            # Handle 10-point scale (IMDB, TMDB)
+            # Xử lý thang điểm 10 từ IMDB, TMDB
             elif 0 <= rating_float <= 10:
                 # Convert 10-point to 5-point first
                 five_point_rating = (rating_float / 10) * 5
                 return UserRatingService._normalize_rating(five_point_rating)
 
-            # Handle other scales (0-100, etc.)
+            # Xử lý các thang điểm khác (0-100, etc.)
             else:
-                # Assume it's a percentage or other scale, normalize to 5-point
                 normalized = (rating_float / 100) * 5 if rating_float > 10 else rating_float
                 return UserRatingService._normalize_rating(normalized)
 

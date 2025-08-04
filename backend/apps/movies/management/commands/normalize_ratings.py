@@ -140,9 +140,9 @@ class Command(BaseCommand):
 
         if errors == 0:
             self.stdout.write(
-                self.style.SUCCESS("✅ All ratings successfully normalized!")
+                self.style.SUCCESS(" All ratings successfully normalized!")
             )
         else:
             self.stdout.write(
-                self.style.WARNING(f"⚠️  Normalization completed with {errors} errors")
+                self.style.WARNING(f" Normalization completed with {errors} errors")
             )

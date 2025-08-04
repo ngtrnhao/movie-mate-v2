@@ -10,7 +10,7 @@ const Navigation = () => {
   return (
     <nav className="hidden items-center gap-8 md:flex">
       <NavLink
-        to="/"
+        to="/home"
         className={({ isActive }) =>
           isActive ? 'text-yellow-200' : 'text-white hover:text-yellow-500 transition-colors'
         }

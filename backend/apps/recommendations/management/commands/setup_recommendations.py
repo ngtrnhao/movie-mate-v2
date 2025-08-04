@@ -37,6 +37,20 @@ class Command(BaseCommand):
             action='store_true',
             help='Dry run - show what would be done without making changes',
         )
+        # NEW: Add clustering method options
+        parser.add_argument(
+            '--clustering-method',
+            type=str,
+            choices=['kmeans', 'rule-based', 'both'],
+            default='kmeans',
+            help='Clustering method to use (default: kmeans)'
+        )
+        parser.add_argument(
+            '--n-clusters',
+            type=int,
+            default=8,
+            help='Number of clusters for K-means (default: 8)'
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(
@@ -45,16 +59,22 @@ class Command(BaseCommand):
 
         dry_run = options['dry_run']
         batch_size = options['batch_size']
+        clustering_method = options['clustering_method']
+        n_clusters = options['n_clusters']
 
         if dry_run:
             self.stdout.write(
                 self.style.WARNING('🔍 DRY RUN MODE - No changes will be made')
             )
 
+        self.stdout.write(f'📊 Clustering method: {clustering_method}')
+        if clustering_method == 'kmeans':
+            self.stdout.write(f'📊 Number of clusters: {n_clusters}')
+
         try:
             # Step 1: Setup demographic clusters
             if options['recalculate_clusters'] or not DemographicCluster.objects.exists():
-                self.setup_demographic_clusters(dry_run)
+                self.setup_demographic_clusters(dry_run, clustering_method, n_clusters)
 
             # Step 2: Update user preferences
             if options['update_preferences']:
@@ -73,9 +93,9 @@ class Command(BaseCommand):
             )
             logger.error(f"Recommendation setup error: {str(e)}")
 
-    def setup_demographic_clusters(self, dry_run=False):
+    def setup_demographic_clusters(self, dry_run=False, method='kmeans', n_clusters=8):
         """Setup demographic clusters for demographic filtering"""
-        self.stdout.write('📊 Setting up demographic clusters...')
+        self.stdout.write(f'📊 Setting up demographic clusters using {method} method...')
 
         if dry_run:
             # Show what would be created
@@ -84,35 +104,44 @@ class Command(BaseCommand):
                 gender__isnull=False
             )
 
-            age_groups = [
-                (0, 17, "Under 18"),
-                (18, 24, "18-24"),
-                (25, 34, "25-34"),
-                (35, 44, "35-44"),
-                (45, 54, "45-54"),
-                (55, 100, "55+")
-            ]
+            if method == 'kmeans':
+                self.stdout.write(f'  Would create {n_clusters} K-means clusters')
+                self.stdout.write(f'  Users with demographics: {users_with_demographics.count()}')
+            elif method == 'rule-based':
+                age_groups = [
+                    (0, 17, "Under 18"),
+                    (18, 24, "18-24"),
+                    (25, 34, "25-34"),
+                    (35, 44, "35-44"),
+                    (45, 54, "45-54"),
+                    (55, 100, "55+")
+                ]
 
-            genders = ['M', 'F', 'O']
-            potential_clusters = 0
+                genders = ['M', 'F', 'O']
+                potential_clusters = 0
 
-            for age_min, age_max, age_label in age_groups:
-                for gender in genders:
-                    cluster_users = users_with_demographics.filter(
-                        age__gte=age_min,
-                        age__lte=age_max,
-                        gender=gender
-                    )
-
-                    if cluster_users.count() >= 5:
-                        potential_clusters += 1
-                        self.stdout.write(
-                            f'  Would create cluster: {age_label}_{gender} ({cluster_users.count()} users)'
+                for age_min, age_max, age_label in age_groups:
+                    for gender in genders:
+                        cluster_users = users_with_demographics.filter(
+                            age__gte=age_min,
+                            age__lte=age_max,
+                            gender=gender
                         )
 
-            self.stdout.write(
-                self.style.SUCCESS(f'Would create {potential_clusters} demographic clusters')
-            )
+                        if cluster_users.count() >= 5:
+                            potential_clusters += 1
+                            self.stdout.write(
+                                f'  Would create cluster: {age_label}_{gender} ({cluster_users.count()} users)'
+                            )
+
+                self.stdout.write(
+                    self.style.SUCCESS(f'Would create {potential_clusters} rule-based demographic clusters')
+                )
+            elif method == 'both':
+                self.stdout.write(f'  Would create {n_clusters} K-means clusters')
+                self.stdout.write(f'  Would create rule-based clusters')
+                self.stdout.write(f'  Users with demographics: {users_with_demographics.count()}')
+
             return
 
         # Actually create clusters
@@ -123,19 +152,52 @@ class Command(BaseCommand):
         if existing_clusters > 0:
             self.stdout.write(f'Found {existing_clusters} existing clusters. Recalculating...')
 
-        demographic_service.create_demographic_clusters(recalculate=True)
+        # Create clusters based on method
+        if method == 'kmeans':
+            self.stdout.write(f'🤖 Creating {n_clusters} K-means clusters...')
+            demographic_service.create_kmeans_clusters(
+                recalculate=True,
+                n_clusters=n_clusters
+            )
+            self.stdout.write(self.style.SUCCESS(f'✅ Created K-means clusters'))
+
+        elif method == 'rule-based':
+            self.stdout.write('📋 Creating rule-based clusters...')
+            demographic_service.create_demographic_clusters(recalculate=True)
+            self.stdout.write(self.style.SUCCESS(f'✅ Created rule-based clusters'))
+
+        elif method == 'both':
+            self.stdout.write(f'🔄 Creating both K-means and rule-based clusters...')
+
+            # Create K-means clusters first
+            self.stdout.write(f'🤖 Step 1: Creating {n_clusters} K-means clusters...')
+            demographic_service.create_kmeans_clusters(
+                recalculate=True,
+                n_clusters=n_clusters
+            )
+
+            # Create rule-based clusters
+            self.stdout.write('📋 Step 2: Creating rule-based clusters...')
+            demographic_service.create_demographic_clusters(recalculate=True)
+
+            self.stdout.write(self.style.SUCCESS(f'✅ Created both K-means and rule-based clusters'))
 
         new_clusters = DemographicCluster.objects.count()
         self.stdout.write(
-            self.style.SUCCESS(f'✅ Created {new_clusters} demographic clusters')
+            self.style.SUCCESS(f'✅ Total clusters created: {new_clusters}')
         )
 
         # Show cluster summary
+        self.stdout.write('\n📊 Cluster Summary:')
         for cluster in DemographicCluster.objects.all()[:10]:  # Show first 10
+            cluster_type = "K-means" if cluster.cluster_id.startswith('kmeans_') else "Rule-based"
             self.stdout.write(
-                f'  {cluster.name}: {cluster.user_count} users, '
+                f'  {cluster.name} ({cluster_type}): {cluster.user_count} users, '
                 f'avg rating: {cluster.average_rating:.2f}'
             )
+
+        if DemographicCluster.objects.count() > 10:
+            self.stdout.write(f'  ... and {DemographicCluster.objects.count() - 10} more clusters')
 
     def update_user_preferences(self, batch_size, dry_run=False):
         """Update user preferences based on rating history"""

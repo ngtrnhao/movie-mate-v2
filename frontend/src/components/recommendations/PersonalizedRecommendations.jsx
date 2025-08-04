@@ -167,7 +167,7 @@ const PersonalizedRecommendations = ({
       collaborative: 'Collaborative Filtering',
       demographic: 'Demographic Filtering',
       hybrid: 'Hybrid Algorithm',
-      content_based: 'Content-Based',
+
       popular: 'Popular Movies',
       fallback: 'Popular Movies',
     };
@@ -179,7 +179,7 @@ const PersonalizedRecommendations = ({
       collaborative: 'Based on users with similar preferences',
       demographic: 'Based on users with similar demographics',
       hybrid: 'Combines multiple recommendation methods',
-      content_based: 'Based on your favorite genres and movies',
+
       popular: 'Currently popular movies',
       fallback: 'Popular movies (recommendation system unavailable)',
     };

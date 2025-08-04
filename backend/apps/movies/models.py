@@ -5,6 +5,8 @@ from django.utils import timezone
 from django.utils.text import slugify
 import logging
 from datetime import timedelta
+from decimal import Decimal
+from django.core.exceptions import ValidationError
 
 # Create your models here.
 
@@ -699,7 +701,7 @@ class MovieReview(models.Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     content = models.TextField()
     rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True,
-                               help_text="Rating scale 0.0-5.0 (5-star system)")
+                               help_text="Rating scale 1.0-5.0 (5-star system, whole numbers only)")
 
     # Reply system - add parent review reference
     parent_review = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True,
@@ -964,6 +966,22 @@ class MovieReview(models.Model):
         ).order_by(
             '-created_at'
         )[:limit]
+
+    def clean(self):
+        """Custom validation for rating field"""
+        super().clean()
+        if self.rating is not None:
+            # Ensure rating is a whole number between 1.0 and 5.0
+            rating_float = float(self.rating)
+            if rating_float < 1.0 or rating_float > 5.0:
+                raise ValidationError({'rating': 'Rating must be between 1.0 and 5.0'})
+
+            # Ensure it's a whole number (1.0, 2.0, 3.0, 4.0, 5.0)
+            if rating_float % 1 != 0:
+                raise ValidationError({'rating': 'Rating must be a whole number (1.0, 2.0, 3.0, 4.0, 5.0)'})
+
+            # Update to ensure proper decimal format
+            self.rating = Decimal(str(int(rating_float)))
 
 
 class ReviewVote(models.Model):

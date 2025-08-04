@@ -1,0 +1,159 @@
+{
+  "overall_statistics": {
+    "total_users": 6331,
+    "users_with_ratings": 6239,
+    "total_movies": 718002,
+    "total_ratings": 402570,
+    "user_ratings": 402567,
+    "external_ratings": 3
+  },
+  "rating_distribution": [
+    {
+      "rating": "0.5",
+      "count": 2188
+    },
+    {
+      "rating": "1.0",
+      "count": 18830
+    },
+    {
+      "rating": "1.2",
+      "count": 11
+    },
+    {
+      "rating": "1.3",
+      "count": 1
+    },
+    {
+      "rating": "1.4",
+      "count": 5
+    },
+    {
+      "rating": "1.5",
+      "count": 2380
+    },
+    {
+      "rating": "2.0",
+      "count": 36323
+    },
+    {
+      "rating": "2.5",
+      "count": 7297
+    },
+    {
+      "rating": "3.0",
+      "count": 99058
+    },
+    {
+      "rating": "3.5",
+      "count": 17942
+    },
+    {
+      "rating": "4.0",
+      "count": 129066
+    },
+    {
+      "rating": "4.2",
+      "count": 54
+    },
+    {
+      "rating": "4.4",
+      "count": 22
+    },
+    {
+      "rating": "4.5",
+      "count": 12790
+    },
+    {
+      "rating": "4.6",
+      "count": 3
+    },
+    {
+      "rating": "4.8",
+      "count": 5
+    },
+    {
+      "rating": "4.9",
+      "count": 1
+    },
+    {
+      "rating": "5.0",
+      "count": 76593
+    },
+    {
+      "rating": "5.2",
+      "count": 1
+    }
+  ],
+  "rating_statistics": {
+    "average_rating": 3.5559790843828405,
+    "min_rating": 0.5,
+    "max_rating": 5.2
+  },
+  "top_users": [
+    {
+      "user_id": 1085,
+      "rating_count": 3178,
+      "average_rating": 3.129955947136564
+    },
+    {
+      "user_id": 2285,
+      "rating_count": 3148,
+      "average_rating": 2.713151207115629
+    },
+    {
+      "user_id": 1384,
+      "rating_count": 2827,
+      "average_rating": 3.3662893526706754
+    },
+    {
+      "user_id": 2457,
+      "rating_count": 2319,
+      "average_rating": 2.74363949978439
+    },
+    {
+      "user_id": 1534,
+      "rating_count": 2255,
+      "average_rating": 3.094456762749446
+    }
+  ],
+  "top_movies": [
+    {
+      "movie_id": 282646,
+      "title": "American Beauty",
+      "rating_count": 3836,
+      "average_rating": 4.294447340980188
+    },
+    {
+      "movie_id": 58129,
+      "title": "Star Wars: Episode V - The Empire Strikes Back",
+      "rating_count": 3596,
+      "average_rating": 4.269132369299221
+    },
+    {
+      "movie_id": 55535,
+      "title": "Star Wars: Episode IV - A New Hope",
+      "rating_count": 3432,
+      "average_rating": 4.408508158508159
+    },
+    {
+      "movie_id": 75090,
+      "title": "Jurassic Park",
+      "rating_count": 3371,
+      "average_rating": 3.7359833877187776
+    },
+    {
+      "movie_id": 72565,
+      "title": "Terminator 2: Judgment Day",
+      "rating_count": 3334,
+      "average_rating": 4.028374325134973
+    }
+  ],
+  "matrix_sample": {
+    "user_count": 3,
+    "movie_count": 3,
+    "total_cells": 9,
+    "filled_cells": 9,
+    "sparsity_percentage": 0.0
+  }
+}

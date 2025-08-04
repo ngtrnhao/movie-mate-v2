@@ -39,7 +39,7 @@ from apps.movies.models import Movie, MovieReview
 from apps.users.models import UserFavoriteGenre
 from apps.metadata.models import Genre
 from .models import (
-    UserPreference, UserSimilarity, MovieSimilarity,
+    UserPreference, UserSimilarity,
     RecommendationResult, DemographicCluster, RecommendationMetrics
 )
 
@@ -387,9 +387,17 @@ class CollaborativeFilteringService:
 
     def generate_collaborative_recommendations(self, user, limit=20, context='homepage') -> List[any]:
         """
-        Generate movie recommendations using collaborative filtering
+        Generate collaborative filtering recommendations for a user
         """
         try:
+            # Track recommendation generation
+            metrics_service.track_recommendation_generation(
+                recommendation_type='collaborative',
+                user_count=1,
+                movie_count=limit,
+                context=context
+            )
+
             # Find similar users
             similar_users = self.find_similar_users(user, limit=50)
 
@@ -1205,6 +1213,14 @@ class EnhancedDemographicFilteringService:
         Generate recommendations based on user's demographic cluster
         """
         try:
+            # Track recommendation generation
+            metrics_service.track_recommendation_generation(
+                recommendation_type='demographic',
+                user_count=1,
+                movie_count=limit,
+                context=context
+            )
+
             # Get user's demographic cluster
             cluster = self.get_user_demographic_cluster(user)
 
@@ -1779,9 +1795,8 @@ class HybridRecommendationService:
         self.collaborative_service = CollaborativeFilteringService()
         self.demographic_service = EnhancedDemographicFilteringService()
         self.weights = {
-            'collaborative': 0.4,
-            'demographic': 0.3,
-            'content_based': 0.2,
+            'collaborative': 0.5,
+            'demographic': 0.4,
             'trending': 0.1
         }
 
@@ -1790,6 +1805,14 @@ class HybridRecommendationService:
         Generate hybrid recommendations combining multiple methods
         """
         try:
+            # Track recommendation generation
+            metrics_service.track_recommendation_generation(
+                recommendation_type='hybrid',
+                user_count=1,
+                movie_count=limit,
+                context=context
+            )
+
             all_recommendations = {}
 
             # Get collaborative filtering recommendations
@@ -1802,8 +1825,7 @@ class HybridRecommendationService:
                 user, limit=limit*2, context=context, store=False
             )
 
-            # Get content-based recommendations (using existing genre preferences)
-            content_recs = self._get_content_based_recommendations(user, limit=limit*2)
+
 
             # Get trending recommendations
             trending_recs = self._get_trending_recommendations(user, limit=limit//2)
@@ -1829,15 +1851,7 @@ class HybridRecommendationService:
                 all_recommendations[movie.id]['score'] += self.weights['demographic']
                 all_recommendations[movie.id]['methods'].append('demographic')
 
-            for movie in content_recs:
-                if movie.id not in all_recommendations:
-                    all_recommendations[movie.id] = {
-                        'movie': movie,
-                        'score': 0.0,
-                        'methods': []
-                    }
-                all_recommendations[movie.id]['score'] += self.weights['content_based']
-                all_recommendations[movie.id]['methods'].append('content_based')
+
 
             for movie in trending_recs:
                 if movie.id not in all_recommendations:
@@ -1899,51 +1913,7 @@ class HybridRecommendationService:
             logger.error(f"Error generating hybrid recommendations: {str(e)}")
             return []
 
-    def _get_content_based_recommendations(self, user, limit=20) -> List[any]:
-        """Get content-based recommendations using user's favorite genres"""
-        try:
-            # Get user's favorite genres
-            favorite_genres = UserFavoriteGenre.objects.filter(user=user).values_list('genre', flat=True)
 
-            if not favorite_genres:
-                # Infer from high ratings
-                high_rated_movies = MovieReview.objects.filter(
-                    user=user,
-                    review_type='USER',
-                    rating__gte=4.0
-                ).values_list('movie', flat=True)
-
-                if high_rated_movies:
-                    favorite_genres = Movie.objects.filter(
-                        id__in=high_rated_movies
-                    ).values_list('genres', flat=True).distinct()
-
-            if not favorite_genres:
-                return []
-
-            # Get user's already rated movies
-            user_rated_movies = set(MovieReview.objects.filter(
-                user=user,
-                review_type='USER'
-            ).values_list('movie_id', flat=True))
-
-            # Get movies from favorite genres
-            content_movies = Movie.objects.filter(
-                genres__in=favorite_genres,
-                poster_url__isnull=False
-            ).exclude(
-                id__in=user_rated_movies
-            ).annotate(
-                avg_rating=Avg('reviews__rating', filter=Q(reviews__review_type='USER'))
-            ).filter(
-                avg_rating__gte=3.5
-            ).order_by('-avg_rating')[:limit]
-
-            return list(content_movies)
-
-        except Exception as e:
-            logger.error(f"Error getting content-based recommendations: {str(e)}")
-            return []
 
     def _get_trending_recommendations(self, user, limit=10) -> List[any]:
         """Get trending movies for diversity"""
@@ -2435,3 +2405,238 @@ class AdvancedDemographicSimilarityCalculator:
         except Exception as e:
             logger.error(f"Error getting user behavioral stats: {str(e)}")
             return None
+
+class RecommendationMetricsService:
+    """
+    Service to track and analyze recommendation system performance metrics
+    """
+
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+    def track_recommendation_generation(self, recommendation_type: str, user_count: int,
+                                      movie_count: int, context: str = 'homepage'):
+        """Track when recommendations are generated"""
+        try:
+            date = timezone.now().date()
+            metrics, created = RecommendationMetrics.objects.get_or_create(
+                date=date,
+                recommendation_type=recommendation_type,
+                defaults={
+                    'total_recommendations': 0,
+                    'unique_users': 0,
+                    'unique_movies': 0,
+                }
+            )
+
+            if not created:
+                metrics.total_recommendations += user_count * 20  # Assume 20 recs per user
+                metrics.unique_users = max(metrics.unique_users, user_count)
+                metrics.unique_movies = max(metrics.unique_movies, movie_count)
+
+            metrics.save()
+            self.logger.info(f"Tracked recommendation generation: {recommendation_type}, users: {user_count}")
+
+        except Exception as e:
+            self.logger.error(f"Error tracking recommendation generation: {e}")
+
+    def track_user_engagement(self, user_id: int, recommendation_type: str,
+                            action: str, movie_id: int = None):
+        """Track user engagement with recommendations"""
+        try:
+            date = timezone.now().date()
+            metrics, created = RecommendationMetrics.objects.get_or_create(
+                date=date,
+                recommendation_type=recommendation_type,
+                defaults={
+                    'total_recommendations': 0,
+                    'unique_users': 0,
+                    'unique_movies': 0,
+                    'click_through_rate': 0.0,
+                    'conversion_rate': 0.0,
+                }
+            )
+
+            # Update engagement metrics based on action
+            if action == 'click':
+                metrics.click_through_rate = self._update_rate(metrics.click_through_rate, 1, 1)
+            elif action == 'rate':
+                metrics.conversion_rate = self._update_rate(metrics.conversion_rate, 1, 1)
+                if movie_id:
+                    # Track actual rating vs predicted
+                    self._track_rating_accuracy(user_id, movie_id, recommendation_type)
+
+            metrics.save()
+
+        except Exception as e:
+            self.logger.error(f"Error tracking user engagement: {e}")
+
+    def _update_rate(self, current_rate: float, numerator: int, denominator: int) -> float:
+        """Update rate metric with new data"""
+        if current_rate == 0.0:
+            return numerator / denominator
+        else:
+            # Simple moving average
+            return (current_rate + (numerator / denominator)) / 2
+
+    def _track_rating_accuracy(self, user_id: int, movie_id: int, recommendation_type: str):
+        """Track rating prediction accuracy"""
+        try:
+            # Get predicted rating from RecommendationResult
+            result = RecommendationResult.objects.filter(
+                user_id=user_id,
+                movie_id=movie_id,
+                recommendation_type=recommendation_type
+            ).first()
+
+            if result and result.predicted_rating:
+                # Get actual rating
+                actual_rating = MovieReview.objects.filter(
+                    user_id=user_id,
+                    movie_id=movie_id,
+                    review_type='USER',
+                    rating__isnull=False
+                ).first()
+
+                if actual_rating and actual_rating.rating:
+                    # Calculate error
+                    error = abs(result.predicted_rating - actual_rating.rating)
+
+                    # Update metrics
+                    date = timezone.now().date()
+                    metrics, created = RecommendationMetrics.objects.get_or_create(
+                        date=date,
+                        recommendation_type=recommendation_type,
+                        defaults={
+                            'rmse': 0.0,
+                            'mae': 0.0,
+                            'average_predicted_rating': 0.0,
+                            'average_actual_rating': 0.0,
+                        }
+                    )
+
+                    # Update accuracy metrics
+                    metrics.mae = self._update_average(metrics.mae, error)
+                    metrics.average_predicted_rating = self._update_average(
+                        metrics.average_predicted_rating, result.predicted_rating
+                    )
+                    metrics.average_actual_rating = self._update_average(
+                        metrics.average_actual_rating, actual_rating.rating
+                    )
+
+                    metrics.save()
+
+        except Exception as e:
+            self.logger.error(f"Error tracking rating accuracy: {e}")
+
+    def _update_average(self, current_avg: float, new_value: float) -> float:
+        """Update running average"""
+        if current_avg == 0.0:
+            return new_value
+        else:
+            # Simple moving average
+            return (current_avg + new_value) / 2
+
+    def calculate_diversity_metrics(self, recommendation_type: str, date: datetime.date = None):
+        """Calculate diversity metrics for recommendations"""
+        try:
+            if not date:
+                date = timezone.now().date()
+
+            # Get recommendations for the day
+            results = RecommendationResult.objects.filter(
+                created_at__date=date,
+                recommendation_type=recommendation_type
+            ).select_related('movie')
+
+            if not results.exists():
+                return
+
+            # Calculate intra-list diversity
+            diversity_scores = []
+            novelty_scores = []
+
+            # Group by user
+            user_recommendations = {}
+            for result in results:
+                if result.user_id not in user_recommendations:
+                    user_recommendations[result.user_id] = []
+                user_recommendations[result.user_id].append(result.movie)
+
+            for user_id, movies in user_recommendations.items():
+                if len(movies) < 2:
+                    continue
+
+                # Calculate genre diversity
+                genres = set()
+                for movie in movies:
+                    genres.update(movie.genres.values_list('name', flat=True))
+
+                diversity = len(genres) / len(movies) if movies else 0
+                diversity_scores.append(diversity)
+
+                # Calculate novelty (based on average rating count)
+                avg_rating_count = sum(
+                    movie.moviereview_set.filter(review_type='USER').count()
+                    for movie in movies
+                ) / len(movies)
+                novelty = 1 / (1 + avg_rating_count / 100)  # Normalize
+                novelty_scores.append(novelty)
+
+            # Update metrics
+            if diversity_scores:
+                metrics, created = RecommendationMetrics.objects.get_or_create(
+                    date=date,
+                    recommendation_type=recommendation_type,
+                    defaults={}
+                )
+
+                metrics.intra_list_diversity = sum(diversity_scores) / len(diversity_scores)
+                metrics.novelty_score = sum(novelty_scores) / len(novelty_scores)
+                metrics.save()
+
+        except Exception as e:
+            self.logger.error(f"Error calculating diversity metrics: {e}")
+
+    def get_performance_summary(self, days: int = 7) -> Dict:
+        """Get performance summary for the last N days"""
+        try:
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=days)
+
+            metrics = RecommendationMetrics.objects.filter(
+                date__range=[start_date, end_date]
+            ).values('recommendation_type').annotate(
+                avg_click_rate=Avg('click_through_rate'),
+                avg_conversion_rate=Avg('conversion_rate'),
+                avg_mae=Avg('mae'),
+                avg_diversity=Avg('intra_list_diversity'),
+                avg_novelty=Avg('novelty_score'),
+                total_recommendations=Sum('total_recommendations'),
+                total_users=Sum('unique_users')
+            )
+
+            return {
+                'period': f"{start_date} to {end_date}",
+                'metrics': list(metrics)
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error getting performance summary: {e}")
+            return {}
+
+    def cleanup_old_metrics(self, days_to_keep: int = 90):
+        """Clean up old metrics data"""
+        try:
+            cutoff_date = timezone.now().date() - timedelta(days=days_to_keep)
+            deleted_count = RecommendationMetrics.objects.filter(
+                date__lt=cutoff_date
+            ).delete()[0]
+
+            self.logger.info(f"Cleaned up {deleted_count} old metrics records")
+
+        except Exception as e:
+            self.logger.error(f"Error cleaning up old metrics: {e}")
+
+# Initialize global metrics service
+metrics_service = RecommendationMetricsService()

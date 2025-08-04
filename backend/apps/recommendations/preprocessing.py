@@ -82,7 +82,6 @@ class DataPreprocessor:
         results = {
             'collaborative_filtering': {},
             'demographic_filtering': {},
-            'content_based_filtering': {},
             'deep_learning': {},
             'metadata': {}
         }
@@ -95,9 +94,7 @@ class DataPreprocessor:
         demo_data = self.prepare_demographic_data()
         results['demographic_filtering'] = demo_data
 
-        # 3. Prepare data for Content-based Filtering
-        content_data = self.prepare_content_based_data()
-        results['content_based_filtering'] = content_data
+
 
         # 4. Prepare data for Deep Learning (TensorFlow)
         dl_data = self.prepare_deep_learning_data(test_size, random_state)
@@ -197,49 +194,7 @@ class DataPreprocessor:
             logger.error(f"Error preparing demographic data: {str(e)}")
             return {}
 
-    def prepare_content_based_data(self) -> Dict[str, Any]:
-        """
-        Prepare movie content data for content-based filtering
-        """
-        logger.info("Preparing content-based filtering data...")
 
-        try:
-            # Get movie content data
-            movies_df = self._get_movies_dataframe()
-
-            if movies_df.empty:
-                logger.warning("No movie content data available")
-                return {}
-
-            # Process text features
-            text_features = self._process_text_features(movies_df)
-
-            # Process categorical features
-            categorical_features = self._process_movie_categorical_features(movies_df)
-
-            # Process numerical features
-            numerical_features = self._process_movie_numerical_features(movies_df)
-
-            # Combine all features
-            combined_features = self._combine_movie_features(
-                text_features, categorical_features, numerical_features
-            )
-
-            result = {
-                'movies_df': movies_df,
-                'text_features': text_features,
-                'categorical_features': categorical_features,
-                'numerical_features': numerical_features,
-                'combined_features': combined_features,
-                'content_statistics': self._calculate_content_statistics(movies_df)
-            }
-
-            logger.info(f"Content-based data prepared: {len(movies_df)} movies with features")
-            return result
-
-        except Exception as e:
-            logger.error(f"Error preparing content-based data: {str(e)}")
-            return {}
 
     def prepare_deep_learning_data(self, test_size: float = 0.2, random_state: int = 42) -> Dict[str, Any]:
         """
@@ -588,17 +543,7 @@ class DataPreprocessor:
             'occupation_distribution': users_df['occupation'].value_counts().head(10).to_dict() if 'occupation' in users_df.columns else {}
         }
 
-    def _calculate_content_statistics(self, movies_df: pd.DataFrame) -> Dict:
-        """Calculate content-based statistics"""
-        return {
-            'total_movies': len(movies_df),
-            'avg_runtime': movies_df['runtime'].mean() if 'runtime' in movies_df.columns else None,
-            'avg_rating': movies_df['avg_rating'].mean() if 'avg_rating' in movies_df.columns else None,
-            'movies_with_overview': (
-                movies_df['overview_en'].notna().sum() + movies_df['overview_vi'].notna().sum()
-                if 'overview_en' in movies_df.columns else 0
-            )
-        }
+
 
     def _prepare_user_embeddings(self, interactions_df: pd.DataFrame) -> pd.DataFrame:
         """Prepare user features for embeddings"""

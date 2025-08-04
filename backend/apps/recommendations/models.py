@@ -124,47 +124,7 @@ class UserSimilarity(models.Model):
             models.Index(fields=['updated_at']),
         ]
 
-class MovieSimilarity(models.Model):
-    """
-    Precomputed movie similarity matrix for content-based filtering
-    """
 
-    SIMILARITY_TYPES = [
-        ('content', 'Content-Based'),
-        ('collaborative', 'Collaborative'),
-        ('genre', 'Genre Similarity'),
-        ('cast', 'Cast Similarity'),
-        ('hybrid', 'Hybrid Similarity'),
-    ]
-
-    movie1 = models.ForeignKey('movies.Movie', on_delete=models.CASCADE, related_name='similarity_as_movie1')
-    movie2 = models.ForeignKey('movies.Movie', on_delete=models.CASCADE, related_name='similarity_as_movie2')
-
-    similarity_type = models.CharField(max_length=20, choices=SIMILARITY_TYPES)
-    similarity_score = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
-        help_text="Similarity score between 0 and 1"
-    )
-
-    # FEATURE BREAKDOWN
-    genre_similarity = models.FloatField(default=0.0)
-    cast_similarity = models.FloatField(default=0.0)
-    director_similarity = models.FloatField(default=0.0)
-    year_similarity = models.FloatField(default=0.0)
-    rating_similarity = models.FloatField(default=0.0)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "recommendations_movie_similarity"
-        unique_together = [['movie1', 'movie2', 'similarity_type']]
-        indexes = [
-            models.Index(fields=['movie1', 'similarity_type', 'similarity_score']),
-            models.Index(fields=['movie2', 'similarity_type', 'similarity_score']),
-            models.Index(fields=['similarity_score']),
-            models.Index(fields=['genre_similarity']),
-            models.Index(fields=['cast_similarity']),
-        ]
 
 class RecommendationResult(models.Model):
     """
@@ -174,7 +134,6 @@ class RecommendationResult(models.Model):
     RECOMMENDATION_TYPES = [
         ('collaborative', 'Collaborative Filtering'),
         ('demographic', 'Demographic Filtering'),
-        ('content_based', 'Content-Based'),
         ('trending', 'Trending'),
         ('popular', 'Popular'),
         ('hybrid', 'Hybrid Algorithm'),

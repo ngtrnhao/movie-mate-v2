@@ -57,12 +57,6 @@ export const getDemographicRecommendations = async (limit = 20) => {
   return makeRecommendationApiCall('/api/recommendations/demographic/', { limit }, cacheKey);
 };
 
-// Get content-based recommendations
-export const getContentBasedRecommendations = async (limit = 20) => {
-  const cacheKey = `content_based_${limit}`;
-  return makeRecommendationApiCall('/api/recommendations/content_based/', { limit }, cacheKey);
-};
-
 // Get trending recommendations
 export const getTrendingRecommendations = async (limit = 10) => {
   const cacheKey = `trending_${limit}`;
@@ -183,9 +177,7 @@ export const getRecommendationsWithFallback = async (
       case 'demographic':
         recommendations = await getDemographicRecommendations(limit);
         break;
-      case 'content_based':
-        recommendations = await getContentBasedRecommendations(limit);
-        break;
+
       case 'trending':
         recommendations = await getTrendingRecommendations(limit);
         break;
@@ -279,7 +271,7 @@ export default {
   getPersonalizedRecommendations,
   getCollaborativeRecommendations,
   getDemographicRecommendations,
-  getContentBasedRecommendations,
+
   getTrendingRecommendations,
   getSimilarUsers,
   getSimilarMovies,

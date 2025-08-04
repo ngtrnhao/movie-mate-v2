@@ -367,7 +367,7 @@ class CFReportGenerator:
                 'category': 'sparsity',
                 'priority': 'medium',
                 'issue': 'Độ thưa thớt cao',
-                'recommendation': 'Tăng cường user engagement và content-based filtering',
+                'recommendation': 'Tăng cường user engagement và demographic filtering',
                 'impact': 'Cải thiện moderate chất lượng recommendation'
             })
 

@@ -70,37 +70,27 @@ class Command(BaseCommand):
         """Calculate collaborative filtering similarities"""
         cf_service = CollaborativeFilteringService()
         processed = 0
+        total_similarities = 0
 
         for i in range(0, users.count(), batch_size):
             batch_users = users[i:i + batch_size]
 
             for user in batch_users:
-                # Find similar users for this user
-                similar_users = cf_service.find_similar_users(user, limit=50)
+                try:
+                    # Use the same logic as the background task
+                    user_similarities = cf_service.update_user_similarities(user)
+                    total_similarities += user_similarities
 
-                # Store similarities
-                similarities_to_create = []
-                for similar_user, similarity in similar_users:
-                    if similarity > 0.1:  # Only store meaningful similarities
-                        similarities_to_create.append(
-                            UserSimilarity(
-                                user1=user,
-                                user2=similar_user,
-                                similarity_score=similarity,
-                                similarity_type='collaborative'
-                            )
-                        )
+                    processed += 1
+                    if processed % 10 == 0:
+                        self.stdout.write(f"Processed {processed} users, {total_similarities} similarities created...")
 
-                # Bulk create similarities
-                if similarities_to_create:
-                    UserSimilarity.objects.bulk_create(
-                        similarities_to_create,
-                        ignore_conflicts=True
-                    )
+                except Exception as e:
+                    self.stdout.write(f"Error processing user {user.id}: {str(e)}")
+                    processed += 1
+                    continue
 
-                processed += 1
-                if processed % 10 == 0:
-                    self.stdout.write(f"Processed {processed} users...")
+        self.stdout.write(f"✅ Processed {processed} users, created {total_similarities} similarities")
 
     def _calculate_demographic_similarities(self, users, batch_size):
         """Calculate demographic similarities"""

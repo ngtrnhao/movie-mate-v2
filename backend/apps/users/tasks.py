@@ -138,8 +138,8 @@ def regenerate_recommendations_for_user(self, user_id):
     return generate_hybrid_recommendations_for_user.delay(user_id, action='update')
 
 
-@shared_task
-def update_user_similarities_batch():
+@shared_task(bind=True, max_retries=3, time_limit=1800, soft_time_limit=1500)
+def update_user_similarities_batch(self):
     """
     Background task to update user similarities in batches
     """
@@ -152,23 +152,51 @@ def update_user_similarities_batch():
             moviereview__rating__isnull=False
         ).distinct()
 
-        batch_size = 50
-        similarities_updated = 0
+        total_users = users_with_ratings.count()
+        logger.info(f"Starting batch similarity update for {total_users} users")
 
-        for i in range(0, users_with_ratings.count(), batch_size):
+        batch_size = 20  # Reduced batch size for better performance
+        similarities_updated = 0
+        processed_users = 0
+
+        for i in range(0, total_users, batch_size):
             batch_users = users_with_ratings[i:i + batch_size]
 
             for user in batch_users:
                 try:
-                    similarities_updated += collaborative_service.update_user_similarities(user)
+                    # Check if task is being terminated
+                    if self.request.called_directly:
+                        break
+
+                    user_similarities = collaborative_service.update_user_similarities(user)
+                    similarities_updated += user_similarities
+                    processed_users += 1
+
+                    # Log progress every 10 users
+                    if processed_users % 10 == 0:
+                        logger.info(f"Processed {processed_users}/{total_users} users, {similarities_updated} similarities updated")
+
                 except Exception as e:
                     logger.error(f"Error updating similarities for user {user.id}: {str(e)}")
+                    processed_users += 1
+                    continue
 
-        logger.info(f"Updated {similarities_updated} user similarities")
-        return {'success': True, 'similarities_updated': similarities_updated}
+        logger.info(f"Completed batch similarity update: {processed_users} users processed, {similarities_updated} similarities updated")
+        return {
+            'success': True,
+            'similarities_updated': similarities_updated,
+            'users_processed': processed_users,
+            'total_users': total_users
+        }
 
     except Exception as e:
         logger.error(f"Error in batch similarity update: {str(e)}")
+        # Retry with exponential backoff
+        if self.request.retries < self.max_retries:
+            countdown = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s
+            logger.info(f"Retrying batch similarity update in {countdown} seconds (attempt {self.request.retries + 1})")
+            raise self.retry(countdown=countdown, exc=e)
+
         return {'success': False, 'error': str(e)}
 
 

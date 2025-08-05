@@ -57,115 +57,142 @@ app.conf.update(
 
 # Configure celery beat schedule for production
 app.conf.beat_schedule = {
-    # Movie sync tasks (less frequent in production)
+    # ===== MOVIE SYNC TASKS =====
+    # Sync popular movies weekly (Sunday 2 AM)
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": timedelta(days=7),  # Weekly instead of daily
+        "schedule": crontab(hour=2, minute=0, day_of_week=0),  # Sunday 2 AM
+        "options": {"priority": 8}
     },
+    # Sync top rated movies weekly (Monday 3 AM)
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": timedelta(days=7),
+        "schedule": crontab(hour=3, minute=0, day_of_week=1),  # Monday 3 AM
+        "options": {"priority": 8}
     },
+    # Sync upcoming movies every 3 days (2 AM)
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": timedelta(days=3),  # Every 3 days
+        "schedule": crontab(hour=2, minute=0, day_of_month="*/3"),  # Every 3 days at 2 AM
+        "options": {"priority": 7}
     },
 
-    # Cache update tasks
+    # ===== CACHE UPDATE TASKS =====
+    # Update movie cache every 30 minutes
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",
-        "schedule": timedelta(minutes=30),  # Every 30 minutes
+        "schedule": timedelta(minutes=30),
+        "options": {"priority": 6}
     },
+    # Refresh genre summary twice daily (6 AM and 6 PM)
     "refresh_genre_summary": {
         "task": "apps.metadata.tasks.refresh_genre_summary_task",
-        "schedule": timedelta(hours=12),  # Twice daily
-    },
-
-    # User interaction processing (less frequent)
-    "process_user_interactions_frequent": {
-        "task": "apps.movies.tasks.process_user_interactions_auto",
-        "schedule": timedelta(hours=1),  # Hourly instead of every 15 minutes
-        "kwargs": {"hours": 2}
-    },
-    "process_user_interactions_hourly": {
-        "task": "apps.movies.tasks.process_user_interactions_auto",
-        "schedule": timedelta(hours=1),
-        "kwargs": {"hours": 1}
-    },
-
-    # Trending categories
-    "sync_trending_categories": {
-        "task": "apps.movies.tasks.sync_trending_categories_auto",
-        "schedule": timedelta(hours=6),  # Every 6 hours
-    },
-
-    # Scheduling automation
-    "process_scheduled_actions": {
-        "task": "apps.movies.tasks.process_scheduled_actions_auto",
-        "schedule": timedelta(minutes=15),  # Every 15 minutes
-        "options": {"priority": 9}
-    },
-    "update_scheduling_status": {
-        "task": "apps.movies.tasks.update_scheduling_status_auto",
-        "schedule": timedelta(hours=2),  # Every 2 hours
+        "schedule": crontab(hour="6,18", minute=0),  # 6 AM and 6 PM
         "options": {"priority": 5}
     },
 
-    # Quality metrics (less frequent in production)
+    # ===== USER INTERACTION PROCESSING =====
+    # Process user interactions hourly
+    "process_user_interactions_frequent": {
+        "task": "apps.movies.tasks.process_user_interactions_auto",
+        "schedule": crontab(minute=0),  # Every hour at minute 0
+        "kwargs": {"hours": 2},
+        "options": {"priority": 7}
+    },
+    # Process user interactions every 4 hours
+    "process_user_interactions_hourly": {
+        "task": "apps.movies.tasks.process_user_interactions_auto",
+        "schedule": crontab(hour="*/4", minute=30),  # Every 4 hours at minute 30
+        "kwargs": {"hours": 1},
+        "options": {"priority": 6}
+    },
+
+    # ===== TRENDING CATEGORIES =====
+    # Sync trending categories every 6 hours
+    "sync_trending_categories": {
+        "task": "apps.movies.tasks.sync_trending_categories_auto",
+        "schedule": crontab(hour="*/6", minute=15),  # Every 6 hours at minute 15
+        "options": {"priority": 6}
+    },
+
+    # ===== SCHEDULING AUTOMATION =====
+    # Process scheduled actions every 15 minutes
+    "process_scheduled_actions": {
+        "task": "apps.movies.tasks.process_scheduled_actions_auto",
+        "schedule": crontab(minute="*/15"),  # Every 15 minutes
+        "options": {"priority": 9}
+    },
+    # Update scheduling status every 2 hours
+    "update_scheduling_status": {
+        "task": "apps.movies.tasks.update_scheduling_status_auto",
+        "schedule": crontab(hour="*/2", minute=45),  # Every 2 hours at minute 45
+        "options": {"priority": 5}
+    },
+
+    # ===== QUALITY METRICS =====
+    # Calculate quality for new movies every 6 hours
     "calculate_quality_new_movies": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(hours=6),  # Every 6 hours
+        "schedule": crontab(hour="*/6", minute=20),  # Every 6 hours at minute 20
         "kwargs": {"target_type": "new", "batch_size": 20, "max_movies": 50},
         "options": {"priority": 6}
     },
+    # Calculate quality for low quality movies daily
     "calculate_quality_low_quality": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(days=1),  # Daily
+        "schedule": crontab(hour=4, minute=0),  # Daily at 4 AM
         "kwargs": {"target_type": "low_quality", "batch_size": 15, "max_movies": 30},
         "options": {"priority": 4}
     },
+    # Calculate quality for outdated movies every 2 days
     "calculate_quality_outdated": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(days=2),  # Every 2 days
+        "schedule": crontab(hour=5, minute=0, day_of_month="*/2"),  # Every 2 days at 5 AM
         "kwargs": {"target_type": "outdated", "batch_size": 25, "max_movies": 100},
         "options": {"priority": 3}
     },
+    # Quality maintenance daily
     "quality_maintenance": {
         "task": "apps.movies.tasks.quality_maintenance_auto",
-        "schedule": timedelta(days=1),
+        "schedule": crontab(hour=6, minute=0),  # Daily at 6 AM
         "options": {"priority": 2}
     },
 
-    # Recommendation system tasks
+    # ===== RECOMMENDATION SYSTEM =====
+    # Update user similarities twice daily (8 AM and 8 PM)
     "update_user_similarities": {
         "task": "apps.users.tasks.update_user_similarities_batch",
-        "schedule": timedelta(hours=12),  # Twice daily
+        "schedule": crontab(hour="8,20", minute=0),  # 8 AM and 8 PM
         "options": {"priority": 7}
     },
+    # Generate recommendations for active users every 4 hours
     "generate_recommendations_active_users": {
         "task": "apps.users.tasks.generate_recommendations_for_active_users",
-        "schedule": timedelta(hours=4),  # Every 4 hours
+        "schedule": crontab(hour="*/4", minute=10),  # Every 4 hours at minute 10
         "options": {"priority": 8}
     },
 
-    # Cleanup tasks
+    # ===== CLEANUP TASKS =====
+    # Cleanup expired recommendations daily
     "cleanup_expired_recommendations": {
         "task": "apps.recommendations.tasks.cleanup_expired_recommendations",
-        "schedule": timedelta(hours=24),  # Daily
+        "schedule": crontab(hour=7, minute=0),  # Daily at 7 AM
         "options": {"priority": 3}
     },
 
-    # Auto-management for large user bases
+    # ===== AUTO-MANAGEMENT =====
+    # Auto-manage large user base twice daily
     "auto_manage_large_user_base": {
         "task": "apps.recommendations.tasks.auto_manage_large_user_base",
-        "schedule": timedelta(hours=12),  # Twice daily
+        "schedule": crontab(hour="9,21", minute=0),  # 9 AM and 9 PM
         "options": {"priority": 8}
     },
 
-    # Bulk recommendation refresh
+    # ===== BULK REFRESH =====
+    # Bulk refresh stale recommendations every 2 days
     "bulk_refresh_stale_recommendations_weekly": {
         "task": "apps.recommendations.tasks.bulk_refresh_stale_recommendations",
-        "schedule": timedelta(days=2),  # Every 2 days
+        "schedule": crontab(hour=10, minute=0, day_of_month="*/2"),  # Every 2 days at 10 AM
         "options": {"priority": 6}
     },
 }

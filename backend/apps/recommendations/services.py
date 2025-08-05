@@ -517,6 +517,67 @@ class CollaborativeFilteringService:
         except Exception as e:
             logger.error(f"Error storing recommendations: {str(e)}")
 
+    def update_user_similarities(self, user) -> int:
+        """
+        Update user similarities for a specific user
+        Returns the number of similarities updated
+        """
+        try:
+            # Find similar users for this user
+            similar_users = self.find_similar_users(user, limit=50, method='pearson')
+
+            # Store similarities
+            similarities_to_create = []
+            for similar_user, similarity in similar_users:
+                if similarity > self.similarity_threshold:  # Only store meaningful similarities
+                    similarities_to_create.append(
+                        UserSimilarity(
+                            user1=user,
+                            user2=similar_user,
+                            similarity_score=similarity,
+                            similarity_type='collaborative',
+                            calculation_method='pearson',
+                            confidence=1.0,
+                            common_ratings_count=self._get_common_ratings_count(user, similar_user)
+                        )
+                    )
+
+            # Bulk create similarities with ignore_conflicts to handle duplicates
+            if similarities_to_create:
+                UserSimilarity.objects.bulk_create(
+                    similarities_to_create,
+                    ignore_conflicts=True
+                )
+                logger.info(f"Updated {len(similarities_to_create)} similarities for user {user.id}")
+                return len(similarities_to_create)
+            else:
+                logger.info(f"No meaningful similarities found for user {user.id}")
+                return 0
+
+        except Exception as e:
+            logger.error(f"Error updating similarities for user {user.id}: {str(e)}")
+            return 0
+
+    def _get_common_ratings_count(self, user1, user2) -> int:
+        """Get the number of common movies rated by both users"""
+        try:
+            user1_movies = set(MovieReview.objects.filter(
+                user=user1,
+                review_type='USER',
+                rating__isnull=False
+            ).values_list('movie_id', flat=True))
+
+            user2_movies = set(MovieReview.objects.filter(
+                user=user2,
+                review_type='USER',
+                rating__isnull=False
+            ).values_list('movie_id', flat=True))
+
+            return len(user1_movies & user2_movies)
+        except Exception as e:
+            logger.error(f"Error getting common ratings count: {str(e)}")
+            return 0
+
 class EnhancedDemographicFilteringService:
     """
     Enhanced Demographic Filtering Service with advanced ML capabilities

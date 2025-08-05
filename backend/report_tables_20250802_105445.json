@@ -1,0 +1,452 @@
+{
+  "table_2_1_utility_matrix": {
+    "matrix_data": [
+      {
+        "user_id": "User 1085",
+        "Movie_282646": 5.0,
+        "Movie_58129": 4.5,
+        "Movie_55535": 4.0,
+        "Movie_75090": 2.0,
+        "Movie_72565": 4.0
+      },
+      {
+        "user_id": "User 2285",
+        "Movie_282646": 3.0,
+        "Movie_58129": 4.0,
+        "Movie_55535": 4.0,
+        "Movie_75090": 4.0,
+        "Movie_72565": 3.0
+      },
+      {
+        "user_id": "User 1384",
+        "Movie_282646": 5.0,
+        "Movie_58129": 4.0,
+        "Movie_55535": 3.5,
+        "Movie_75090": 3.5,
+        "Movie_72565": 3.0
+      },
+      {
+        "user_id": "User 2457",
+        "Movie_282646": 5.0,
+        "Movie_58129": 5.0,
+        "Movie_55535": 5.0,
+        "Movie_75090": 4.0,
+        "Movie_72565": 3.0
+      },
+      {
+        "user_id": "User 1534",
+        "Movie_282646": 4.0,
+        "Movie_58129": 4.0,
+        "Movie_55535": 4.0,
+        "Movie_75090": 4.0,
+        "Movie_72565": 4.0
+      },
+      {
+        "user_id": "User 2514",
+        "Movie_282646": 4.0,
+        "Movie_58129": 4.0,
+        "Movie_55535": 5.0,
+        "Movie_75090": 4.0,
+        "Movie_72565": 5.0
+      }
+    ],
+    "info": {
+      "user_count": 6,
+      "movie_count": 5,
+      "total_cells": 30,
+      "filled_cells": 30,
+      "sparsity": 0.0
+    },
+    "users": [
+      {
+        "id": 1085,
+        "username": "ml_user_548",
+        "rating_count": 3178
+      },
+      {
+        "id": 2285,
+        "username": "ml_user_1748",
+        "rating_count": 3148
+      },
+      {
+        "id": 1384,
+        "username": "ml_user_847",
+        "rating_count": 2827
+      },
+      {
+        "id": 2457,
+        "username": "ml_user_1920",
+        "rating_count": 2319
+      },
+      {
+        "id": 1534,
+        "username": "ml_user_997",
+        "rating_count": 2255
+      },
+      {
+        "id": 2514,
+        "username": "ml_user_1977",
+        "rating_count": 1897
+      }
+    ],
+    "movies": [
+      {
+        "id": 282646,
+        "title": "American Beauty",
+        "rating_count": 3836
+      },
+      {
+        "id": 58129,
+        "title": "Star Wars: Episode V - The Empire Strikes Back",
+        "rating_count": 3596
+      },
+      {
+        "id": 55535,
+        "title": "Star Wars: Episode IV - A New Hope",
+        "rating_count": 3432
+      },
+      {
+        "id": 75090,
+        "title": "Jurassic Park",
+        "rating_count": 3371
+      },
+      {
+        "id": 72565,
+        "title": "Terminator 2: Judgment Day",
+        "rating_count": 3334
+      }
+    ]
+  },
+  "table_2_2_rating_distribution": {
+    "distribution": [
+      {
+        "rating": 0.5,
+        "count": 2188,
+        "percentage": 0.54
+      },
+      {
+        "rating": 1.0,
+        "count": 18830,
+        "percentage": 4.68
+      },
+      {
+        "rating": 1.2,
+        "count": 11,
+        "percentage": 0.0
+      },
+      {
+        "rating": 1.3,
+        "count": 1,
+        "percentage": 0.0
+      },
+      {
+        "rating": 1.4,
+        "count": 5,
+        "percentage": 0.0
+      },
+      {
+        "rating": 1.5,
+        "count": 2380,
+        "percentage": 0.59
+      },
+      {
+        "rating": 2.0,
+        "count": 36323,
+        "percentage": 9.02
+      },
+      {
+        "rating": 2.5,
+        "count": 7297,
+        "percentage": 1.81
+      },
+      {
+        "rating": 3.0,
+        "count": 99058,
+        "percentage": 24.61
+      },
+      {
+        "rating": 3.5,
+        "count": 17942,
+        "percentage": 4.46
+      },
+      {
+        "rating": 4.0,
+        "count": 129066,
+        "percentage": 32.06
+      },
+      {
+        "rating": 4.2,
+        "count": 54,
+        "percentage": 0.01
+      },
+      {
+        "rating": 4.4,
+        "count": 22,
+        "percentage": 0.01
+      },
+      {
+        "rating": 4.5,
+        "count": 12790,
+        "percentage": 3.18
+      },
+      {
+        "rating": 4.6,
+        "count": 3,
+        "percentage": 0.0
+      },
+      {
+        "rating": 4.8,
+        "count": 5,
+        "percentage": 0.0
+      },
+      {
+        "rating": 4.9,
+        "count": 1,
+        "percentage": 0.0
+      },
+      {
+        "rating": 5.0,
+        "count": 76593,
+        "percentage": 19.03
+      },
+      {
+        "rating": 5.2,
+        "count": 1,
+        "percentage": 0.0
+      }
+    ],
+    "total_ratings": 402570
+  },
+  "table_2_3_user_averages": {
+    "user_data": [
+      {
+        "user_id": "User 1085",
+        "rating_count": 3178,
+        "total_score": 9947.0,
+        "average_rating": 3.13,
+        "tendency": "Khắt khe"
+      },
+      {
+        "user_id": "User 2285",
+        "rating_count": 3148,
+        "total_score": 8541.0,
+        "average_rating": 2.71,
+        "tendency": "Khắt khe"
+      },
+      {
+        "user_id": "User 1384",
+        "rating_count": 2827,
+        "total_score": 9516.5,
+        "average_rating": 3.37,
+        "tendency": "Khắt khe"
+      },
+      {
+        "user_id": "User 2457",
+        "rating_count": 2319,
+        "total_score": 6362.5,
+        "average_rating": 2.74,
+        "tendency": "Khắt khe"
+      },
+      {
+        "user_id": "User 1534",
+        "rating_count": 2255,
+        "total_score": 6978.0,
+        "average_rating": 3.09,
+        "tendency": "Khắt khe"
+      }
+    ],
+    "overall_statistics": {
+      "total_ratings": 13727,
+      "total_score": 41345.0,
+      "overall_average": 3.01,
+      "overall_tendency": "Khắt khe"
+    }
+  },
+  "table_2_4_normalized_matrix": {
+    "matrix_data": [
+      {
+        "user_id": "User 1085",
+        "Movie_282646": 1.87,
+        "Movie_58129": 1.37,
+        "Movie_55535": 0.87,
+        "Movie_75090": -1.13,
+        "Movie_72565": 0.87
+      },
+      {
+        "user_id": "User 2285",
+        "Movie_282646": 0.29,
+        "Movie_58129": 1.29,
+        "Movie_55535": 1.29,
+        "Movie_75090": 1.29,
+        "Movie_72565": 0.29
+      },
+      {
+        "user_id": "User 1384",
+        "Movie_282646": 1.63,
+        "Movie_58129": 0.63,
+        "Movie_55535": 0.13,
+        "Movie_75090": 0.13,
+        "Movie_72565": -0.37
+      },
+      {
+        "user_id": "User 2457",
+        "Movie_282646": 2.26,
+        "Movie_58129": 2.26,
+        "Movie_55535": 2.26,
+        "Movie_75090": 1.26,
+        "Movie_72565": 0.26
+      },
+      {
+        "user_id": "User 1534",
+        "Movie_282646": 0.91,
+        "Movie_58129": 0.91,
+        "Movie_55535": 0.91,
+        "Movie_75090": 0.91,
+        "Movie_72565": 0.91
+      }
+    ],
+    "user_averages": {
+      "User 1085": 3.129955947136564,
+      "User 2285": 2.713151207115629,
+      "User 1384": 3.3662893526706754,
+      "User 2457": 2.74363949978439,
+      "User 1534": 3.094456762749446
+    }
+  },
+  "table_2_5_similarity_matrix": {
+    "matrix_data": [
+      {
+        "user_id": "User 1085",
+        "User_1085": 1.0,
+        "User_2285": 0.753,
+        "User_1384": 0.776,
+        "User_2457": 0.832,
+        "User_1534": 0.856
+      },
+      {
+        "user_id": "User 2285",
+        "User_1085": 0.753,
+        "User_2285": 1.0,
+        "User_1384": 0.707,
+        "User_2457": 0.756,
+        "User_1534": 0.759
+      },
+      {
+        "user_id": "User 1384",
+        "User_1085": 0.776,
+        "User_2285": 0.707,
+        "User_1384": 1.0,
+        "User_2457": 0.811,
+        "User_1534": 0.794
+      },
+      {
+        "user_id": "User 2457",
+        "User_1085": 0.832,
+        "User_2285": 0.756,
+        "User_1384": 0.811,
+        "User_2457": 1.0,
+        "User_1534": 0.837
+      },
+      {
+        "user_id": "User 1534",
+        "User_1085": 0.856,
+        "User_2285": 0.759,
+        "User_1384": 0.794,
+        "User_2457": 0.837,
+        "User_1534": 1.0
+      }
+    ],
+    "users": [
+      {
+        "id": 1085,
+        "username": "ml_user_548"
+      },
+      {
+        "id": 2285,
+        "username": "ml_user_1748"
+      },
+      {
+        "id": 1384,
+        "username": "ml_user_847"
+      },
+      {
+        "id": 2457,
+        "username": "ml_user_1920"
+      },
+      {
+        "id": 1534,
+        "username": "ml_user_997"
+      }
+    ]
+  },
+  "table_2_6_performance_comparison": {
+    "performance_data": [
+      {
+        "method": "Collaborative Filtering",
+        "precision_at_10": 0.78,
+        "recall_at_10": 0.72,
+        "coverage": 0.88,
+        "diversity": 0.65,
+        "processing_time_ms": 189
+      },
+      {
+        "method": "Content-based",
+        "precision_at_10": 0.65,
+        "recall_at_10": 0.71,
+        "coverage": 0.92,
+        "diversity": 0.58,
+        "processing_time_ms": 156
+      },
+      {
+        "method": "Demographic",
+        "precision_at_10": 0.69,
+        "recall_at_10": 0.66,
+        "coverage": 0.78,
+        "diversity": 0.65,
+        "processing_time_ms": 189
+      },
+      {
+        "method": "Hybrid",
+        "precision_at_10": 0.78,
+        "recall_at_10": 0.72,
+        "coverage": 0.88,
+        "diversity": 0.68,
+        "processing_time_ms": 312
+      }
+    ]
+  },
+  "prediction_example": {
+    "test_user": {
+      "id": 1085,
+      "average_rating": 3.13
+    },
+    "test_movie": {
+      "id": 53304,
+      "title": "One Flew Over the Cuckoo's Nest"
+    },
+    "similar_users": [
+      {
+        "user_id": 2563,
+        "rating": 5.0,
+        "similarity": 0.743
+      },
+      {
+        "user_id": 2562,
+        "rating": 4.5,
+        "similarity": 0.809
+      },
+      {
+        "user_id": 2549,
+        "rating": 5.0,
+        "similarity": 0.807
+      }
+    ],
+    "calculation": {
+      "user_average": 3.13,
+      "weighted_sum": 4.007,
+      "similarity_sum": 2.359,
+      "predicted_normalized": 1.699,
+      "predicted_rating": 4.83
+    }
+  }
+}

@@ -1,0 +1,1119 @@
+{
+  "timestamp": "2025-08-02T19:44:22.164128",
+  "summary": {
+    "total_users": 6335,
+    "users_with_recommendations": 1037,
+    "total_recommendations": 19142,
+    "cache_hit_rate_percentage": 16.37,
+    "recommendation_types": [
+      {
+        "recommendation_type": "hybrid",
+        "count": 17990
+      },
+      {
+        "recommendation_type": "demographic",
+        "count": 1001
+      },
+      {
+        "recommendation_type": "collaborative",
+        "count": 151
+      }
+    ]
+  },
+  "users_with_recommendations": [
+    {
+      "user_id": 2285,
+      "username": "ml_user_1748",
+      "email": "ml_user_1748@movielens.demo",
+      "age": 50,
+      "gender": "M",
+      "occupation": "academic/educator",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:19.408271+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 3148,
+        "avg_rating": 2.713151207115629,
+        "min_rating": 2.713151207115629,
+        "max_rating": 2.713151207115629
+      },
+      "top_genres": [
+        {
+          "genre_id": 51,
+          "name": "Phim Tài Liệu",
+          "rating_count": 4,
+          "avg_rating": 4.25
+        },
+        {
+          "genre_id": 23,
+          "name": "Film-Noir",
+          "rating_count": 1,
+          "avg_rating": 4.0
+        },
+        {
+          "genre_id": 43,
+          "name": "Phim Lịch Sử",
+          "rating_count": 12,
+          "avg_rating": 3.75
+        },
+        {
+          "genre_id": 67,
+          "name": "Phim Chiến Tranh",
+          "rating_count": 12,
+          "avg_rating": 3.5833333333333335
+        },
+        {
+          "genre_id": 46,
+          "name": "Phim Bí Ẩn",
+          "rating_count": 14,
+          "avg_rating": 3.5714285714285716
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T08:17:52.386445+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 2457,
+      "username": "ml_user_1920",
+      "email": "ml_user_1920@movielens.demo",
+      "age": 35,
+      "gender": "F",
+      "occupation": "executive/managerial",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:19.408625+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 2319,
+        "avg_rating": 2.74363949978439,
+        "min_rating": 2.74363949978439,
+        "max_rating": 2.74363949978439
+      },
+      "top_genres": [
+        {
+          "genre_id": 67,
+          "name": "Phim Chiến Tranh",
+          "rating_count": 5,
+          "avg_rating": 4.2
+        },
+        {
+          "genre_id": 43,
+          "name": "Phim Lịch Sử",
+          "rating_count": 5,
+          "avg_rating": 3.6
+        },
+        {
+          "genre_id": 55,
+          "name": "Phim Phiêu Lưu",
+          "rating_count": 24,
+          "avg_rating": 3.5625
+        },
+        {
+          "genre_id": 38,
+          "name": "Phim Chính Kịch",
+          "rating_count": 57,
+          "avg_rating": 3.491228070175439
+        },
+        {
+          "genre_id": 45,
+          "name": "Science Fiction",
+          "rating_count": 31,
+          "avg_rating": 3.467741935483871
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T09:35:30.438424+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 2514,
+      "username": "ml_user_1977",
+      "email": "ml_user_1977@movielens.demo",
+      "age": 56,
+      "gender": "M",
+      "occupation": "doctor/health care",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:19.408729+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 1897,
+        "avg_rating": 2.665260938323669,
+        "min_rating": 2.665260938323669,
+        "max_rating": 2.665260938323669
+      },
+      "top_genres": [
+        {
+          "genre_id": 23,
+          "name": "Film-Noir",
+          "rating_count": 2,
+          "avg_rating": 4.75
+        },
+        {
+          "genre_id": 43,
+          "name": "Phim Lịch Sử",
+          "rating_count": 10,
+          "avg_rating": 4.65
+        },
+        {
+          "genre_id": 51,
+          "name": "Phim Tài Liệu",
+          "rating_count": 1,
+          "avg_rating": 4.0
+        },
+        {
+          "genre_id": 67,
+          "name": "Phim Chiến Tranh",
+          "rating_count": 16,
+          "avg_rating": 3.9375
+        },
+        {
+          "genre_id": 46,
+          "name": "Phim Bí Ẩn",
+          "rating_count": 15,
+          "avg_rating": 3.9
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T09:53:14.674380+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 2436,
+      "username": "ml_user_1899",
+      "email": "ml_user_1899@movielens.demo",
+      "age": 45,
+      "gender": "F",
+      "occupation": "doctor/health care",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:19.408584+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 1407,
+        "avg_rating": 3.165600568585643,
+        "min_rating": 3.165600568585643,
+        "max_rating": 3.165600568585643
+      },
+      "top_genres": [
+        {
+          "genre_id": 43,
+          "name": "Phim Lịch Sử",
+          "rating_count": 2,
+          "avg_rating": 4.5
+        },
+        {
+          "genre_id": 67,
+          "name": "Phim Chiến Tranh",
+          "rating_count": 3,
+          "avg_rating": 4.333333333333333
+        },
+        {
+          "genre_id": 71,
+          "name": "Phim Miền Tây",
+          "rating_count": 2,
+          "avg_rating": 4.0
+        },
+        {
+          "genre_id": 23,
+          "name": "Film-Noir",
+          "rating_count": 1,
+          "avg_rating": 4.0
+        },
+        {
+          "genre_id": 55,
+          "name": "Phim Phiêu Lưu",
+          "rating_count": 12,
+          "avg_rating": 3.75
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T09:28:28.464318+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 2540,
+      "username": "ml_user_2003",
+      "email": "ml_user_2003@movielens.demo",
+      "age": 1,
+      "gender": "M",
+      "occupation": "K-12 student",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:49.481651+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 1374,
+        "avg_rating": 3.611353711790393,
+        "min_rating": 3.611353711790393,
+        "max_rating": 3.611353711790393
+      },
+      "top_genres": [
+        {
+          "genre_id": 23,
+          "name": "Film-Noir",
+          "rating_count": 1,
+          "avg_rating": 4.5
+        },
+        {
+          "genre_id": 51,
+          "name": "Phim Tài Liệu",
+          "rating_count": 5,
+          "avg_rating": 4.4
+        },
+        {
+          "genre_id": 60,
+          "name": "Phim Hài",
+          "rating_count": 25,
+          "avg_rating": 4.14
+        },
+        {
+          "genre_id": 71,
+          "name": "Phim Miền Tây",
+          "rating_count": 8,
+          "avg_rating": 4.125
+        },
+        {
+          "genre_id": 70,
+          "name": "Western",
+          "rating_count": 21,
+          "avg_rating": 4.119047619047619
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T10:02:19.863616+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 1740,
+      "username": "ml_user_1203",
+      "email": "ml_user_1203@movielens.demo",
+      "age": 25,
+      "gender": "F",
+      "occupation": "academic/educator",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:19.406766+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 1307,
+        "avg_rating": 3.2413925019127774,
+        "min_rating": 3.2413925019127774,
+        "max_rating": 3.2413925019127774
+      },
+      "top_genres": [
+        {
+          "genre_id": 43,
+          "name": "Phim Lịch Sử",
+          "rating_count": 1,
+          "avg_rating": 5.0
+        },
+        {
+          "genre_id": 67,
+          "name": "Phim Chiến Tranh",
+          "rating_count": 2,
+          "avg_rating": 4.5
+        },
+        {
+          "genre_id": 53,
+          "name": "Phim Hình Sự",
+          "rating_count": 6,
+          "avg_rating": 4.5
+        },
+        {
+          "genre_id": 65,
+          "name": "Phim Gây Cấn",
+          "rating_count": 9,
+          "avg_rating": 4.222222222222222
+        },
+        {
+          "genre_id": 38,
+          "name": "Phim Chính Kịch",
+          "rating_count": 13,
+          "avg_rating": 4.115384615384615
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T16:46:47.806715+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 1765,
+      "username": "ml_user_1228",
+      "email": "ml_user_1228@movielens.demo",
+      "age": 25,
+      "gender": "M",
+      "occupation": "academic/educator",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:19.406811+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 1241,
+        "avg_rating": 3.3396454472199837,
+        "min_rating": 3.3396454472199837,
+        "max_rating": 3.3396454472199837
+      },
+      "top_genres": [
+        {
+          "genre_id": 23,
+          "name": "Film-Noir",
+          "rating_count": 1,
+          "avg_rating": 4.0
+        },
+        {
+          "genre_id": 49,
+          "name": "Phim Lãng Mạn",
+          "rating_count": 3,
+          "avg_rating": 4.0
+        },
+        {
+          "genre_id": 55,
+          "name": "Phim Phiêu Lưu",
+          "rating_count": 9,
+          "avg_rating": 3.944444444444444
+        },
+        {
+          "genre_id": 62,
+          "name": "Phim Giả Tượng",
+          "rating_count": 8,
+          "avg_rating": 3.75
+        },
+        {
+          "genre_id": 38,
+          "name": "Phim Chính Kịch",
+          "rating_count": 40,
+          "avg_rating": 3.725
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T16:52:32.262808+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 2431,
+      "username": "ml_user_1894",
+      "email": "ml_user_1894@movielens.demo",
+      "age": 35,
+      "gender": "F",
+      "occupation": "executive/managerial",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:19.408575+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 1112,
+        "avg_rating": 3.1097122302158273,
+        "min_rating": 3.1097122302158273,
+        "max_rating": 3.1097122302158273
+      },
+      "top_genres": [
+        {
+          "genre_id": 71,
+          "name": "Phim Miền Tây",
+          "rating_count": 1,
+          "avg_rating": 5.0
+        },
+        {
+          "genre_id": 67,
+          "name": "Phim Chiến Tranh",
+          "rating_count": 2,
+          "avg_rating": 4.5
+        },
+        {
+          "genre_id": 46,
+          "name": "Phim Bí Ẩn",
+          "rating_count": 3,
+          "avg_rating": 4.333333333333333
+        },
+        {
+          "genre_id": 38,
+          "name": "Phim Chính Kịch",
+          "rating_count": 17,
+          "avg_rating": 4.294117647058823
+        },
+        {
+          "genre_id": 53,
+          "name": "Phim Hình Sự",
+          "rating_count": 7,
+          "avg_rating": 4.285714285714286
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T09:26:51.449450+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 2368,
+      "username": "ml_user_1831",
+      "email": "ml_user_1831@movielens.demo",
+      "age": 18,
+      "gender": "M",
+      "occupation": "college/grad student",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:19.408418+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 1110,
+        "avg_rating": 3.7184684684684686,
+        "min_rating": 3.7184684684684686,
+        "max_rating": 3.7184684684684686
+      },
+      "top_genres": [
+        {
+          "genre_id": 71,
+          "name": "Phim Miền Tây",
+          "rating_count": 1,
+          "avg_rating": 5.0
+        },
+        {
+          "genre_id": 65,
+          "name": "Phim Gây Cấn",
+          "rating_count": 9,
+          "avg_rating": 4.555555555555555
+        },
+        {
+          "genre_id": 67,
+          "name": "Phim Chiến Tranh",
+          "rating_count": 4,
+          "avg_rating": 4.5
+        },
+        {
+          "genre_id": 46,
+          "name": "Phim Bí Ẩn",
+          "rating_count": 4,
+          "avg_rating": 4.5
+        },
+        {
+          "genre_id": 45,
+          "name": "Science Fiction",
+          "rating_count": 9,
+          "avg_rating": 4.277777777777778
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T09:04:49.335930+00:00",
+        "movie_count": 0
+      }
+    },
+    {
+      "user_id": 2549,
+      "username": "ml_user_2012",
+      "email": "ml_user_2012@movielens.demo",
+      "age": 25,
+      "gender": "M",
+      "occupation": "college/grad student",
+      "location": null,
+      "user_type": "member",
+      "date_joined": "2025-06-26T10:08:49.481678+00:00",
+      "last_login": null,
+      "rating_stats": {
+        "total_ratings": 925,
+        "avg_rating": 3.502702702702703,
+        "min_rating": 3.502702702702703,
+        "max_rating": 3.502702702702703
+      },
+      "top_genres": [
+        {
+          "genre_id": 55,
+          "name": "Phim Phiêu Lưu",
+          "rating_count": 6,
+          "avg_rating": 4.666666666666667
+        },
+        {
+          "genre_id": 42,
+          "name": "Phim Hành Động",
+          "rating_count": 6,
+          "avg_rating": 4.583333333333333
+        },
+        {
+          "genre_id": 43,
+          "name": "Phim Lịch Sử",
+          "rating_count": 2,
+          "avg_rating": 4.5
+        },
+        {
+          "genre_id": 21,
+          "name": "Musical",
+          "rating_count": 4,
+          "avg_rating": 4.25
+        },
+        {
+          "genre_id": 38,
+          "name": "Phim Chính Kịch",
+          "rating_count": 35,
+          "avg_rating": 4.2
+        }
+      ],
+      "latest_recommendation": {
+        "type": "hybrid",
+        "created_at": "2025-07-30T10:05:20.736517+00:00",
+        "movie_count": 0
+      }
+    }
+  ],
+  "recommendation_analysis": {
+    "recommendations_by_date": [
+      {
+        "date": "2025-08-02",
+        "count": 77
+      },
+      {
+        "date": "2025-08-01",
+        "count": 96
+      },
+      {
+        "date": "2025-07-31",
+        "count": 80
+      },
+      {
+        "date": "2025-07-30",
+        "count": 14062
+      },
+      {
+        "date": "2025-07-29",
+        "count": 3389
+      },
+      {
+        "date": "2025-07-28",
+        "count": 421
+      },
+      {
+        "date": "2025-07-27",
+        "count": 1017
+      }
+    ],
+    "recommendations_by_type_context": [
+      {
+        "recommendation_type": "hybrid",
+        "context": "homepage",
+        "count": 17990
+      },
+      {
+        "recommendation_type": "demographic",
+        "context": "homepage",
+        "count": 956
+      },
+      {
+        "recommendation_type": "collaborative",
+        "context": "homepage",
+        "count": 151
+      },
+      {
+        "recommendation_type": "demographic",
+        "context": "test_demo",
+        "count": 40
+      },
+      {
+        "recommendation_type": "demographic",
+        "context": "demo",
+        "count": 5
+      }
+    ],
+    "top_recommendation_users": [
+      {
+        "user_id": 6858,
+        "username": "ynhi3122",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 6845,
+        "username": "ngtrnhao090909090",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 6847,
+        "username": "sdasdsad",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 6846,
+        "username": "demographic",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 6844,
+        "username": "kokokokokoo",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 6843,
+        "username": "ngtrnhao222",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 917,
+        "username": "ml_user_380",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 916,
+        "username": "ml_user_379",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 915,
+        "username": "ml_user_378",
+        "recommendation_count": 60
+      },
+      {
+        "user_id": 6859,
+        "username": "ádasdsad",
+        "recommendation_count": 60
+      }
+    ]
+  },
+  "user_demographics": {},
+  "rating_patterns": [
+    {
+      "user_id": 1,
+      "username": "nguyentruongnhathao1922",
+      "total_ratings": 20,
+      "avg_rating": 4.0,
+      "min_rating": 1.0,
+      "max_rating": 5.0,
+      "rating_std": 1.22,
+      "rating_distribution": {
+        "1.0": 1,
+        "2.0": 2,
+        "3.0": 3,
+        "4.0": 4,
+        "5.0": 10
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "The Square Peg",
+          "rating": 5.0,
+          "created_at": "2025-07-29T14:57:50.138442+00:00"
+        },
+        {
+          "movie_title": "When Hell Broke Loose",
+          "rating": 2.0,
+          "created_at": "2025-07-29T14:57:49.599406+00:00"
+        },
+        {
+          "movie_title": "Bach et Bottine",
+          "rating": 4.0,
+          "created_at": "2025-07-29T14:57:48.943661+00:00"
+        },
+        {
+          "movie_title": "Big Deal on Madonna Street",
+          "rating": 4.0,
+          "created_at": "2025-07-29T14:57:48.098195+00:00"
+        },
+        {
+          "movie_title": "Squibs Wins the Calcutta Sweep",
+          "rating": 4.0,
+          "created_at": "2025-07-29T14:57:47.105408+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 3,
+      "username": "ngtrnhao202",
+      "total_ratings": 15,
+      "avg_rating": 3.3333333333333335,
+      "min_rating": 1.0,
+      "max_rating": 5.0,
+      "rating_std": 1.49,
+      "rating_distribution": {
+        "1.0": 3,
+        "2.0": 2,
+        "3.0": 1,
+        "4.0": 5,
+        "5.0": 4
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "Big Deal on Madonna Street",
+          "rating": 4.0,
+          "created_at": "2025-07-29T10:02:06.287441+00:00"
+        },
+        {
+          "movie_title": "The Pornographers",
+          "rating": 1.0,
+          "created_at": "2025-07-29T10:02:05.075188+00:00"
+        },
+        {
+          "movie_title": "Bach et Bottine",
+          "rating": 3.0,
+          "created_at": "2025-07-29T10:00:47.909814+00:00"
+        },
+        {
+          "movie_title": "Motsumi",
+          "rating": 4.0,
+          "created_at": "2025-07-29T10:00:38.863839+00:00"
+        },
+        {
+          "movie_title": "Are We Winning Mommy? America & the Cold War",
+          "rating": 5.0,
+          "created_at": "2025-07-29T10:00:38.732520+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 5,
+      "username": "ngtrnhao2022",
+      "total_ratings": 20,
+      "avg_rating": 4.37,
+      "min_rating": 1.0,
+      "max_rating": 5.0,
+      "rating_std": 1.15,
+      "rating_distribution": {
+        "1.0": 1,
+        "2.0": 0,
+        "3.0": 0,
+        "4.0": 4,
+        "5.0": 12
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "The Pornographers",
+          "rating": 1.3,
+          "created_at": "2025-07-29T14:57:52.139001+00:00"
+        },
+        {
+          "movie_title": "The Square Peg",
+          "rating": 4.9,
+          "created_at": "2025-07-29T14:57:51.737002+00:00"
+        },
+        {
+          "movie_title": "Motsumi",
+          "rating": 5.0,
+          "created_at": "2025-07-29T14:57:51.340113+00:00"
+        },
+        {
+          "movie_title": "4D Man",
+          "rating": 4.2,
+          "created_at": "2025-07-29T14:57:50.938845+00:00"
+        },
+        {
+          "movie_title": "When Hell Broke Loose",
+          "rating": 1.0,
+          "created_at": "2025-07-29T14:57:50.499854+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 538,
+      "username": "ml_user_1",
+      "total_ratings": 20,
+      "avg_rating": 3.3,
+      "min_rating": 1.0,
+      "max_rating": 5.0,
+      "rating_std": 1.05,
+      "rating_distribution": {
+        "1.0": 1,
+        "2.0": 3,
+        "3.0": 8,
+        "4.0": 5,
+        "5.0": 3
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "Look at Me",
+          "rating": 5.0,
+          "created_at": "2025-07-31T13:49:31.352829+00:00"
+        },
+        {
+          "movie_title": "Five Times Two",
+          "rating": 3.0,
+          "created_at": "2025-07-31T13:49:31.154707+00:00"
+        },
+        {
+          "movie_title": "A Very Long Engagement",
+          "rating": 3.0,
+          "created_at": "2025-07-31T13:49:30.957281+00:00"
+        },
+        {
+          "movie_title": "2046",
+          "rating": 4.0,
+          "created_at": "2025-07-31T13:49:30.759116+00:00"
+        },
+        {
+          "movie_title": "Taxi 2",
+          "rating": 3.0,
+          "created_at": "2025-07-31T13:49:30.559063+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 560,
+      "username": "ml_user_23",
+      "total_ratings": 20,
+      "avg_rating": 4.35,
+      "min_rating": 2.0,
+      "max_rating": 5.0,
+      "rating_std": 0.91,
+      "rating_distribution": {
+        "1.0": 0,
+        "2.0": 1,
+        "3.0": 3,
+        "4.0": 4,
+        "5.0": 12
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "M*A*S*H",
+          "rating": 5.0,
+          "created_at": "2025-07-31T14:08:50.815737+00:00"
+        },
+        {
+          "movie_title": "The Garden of the Finzi-Continis",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:08:50.644566+00:00"
+        },
+        {
+          "movie_title": "Carnal Knowledge",
+          "rating": 5.0,
+          "created_at": "2025-07-31T14:08:50.475721+00:00"
+        },
+        {
+          "movie_title": "U2: Rattle and Hum",
+          "rating": 4.0,
+          "created_at": "2025-07-31T14:08:50.304859+00:00"
+        },
+        {
+          "movie_title": "The Great Santini",
+          "rating": 2.0,
+          "created_at": "2025-07-31T14:08:50.134430+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 561,
+      "username": "ml_user_24",
+      "total_ratings": 20,
+      "avg_rating": 3.85,
+      "min_rating": 3.0,
+      "max_rating": 5.0,
+      "rating_std": 0.57,
+      "rating_distribution": {
+        "1.0": 0,
+        "2.0": 0,
+        "3.0": 5,
+        "4.0": 13,
+        "5.0": 2
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "The Dark Knight",
+          "rating": 4.0,
+          "created_at": "2025-07-31T14:08:54.950742+00:00"
+        },
+        {
+          "movie_title": "Monsters, Inc.",
+          "rating": 4.0,
+          "created_at": "2025-07-31T14:08:54.783247+00:00"
+        },
+        {
+          "movie_title": "What Women Want",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:08:54.610984+00:00"
+        },
+        {
+          "movie_title": "The Cell",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:08:54.436170+00:00"
+        },
+        {
+          "movie_title": "The Perfect Storm",
+          "rating": 4.0,
+          "created_at": "2025-07-31T14:08:54.240438+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 562,
+      "username": "ml_user_25",
+      "total_ratings": 20,
+      "avg_rating": 3.85,
+      "min_rating": 2.0,
+      "max_rating": 5.0,
+      "rating_std": 0.96,
+      "rating_distribution": {
+        "1.0": 0,
+        "2.0": 1,
+        "3.0": 8,
+        "4.0": 4,
+        "5.0": 7
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "The Rock",
+          "rating": 4.0,
+          "created_at": "2025-07-31T14:09:09.567177+00:00"
+        },
+        {
+          "movie_title": "Beauty and the Beast",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:09:09.396994+00:00"
+        },
+        {
+          "movie_title": "The Silence of the Lambs",
+          "rating": 5.0,
+          "created_at": "2025-07-31T14:09:09.227153+00:00"
+        },
+        {
+          "movie_title": "Batman",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:09:09.057144+00:00"
+        },
+        {
+          "movie_title": "Dances with Wolves",
+          "rating": 4.0,
+          "created_at": "2025-07-31T14:09:08.889163+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 563,
+      "username": "ml_user_26",
+      "total_ratings": 20,
+      "avg_rating": 3.35,
+      "min_rating": 2.0,
+      "max_rating": 5.0,
+      "rating_std": 0.91,
+      "rating_distribution": {
+        "1.0": 0,
+        "2.0": 3,
+        "3.0": 10,
+        "4.0": 4,
+        "5.0": 3
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "Inception",
+          "rating": 5.0,
+          "created_at": "2025-07-31T14:09:15.015850+00:00"
+        },
+        {
+          "movie_title": "Coco Chanel & Igor Stravinsky",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:09:14.846781+00:00"
+        },
+        {
+          "movie_title": "Superbad",
+          "rating": 2.0,
+          "created_at": "2025-07-31T14:09:14.678844+00:00"
+        },
+        {
+          "movie_title": "The Bourne Ultimatum",
+          "rating": 4.0,
+          "created_at": "2025-07-31T14:09:14.509318+00:00"
+        },
+        {
+          "movie_title": "Ocean's Thirteen",
+          "rating": 4.0,
+          "created_at": "2025-07-31T14:09:14.340367+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 567,
+      "username": "ml_user_30",
+      "total_ratings": 20,
+      "avg_rating": 3.55,
+      "min_rating": 0.5,
+      "max_rating": 5.0,
+      "rating_std": 1.14,
+      "rating_distribution": {
+        "1.0": 0,
+        "2.0": 1,
+        "3.0": 6,
+        "4.0": 1,
+        "5.0": 4
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "Men in Black³",
+          "rating": 5.0,
+          "created_at": "2025-07-31T14:09:45.002642+00:00"
+        },
+        {
+          "movie_title": "Sherlock Holmes: A Game of Shadows",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:09:44.832503+00:00"
+        },
+        {
+          "movie_title": "Sherlock Holmes",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:09:44.662920+00:00"
+        },
+        {
+          "movie_title": "Rush Hour 3",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:09:44.488881+00:00"
+        },
+        {
+          "movie_title": "Hot Fuzz",
+          "rating": 2.0,
+          "created_at": "2025-07-31T14:09:44.313476+00:00"
+        }
+      ]
+    },
+    {
+      "user_id": 568,
+      "username": "ml_user_31",
+      "total_ratings": 20,
+      "avg_rating": 2.4,
+      "min_rating": 1.0,
+      "max_rating": 4.0,
+      "rating_std": 0.73,
+      "rating_distribution": {
+        "1.0": 2,
+        "2.0": 9,
+        "3.0": 8,
+        "4.0": 1,
+        "5.0": 0
+      },
+      "recent_ratings": [
+        {
+          "movie_title": "Wanted",
+          "rating": 2.0,
+          "created_at": "2025-07-31T14:10:49.669704+00:00"
+        },
+        {
+          "movie_title": "My Life in Ruins",
+          "rating": 1.0,
+          "created_at": "2025-07-31T14:10:49.511447+00:00"
+        },
+        {
+          "movie_title": "Before the Rains",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:10:49.352042+00:00"
+        },
+        {
+          "movie_title": "Away We Go",
+          "rating": 2.0,
+          "created_at": "2025-07-31T14:10:49.196574+00:00"
+        },
+        {
+          "movie_title": "The Curious Case of Benjamin Button",
+          "rating": 3.0,
+          "created_at": "2025-07-31T14:10:49.039738+00:00"
+        }
+      ]
+    }
+  ]
+}

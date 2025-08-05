@@ -15,7 +15,12 @@ from django.conf import settings
 import math
 import random
 import json
-import psutil
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    psutil = None
 
 
 # Advanced ML Libraries for Enhanced Demographic Filtering
@@ -621,67 +626,52 @@ class EnhancedDemographicFilteringService:
                 logger.info("✅ Model loaded from cache successfully")
                 return
 
-            # Nếu không có cache, tạo lại từ database
-            logger.info("🔄 Cache not available, creating model from database...")
+            # Nếu không có cache, thử load từ ModelStorage
+            logger.info("🔄 Cache not available, trying ModelStorage...")
 
-            # Kiểm tra xem có K-means clusters trong database không
-            kmeans_clusters = DemographicCluster.objects.filter(cluster_id__startswith='kmeans_')
-            if not kmeans_clusters.exists():
-                logger.info("No K-means clusters found in database")
-                return
+            from apps.recommendations.models import ModelStorage
+            model_storage = ModelStorage.objects.filter(
+                model_name__icontains='kmeans',
+                is_active=True
+            ).first()
 
-            logger.info(f"🔄 Loading K-means model from {kmeans_clusters.count()} existing clusters...")
-
-            # Lấy users với demographics để tạo lại model
-            users_with_data = User.objects.filter(
-                age__isnull=False,
-                gender__isnull=False
-            ).exclude(age__isnull=True)
-
-            if users_with_data.count() < 10:
-                logger.warning("Not enough users with demographics to load K-means model")
-                return
-
-            # Tạo demographic vectors cho tất cả users
-            user_vectors = []
-            users_list = []
-
-            for user in users_with_data:
+            if model_storage:
                 try:
-                    vector = self.vectorizer.create_demographic_vector(user)
-                    user_vectors.append(vector)
-                    users_list.append(user)
+                    import pickle
+                    model_data = pickle.loads(model_storage.model_data)
+
+                    if isinstance(model_data, dict) and 'model' in model_data:
+                        self.kmeans_model = model_data['model']
+                        self.scaler = model_data.get('scaler')
+                        logger.info("✅ Model loaded from ModelStorage successfully")
+                        return
                 except Exception as e:
-                    logger.warning(f"Error creating vector for user {user.id}: {str(e)}")
-                    continue
+                    logger.warning(f"Error loading from ModelStorage: {str(e)}")
 
-            if len(user_vectors) < 10:
-                logger.warning("Not enough valid vectors to load K-means model")
-                return
+            # Fallback: Sử dụng OptimizedKMeansProductionService
+            logger.info("🔄 Using OptimizedKMeansProductionService for model loading...")
 
-            # Convert to numpy array
-            X = np.array(user_vectors)
+            try:
+                from apps.recommendations.services import OptimizedKMeansProductionService
+                optimized_service = OptimizedKMeansProductionService()
 
-            # Standardize features
-            from sklearn.preprocessing import StandardScaler
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
+                # Kiểm tra xem có model trong cache không
+                from django.core.cache import cache
+                model_data = cache.get('kmeans_model')
 
-            # Tạo K-means model với số clusters bằng với số clusters trong database
-            n_clusters = kmeans_clusters.count()
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+                if model_data:
+                    import pickle
+                    model = pickle.loads(model_data)
+                    self.kmeans_model = model
+                    logger.info("✅ Model loaded from OptimizedKMeansProductionService cache")
+                    return
 
-            # Fit model với dữ liệu hiện tại
-            cluster_labels = kmeans.fit_predict(X_scaled)
+            except Exception as e:
+                logger.warning(f"Error with OptimizedKMeansProductionService: {str(e)}")
 
-            # Lưu model và scaler
-            self.kmeans_model = kmeans
-            self.scaler = scaler
-
-            # Lưu vào cache để lần sau load nhanh hơn
-            self._save_model_to_cache()
-
-            logger.info(f"✅ Successfully loaded K-means model with {n_clusters} clusters")
+            logger.warning("No K-means model available. Please run training first.")
+            self.kmeans_model = None
+            self.scaler = None
 
         except Exception as e:
             logger.error(f"Error loading K-means model: {str(e)}")
@@ -1926,38 +1916,54 @@ class AdvancedDemographicVectorizer:
 
     def create_demographic_vector(self, user) -> np.ndarray:
         """
-        Tạo vector demographic comprehensive cho user
+        Tạo vector demographic comprehensive cho user với error handling
 
         Returns:
             np.ndarray: Vector representing user demographics
         """
-        features = []
+        try:
+            features = []
 
-        # 1. Age features (one-hot encoded bins)
-        age_vector = self._encode_age_bins(user.age)
-        features.extend(age_vector)
+            # 1. Age features (one-hot encoded bins)
+            age_vector = self._encode_age_bins(user.age)
+            features.extend(age_vector)
 
-        # 2. Gender features (one-hot)
-        gender_vector = self._encode_gender(user.gender)
-        features.extend(gender_vector)
+            # 2. Gender features (one-hot)
+            gender_vector = self._encode_gender(user.gender)
+            features.extend(gender_vector)
 
-        # 3. Occupation group features
-        occupation_vector = self._encode_occupation_groups(user.occupation)
-        features.extend(occupation_vector)
+            # 3. Occupation group features
+            occupation_vector = self._encode_occupation_groups(user.occupation)
+            features.extend(occupation_vector)
 
-        # 4. Geographic features
-        location_vector = self._encode_location(user.location, user.zip_code)
-        features.extend(location_vector)
+            # 4. Geographic features
+            location_vector = self._encode_location(user.location, user.zip_code)
+            features.extend(location_vector)
 
-        # 5. User type features
-        user_type_vector = self._encode_user_type(user.user_type)
-        features.extend(user_type_vector)
+            # 5. User type features
+            user_type_vector = self._encode_user_type(user.user_type)
+            features.extend(user_type_vector)
 
-        # 6. Behavioral features (if available)
-        behavioral_vector = self._encode_behavioral_features(user)
-        features.extend(behavioral_vector)
+            # 6. Behavioral features (if available)
+            behavioral_vector = self._encode_behavioral_features(user)
+            features.extend(behavioral_vector)
 
-        return np.array(features, dtype=np.float64)
+            # Ensure all features are numeric and have consistent length
+            numeric_features = []
+            for feature in features:
+                if isinstance(feature, (list, tuple)):
+                    numeric_features.extend([float(x) if x is not None else 0.0 for x in feature])
+                else:
+                    numeric_features.append(float(feature) if feature is not None else 0.0)
+
+            return np.array(numeric_features, dtype=np.float64)
+
+        except Exception as e:
+            # Fallback: return simple age/gender vector
+            logger.warning(f"Error creating demographic vector for user {user.id}: {str(e)}")
+            age_normalized = min(user.age / 100.0, 1.0) if user.age else 0.5
+            gender_encoded = 1.0 if user.gender == 'M' else 0.0
+            return np.array([age_normalized, gender_encoded], dtype=np.float64)
 
     def _encode_age_bins(self, age) -> List[float]:
         """Encode age into bins using one-hot encoding"""
@@ -2813,7 +2819,7 @@ class OptimizedKMeansProductionService:
 
         # Phase 1: Assign users to clusters using the trained model
         cluster_assignments = {}  # cluster_id -> list of users
-        
+
         for i in range(0, total_users, self.batch_size):
             batch_users = users[i:i+self.batch_size]
 
@@ -2842,7 +2848,7 @@ class OptimizedKMeansProductionService:
 
         # Phase 2: Create clusters with full demographic information
         logger.info("📊 Creating clusters with demographic information...")
-        
+
         for cluster_id, cluster_users in cluster_assignments.items():
             if len(cluster_users) < 3:  # Skip small clusters
                 continue
@@ -2980,7 +2986,10 @@ class OptimizedKMeansProductionService:
 
     def _check_memory_usage(self):
         """Check memory usage"""
-        return psutil.virtual_memory().percent
+        if PSUTIL_AVAILABLE and psutil:
+            return psutil.virtual_memory().percent
+        else:
+            return 50.0  # Default value if psutil not available
 
     def get_cluster_statistics(self):
         """Get statistics về clusters"""

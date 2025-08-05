@@ -172,13 +172,22 @@ class Command(BaseCommand):
 
     def _check_system_resources(self):
         """Kiểm tra tài nguyên hệ thống"""
-        import psutil
+        try:
+            import psutil
+            PSUTIL_AVAILABLE = True
+        except ImportError:
+            PSUTIL_AVAILABLE = False
+            psutil = None
 
-        memory_percent = psutil.virtual_memory().percent
-        cpu_percent = psutil.cpu_percent()
+        if PSUTIL_AVAILABLE and psutil:
+            memory_percent = psutil.virtual_memory().percent
+            cpu_percent = psutil.cpu_percent()
 
-        self.stdout.write(f"💻 System resources:")
-        self.stdout.write(f"  - Memory usage: {memory_percent:.1f}%")
-        self.stdout.write(f"  - CPU usage: {cpu_percent:.1f}%")
+            self.stdout.write(f"💻 System resources:")
+            self.stdout.write(f"  - Memory usage: {memory_percent:.1f}%")
+            self.stdout.write(f"  - CPU usage: {cpu_percent:.1f}%")
 
-        return memory_percent < 80 and cpu_percent < 80
+            return memory_percent < 80 and cpu_percent < 80
+        else:
+            self.stdout.write(f"💻 System resources: psutil not available")
+            return True  # Assume OK if psutil not available

@@ -853,7 +853,7 @@ class EnhancedDemographicFilteringService:
                     age_range_min=age_min,
                     age_range_max=age_max,
                     primary_gender=primary_gender,
-                    common_occupations=list(set(occupations))[:5],  # Top 5 occupations
+                    common_occupations=list(set(occupations)),  # All occupations
                     preferred_genres=genre_preferences,
                     average_rating=rating_stats['avg_rating'] or 3.0,
                     user_count=len(cluster_users)
@@ -2985,7 +2985,7 @@ class OptimizedKMeansProductionService:
                 age_range_min=age_min,
                 age_range_max=age_max,
                 primary_gender=primary_gender,
-                common_occupations=list(set(occupations))[:5],  # Top 5 occupations
+                common_occupations=list(set(occupations)),  # All occupations
                 preferred_genres=genre_preferences,
                 average_rating=rating_stats['avg_rating'] or 3.0,
                 user_count=len(cluster_users)
@@ -3277,11 +3277,13 @@ class OptimizedRecommendationService:
                     recommendation_type=rec_type,
                     context=context,
                     rank=rank,
+                    score=1.0 - (rank * 0.05),
                     confidence_score=0.7,  # Lower confidence cho fallback cache
-                    metadata={
+                    explanation={
                         'source': 'immediate_generation',
                         'generated_at': timezone.now().isoformat(),
-                        'cache_type': 'fallback'
+                        'cache_type': 'fallback',
+                        'reason': f'Generated immediately for {rec_type} recommendations'
                     }
                 )
 

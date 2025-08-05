@@ -314,7 +314,7 @@ class DemographicDataVisualizer:
         ax3.legend(title='Giới tính')
         ax3.tick_params(axis='x', rotation=0)
 
-        # Occupation distribution by cluster (top 5 occupations)
+        # Occupation distribution by cluster (all occupations)
         top_occupations = cluster_df['occupation'].value_counts().head(5).index
         occupation_cluster = pd.crosstab(cluster_df['cluster_id'],
                                        cluster_df['occupation'].where(cluster_df['occupation'].isin(top_occupations), 'Other'))

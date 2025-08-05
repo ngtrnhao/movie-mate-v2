@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { debounce } from 'lodash';
 import {
   AlertTriangle,
   CheckCircle,
@@ -114,10 +115,19 @@ const ContentModerationDashboard = () => {
     }
   }, [currentPage, filters]);
 
+  // Debounced fetch to prevent rapid API calls
+  const debouncedFetch = useCallback(
+    debounce(() => {
+      fetchModerationQueue();
+    }, 300), // 300ms debounce
+    [fetchModerationQueue]
+  );
+
   // Separate useEffects to prevent unnecessary calls
   useEffect(() => {
-    fetchModerationQueue();
-  }, [fetchModerationQueue]);
+    debouncedFetch();
+    return () => debouncedFetch.cancel(); // Cleanup on unmount
+  }, [debouncedFetch]);
 
   const handleModerationAction = async (reviewId, action, reason = '') => {
     try {

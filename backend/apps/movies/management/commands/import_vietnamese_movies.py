@@ -227,8 +227,8 @@ class Command(BaseCommand):
             # Use the most effective API endpoint for Vietnamese movies
             params = {
                 'api_key': api_key,
-                'language': 'en-US',  # Get English metadata
-                'with_original_language': 'vi',  # Vietnamese original language
+                'language': 'en-US',
+                'with_original_language': 'vi',
                 'include_adult': include_adult,
                 'sort_by': 'popularity.desc',
                 'page': 1
@@ -241,7 +241,7 @@ class Command(BaseCommand):
 
             all_movies = []
             page = 1
-            max_pages = 5  # Limit pages to avoid too many requests
+            max_pages = 5
 
             while page <= max_pages:
                 params['page'] = page
@@ -258,7 +258,7 @@ class Command(BaseCommand):
                     if 'results' in data and data['results']:
                         all_movies.extend(data['results'])
 
-                        # Check if we have more pages
+
                         if page >= data.get('total_pages', 1):
                             break
                     else:
@@ -269,7 +269,7 @@ class Command(BaseCommand):
                     break
 
                 page += 1
-                time.sleep(0.25)  # Rate limiting
+                time.sleep(0.25)
 
             self.stdout.write(f"   Found {len(all_movies)} Vietnamese movies for year {year}")
             return all_movies
@@ -295,8 +295,7 @@ class Command(BaseCommand):
         if not title or title.strip() == '':
             return False
 
-        # For Vietnamese movies, we accept all movies regardless of rating/vote count
-        # since many Vietnamese movies have limited international exposure
+       
         return True
 
     def process_movie(self, movie_data, api_key, dry_run, update_existing):

@@ -110,11 +110,6 @@ class MovieSearchService:
                 # search = search.filter('term', minimum_quality_met=True)
                 search = search.filter('term', visibility_status='PUBLISHED')
                 search = search.filter('bool',must_not=[{'term':{'title.keyword':''}}])
-            #  Enhanced search query with quality scoring
-            if params.get('q'):
-                query_text = params['q'].strip()
-                search = self._build_enhanced_query(search, query_text, params)
-
             # QUALITY FILTERS: Only return documents with proper titles for better UX
             search = search.filter('bool', should=[
                 ES_Q('exists', field='title_en'),
@@ -276,7 +271,12 @@ class MovieSearchService:
                 if params.get('auto_feature') is not None:
                     search = search.filter('term', auto_feature=params['auto_feature'])
 
-                # 📈 ADVANCED PRODUCTION METRICS FILTERS (admin only)
+            # 🎯 SEARCH QUERY - Áp dụng sau tất cả filter để không bị override
+            if params.get('q'):
+                query_text = params['q'].strip()
+                search = self._build_enhanced_query(search, query_text, params)
+
+            # 📈 ADVANCED PRODUCTION METRICS FILTERS (admin only)
                 if params.get('performance_score_min'):
                     search = search.filter('range', performance_score={'gte': float(params['performance_score_min'])})
 
@@ -384,7 +384,7 @@ class MovieSearchService:
             else:
                 # Default: first page with page size
                 search = search[:page_size]
-                logger.info(f"[SEARCH SERVICE] Initial page load, page_size: {page_size}")
+                # logger.info(f"[SEARCH SERVICE] Initial page load, page_size: {page_size}")
 
             # 📊 ENHANCED SORTING with consistent keyset pagination
             sort_by = params.get('sort_by', 'created_at')
@@ -413,10 +413,19 @@ class MovieSearchService:
             sort_field = sort_field_mapping.get(sort_by, 'created_at')
 
             # Create sort array for consistent keyset pagination
-            sort_order = [
-                {sort_field: {'order': order}},
-                {'id': {'order': order}}  # Always add id as tie-breaker
-            ]
+            if params.get('q'):
+                # Khi có search query, sort theo relevance score trước
+                sort_order = [
+                    {'_score': {'order': 'desc'}},  # Sort by relevance first
+                    {sort_field: {'order': order}},
+                    {'id': {'order': order}}  # Always add id as tie-breaker
+                ]
+            else:
+                # Khi không có search query, sort theo field được chọn
+                sort_order = [
+                    {sort_field: {'order': order}},
+                    {'id': {'order': order}}  # Always add id as tie-breaker
+                ]
 
             search = search.sort(*sort_order)
 
@@ -430,11 +439,12 @@ class MovieSearchService:
                 last_hit = response.hits[-1]
                 if hasattr(last_hit.meta, 'sort'):
                     next_search_after = list(last_hit.meta.sort)
-                    logger.info(f"[SEARCH SERVICE] Calculated next_search_after: {next_search_after}")
+                    # logger.info(f"[SEARCH SERVICE] Calculated next_search_after: {next_search_after}")
                 else:
                     logger.warning(f"[SEARCH SERVICE] Last hit has no sort metadata")
             else:
-                logger.info(f"[SEARCH SERVICE] Not enough results for next page. Got {len(response.hits) if response.hits else 0}, need {page_size}")
+                pass
+                # logger.info(f"[SEARCH SERVICE] Not enough results for next page. Got {len(response.hits) if response.hits else 0}, need {page_size}")
 
             # Convert Elasticsearch hits to Movie objects and serialize them
             movie_ids = [int(hit.meta.id) for hit in response.hits]

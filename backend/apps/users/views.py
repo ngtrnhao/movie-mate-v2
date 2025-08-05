@@ -1291,13 +1291,14 @@ def user_interactions(request):
                     error_count += 1
                     continue
 
-                # Track search history if action is 'search' and user_id is present
+                # Track search history if action is 'search' and user_id is present (but not for admin users)
                 if action == 'search' and user_id:
                     search_query = metadata.get('search_query')
                     result_count = metadata.get('result_count', 0)
                     try:
                         user = User.objects.get(id=user_id)
-                        if search_query:
+                        # Không track search history cho admin users
+                        if search_query and not user.is_staff and not user.is_superuser:
                             SearchHistory.objects.create(
                                 user=user,
                                 search_query=search_query,
@@ -1311,14 +1312,27 @@ def user_interactions(request):
                     error_count += 1
                     continue
 
-                # Collect the interaction
-                user_data_service.collect_movie_interactions(
-                    movie_id=movie_id,
-                    action=action,
-                    user_id=user_id,
-                    session_id=session_id,
-                    metadata=metadata
-                )
+                # Collect the interaction (but not for admin users)
+                try:
+                    user = User.objects.get(id=user_id)
+                    # Không track user interaction cho admin users
+                    if not user.is_staff and not user.is_superuser:
+                        user_data_service.collect_movie_interactions(
+                            movie_id=movie_id,
+                            action=action,
+                            user_id=user_id,
+                            session_id=session_id,
+                            metadata=metadata
+                        )
+                except User.DoesNotExist:
+                    # Nếu không tìm thấy user, vẫn track interaction
+                    user_data_service.collect_movie_interactions(
+                        movie_id=movie_id,
+                        action=action,
+                        user_id=user_id,
+                        session_id=session_id,
+                        metadata=metadata
+                    )
 
                 processed_count += 1
 

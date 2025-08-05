@@ -7,18 +7,20 @@ class ModerationCacheService {
   constructor() {
     this.cache = new Map();
     this.cacheTimestamps = new Map();
+    this.ongoingRequests = new Map(); // Track ongoing requests to prevent duplicates
     this.defaultTTL = 30000; // 30 seconds default TTL
     this.apiTTLConfig = {
       // Different TTL for different APIs based on data freshness needs
-      dashboard_overview_optimized: 60000, // 60s - Dashboard data can be cached longer
-      unified_moderation_queue: 30000, // 30s - Most dynamic
-      moderation_queue_optimized: 45000, // 45s - Semi-dynamic
-      ultra_optimized_moderation_queue: 30000, // 30s - Ultra-fast, shorter cache
-      spoiler_statistics_optimized: 60000, // 60s - Stats change slowly
-      auto_marked_reviews: 45000, // 45s - Semi-dynamic
-      moderation_analytics: 120000, // 2min - Analytics data
-      accuracy_summary: 120000, // 2min - Summary data
-      moderation_config: 300000, // 5min - Config rarely changes
+      dashboard_overview_optimized: 120000, // 2min - Dashboard data can be cached longer
+      dashboard_batch_data: 120000, // 2min - Batch dashboard data
+      unified_moderation_queue: 45000, // 45s - Most dynamic
+      moderation_queue_optimized: 60000, // 1min - Semi-dynamic
+      ultra_optimized_moderation_queue: 45000, // 45s - Ultra-fast, shorter cache
+      spoiler_statistics_optimized: 120000, // 2min - Stats change slowly
+      auto_marked_reviews: 60000, // 1min - Semi-dynamic
+      moderation_analytics: 300000, // 5min - Analytics data
+      accuracy_summary: 300000, // 5min - Summary data
+      moderation_config: 600000, // 10min - Config rarely changes
     };
     this.statsCallbacks = new Set();
     this.stats = {
@@ -140,17 +142,33 @@ class ModerationCacheService {
   }
 
   /**
-   * Wrapper for API calls with caching
+   * Wrapper for API calls with caching and deduplication
    */
   async cachedApiCall(apiEndpoint, apiFunction, params = {}, options = {}) {
+    // Generate cache key
+    const cacheKey = this.generateCacheKey(apiEndpoint, params);
+
     // Check cache first
     const cachedData = this.getCachedData(apiEndpoint, params);
     if (cachedData && !options.bypassCache) {
+      this.stats.cacheHits++;
+      this.notifyStatsUpdate();
       return cachedData;
+    }
+
+    // Check if there's already an ongoing request for this exact call
+    if (this.ongoingRequests.has(cacheKey)) {
+      this.stats.duplicatesPrevented++;
+      if (this.debugMode) {
+        console.log(`🔄 Deduplicating API call: ${apiEndpoint}`, { params });
+      }
+      this.notifyStatsUpdate();
+      return this.ongoingRequests.get(cacheKey);
     }
 
     // Track API call
     this.stats.totalCalls++;
+    this.stats.cacheMisses++;
     const callInfo = {
       id: Date.now(),
       endpoint: apiEndpoint,
@@ -169,6 +187,23 @@ class ModerationCacheService {
       console.log(`🔄 API call for ${apiEndpoint}`, { params });
     }
 
+    // Create the request promise and store it
+    const requestPromise = this._executeApiCall(apiEndpoint, apiFunction, params, callInfo);
+    this.ongoingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const data = await requestPromise;
+      return data;
+    } finally {
+      // Clean up the ongoing request
+      this.ongoingRequests.delete(cacheKey);
+    }
+  }
+
+  /**
+   * Execute the actual API call
+   */
+  async _executeApiCall(apiEndpoint, apiFunction, params, callInfo) {
     try {
       const startTime = Date.now();
       const data = await apiFunction(params);
@@ -282,6 +317,26 @@ class ModerationCacheService {
       apiCallHistory: [],
     };
     this.notifyStatsUpdate();
+  }
+
+  /**
+   * Get performance metrics
+   */
+  getPerformanceMetrics() {
+    const total = this.stats.totalCalls;
+    const cacheHitRate = total > 0 ? (this.stats.cacheHits / total) * 100 : 0;
+    const duplicatePreventionRate = total > 0 ? (this.stats.duplicatesPrevented / total) * 100 : 0;
+
+    return {
+      totalCalls: total,
+      cacheHitRate: Math.round(cacheHitRate * 100) / 100,
+      duplicatePreventionRate: Math.round(duplicatePreventionRate * 100) / 100,
+      cacheHits: this.stats.cacheHits,
+      cacheMisses: this.stats.cacheMisses,
+      duplicatesPrevented: this.stats.duplicatesPrevented,
+      ongoingRequests: this.ongoingRequests.size,
+      cacheSize: this.cache.size,
+    };
   }
 
   /**

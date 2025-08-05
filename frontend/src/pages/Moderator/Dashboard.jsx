@@ -251,34 +251,72 @@ const ModeratorDashboard = () => {
     }
   }, []);
 
-  // Enhanced: Fetch all dashboard data using individual APIs
+  // Enhanced: Fetch all dashboard data using batch API call
   const fetchDashboardData = useCallback(async () => {
     try {
       setApiLoading(true);
       setApiError(null);
 
-      // Call all APIs in parallel
-      await Promise.all([
-        fetchDashboardStatistics(),
-        fetchNavigationBadges(),
-        fetchSystemNotifications(),
-      ]);
+      // Use single batch API call instead of multiple parallel calls
+      const response = await moderationCacheService.cachedApiCall(
+        'dashboard_batch_data',
+        async () => {
+          // Use Promise.allSettled to handle partial failures gracefully
+          const [statsResult, badgesResult, notificationsResult] = await Promise.allSettled([
+            getDashboardStatistics(),
+            getNavigationBadgeCounts(),
+            getSystemNotifications(),
+          ]);
 
-      console.log('✅ All dashboard APIs loaded successfully');
+          return {
+            statistics: statsResult.status === 'fulfilled' ? statsResult.value : null,
+            badges: badgesResult.status === 'fulfilled' ? badgesResult.value : null,
+            notifications:
+              notificationsResult.status === 'fulfilled' ? notificationsResult.value : null,
+            errors: [
+              statsResult.status === 'rejected' ? statsResult.reason : null,
+              badgesResult.status === 'rejected' ? badgesResult.reason : null,
+              notificationsResult.status === 'rejected' ? notificationsResult.reason : null,
+            ].filter(Boolean),
+          };
+        },
+        {},
+        { ttl: 60000 } // 60s cache for batch data
+      );
+
+      // Process results
+      if (response.statistics) {
+        setRealDashboardStats(response.statistics);
+      }
+      if (response.badges) {
+        setNavigationBadges(response.badges);
+      }
+      if (response.notifications) {
+        setSystemNotifications(response.notifications.notifications || []);
+        setNotifications(response.notifications.notifications || []);
+      }
+
+      // Handle any errors
+      if (response.errors && response.errors.length > 0) {
+        console.warn('Some dashboard APIs failed:', response.errors);
+        setApiError('Một số dữ liệu dashboard không thể tải');
+      }
+
+      console.log('✅ Dashboard batch data loaded successfully');
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      setApiError('Không thể tải một số dữ liệu dashboard');
+      setApiError('Không thể tải dữ liệu dashboard');
     } finally {
       setApiLoading(false);
     }
-  }, [fetchDashboardStatistics, fetchNavigationBadges, fetchSystemNotifications]);
+  }, []);
 
-  // Load dashboard data on component mount
+  // Load dashboard data on component mount - optimized dependencies
   useEffect(() => {
     if (user && (isAdmin || isModerator)) {
       fetchDashboardData();
     }
-  }, [user, isAdmin, isModerator, fetchDashboardData]);
+  }, [user?.id, isAdmin, isModerator]); // Only depend on user.id instead of entire user object
 
   // Enhanced: Manual refresh function for individual APIs
   const handleRefreshData = useCallback(async () => {

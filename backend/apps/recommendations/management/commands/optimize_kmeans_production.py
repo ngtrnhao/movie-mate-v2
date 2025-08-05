@@ -94,11 +94,11 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("❌ Training thất bại!"))
 
     def _deploy_mode(self, service, dry_run):
-        """Deploy mode - load model và pre-compute clusters"""
+        """Deploy mode - load model và verify deployment"""
         self.stdout.write("🚀 Mode: Deploy to production...")
 
         if dry_run:
-            self.stdout.write("🧪 [DRY RUN] Sẽ deploy model...")
+            self.stdout.write("🧪 [DRY RUN] Sẽ verify deployment...")
             return
 
         # Check if model exists
@@ -110,18 +110,39 @@ class Command(BaseCommand):
             self.stdout.write("💡 Chạy lệnh: python manage.py optimize_kmeans_production --mode train")
             return
 
-        # Load model và pre-compute
+        # Load model và verify
         try:
             import pickle
             model = pickle.loads(model_data)
 
-            # Pre-compute clusters
-            service._precompute_all_clusters(model)
+            # Set model to service
+            service.kmeans_model = model
 
-            self.stdout.write(self.style.SUCCESS("✅ Deploy thành công!"))
+            # Verify clusters exist
+            from apps.recommendations.models import DemographicCluster, UserPreference
+            cluster_count = DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').count()
+            user_count = UserPreference.objects.filter(demographic_cluster__startswith='kmeans_').count()
+
+            self.stdout.write(f"📊 Verification results:")
+            self.stdout.write(f"  - Model loaded: ✅")
+            self.stdout.write(f"  - Clusters found: {cluster_count}")
+            self.stdout.write(f"  - Users with clusters: {user_count}")
+
+            # Test prediction
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            test_user = User.objects.first()
+            if test_user:
+                try:
+                    cluster = service.get_user_cluster_production(test_user.id)
+                    self.stdout.write(f"  - Test prediction: {cluster} ✅")
+                except Exception as e:
+                    self.stdout.write(f"  - Test prediction: ❌ {str(e)}")
+
+            self.stdout.write(self.style.SUCCESS("✅ Deploy verification thành công!"))
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Deploy thất bại: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"❌ Deploy verification thất bại: {str(e)}"))
 
     def _stats_mode(self, service):
         """Stats mode - hiển thị thống kê clusters"""

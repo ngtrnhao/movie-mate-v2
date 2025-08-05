@@ -597,6 +597,12 @@ class EnhancedDemographicFilteringService:
         # Tự động load K-means model nếu có clusters trong database
         self._load_kmeans_model()
 
+        # Ensure scaler is available if model is loaded
+        if self.kmeans_model is not None and self.scaler is None:
+            from sklearn.preprocessing import StandardScaler
+            self.scaler = StandardScaler()
+            logger.info("✅ Initialized default scaler for K-means model")
+
     def _get_model_cache_path(self) -> str:
         """
         Get the cache path for K-means model
@@ -725,7 +731,13 @@ class EnhancedDemographicFilteringService:
                     import pickle
                     model = pickle.loads(model_data)
                     self.kmeans_model = model
-                    logger.info("✅ Model loaded from OptimizedKMeansProductionService cache")
+                    # Initialize a default scaler if none exists
+                    if not hasattr(self, 'scaler') or self.scaler is None:
+                        from sklearn.preprocessing import StandardScaler
+                        self.scaler = StandardScaler()
+                        logger.info("✅ Model loaded from OptimizedKMeansProductionService cache with default scaler")
+                    else:
+                        logger.info("✅ Model loaded from OptimizedKMeansProductionService cache")
                     return
 
             except Exception as e:
@@ -900,8 +912,19 @@ class EnhancedDemographicFilteringService:
                 if user_vector is not None:
                     # Ensure consistent dtype
                     user_vector = np.array(user_vector, dtype=np.float64)
-                    user_vector_scaled = self.scaler.transform([user_vector])
-                    cluster_label = self.kmeans_model.predict(user_vector_scaled)[0]
+
+                    # Handle scaler properly
+                    if self.scaler is not None:
+                        try:
+                            user_vector_scaled = self.scaler.transform([user_vector])
+                            cluster_label = self.kmeans_model.predict(user_vector_scaled)[0]
+                        except Exception as e:
+                            logger.warning(f"Scaler transform failed for user {user.id}: {str(e)}, using unscaled vector")
+                            # Fallback to unscaled vector
+                            cluster_label = self.kmeans_model.predict([user_vector])[0]
+                    else:
+                        # No scaler available, use unscaled vector
+                        cluster_label = self.kmeans_model.predict([user_vector])[0]
 
                 # Find or create cluster
                 cluster = DemographicCluster.objects.filter(

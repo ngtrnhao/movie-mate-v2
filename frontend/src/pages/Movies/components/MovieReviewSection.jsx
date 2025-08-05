@@ -1,5 +1,6 @@
 import { useState, lazy, Suspense } from 'react';
 import { MessageCircle, Star } from 'lucide-react';
+import { useTranslation } from '../../../i18n/hooks/useTranslation';
 
 // Lazy load the tab components
 const RatingTab = lazy(() => import('./RatingTab'));
@@ -7,10 +8,11 @@ const CommentTab = lazy(() => import('./CommentTab'));
 
 const MovieReviewSection = ({ movieId }) => {
   const [activeTab, setActiveTab] = useState('ratings');
+  const { t } = useTranslation('rating');
 
   const tabs = [
-    { id: 'ratings', label: 'Đánh giá', icon: Star },
-    { id: 'comments', label: 'Bình luận', icon: MessageCircle },
+    { id: 'ratings', label: t('reviews.title'), icon: Star },
+    { id: 'comments', label: t('tabs.comments'), icon: MessageCircle },
   ];
 
   return (
@@ -41,9 +43,7 @@ const MovieReviewSection = ({ movieId }) => {
       {/* Tab Content */}
       <div className="min-h-[400px]">
         {activeTab === 'ratings' && (
-          <Suspense
-            fallback={<div className="text-center text-gray-400">Đang tải đánh giá...</div>}
-          >
+          <Suspense fallback={<div className="text-center text-gray-400">{t('loading')}</div>}>
             <RatingTab movieId={movieId} />
           </Suspense>
         )}

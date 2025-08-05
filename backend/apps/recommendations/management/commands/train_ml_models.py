@@ -28,9 +28,9 @@ class Command(BaseCommand):
         parser.add_argument(
             '--algorithms',
             nargs='+',
-            choices=['collaborative', 'content_based', 'demographic', 'deep_learning', 'hybrid'],
-            default=['collaborative', 'content_based', 'demographic'],
-            help='Specify which algorithms to train (default: collaborative content_based demographic)'
+            choices=['collaborative', 'demographic', 'deep_learning', 'hybrid'],
+            default=['collaborative', 'demographic'],
+            help='Specify which algorithms to train (default: collaborative demographic)'
         )
         parser.add_argument(
             '--hyperparameter-tuning',
@@ -205,8 +205,7 @@ class Command(BaseCommand):
         if 'collaborative' in algorithms and 'collaborative_filtering' in data:
             filtered_data['collaborative_filtering'] = data['collaborative_filtering']
 
-        if 'content_based' in algorithms and 'content_based_filtering' in data:
-            filtered_data['content_based_filtering'] = data['content_based_filtering']
+
 
         if 'demographic' in algorithms and 'demographic_filtering' in data:
             filtered_data['demographic_filtering'] = data['demographic_filtering']
@@ -257,8 +256,7 @@ class Command(BaseCommand):
 
             if method == 'collaborative_filtering':
                 self._print_cf_results(method_results)
-            elif method == 'content_based_filtering':
-                self._print_content_results(method_results)
+
             elif method == 'demographic_filtering':
                 self._print_demographic_results(method_results)
             elif method == 'deep_learning':
@@ -278,15 +276,7 @@ class Command(BaseCommand):
                 mae = model_data['mae']
                 self.stdout.write(f'    • {model_name}: RMSE={rmse:.4f}, MAE={mae:.4f}')
 
-    def _print_content_results(self, results):
-        """Print content-based filtering results"""
-        if 'similarity_matrix' in results:
-            matrix = results['similarity_matrix']
-            self.stdout.write(f'  ✅ Similarity Matrix: {matrix.shape}')
 
-        if 'evaluation_score' in results:
-            score = results['evaluation_score']
-            self.stdout.write(f'  📊 Evaluation Score: {score:.4f}')
 
     def _print_demographic_results(self, results):
         """Print demographic filtering results"""
@@ -332,11 +322,7 @@ class Command(BaseCommand):
                             'mae': model_data['mae']
                         }
 
-            elif method == 'content_based_filtering':
-                if 'similarity_matrix' in method_results:
-                    method_summary['similarity_matrix_shape'] = method_results['similarity_matrix'].shape
-                if 'evaluation_score' in method_results:
-                    method_summary['evaluation_score'] = method_results['evaluation_score']
+
 
             elif method == 'demographic_filtering':
                 if 'cluster_info' in method_results:

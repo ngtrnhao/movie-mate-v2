@@ -106,11 +106,11 @@ app.conf.beat_schedule = {
         "schedule": timedelta(hours=2),
         "options": {"priority": 8}
     },
-    "refresh_demographic_clusters": {
-        "task": "apps.recommendations.tasks.refresh_demographic_clusters",
-        "schedule": timedelta(days=1),
-        "options": {"priority": 5}
-    },
+    # "refresh_demographic_clusters": {
+    #     "task": "apps.recommendations.tasks.refresh_demographic_clusters",
+    #     "schedule": timedelta(days=1),
+    #     "options": {"priority": 5}
+    # },
     "cleanup_expired_recommendations": {
         "task": "apps.recommendations.tasks.cleanup_expired_recommendations",
         "schedule": timedelta(hours=12),

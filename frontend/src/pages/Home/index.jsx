@@ -4,7 +4,7 @@ import FeaturedCategories from '../../components/categories/featured-categories'
 import RecommendForYou from '../../components/recommend/recommend-for-you';
 import CollaborativeRecommendations from '../../components/recommend/CollaborativeRecommendations';
 import DemographicRecommendations from '../../components/recommend/DemographicRecommendations';
-import ContentBasedRecommendations from '../../components/recommend/ContentBasedRecommendations';
+
 import MovieBuzzSection from '../../components/reviewed/MovieBuzzSection';
 import TopRatedGrid from '../../components/movies/movie-grid/TopRatedGrid';
 import FindSimilarMovies from '../../components/recommendation-tools/SimilarityFinder';
@@ -50,7 +50,6 @@ const HomePage = () => {
       {/* Individual Algorithm Recommendations */}
       <CollaborativeRecommendations />
       <DemographicRecommendations />
-      <ContentBasedRecommendations />
 
       <TopRatedGrid />
       <TopGenreRecommendations />

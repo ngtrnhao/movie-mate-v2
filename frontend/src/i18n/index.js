@@ -9,6 +9,7 @@ import enMovies from './locales/en/movies.json';
 import enReviews from './locales/en/reviews.json';
 import enAuth from './locales/en/auth.json';
 import enCheckout from './locales/en/checkout.json';
+import enRating from './locales/en/rating.json';
 
 import viCommon from './locales/vi/common.json';
 import viLanding from './locales/vi/landing.json';
@@ -16,6 +17,7 @@ import viMovies from './locales/vi/movies.json';
 import viReviews from './locales/vi/reviews.json';
 import viAuth from './locales/vi/auth.json';
 import viCheckout from './locales/vi/checkout.json';
+import viRating from './locales/vi/rating.json';
 
 const resources = {
   en: {
@@ -25,6 +27,7 @@ const resources = {
     reviews: enReviews,
     auth: enAuth,
     checkout: enCheckout,
+    rating: enRating,
   },
   vi: {
     common: viCommon,
@@ -33,6 +36,7 @@ const resources = {
     reviews: viReviews,
     auth: viAuth,
     checkout: viCheckout,
+    rating: viRating,
   },
 };
 
@@ -42,7 +46,7 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
-    ns: ['common', 'landing', 'movies', 'reviews', 'auth', 'checkout'],
+    ns: ['common', 'landing', 'movies', 'reviews', 'auth', 'checkout', 'rating'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false,

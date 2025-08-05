@@ -41,8 +41,10 @@ import {
   autoDetectLocationAPI,
   uploadAvatarAPI,
 } from '../../api/profileService';
+import { useTheme } from '@mui/material/styles';
 
 const ProfileEdit = () => {
+  const theme = useTheme();
   const dispatch = useDispatch();
   const { user: currentUser } = useSelector(state => state.auth);
 
@@ -277,44 +279,79 @@ const ProfileEdit = () => {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       {/* Profile Completion Status */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, background: '#1f2937', color: '#fff', borderRadius: 3, boxShadow: 6 }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <PersonIcon color="primary" />
-            <Typography variant="h6">Profile Completion</Typography>
+            <PersonIcon sx={{ color: '#ef4444' }} />
+            <Typography variant="h6" sx={{ color: '#ef4444', fontWeight: 700 }}>
+              Profile Completion
+            </Typography>
             <Chip
               label={`${getCompletionPercentage()}%`}
-              color={getCompletionPercentage() === 100 ? 'success' : 'warning'}
+              sx={{
+                color: getCompletionPercentage() === 100 ? '#22c55e' : '#ef4444',
+                borderColor: getCompletionPercentage() === 100 ? '#22c55e' : '#ef4444',
+                background: 'transparent',
+                fontWeight: 700,
+              }}
               variant="outlined"
             />
           </Box>
-
           <LinearProgress
             variant="determinate"
             value={getCompletionPercentage()}
-            sx={{ mb: 2, height: 8, borderRadius: 4 }}
+            sx={{
+              mb: 2,
+              height: 8,
+              borderRadius: 4,
+              background: '#374151',
+              '& .MuiLinearProgress-bar': {
+                backgroundColor: '#ef4444',
+              },
+            }}
           />
-
           {getMissingFields().length > 0 && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              <Typography variant="body2">
-                <strong>Improve your recommendations:</strong> Complete these fields:{' '}
-                {getMissingFields().join(', ')}
+            <Alert
+              severity="info"
+              sx={{
+                mt: 2,
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: '#f3f4f6',
+                border: '1px solid #ef4444',
+                '& .MuiAlert-icon': {
+                  color: '#ef4444',
+                },
+              }}
+            >
+              <Typography variant="body2" sx={{ color: '#f3f4f6' }}>
+                <strong style={{ color: '#ef4444' }}>Improve your recommendations:</strong> Complete
+                these fields:{' '}
+                <span style={{ color: '#fbbf24' }}>{getMissingFields().join(', ')}</span>
               </Typography>
             </Alert>
           )}
         </CardContent>
       </Card>
-
       {/* Main Profile Form */}
-      <Paper elevation={3} sx={{ p: 4 }}>
+      <Paper elevation={3} sx={{ p: 4, background: '#111827', color: '#fff', borderRadius: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
-          <Typography variant="h4" component="h1">
+          <Typography variant="h4" component="h1" sx={{ color: '#ef4444', fontWeight: 700 }}>
             Profile Settings
           </Typography>
-
           {!editMode ? (
-            <Button variant="contained" startIcon={<EditIcon />} onClick={() => setEditMode(true)}>
+            <Button
+              variant="contained"
+              startIcon={<EditIcon />}
+              onClick={() => setEditMode(true)}
+              sx={{
+                background: '#ef4444',
+                color: '#fff',
+                fontWeight: 700,
+                borderRadius: 2,
+                boxShadow: 3,
+                '&:hover': { background: '#dc2626' },
+              }}
+            >
               Edit Profile
             </Button>
           ) : (
@@ -324,6 +361,13 @@ const ProfileEdit = () => {
                 startIcon={<CancelIcon />}
                 onClick={handleCancel}
                 disabled={loading}
+                sx={{
+                  color: '#fff',
+                  borderColor: '#6b7280',
+                  background: 'rgba(55,65,81,0.5)',
+                  '&:hover': { background: '#374151', borderColor: '#ef4444', color: '#ef4444' },
+                  borderRadius: 2,
+                }}
               >
                 Cancel
               </Button>
@@ -332,22 +376,38 @@ const ProfileEdit = () => {
                 startIcon={loading ? <CircularProgress size={16} /> : <SaveIcon />}
                 onClick={handleSave}
                 disabled={loading}
+                sx={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontWeight: 700,
+                  borderRadius: 2,
+                  boxShadow: 3,
+                  '&:hover': { background: '#dc2626' },
+                }}
               >
                 {loading ? 'Saving...' : 'Save Changes'}
               </Button>
             </Box>
           )}
         </Box>
-
         <Grid container spacing={4}>
           {/* Avatar Section */}
           <Grid item xs={12} md={4}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <Box sx={{ position: 'relative' }}>
-                <Avatar src={formData.avatar_url} sx={{ width: 150, height: 150 }}>
+                <Avatar
+                  src={formData.avatar_url}
+                  sx={{
+                    width: 150,
+                    height: 150,
+                    bgcolor: '#374151',
+                    color: '#00000',
+                    fontSize: 48,
+                    border: '3px solid #ef4444',
+                  }}
+                >
                   {formData.first_name?.charAt(0) || formData.last_name?.charAt(0)}
                 </Avatar>
-
                 {editMode && (
                   <IconButton
                     component="label"
@@ -355,9 +415,9 @@ const ProfileEdit = () => {
                       position: 'absolute',
                       bottom: 0,
                       right: 0,
-                      bgcolor: 'primary.main',
+                      bgcolor: '#ef4444',
                       color: 'white',
-                      '&:hover': { bgcolor: 'primary.dark' },
+                      '&:hover': { bgcolor: '#dc2626' },
                     }}
                   >
                     <PhotoCameraIcon />
@@ -370,25 +430,27 @@ const ProfileEdit = () => {
                   </IconButton>
                 )}
               </Box>
-
-              <Typography variant="h6" textAlign="center">
+              <Typography variant="h6" textAlign="center" sx={{ color: '#fff', fontWeight: 700 }}>
                 {formData.first_name} {formData.last_name}
               </Typography>
-
               {formData.occupation && (
                 <Chip
-                  icon={<WorkIcon />}
+                  icon={<WorkIcon sx={{ color: '#ef4444' }} />}
                   label={
                     choices.occupation_choices?.find(opt => opt.value === formData.occupation)
                       ?.label || formData.occupation
                   }
-                  color="primary"
+                  sx={{
+                    color: '#ef4444',
+                    borderColor: '#ef4444',
+                    background: 'transparent',
+                    fontWeight: 700,
+                  }}
                   variant="outlined"
                 />
               )}
             </Box>
           </Grid>
-
           {/* Form Fields */}
           <Grid item xs={12} md={8}>
             <Grid container spacing={3}>
@@ -396,13 +458,19 @@ const ProfileEdit = () => {
               <Grid item xs={12}>
                 <Typography
                   variant="h6"
-                  sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                  sx={{
+                    mb: 2,
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
                 >
-                  <PersonIcon /> Personal Information
+                  <PersonIcon sx={{ color: '#ffffff' }} /> Personal Information
                 </Typography>
-                <Divider sx={{ mb: 3 }} />
+                <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
               </Grid>
-
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -413,9 +481,49 @@ const ProfileEdit = () => {
                   helperText={errors.first_name}
                   disabled={!editMode}
                   required
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      color: '#1f2937',
+                      background: '#ffffff',
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                        borderWidth: '2px',
+                      },
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#6b7280',
+                      borderWidth: '1px',
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#ffffff',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                      '&.Mui-focused': {
+                        color: '#ef4444',
+                        fontWeight: 700,
+                        textShadow: '0 1px 2px rgba(0,0,0,0.7)',
+                      },
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: '#d1d5db',
+                      fontSize: '0.875rem',
+                      '&.Mui-error': {
+                        color: '#f87171',
+                        fontWeight: 500,
+                      },
+                    },
+                    '& .MuiInputBase-input::placeholder': {
+                      color: '#6b7280',
+                      opacity: 1,
+                      fontWeight: 400,
+                    },
+                  }}
                 />
               </Grid>
-
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -426,9 +534,49 @@ const ProfileEdit = () => {
                   helperText={errors.last_name}
                   disabled={!editMode}
                   required
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      color: '#1f2937',
+                      background: '#ffffff',
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                        borderWidth: '2px',
+                      },
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#6b7280',
+                      borderWidth: '1px',
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#ffffff',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                      '&.Mui-focused': {
+                        color: '#ef4444',
+                        fontWeight: 700,
+                        textShadow: '0 1px 2px rgba(0,0,0,0.7)',
+                      },
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: '#d1d5db',
+                      fontSize: '0.875rem',
+                      '&.Mui-error': {
+                        color: '#f87171',
+                        fontWeight: 500,
+                      },
+                    },
+                    '& .MuiInputBase-input::placeholder': {
+                      color: '#6b7280',
+                      opacity: 1,
+                      fontWeight: 400,
+                    },
+                  }}
                 />
               </Grid>
-
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -442,65 +590,189 @@ const ProfileEdit = () => {
                   }
                   InputLabelProps={{ shrink: true }}
                   disabled={!editMode}
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      color: '#1f2937',
+                      background: '#ffffff',
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                        borderWidth: '2px',
+                      },
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#6b7280',
+                      borderWidth: '1px',
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#ffffff',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                      '&.Mui-focused': {
+                        color: '#ef4444',
+                        fontWeight: 700,
+                        textShadow: '0 1px 2px rgba(0,0,0,0.7)',
+                      },
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: '#d1d5db',
+                      fontSize: '0.875rem',
+                      '&.Mui-error': {
+                        color: '#f87171',
+                        fontWeight: 500,
+                      },
+                    },
+                    '& .MuiInputBase-input::placeholder': {
+                      color: '#6b7280',
+                      opacity: 1,
+                      fontWeight: 400,
+                    },
+                  }}
                 />
               </Grid>
-
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth disabled={!editMode}>
-                  <InputLabel>Gender</InputLabel>
+                  <InputLabel
+                    sx={{
+                      color: '#ffffff',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    Gender
+                  </InputLabel>
                   <Select
                     value={formData.gender}
                     onChange={e => handleInputChange('gender', e.target.value)}
                     label="Gender"
+                    sx={{
+                      color: '#1f2937',
+                      background: '#ffffff',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#6b7280',
+                        borderWidth: '1px',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                        borderWidth: '2px',
+                      },
+                      '& .MuiSelect-icon': {
+                        color: '#6b7280',
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: '#e5e7eb',
+                        fontWeight: 500,
+                        fontSize: '0.95rem',
+                        '&.Mui-focused': {
+                          color: '#ef4444',
+                          fontWeight: 600,
+                        },
+                      },
+                    }}
                   >
                     {choices.gender_choices?.map(choice => (
-                      <MenuItem key={choice.value} value={choice.value}>
+                      <MenuItem key={choice.value} value={choice.value} sx={{ color: '#1f2937' }}>
                         {choice.label}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
               </Grid>
-
               {/* Demographics */}
               <Grid item xs={12}>
                 <Typography
                   variant="h6"
-                  sx={{ mb: 2, mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                  sx={{
+                    mb: 2,
+                    mt: 2,
+                    color: '#ef4444',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
                 >
-                  <WorkIcon /> Demographics
+                  <WorkIcon sx={{ color: '#ef4444' }} /> Demographics
                 </Typography>
-                <Divider sx={{ mb: 3 }} />
+                <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
               </Grid>
-
               <Grid item xs={12}>
                 <FormControl fullWidth disabled={!editMode}>
-                  <InputLabel>Occupation</InputLabel>
+                  <InputLabel
+                    sx={{
+                      color: '#ffffff',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    Occupation
+                  </InputLabel>
                   <Select
                     value={formData.occupation}
                     onChange={e => handleInputChange('occupation', e.target.value)}
                     label="Occupation"
+                    sx={{
+                      color: '#1f2937',
+                      background: '#ffffff',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#6b7280',
+                        borderWidth: '1px',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                        borderWidth: '2px',
+                      },
+                      '& .MuiSelect-icon': {
+                        color: '#6b7280',
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: '#e5e7eb',
+                        fontWeight: 500,
+                        fontSize: '0.95rem',
+                        '&.Mui-focused': {
+                          color: '#ef4444',
+                          fontWeight: 600,
+                        },
+                      },
+                    }}
                   >
                     {choices.occupation_choices?.map(choice => (
-                      <MenuItem key={choice.value} value={choice.value}>
+                      <MenuItem key={choice.value} value={choice.value} sx={{ color: '#1f2937' }}>
                         {choice.label}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
               </Grid>
-
               {/* Location */}
               <Grid item xs={12}>
                 <Typography
                   variant="h6"
-                  sx={{ mb: 2, mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                  sx={{
+                    mb: 2,
+                    mt: 2,
+                    color: '#ef4444',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
                 >
-                  <LocationIcon /> Location
+                  <LocationIcon sx={{ color: '#ef4444' }} /> Location
                 </Typography>
-                <Divider sx={{ mb: 3 }} />
+                <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
               </Grid>
-
               <Grid item xs={12} sm={editMode ? 8 : 12}>
                 <TextField
                   fullWidth
@@ -509,9 +781,41 @@ const ProfileEdit = () => {
                   onChange={e => handleInputChange('location', e.target.value)}
                   placeholder="e.g., New York, NY, USA"
                   disabled={!editMode}
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      color: '#1f2937',
+                      background: '#ffffff',
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                        borderWidth: '2px',
+                      },
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#6b7280',
+                      borderWidth: '1px',
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#9ca3af',
+                      '&.Mui-focused': {
+                        color: '#ef4444',
+                      },
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: '#9ca3af',
+                      '&.Mui-error': {
+                        color: '#f87171',
+                      },
+                    },
+                    '& .MuiInputBase-input::placeholder': {
+                      color: '#9ca3af',
+                      opacity: 0.7,
+                    },
+                  }}
                 />
               </Grid>
-
               {editMode && (
                 <Grid item xs={12} sm={4}>
                   <Button
@@ -520,13 +824,19 @@ const ProfileEdit = () => {
                     onClick={handleAutoDetectLocation}
                     disabled={loadingLocation}
                     startIcon={loadingLocation ? <CircularProgress size={16} /> : <LocationIcon />}
-                    sx={{ height: 56 }}
+                    sx={{
+                      height: 56,
+                      color: '#ef4444',
+                      borderColor: '#ef4444',
+                      background: 'rgba(239,68,68,0.05)',
+                      fontWeight: 700,
+                      '&:hover': { background: '#ef4444', color: '#fff', borderColor: '#ef4444' },
+                    }}
                   >
                     {loadingLocation ? 'Detecting...' : 'Auto Detect'}
                   </Button>
                 </Grid>
               )}
-
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -535,9 +845,41 @@ const ProfileEdit = () => {
                   onChange={e => handleInputChange('zip_code', e.target.value)}
                   placeholder="e.g., 10001"
                   disabled={!editMode}
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      color: '#1f2937',
+                      background: '#ffffff',
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                        borderWidth: '2px',
+                      },
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#6b7280',
+                      borderWidth: '1px',
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#9ca3af',
+                      '&.Mui-focused': {
+                        color: '#ef4444',
+                      },
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: '#9ca3af',
+                      '&.Mui-error': {
+                        color: '#f87171',
+                      },
+                    },
+                    '& .MuiInputBase-input::placeholder': {
+                      color: '#9ca3af',
+                      opacity: 0.7,
+                    },
+                  }}
                 />
               </Grid>
-
               {/* Bio */}
               <Grid item xs={12}>
                 <TextField
@@ -549,6 +891,39 @@ const ProfileEdit = () => {
                   onChange={e => handleInputChange('bio', e.target.value)}
                   placeholder="Tell us a bit about yourself..."
                   disabled={!editMode}
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      color: '#1f2937',
+                      background: '#ffffff',
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#ef4444',
+                        borderWidth: '2px',
+                      },
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#6b7280',
+                      borderWidth: '1px',
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#9ca3af',
+                      '&.Mui-focused': {
+                        color: '#ef4444',
+                      },
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: '#9ca3af',
+                      '&.Mui-error': {
+                        color: '#f87171',
+                      },
+                    },
+                    '& .MuiInputBase-input::placeholder': {
+                      color: '#9ca3af',
+                      opacity: 0.7,
+                    },
+                  }}
                 />
               </Grid>
             </Grid>

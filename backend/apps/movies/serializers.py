@@ -1133,7 +1133,7 @@ class AdminControlSerializer(serializers.ModelSerializer):
             'approval_status', 'approved_by', 'approved_by_username', 'approved_at', 'rejection_reason',
             'visibility_status', 'is_published',
             'admin_featured', 'admin_priority', 'manual_override',
-            'target_regions', 'age_rating', 'content_warnings',
+            'age_rating', 'content_warnings',
 
             # Audit fields
             'created_by', 'created_by_username', 'last_modified_by', 'last_modified_by_username',
@@ -1355,7 +1355,7 @@ class AdminMovieSerializer(MovieDetailSerializer):
             'is_published', 'visibility_status', 'publish_date', 'unpublish_date',
             'featured_from', 'featured_until', 'admin_featured', 'admin_priority',
             'manual_override', 'approval_status', 'approved_by', 'approved_at',
-            'target_regions', 'age_rating', 'content_warnings',
+            'age_rating', 'content_warnings',
             'quality_score', 'content_completeness', 'minimum_quality_met',
 
             # Computed fields
@@ -1436,7 +1436,7 @@ class AdminMovieSerializer(MovieDetailSerializer):
             'is_scheduled': is_scheduled,
             'publish_date': obj.publish_date,
             'unpublish_date': obj.unpublish_date,
-            'target_regions': obj.target_regions,
+            # 'target_regions': obj.target_regions,
             'age_rating': obj.age_rating,
             'content_warnings': obj.content_warnings
         }

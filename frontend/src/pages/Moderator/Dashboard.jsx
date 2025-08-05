@@ -954,6 +954,7 @@ const ModeratorDashboard = () => {
       // case 'system-users':
       //   return isAdmin ? <UserManagement /> : null;
       default:
+        // Use the same DashboardOverview component instance to prevent duplicate API calls
         return <DashboardOverview isAdmin={isAdmin} isModerator={isModerator} />;
     }
   };

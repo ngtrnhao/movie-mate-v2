@@ -349,17 +349,17 @@ const UserManagement = () => {
       {/* Actions */}
       <div className="flex items-center justify-between">
         <div className="flex space-x-4">
-          <select className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option>Tất cả vi phạm</option>
-            <option>1-2 vi phạm</option>
-            <option>3-4 vi phạm</option>
-            <option>5+ vi phạm</option>
+          <select className="rounded-md border border-gray-300 text-gray-500 bg-white px-3 py-2 text-sm">
+            <option className="text-gray-500">Tất cả vi phạm</option>
+            <option className="text-gray-500">1-2 vi phạm</option>
+            <option className="text-gray-500">3-4 vi phạm</option>
+            <option className="text-gray-500">5+ vi phạm</option>
           </select>
-          <select className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-            <option>Tất cả thời gian</option>
-            <option>Hôm nay</option>
-            <option>Tuần này</option>
-            <option>Tháng này</option>
+          <select className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-500">
+            <option className="text-gray-500">Tất cả thời gian</option>
+            <option className="text-gray-500">Hôm nay</option>
+            <option className="text-gray-500">Tuần này</option>
+            <option className="text-gray-500">Tháng này</option>
           </select>
         </div>
         <div className="flex space-x-2">
@@ -456,23 +456,39 @@ const UserManagement = () => {
           <select
             value={filters.status}
             onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-md border bg-white text-gray-500 border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="suspended">Tạm khóa</option>
-            <option value="banned">Bị cấm</option>
+            <option className="text-gray-500" value="all">
+              Tất cả trạng thái
+            </option>
+            <option className="text-gray-500" value="active">
+              Đang hoạt động
+            </option>
+            <option className="text-gray-500" value="suspended">
+              Tạm khóa
+            </option>
+            <option className="text-gray-500" value="banned">
+              Bị cấm
+            </option>
           </select>
 
           <select
             value={filters.role}
             onChange={e => setFilters(prev => ({ ...prev, role: e.target.value }))}
-            className="rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-md border bg-white text-gray-500 border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="all">Tất cả vai trò</option>
-            <option value="user">User</option>
-            <option value="moderator">Moderator</option>
-            <option value="admin">Admin</option>
+            <option className="text-gray-500" value="all">
+              Tất cả vai trò
+            </option>
+            <option className="text-gray-500" value="user">
+              User
+            </option>
+            <option className="text-gray-500" value="moderator">
+              Moderator
+            </option>
+            <option className="text-gray-500" value="admin">
+              Admin
+            </option>
           </select>
 
           <button

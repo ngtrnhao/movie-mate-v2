@@ -193,7 +193,7 @@ def main():
             print("1. Test API endpoint: GET /api/recommendations/collaborative/")
             print("2. Monitor performance và logs")
             print("3. Tối ưu hóa parameters nếu cần")
-            print("\n💡 Nếu muốn thêm Demographic/Content-based filtering:")
+            print("\n💡 Nếu muốn thêm Demographic filtering:")
             print("   - Chạy: python manage.py setup_recommendations")
         else:
             print("\n⚠️ Setup hoàn thành nhưng có lỗi khi kiểm tra")

@@ -21,20 +21,12 @@ class UserRatingService:
     def create_user_rating(user, movie, rating, title=None, content=None, is_public=True, is_spoiler=False):
         """
         Create a new user rating for a movie
-
-        Args:
-            user: User instance
-            movie: Movie instance
-            rating: Rating value (0.0-5.0)
-            title: Optional review title
-            content: Optional review content
-            is_public: Whether the review is public (default: True)
-            is_spoiler: Whether the review contains spoilers (default: False)
-
-        Returns:
-            MovieReview instance or None if failed
+        Rating will be normalized to whole numbers (1.0, 2.0, 3.0, 4.0, 5.0)
         """
         try:
+            # Normalize rating to whole numbers
+            normalized_rating = UserRatingService._normalize_rating(rating)
+
             with transaction.atomic():
                 # Check if user already has a rating for this movie
                 existing_review = MovieReview.objects.filter(
@@ -45,7 +37,7 @@ class UserRatingService:
 
                 if existing_review:
                     # Update existing rating
-                    existing_review.rating = Decimal(str(rating))
+                    existing_review.rating = normalized_rating
                     if title:
                         existing_review.title = title
                     if content:
@@ -60,9 +52,9 @@ class UserRatingService:
                     review = MovieReview.objects.create(
                         user=user,
                         movie=movie,
-                        rating=Decimal(str(rating)),
+                        rating=normalized_rating,
                         title=title or f"Rating for {movie.title}",
-                        content=content or f"User rated this movie {rating}/5 stars",
+                        content=content or f"User rated this movie {normalized_rating}/5 stars",
                         review_type='USER',
                         is_public=is_public,
                         is_spoiler=is_spoiler
@@ -72,6 +64,78 @@ class UserRatingService:
         except Exception as e:
             logger.error(f"Error creating user rating: {str(e)}")
             return None
+
+    @staticmethod
+    def _normalize_rating(rating):
+        """
+        Normalize rating to whole numbers (1.0, 2.0, 3.0, 4.0, 5.0)
+        Converts any rating scale to 5-point discrete scale
+        """
+        try:
+            rating_float = float(rating)
+
+            #Xử lý thang điểm 5 từ movies lens
+            if 0 <= rating_float <= 5:
+                if rating_float <= 1.5:
+                    return Decimal('1.0')
+                elif rating_float <= 2.5:
+                    return Decimal('2.0')
+                elif rating_float <= 3.5:
+                    return Decimal('3.0')
+                elif rating_float <= 4.5:
+                    return Decimal('4.0')
+                else:  # > 4.5
+                    return Decimal('5.0')
+
+            # Xử lý thang điểm 10 từ IMDB, TMDB
+            elif 0 <= rating_float <= 10:
+                # Convert 10-point to 5-point first
+                five_point_rating = (rating_float / 10) * 5
+                return UserRatingService._normalize_rating(five_point_rating)
+
+            # Xử lý các thang điểm khác (0-100, etc.)
+            else:
+                normalized = (rating_float / 100) * 5 if rating_float > 10 else rating_float
+                return UserRatingService._normalize_rating(normalized)
+
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid rating value: {rating}, defaulting to 3.0")
+            return Decimal('3.0')
+
+    @staticmethod
+    def normalize_external_ratings():
+        """
+        Normalize all existing external ratings to 5-point discrete scale
+        This should be run after importing external datasets
+        """
+        try:
+            # Get all reviews with non-whole number ratings
+            reviews_to_normalize = MovieReview.objects.filter(
+                review_type='EXTERNAL',
+                rating__isnull=False
+            ).exclude(
+                rating__in=[Decimal('1.0'), Decimal('2.0'), Decimal('3.0'), Decimal('4.0'), Decimal('5.0')]
+            )
+
+            normalized_count = 0
+            for review in reviews_to_normalize:
+                old_rating = review.rating
+                new_rating = UserRatingService._normalize_rating(old_rating)
+
+                if old_rating != new_rating:
+                    review.rating = new_rating
+                    review.save()
+                    normalized_count += 1
+
+                    if normalized_count % 1000 == 0:
+                        logger.info(f"Normalized {normalized_count} ratings...")
+
+            logger.info(f"Successfully normalized {normalized_count} external ratings")
+            return normalized_count
+
+        except Exception as e:
+            logger.error(f"Error normalizing external ratings: {str(e)}")
+            return 0
 
     @staticmethod
     def get_user_ratings(user, limit=None):

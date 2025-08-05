@@ -39,7 +39,7 @@ from apps.movies.models import Movie, MovieReview
 from apps.users.models import UserFavoriteGenre
 from apps.metadata.models import Genre
 from .models import (
-    UserPreference, UserSimilarity, MovieSimilarity,
+    UserPreference, UserSimilarity,
     RecommendationResult, DemographicCluster, RecommendationMetrics
 )
 
@@ -387,9 +387,25 @@ class CollaborativeFilteringService:
 
     def generate_collaborative_recommendations(self, user, limit=20, context='homepage') -> List[any]:
         """
-        Generate movie recommendations using collaborative filtering
+        Generate collaborative filtering recommendations for a user
         """
         try:
+            # Check cache first using unified cache service
+            cached_recommendations = RecommendationCacheService.get_cached_recommendations(
+                user, 'collaborative', context, limit
+            )
+
+            if cached_recommendations:
+                return cached_recommendations
+
+            # Track recommendation generation
+            metrics_service.track_recommendation_generation(
+                recommendation_type='collaborative',
+                user_count=1,
+                movie_count=limit,
+                context=context
+            )
+
             # Find similar users
             similar_users = self.find_similar_users(user, limit=50)
 
@@ -429,7 +445,7 @@ class CollaborativeFilteringService:
             recommendations = []
 
             for movie, scores in movie_scores.items():
-                if len(scores) >= 2:  # At least 2 similar users rated it
+                if len(scores) >= 1:  # At least 1 similar user rated it (reduced from 2)
                     avg_score = sum(scores) / len(scores)
                     confidence = min(1.0, len(scores) / 5.0)  # Higher confidence with more ratings
 
@@ -452,8 +468,8 @@ class CollaborativeFilteringService:
             recommendations.sort(key=lambda x: x['score'], reverse=True)
             top_recommendations = recommendations[:limit]
 
-            # Store recommendations
-            self._store_recommendations(user, top_recommendations, 'collaborative', context)
+            # Store recommendations using unified cache service
+            RecommendationCacheService.store_recommendations(user, top_recommendations, 'collaborative', context)
 
             return [rec['movie'] for rec in top_recommendations]
 
@@ -501,7 +517,7 @@ class EnhancedDemographicFilteringService:
     """
 
     def __init__(self):
-        self.cache_timeout = 3600
+        self.cache_timeout = None  # No expiration - cache forever
         self.vectorizer = AdvancedDemographicVectorizer()
         self.similarity_calculator = AdvancedDemographicSimilarityCalculator(self.vectorizer)
         self.min_similar_users = 1  # Giảm từ 3 xuống 1 để DF có thể hoạt động
@@ -570,11 +586,12 @@ class EnhancedDemographicFilteringService:
                 logger.info("No cached model found")
                 return False
 
-            # Check cache age
-            cache_age = time.time() - os.path.getmtime(cache_path)
-            if cache_age > self.cache_timeout:
-                logger.info("Cache expired, will reload model")
-                return False
+            # Check cache age (only if timeout is set)
+            if self.cache_timeout is not None:
+                cache_age = time.time() - os.path.getmtime(cache_path)
+                if cache_age > self.cache_timeout:
+                    logger.info("Cache expired, will reload model")
+                    return False
 
             # Load model data
             model_data = joblib.load(cache_path)
@@ -730,7 +747,7 @@ class EnhancedDemographicFilteringService:
             X_scaled = scaler.fit_transform(X)
 
             # Perform K-means clustering
-            logger.info("🤖 Running K-means clustering...")
+            logger.info(" Running K-means clustering...")
             kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
             cluster_labels = kmeans.fit_predict(X_scaled)
 
@@ -739,13 +756,13 @@ class EnhancedDemographicFilteringService:
             self.scaler = scaler
 
             # Create clusters in database
-            logger.info("💾 Creating cluster records in database...")
+            logger.info(" Creating cluster records in database...")
 
             for cluster_id in range(n_clusters):
                 # Get users in this cluster
                 cluster_users = [users_list[i] for i in range(len(users_list)) if cluster_labels[i] == cluster_id]
 
-                if len(cluster_users) < 3:  # Skip very small clusters
+                if len(cluster_users) < 3:
                     continue
 
                 # Calculate cluster characteristics
@@ -1205,6 +1222,22 @@ class EnhancedDemographicFilteringService:
         Generate recommendations based on user's demographic cluster
         """
         try:
+            # Check cache first using unified cache service
+            cached_recommendations = RecommendationCacheService.get_cached_recommendations(
+                user, 'demographic', context, limit
+            )
+
+            if cached_recommendations:
+                return cached_recommendations
+
+            # Track recommendation generation
+            metrics_service.track_recommendation_generation(
+                recommendation_type='demographic',
+                user_count=1,
+                movie_count=limit,
+                context=context
+            )
+
             # Get user's demographic cluster
             cluster = self.get_user_demographic_cluster(user)
 
@@ -1375,187 +1408,71 @@ class EnhancedDemographicFilteringService:
     def generate_enhanced_demographic_recommendations(self, user, limit: int = 20,
                                                     context: str = 'homepage', store: bool = False) -> List[Movie]:
         """
-        Generate enhanced demographic recommendations using advanced ML techniques
+        Generate enhanced demographic recommendations using K-means clustering and similar users
         """
         try:
+            # Check if we have recent stored recommendations first
+            from django.utils import timezone
+            from datetime import timedelta
+
+            recent_cutoff = timezone.now() - timedelta(hours=1)
+            stored_recommendations = RecommendationResult.objects.filter(
+                user=user,
+                recommendation_type='demographic',
+                context=context,
+                created_at__gte=recent_cutoff
+            ).select_related('movie').order_by('rank')[:limit]
+
+            if stored_recommendations.exists():
+                logger.info(f"✅ Using cached demographic recommendations for user {user.id}")
+                return [rec.movie for rec in stored_recommendations]
+
             logger.info(f"Generating enhanced demographic recommendations for user {user.id}")
 
-            # Check if advanced features are available
-            if not SKLEARN_AVAILABLE:
-                logger.warning("Scikit-learn not available. Using basic demographic filtering.")
-                return self.generate_demographic_recommendations(user, limit, context, store=store)
+            # Track recommendation generation
+            metrics_service.track_recommendation_generation(
+                recommendation_type='demographic',
+                user_count=1,
+                movie_count=limit,
+                context=context
+            )
 
-            # Get users with demographic data (limit for performance in testing)
-            # First, try to get users from the same K-means cluster (preferred)
+            # Get user's demographic cluster
             user_cluster = self.get_user_kmeans_cluster(user)
-
-            # If K-means cluster not available, fallback to rule-based cluster
-            if not user_cluster and user.age and user.gender:
-                user_cluster = self.get_user_demographic_cluster(user)
-                if user_cluster:
-                    logger.info(f"Using rule-based cluster {user_cluster.cluster_id} for user {user.id} (K-means not available)")
-                else:
-                    # If no cluster exists, try to assign them to one
-                    user_cluster = self.assign_user_to_cluster(user)
-                    logger.info(f"Assigned user {user.id} to cluster {user_cluster.cluster_id if user_cluster else 'None'}")
-
-            if user_cluster:
-                # Check if user has ratings
-                user_has_ratings = MovieReview.objects.filter(
-                    user=user,
-                    review_type='USER',
-                    rating__isnull=False
-                ).exists()
-
-                # Get users from same cluster - prioritize users with ratings for better recommendations
-                if user_has_ratings:
-                    # If user has ratings, get users with ratings from same cluster
-                    users_with_demographics = User.objects.filter(
-                        recommendation_preference__demographic_cluster=user_cluster.cluster_id,
-                        moviereview__review_type='USER',
-                        moviereview__rating__isnull=False
-                    ).exclude(id=user.id).distinct()[:20]
-                    logger.info(f"Using {len(users_with_demographics)} users with ratings from same cluster {user_cluster.cluster_id}")
-                else:
-                    # If user is new (no ratings), use hybrid approach
-                    # First, try to get users with ratings from same cluster
-                    users_with_ratings = User.objects.filter(
-                        recommendation_preference__demographic_cluster=user_cluster.cluster_id,
-                        moviereview__review_type='USER',
-                        moviereview__rating__isnull=False
-                    ).exclude(id=user.id).distinct()[:10]
-
-                    # If not enough users with ratings, add users without ratings from same cluster
-                    if len(users_with_ratings) < 10:
-                        users_without_ratings = User.objects.filter(
-                            recommendation_preference__demographic_cluster=user_cluster.cluster_id,
-                            moviereview__review_type='USER',
-                            moviereview__rating__isnull=True
-                        ).exclude(id=user.id).distinct()[:10 - len(users_with_ratings)]
-                    else:
-                        users_without_ratings = []
-
-                    users_with_demographics = list(users_with_ratings) + list(users_without_ratings)
-                    logger.info(f"New user detected, using {len(users_with_ratings)} users with ratings + {len(users_without_ratings)} users without ratings from cluster {user_cluster.cluster_id}")
-
-                    # If still not enough users, add from similar clusters
-                    if len(users_with_demographics) < 5:
-                        logger.info(f"Not enough users in cluster, adding from similar clusters")
-                        similar_clusters = DemographicCluster.objects.filter(
-                            age_range_min__lte=user.age or 25,
-                            age_range_max__gte=user.age or 25,
-                            primary_gender=user.gender
-                        ).exclude(cluster_id=user_cluster.cluster_id)[:2]
-
-                        for cluster in similar_clusters:
-                            additional_users = User.objects.filter(
-                                recommendation_preference__demographic_cluster=cluster.cluster_id,
-                                moviereview__review_type='USER',
-                                moviereview__rating__isnull=False
-                            ).exclude(id=user.id).distinct()[:5]
-                            users_with_demographics = list(users_with_demographics) + list(additional_users)
-
-                # If not enough users in cluster, add some from similar clusters
-                if len(users_with_demographics) < 5:
-                    similar_clusters = DemographicCluster.objects.filter(
-                        age_range_min__lte=user.age or 25,
-                        age_range_max__gte=user.age or 25,
-                        primary_gender=user.gender
-                    ).exclude(cluster_id=user_cluster.cluster_id)[:2]
-
-                    for cluster in similar_clusters:
-                        if user_has_ratings:
-                            additional_users = User.objects.filter(
-                                recommendation_preference__demographic_cluster=cluster.cluster_id,
-                                moviereview__review_type='USER',
-                                moviereview__rating__isnull=False
-                            ).exclude(id=user.id).distinct()[:5]
-                        else:
-                            # For new users, prioritize users with ratings from similar clusters
-                            additional_users = User.objects.filter(
-                                recommendation_preference__demographic_cluster=cluster.cluster_id,
-                                moviereview__review_type='USER',
-                                moviereview__rating__isnull=False
-                            ).exclude(id=user.id).distinct()[:5]
-                        users_with_demographics = list(users_with_demographics) + list(additional_users)
-
-                    logger.info(f"Added users from similar clusters, total: {len(users_with_demographics)}")
-            else:
-                # Fallback: get users with similar demographics and ratings
-                users_with_demographics = User.objects.filter(
-                    (Q(age__isnull=False) | Q(gender__isnull=False) | Q(occupation__isnull=False)) &
-                    Q(moviereview__review_type='USER') &
-                    Q(moviereview__rating__isnull=False)
-                ).exclude(id=user.id).distinct()[:15]  # Get users with ratings
-
-                logger.info(f"No cluster found, using {len(users_with_demographics)} users with similar demographics and ratings")
-
-            if not users_with_demographics:
-                logger.warning("No users with demographic data found")
+            if not user_cluster:
+                logger.warning(f"User {user.id} not assigned to any demographic cluster")
                 return []
 
-            # Create demographic vectors for all users
-            logger.info(f"Creating demographic vectors for {len(users_with_demographics)} users...")
-
-            target_user_vector = self.vectorizer.create_demographic_vector(user)
-            similar_users = []
-
-            # Calculate similarities using vectorized approach
-            user_vectors = []
-            users_list = list(users_with_demographics)
-
-            for other_user in users_list:
-                other_vector = self.vectorizer.create_demographic_vector(other_user)
-                user_vectors.append(other_vector)
-
-            # Use cosine similarity for efficiency
-            user_vectors = np.array(user_vectors)
-            similarities = cosine_similarity([target_user_vector], user_vectors)[0]
-
-            # Get top similar users
-            for i, similarity in enumerate(similarities):
-                if similarity > self.similarity_threshold:
-                    similar_users.append((users_list[i], similarity))
-
-            # Sort by similarity and take top K
-            similar_users.sort(key=lambda x: x[1], reverse=True)
-            top_similar_users = similar_users[:50]
-
-            if len(top_similar_users) < self.min_similar_users:
-                logger.warning(f"Only found {len(top_similar_users)} similar users, need at least {self.min_similar_users}")
-
-                # If we have a cluster but not enough similar users, try cluster-based recommendations
-                if user_cluster:
-                    logger.info(f"Falling back to cluster-based recommendations for cluster {user_cluster.cluster_id}")
-                    return self.generate_demographic_recommendations(user, limit, context, store=store)
-                else:
-                    # Fallback to basic demographic filtering
-                    return self.generate_demographic_recommendations(user, limit, context, store=store)
+            # Get similar users from the same cluster
+            similar_users = self._get_similar_users_from_cluster(user, user_cluster, limit=20)
+            if not similar_users:
+                logger.warning(f"No similar users found in cluster {user_cluster} for user {user.id}")
+                return []
 
             # Generate recommendations from similar users
             recommendations = self._generate_recommendations_from_similar_users(
-                user, top_similar_users, limit * 2
+                user, similar_users, limit=limit
             )
 
-            # Apply demographic scoring and ranking
-            scored_recommendations = self._apply_enhanced_demographic_scoring(
+            # Apply enhanced demographic scoring
+            enhanced_recommendations = self._apply_enhanced_demographic_scoring(
                 user, recommendations
             )
 
-            # Sort and limit
-            scored_recommendations.sort(key=lambda x: x['final_score'], reverse=True)
-            top_recommendations = scored_recommendations[:limit]
+            # Sort by final score
+            enhanced_recommendations.sort(key=lambda x: x['final_score'], reverse=True)
+            top_recommendations = enhanced_recommendations[:limit]
 
-            # Store recommendations only if store=True
+            # Store recommendations if requested
             if store:
                 self._store_enhanced_recommendations(user, top_recommendations, context)
 
+            # Return movie objects
             return [rec['movie'] for rec in top_recommendations]
 
         except Exception as e:
             logger.error(f"Error generating enhanced demographic recommendations: {str(e)}")
-            # Fallback to basic demographic filtering
-            return self.generate_demographic_recommendations(user, limit, context, store=store)
+            return []
 
     def _generate_recommendations_from_similar_users(self, target_user,
                                                    similar_users: List[Tuple],
@@ -1770,6 +1687,43 @@ class EnhancedDemographicFilteringService:
             context=context
         ).order_by('-created_at')
 
+    def _get_similar_users_from_cluster(self, user, cluster, limit=20):
+        """
+        Get similar users from the same demographic cluster
+        """
+        try:
+            # Get users from the same cluster with ratings
+            users_with_ratings = User.objects.filter(
+                recommendation_preference__demographic_cluster=cluster,
+                moviereview__review_type='USER',
+                moviereview__rating__isnull=False
+            ).exclude(id=user.id).distinct()[:limit]
+
+            if not users_with_ratings.exists():
+                logger.warning(f"No users with ratings found in cluster {cluster}")
+                return []
+
+            # Calculate similarities
+            similar_users = []
+            target_user_vector = self.vectorizer.create_demographic_vector(user)
+
+            for other_user in users_with_ratings:
+                other_vector = self.vectorizer.create_demographic_vector(other_user)
+                similarity = cosine_similarity([target_user_vector], [other_vector])[0][0]
+
+                if similarity > self.similarity_threshold:
+                    similar_users.append((other_user, similarity))
+
+            # Sort by similarity
+            similar_users.sort(key=lambda x: x[1], reverse=True)
+
+            logger.info(f"Found {len(similar_users)} similar users in cluster {cluster}")
+            return similar_users[:limit]
+
+        except Exception as e:
+            logger.error(f"Error getting similar users from cluster: {str(e)}")
+            return []
+
 class HybridRecommendationService:
     """
     Hybrid recommendation service combining multiple filtering methods
@@ -1779,9 +1733,8 @@ class HybridRecommendationService:
         self.collaborative_service = CollaborativeFilteringService()
         self.demographic_service = EnhancedDemographicFilteringService()
         self.weights = {
-            'collaborative': 0.4,
-            'demographic': 0.3,
-            'content_based': 0.2,
+            'collaborative': 0.5,
+            'demographic': 0.4,
             'trending': 0.1
         }
 
@@ -1790,6 +1743,22 @@ class HybridRecommendationService:
         Generate hybrid recommendations combining multiple methods
         """
         try:
+            # Check cache first using unified cache service
+            cached_recommendations = RecommendationCacheService.get_cached_recommendations(
+                user, 'hybrid', context, limit
+            )
+
+            if cached_recommendations:
+                return cached_recommendations
+
+            # Track recommendation generation
+            metrics_service.track_recommendation_generation(
+                recommendation_type='hybrid',
+                user_count=1,
+                movie_count=limit,
+                context=context
+            )
+
             all_recommendations = {}
 
             # Get collaborative filtering recommendations
@@ -1797,13 +1766,12 @@ class HybridRecommendationService:
                 user, limit=limit*2, context=context
             )
 
-            # Get enhanced demographic filtering recommendations (DON'T auto-store)
-            demographic_recs = self.demographic_service.generate_enhanced_demographic_recommendations(
+            # Get basic demographic filtering recommendations (DON'T auto-store)
+            demographic_recs = self.demographic_service.generate_demographic_recommendations(
                 user, limit=limit*2, context=context, store=False
             )
 
-            # Get content-based recommendations (using existing genre preferences)
-            content_recs = self._get_content_based_recommendations(user, limit=limit*2)
+
 
             # Get trending recommendations
             trending_recs = self._get_trending_recommendations(user, limit=limit//2)
@@ -1829,15 +1797,7 @@ class HybridRecommendationService:
                 all_recommendations[movie.id]['score'] += self.weights['demographic']
                 all_recommendations[movie.id]['methods'].append('demographic')
 
-            for movie in content_recs:
-                if movie.id not in all_recommendations:
-                    all_recommendations[movie.id] = {
-                        'movie': movie,
-                        'score': 0.0,
-                        'methods': []
-                    }
-                all_recommendations[movie.id]['score'] += self.weights['content_based']
-                all_recommendations[movie.id]['methods'].append('content_based')
+
 
             for movie in trending_recs:
                 if movie.id not in all_recommendations:
@@ -1893,57 +1853,16 @@ class HybridRecommendationService:
             # )
 
             # Return list of Movie objects
+            # Store recommendations using unified cache service
+            RecommendationCacheService.store_recommendations(user, final_recommendations, 'hybrid', context)
+
             return [rec['movie'] for rec in final_recommendations]
 
         except Exception as e:
             logger.error(f"Error generating hybrid recommendations: {str(e)}")
             return []
 
-    def _get_content_based_recommendations(self, user, limit=20) -> List[any]:
-        """Get content-based recommendations using user's favorite genres"""
-        try:
-            # Get user's favorite genres
-            favorite_genres = UserFavoriteGenre.objects.filter(user=user).values_list('genre', flat=True)
 
-            if not favorite_genres:
-                # Infer from high ratings
-                high_rated_movies = MovieReview.objects.filter(
-                    user=user,
-                    review_type='USER',
-                    rating__gte=4.0
-                ).values_list('movie', flat=True)
-
-                if high_rated_movies:
-                    favorite_genres = Movie.objects.filter(
-                        id__in=high_rated_movies
-                    ).values_list('genres', flat=True).distinct()
-
-            if not favorite_genres:
-                return []
-
-            # Get user's already rated movies
-            user_rated_movies = set(MovieReview.objects.filter(
-                user=user,
-                review_type='USER'
-            ).values_list('movie_id', flat=True))
-
-            # Get movies from favorite genres
-            content_movies = Movie.objects.filter(
-                genres__in=favorite_genres,
-                poster_url__isnull=False
-            ).exclude(
-                id__in=user_rated_movies
-            ).annotate(
-                avg_rating=Avg('reviews__rating', filter=Q(reviews__review_type='USER'))
-            ).filter(
-                avg_rating__gte=3.5
-            ).order_by('-avg_rating')[:limit]
-
-            return list(content_movies)
-
-        except Exception as e:
-            logger.error(f"Error getting content-based recommendations: {str(e)}")
-            return []
 
     def _get_trending_recommendations(self, user, limit=10) -> List[any]:
         """Get trending movies for diversity"""
@@ -2435,3 +2354,330 @@ class AdvancedDemographicSimilarityCalculator:
         except Exception as e:
             logger.error(f"Error getting user behavioral stats: {str(e)}")
             return None
+
+class RecommendationMetricsService:
+    """
+    Service to track and analyze recommendation system performance metrics
+    """
+
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+    def track_recommendation_generation(self, recommendation_type: str, user_count: int,
+                                      movie_count: int, context: str = 'homepage'):
+        """Track when recommendations are generated"""
+        try:
+            date = timezone.now().date()
+            metrics, created = RecommendationMetrics.objects.get_or_create(
+                date=date,
+                recommendation_type=recommendation_type,
+                defaults={
+                    'total_recommendations': 0,
+                    'unique_users': 0,
+                    'unique_movies': 0,
+                }
+            )
+
+            if not created:
+                metrics.total_recommendations += user_count * 20  # Assume 20 recs per user
+                metrics.unique_users = max(metrics.unique_users, user_count)
+                metrics.unique_movies = max(metrics.unique_movies, movie_count)
+
+            metrics.save()
+            self.logger.info(f"Tracked recommendation generation: {recommendation_type}, users: {user_count}")
+
+        except Exception as e:
+            self.logger.error(f"Error tracking recommendation generation: {e}")
+
+    def track_user_engagement(self, user_id: int, recommendation_type: str,
+                            action: str, movie_id: int = None):
+        """Track user engagement with recommendations"""
+        try:
+            date = timezone.now().date()
+            metrics, created = RecommendationMetrics.objects.get_or_create(
+                date=date,
+                recommendation_type=recommendation_type,
+                defaults={
+                    'total_recommendations': 0,
+                    'unique_users': 0,
+                    'unique_movies': 0,
+                    'click_through_rate': 0.0,
+                    'conversion_rate': 0.0,
+                }
+            )
+
+            # Update engagement metrics based on action
+            if action == 'click':
+                metrics.click_through_rate = self._update_rate(metrics.click_through_rate, 1, 1)
+            elif action == 'rate':
+                metrics.conversion_rate = self._update_rate(metrics.conversion_rate, 1, 1)
+                if movie_id:
+                    # Track actual rating vs predicted
+                    self._track_rating_accuracy(user_id, movie_id, recommendation_type)
+
+            metrics.save()
+
+        except Exception as e:
+            self.logger.error(f"Error tracking user engagement: {e}")
+
+    def _update_rate(self, current_rate: float, numerator: int, denominator: int) -> float:
+        """Update rate metric with new data"""
+        if current_rate == 0.0:
+            return numerator / denominator
+        else:
+            # Simple moving average
+            return (current_rate + (numerator / denominator)) / 2
+
+    def _track_rating_accuracy(self, user_id: int, movie_id: int, recommendation_type: str):
+        """Track rating prediction accuracy"""
+        try:
+            # Get predicted rating from RecommendationResult
+            result = RecommendationResult.objects.filter(
+                user_id=user_id,
+                movie_id=movie_id,
+                recommendation_type=recommendation_type
+            ).first()
+
+            if result and result.predicted_rating:
+                # Get actual rating
+                actual_rating = MovieReview.objects.filter(
+                    user_id=user_id,
+                    movie_id=movie_id,
+                    review_type='USER',
+                    rating__isnull=False
+                ).first()
+
+                if actual_rating and actual_rating.rating:
+                    # Calculate error
+                    error = abs(result.predicted_rating - actual_rating.rating)
+
+                    # Update metrics
+                    date = timezone.now().date()
+                    metrics, created = RecommendationMetrics.objects.get_or_create(
+                        date=date,
+                        recommendation_type=recommendation_type,
+                        defaults={
+                            'rmse': 0.0,
+                            'mae': 0.0,
+                            'average_predicted_rating': 0.0,
+                            'average_actual_rating': 0.0,
+                        }
+                    )
+
+                    # Update accuracy metrics
+                    metrics.mae = self._update_average(metrics.mae, error)
+                    metrics.average_predicted_rating = self._update_average(
+                        metrics.average_predicted_rating, result.predicted_rating
+                    )
+                    metrics.average_actual_rating = self._update_average(
+                        metrics.average_actual_rating, actual_rating.rating
+                    )
+
+                    metrics.save()
+
+        except Exception as e:
+            self.logger.error(f"Error tracking rating accuracy: {e}")
+
+    def _update_average(self, current_avg: float, new_value: float) -> float:
+        """Update running average"""
+        if current_avg == 0.0:
+            return new_value
+        else:
+            # Simple moving average
+            return (current_avg + new_value) / 2
+
+    def calculate_diversity_metrics(self, recommendation_type: str, date: datetime.date = None):
+        """Calculate diversity metrics for recommendations"""
+        try:
+            if not date:
+                date = timezone.now().date()
+
+            # Get recommendations for the day
+            results = RecommendationResult.objects.filter(
+                created_at__date=date,
+                recommendation_type=recommendation_type
+            ).select_related('movie')
+
+            if not results.exists():
+                return
+
+            # Calculate intra-list diversity
+            diversity_scores = []
+            novelty_scores = []
+
+            # Group by user
+            user_recommendations = {}
+            for result in results:
+                if result.user_id not in user_recommendations:
+                    user_recommendations[result.user_id] = []
+                user_recommendations[result.user_id].append(result.movie)
+
+            for user_id, movies in user_recommendations.items():
+                if len(movies) < 2:
+                    continue
+
+                # Calculate genre diversity
+                genres = set()
+                for movie in movies:
+                    genres.update(movie.genres.values_list('name', flat=True))
+
+                diversity = len(genres) / len(movies) if movies else 0
+                diversity_scores.append(diversity)
+
+                # Calculate novelty (based on average rating count)
+                avg_rating_count = sum(
+                    movie.moviereview_set.filter(review_type='USER').count()
+                    for movie in movies
+                ) / len(movies)
+                novelty = 1 / (1 + avg_rating_count / 100)  # Normalize
+                novelty_scores.append(novelty)
+
+            # Update metrics
+            if diversity_scores:
+                metrics, created = RecommendationMetrics.objects.get_or_create(
+                    date=date,
+                    recommendation_type=recommendation_type,
+                    defaults={}
+                )
+
+                metrics.intra_list_diversity = sum(diversity_scores) / len(diversity_scores)
+                metrics.novelty_score = sum(novelty_scores) / len(novelty_scores)
+                metrics.save()
+
+        except Exception as e:
+            self.logger.error(f"Error calculating diversity metrics: {e}")
+
+    def get_performance_summary(self, days: int = 7) -> Dict:
+        """Get performance summary for the last N days"""
+        try:
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=days)
+
+            metrics = RecommendationMetrics.objects.filter(
+                date__range=[start_date, end_date]
+            ).values('recommendation_type').annotate(
+                avg_click_rate=Avg('click_through_rate'),
+                avg_conversion_rate=Avg('conversion_rate'),
+                avg_mae=Avg('mae'),
+                avg_diversity=Avg('intra_list_diversity'),
+                avg_novelty=Avg('novelty_score'),
+                total_recommendations=Sum('total_recommendations'),
+                total_users=Sum('unique_users')
+            )
+
+            return {
+                'period': f"{start_date} to {end_date}",
+                'metrics': list(metrics)
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error getting performance summary: {e}")
+            return {}
+
+    def cleanup_old_metrics(self, days_to_keep: int = 90):
+        """Clean up old metrics data"""
+        try:
+            cutoff_date = timezone.now().date() - timedelta(days=days_to_keep)
+            deleted_count = RecommendationMetrics.objects.filter(
+                date__lt=cutoff_date
+            ).delete()[0]
+
+            self.logger.info(f"Cleaned up {deleted_count} old metrics records")
+
+        except Exception as e:
+            self.logger.error(f"Error cleaning up old metrics: {e}")
+
+# Initialize global metrics service
+metrics_service = RecommendationMetricsService()
+
+class RecommendationCacheService:
+    """
+    Unified cache service for recommendation system
+    """
+
+    @staticmethod
+    def get_cache_timeout():
+        """Get cache timeout from settings"""
+        return getattr(settings, 'RECOMMENDATION_CACHE_SETTINGS', {}).get('CACHE_TIMEOUT_HOURS', 24)
+
+    @staticmethod
+    def get_cached_recommendations(user, rec_type, context='homepage', limit=20):
+        """
+        Get cached recommendations with unified logic
+        """
+        try:
+            cache_timeout = RecommendationCacheService.get_cache_timeout()
+            recent_cutoff = timezone.now() - timedelta(hours=cache_timeout)
+
+            # Check if context agnostic is enabled
+            context_agnostic = getattr(settings, 'RECOMMENDATION_CACHE_SETTINGS', {}).get('CONTEXT_AGNOSTIC', True)
+
+            if context_agnostic:
+                # Ignore context when checking cache
+                stored_recommendations = RecommendationResult.objects.filter(
+                    user=user,
+                    recommendation_type=rec_type,
+                    created_at__gte=recent_cutoff
+                ).select_related('movie').order_by('rank')[:limit]
+            else:
+                # Use context in cache check
+                stored_recommendations = RecommendationResult.objects.filter(
+                    user=user,
+                    recommendation_type=rec_type,
+                    context=context,
+                    created_at__gte=recent_cutoff
+                ).select_related('movie').order_by('rank')[:limit]
+
+            if stored_recommendations.exists():
+                logger.info(f"✅ Using cached {rec_type} recommendations for user {user.id}")
+                return [rec.movie for rec in stored_recommendations]
+
+            return []
+
+        except Exception as e:
+            logger.error(f"Error getting cached recommendations: {str(e)}")
+            return []
+
+    @staticmethod
+    def store_recommendations(user, recommendations, rec_type, context='homepage'):
+        """
+        Store recommendations with unified logic
+        """
+        try:
+            # Clear existing recommendations for this user/type
+            RecommendationResult.objects.filter(
+                user=user,
+                recommendation_type=rec_type
+            ).delete()
+
+            # Store new recommendations
+            for rank, rec in enumerate(recommendations, 1):
+                if isinstance(rec, dict):
+                    movie = rec['movie']
+                    score = rec.get('score', 0.0)
+                    confidence = rec.get('confidence', 0.5)
+                    predicted_rating = rec.get('predicted_rating')
+                    explanation = rec.get('explanation', {})
+                else:
+                    movie = rec
+                    score = getattr(rec, 'recommendation_score', 0.0)
+                    confidence = 0.5
+                    predicted_rating = None
+                    explanation = {}
+
+                RecommendationResult.objects.create(
+                    user=user,
+                    movie=movie,
+                    recommendation_type=rec_type,
+                    context=context,
+                    rank=rank,
+                    score=score,
+                    confidence_score=confidence,
+                    predicted_rating=predicted_rating,
+                    explanation=explanation
+                )
+
+            logger.info(f"✅ Stored {len(recommendations)} {rec_type} recommendations for user {user.id}")
+
+        except Exception as e:
+            logger.error(f"Error storing recommendations: {str(e)}")

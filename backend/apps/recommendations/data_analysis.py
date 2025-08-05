@@ -262,7 +262,7 @@ class DatasetAnalyzer:
             return {}
 
     def _analyze_movie_features(self) -> Dict:
-        """Analyze movie features for content-based filtering"""
+        """Analyze movie features for recommendation system"""
         try:
             # Basic movie metadata completeness
             movie_metadata = Movie.objects.aggregate(
@@ -303,12 +303,7 @@ class DatasetAnalyzer:
                     {'name': g.name, 'movie_count': g.movie_count}
                     for g in genre_distribution
                 ],
-                'content_based_readiness': {
-                    'sufficient_text_features': content_completeness['overview'] > 70,
-                    'sufficient_genre_coverage': content_completeness['genres'] > 80,
-                    'sufficient_cast_info': content_completeness['cast'] > 60,
-                    'sufficient_metadata': content_completeness['overview'] > 50 and content_completeness['genres'] > 70
-                }
+
             }
 
         except Exception as e:
@@ -405,7 +400,6 @@ class DatasetAnalyzer:
         readiness = {
             'collaborative_filtering': False,
             'demographic_filtering': False,
-            'content_based_filtering': False,
             'deep_learning': False,
             'hybrid_approaches': False
         }
@@ -425,10 +419,7 @@ class DatasetAnalyzer:
             demo_ready = dataset_quality['demographics'].get('demographic_filtering_readiness', {})
             readiness['demographic_filtering'] = demo_ready.get('sufficient_demographic_coverage', False)
 
-        # Content-based Filtering readiness
-        if 'movie_features' in dataset_quality:
-            content_ready = dataset_quality['movie_features'].get('content_based_readiness', {})
-            readiness['content_based_filtering'] = content_ready.get('sufficient_metadata', False)
+
 
         # Deep Learning readiness (needs more data)
         readiness['deep_learning'] = (
@@ -440,8 +431,7 @@ class DatasetAnalyzer:
         # Hybrid approaches (if at least 2 methods are ready)
         ready_methods = sum([
             readiness['collaborative_filtering'],
-            readiness['demographic_filtering'],
-            readiness['content_based_filtering']
+            readiness['demographic_filtering']
         ])
         readiness['hybrid_approaches'] = ready_methods >= 2
 
@@ -522,7 +512,7 @@ class DatasetAnalyzer:
                     'use_case': 'Topic modeling and word embeddings',
                     'algorithms': ['Word2Vec', 'Doc2Vec', 'LDA'],
                     'priority': 'Low',
-                    'reason': 'Advanced text analysis for content-based filtering'
+                    'reason': 'Advanced text analysis for movie descriptions'
                 }
             ])
 

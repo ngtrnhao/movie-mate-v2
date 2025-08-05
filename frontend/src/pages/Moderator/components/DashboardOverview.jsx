@@ -7,11 +7,7 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
 } from '@heroicons/react/24/outline';
-import {
-  getDashboardOverview,
-  getRecentModerationActivities,
-  getModerationPerformanceMetrics,
-} from '../../../api/moderatorService';
+import { getDashboardOverview } from '../../../api/moderatorService';
 import moderationCacheService from '../../../services/moderationCacheService';
 
 const DashboardOverview = ({ isAdmin: _isAdmin, isModerator: _isModerator }) => {
@@ -22,45 +18,32 @@ const DashboardOverview = ({ isAdmin: _isAdmin, isModerator: _isModerator }) => 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Optimized fetch function with caching
+  // Optimized fetch function - Single API call instead of 3 separate calls
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use cache service for all three APIs
-      const [overviewResponse, activitiesResponse, metricsResponse] = await Promise.all([
-        moderationCacheService.cachedApiCall(
-          'dashboard_overview',
-          async () => await getDashboardOverview(),
-          {}
-        ),
-        moderationCacheService.cachedApiCall(
-          'recent_activities',
-          async () => await getRecentModerationActivities(5),
-          { limit: 5 }
-        ),
-        moderationCacheService.cachedApiCall(
-          'performance_metrics',
-          async () => await getModerationPerformanceMetrics(),
-          {}
-        ),
-      ]);
+      // Single API call to get all dashboard data
+      const response = await moderationCacheService.cachedApiCall(
+        'dashboard_overview_optimized',
+        async () => await getDashboardOverview(),
+        {}
+      );
 
-      // Set real data from APIs
-      setStats(overviewResponse.data?.stats || []);
-      setRecentActivities(activitiesResponse.data || []);
-      setPerformanceMetrics(metricsResponse.data || null);
+      // Extract data from single response
+      const dashboardData = response.data || {};
 
-      console.log('✅ Dashboard overview data loaded:', {
-        stats: overviewResponse.data?.stats?.length || 0,
-        activities: activitiesResponse.data?.length || 0,
-        metrics: !!metricsResponse.data,
-        fromCache: {
-          overview: overviewResponse.__fromCache || false,
-          activities: activitiesResponse.__fromCache || false,
-          metrics: metricsResponse.__fromCache || false,
-        },
+      // Set real data from single API response
+      setStats(dashboardData.stats || []);
+      setRecentActivities(dashboardData.recent_activities || []);
+      setPerformanceMetrics(dashboardData.performance_metrics || null);
+
+      console.log('✅ Dashboard overview data loaded (optimized):', {
+        stats: dashboardData.stats?.length || 0,
+        activities: dashboardData.recent_activities?.length || 0,
+        metrics: !!dashboardData.performance_metrics,
+        fromCache: response.__fromCache || false,
       });
     } catch (err) {
       console.error('Error fetching dashboard overview:', err);

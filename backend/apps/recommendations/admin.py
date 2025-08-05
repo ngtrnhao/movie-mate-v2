@@ -5,7 +5,7 @@ from django.utils.safestring import mark_safe
 import json
 
 from .models import (
-    UserPreference, UserSimilarity, MovieSimilarity,
+    UserPreference, UserSimilarity,
     RecommendationResult, DemographicCluster, RecommendationMetrics
 )
 
@@ -78,31 +78,7 @@ class UserSimilarityAdmin(admin.ModelAdmin):
         })
     )
 
-@admin.register(MovieSimilarity)
-class MovieSimilarityAdmin(admin.ModelAdmin):
-    list_display = [
-        'movie1', 'movie2', 'similarity_type', 'similarity_score',
-        'genre_similarity', 'cast_similarity', 'created_at'
-    ]
-    list_filter = ['similarity_type', 'created_at']
-    search_fields = ['movie1__title', 'movie2__title']
-    readonly_fields = ['created_at']
 
-    fieldsets = (
-        ('Movies', {
-            'fields': ('movie1', 'movie2')
-        }),
-        ('Overall Similarity', {
-            'fields': ('similarity_type', 'similarity_score')
-        }),
-        ('Feature Breakdown', {
-            'fields': ('genre_similarity', 'cast_similarity', 'director_similarity',
-                      'year_similarity', 'rating_similarity')
-        }),
-        ('Metadata', {
-            'fields': ('created_at',)
-        })
-    )
 
 @admin.register(RecommendationResult)
 class RecommendationResultAdmin(admin.ModelAdmin):

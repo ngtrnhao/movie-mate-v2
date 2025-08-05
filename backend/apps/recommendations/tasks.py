@@ -212,53 +212,53 @@ def bulk_refresh_stale_recommendations(self):
         logger.error(f"❌ Error in bulk_refresh_stale_recommendations: {str(e)}")
         raise self.retry(exc=e, countdown=300, max_retries=2)
 
-@shared_task(bind=True)
-def refresh_demographic_clusters(self):
-    """
-    Refresh demographic clustering for recommendations
-    """
-    try:
-        logger.info("🔄 Starting demographic cluster refresh...")
+# @shared_task(bind=True)
+# def refresh_demographic_clusters(self):
+#     """
+#     Refresh demographic clustering for recommendations
+#     """
+#     try:
+#         logger.info("🔄 Starting demographic cluster refresh...")
 
-        from apps.recommendations.services import EnhancedDemographicFilteringService
+#         from apps.recommendations.services import EnhancedDemographicFilteringService
 
-        # Initialize service
-        demographic_service = EnhancedDemographicFilteringService()
+#         # Initialize service
+#         demographic_service = EnhancedDemographicFilteringService()
 
-        # Get current statistics
-        from apps.users.models import User
-        from apps.recommendations.models import DemographicCluster
+#         # Get current statistics
+#         from apps.users.models import User
+#         from apps.recommendations.models import DemographicCluster
 
-        total_users = User.objects.count()
-        users_with_demographics = User.objects.filter(
-            age__isnull=False,
-            gender__isnull=False
-        ).count()
-        current_clusters = DemographicCluster.objects.count()
+#         total_users = User.objects.count()
+#         users_with_demographics = User.objects.filter(
+#             age__isnull=False,
+#             gender__isnull=False
+#         ).count()
+#         current_clusters = DemographicCluster.objects.count()
 
-        logger.info(f"📊 Current statistics: {total_users} users, {users_with_demographics} with demographics, {current_clusters} clusters")
+#         logger.info(f"📊 Current statistics: {total_users} users, {users_with_demographics} with demographics, {current_clusters} clusters")
 
-        # Create K-means clusters
-        logger.info("🤖 Creating K-means clusters...")
-        demographic_service.create_kmeans_clusters(recalculate=True, n_clusters=8)
+#         # Create K-means clusters
+#         logger.info("🤖 Creating K-means clusters...")
+#         demographic_service.create_kmeans_clusters(recalculate=True, n_clusters=8)
 
-        # Get updated statistics
-        new_clusters = DemographicCluster.objects.count()
-        kmeans_clusters = DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').count()
+#         # Get updated statistics
+#         new_clusters = DemographicCluster.objects.count()
+#         kmeans_clusters = DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').count()
 
-        logger.info(f"✅ Created {kmeans_clusters} K-means clusters (total: {new_clusters})")
+#         logger.info(f"✅ Created {kmeans_clusters} K-means clusters (total: {new_clusters})")
 
-        return {
-            'status': 'success',
-            'message': f'Demographic clusters refreshed: {kmeans_clusters} K-means clusters created',
-            'total_clusters': new_clusters,
-            'kmeans_clusters': kmeans_clusters,
-            'users_processed': users_with_demographics
-        }
+#         return {
+#             'status': 'success',
+#             'message': f'Demographic clusters refreshed: {kmeans_clusters} K-means clusters created',
+#             'total_clusters': new_clusters,
+#             'kmeans_clusters': kmeans_clusters,
+#             'users_processed': users_with_demographics
+#         }
 
-    except Exception as e:
-        logger.error(f"❌ Error in refresh_demographic_clusters: {str(e)}")
-        raise self.retry(exc=e, countdown=300, max_retries=2)
+#     except Exception as e:
+#         logger.error(f"❌ Error in refresh_demographic_clusters: {str(e)}")
+#         raise self.retry(exc=e, countdown=300, max_retries=2)
 
 @shared_task(bind=True)
 def cleanup_expired_recommendations(self):

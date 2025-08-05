@@ -246,7 +246,7 @@ class Command(BaseCommand):
                 self.stdout.write('\n⚠️  WARNING: Matrix is extremely sparse (>99%). Consider:')
                 self.stdout.write('    • Importing more rating data (MovieLens datasets)')
                 self.stdout.write('    • Using implicit feedback data')
-                self.stdout.write('    • Focusing on content-based and demographic filtering')
+                self.stdout.write('    • Focusing on demographic filtering')
 
             rating_stats = basic_stats.get('ratings', {})
             total_ratings = rating_stats.get('total_ratings', 0)
@@ -255,4 +255,4 @@ class Command(BaseCommand):
                 self.stdout.write('\n⚠️  WARNING: Very few ratings available. Consider:')
                 self.stdout.write('    • Importing MovieLens dataset')
                 self.stdout.write('    • Encouraging user ratings')
-                self.stdout.write('    • Using content-based filtering as primary method')
+                self.stdout.write('    • Using demographic filtering as primary method')

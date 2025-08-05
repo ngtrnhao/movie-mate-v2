@@ -329,3 +329,13 @@ MIGRATION_SECRET_KEY = env('MIGRATION_SECRET_KEY', default='your-secret-key-here
 # AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default=None)
 # AWS_STORAGE_BUCKET_NAME = env('AWS_STORAGE_BUCKET_NAME', default=None)
 
+
+# Recommendation System Settings
+RECOMMENDATION_CACHE_SETTINGS = {
+    'CACHE_TIMEOUT_HOURS': 24,  # Thống nhất 24 giờ thay vì 1 giờ
+    'CONTEXT_AGNOSTIC': True,   # Bỏ qua context khi check cache
+    'ENABLE_HYBRID_CACHE': True, # Cache cho hybrid recommendations
+    'MIN_CACHE_AGE_MINUTES': 30, # Cache tối thiểu 30 phút
+    'MAX_CACHE_AGE_DAYS': 7,    # Cache tối đa 7 ngày
+}
+

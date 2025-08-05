@@ -772,6 +772,32 @@ export const getModerationQueueOptimized = async (page = 1, pageSize = 20, filte
   }
 };
 
+// Ultra-optimized moderation queue API for handling 400k+ reviews
+export const getUltraOptimizedModerationQueue = async (page = 1, pageSize = 20, filters = {}) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('page_size', pageSize);
+
+    // Add filters
+    if (filters.status) params.append('status', filters.status);
+    if (filters.language) params.append('language', filters.language);
+    if (filters.priority) params.append('priority', filters.priority);
+    if (filters.type) params.append('type', filters.type);
+    if (filters.has_spoiler !== undefined) params.append('has_spoiler', filters.has_spoiler);
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+
+    const response = await axiosInstance.get(
+      `/api/reviews/ultra_optimized_moderation_queue/?${params}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching ultra-optimized moderation queue:', error);
+    throw error;
+  }
+};
+
 // Optimized spoiler statistics API (replaces getSpoilerStatistics for better performance)
 export const getSpoilerStatisticsOptimized = async (days = 30) => {
   try {

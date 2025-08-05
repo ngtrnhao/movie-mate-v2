@@ -328,10 +328,10 @@ const ReplySection = ({ review, onReplySuccess }) => {
                       />
                       <div className="flex-1">
                         <div className="mb-1 flex items-center gap-2">
-                          <h4 className="text-sm font-medium text-white">{reply.reviewer_name}</h4>
+                          {/* <h4 className="text-sm font-medium text-white">{reply.reviewer_name}</h4>
                           {reply.is_verified_reviewer && (
                             <span className="text-xs text-blue-400">✓</span>
-                          )}
+                          )} */}
                           <span className="text-xs text-gray-500">
                             {new Date(reply.created_at).toLocaleDateString('vi-VN')}
                           </span>

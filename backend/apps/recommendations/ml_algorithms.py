@@ -112,12 +112,7 @@ class MLRecommendationEngine:
             )
             results['collaborative_filtering'] = cf_results
 
-        # 2. Content-based Filtering with scikit-learn
-        if data.get('content_based_filtering'):
-            cb_results = self.train_content_based_models(
-                data['content_based_filtering'], hyperparameter_tuning
-            )
-            results['content_based_filtering'] = cb_results
+
 
         # 3. Demographic Filtering
         if data.get('demographic_filtering'):
@@ -156,8 +151,8 @@ class MLRecommendationEngine:
         results = {}
 
         try:
-            # Prepare Surprise dataset
-            reader = Reader(rating_scale=(0.5, 5.0))
+            # Prepare Surprise dataset - Updated for discrete 5-point scale
+            reader = Reader(rating_scale=(1.0, 5.0))  # Changed from (0.5, 5.0) to (1.0, 5.0)
             surprise_data = Dataset.load_from_df(
                 pd.DataFrame(data['surprise_data'], columns=['user_id', 'movie_id', 'rating']),
                 reader
@@ -215,69 +210,7 @@ class MLRecommendationEngine:
             logger.error(f"Error training collaborative filtering models: {str(e)}")
             return {}
 
-    def train_content_based_models(self, data: Dict, tune_hyperparams: bool = False) -> Dict:
-        """
-        Train content-based filtering models using scikit-learn
-        """
-        logger.info("Training content-based filtering models...")
 
-        results = {}
-
-        try:
-            movies_df = data['movies_df']
-            combined_features = data['combined_features']
-
-            if combined_features.size == 0:
-                logger.warning("No features available for content-based filtering")
-                return {}
-
-            # Create content-based similarity matrix
-            content_similarity = cosine_similarity(combined_features)
-
-            # Store similarity matrix
-            results['similarity_matrix'] = content_similarity
-            results['movie_indices'] = {
-                movie_id: idx for idx, movie_id in enumerate(movies_df['movie_id'])
-            }
-
-            # Content-based recommender class
-            class ContentBasedRecommender:
-                def __init__(self, similarity_matrix, movie_indices, movies_df):
-                    self.similarity_matrix = similarity_matrix
-                    self.movie_indices = movie_indices
-                    self.movies_df = movies_df
-
-                def recommend(self, movie_id, n_recommendations=10):
-                    if movie_id not in self.movie_indices:
-                        return []
-
-                    idx = self.movie_indices[movie_id]
-                    sim_scores = list(enumerate(self.similarity_matrix[idx]))
-                    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-
-                    movie_indices = [i[0] for i in sim_scores[1:n_recommendations+1]]
-                    return self.movies_df.iloc[movie_indices]['movie_id'].tolist()
-
-            content_recommender = ContentBasedRecommender(
-                content_similarity, results['movie_indices'], movies_df
-            )
-
-            results['recommender'] = content_recommender
-            self.trained_models['content_based'] = content_recommender
-
-            # Evaluate content-based model (if user ratings available)
-            if 'ratings_df' in data:
-                evaluation_score = self._evaluate_content_based_model(
-                    content_recommender, data.get('ratings_df')
-                )
-                results['evaluation_score'] = evaluation_score
-
-            logger.info("Content-based model training completed")
-            return results
-
-        except Exception as e:
-            logger.error(f"Error training content-based models: {str(e)}")
-            return {}
 
     def train_demographic_models(self, data: Dict, tune_hyperparams: bool = False) -> Dict:
         """
@@ -420,9 +353,8 @@ class MLRecommendationEngine:
         try:
             # Simple weighted ensemble
             weights = {
-                'collaborative_filtering': 0.4,
-                'content_based_filtering': 0.3,
-                'demographic_filtering': 0.2,
+                'collaborative_filtering': 0.5,
+                'demographic_filtering': 0.4,
                 'deep_learning': 0.1
             }
 
@@ -562,30 +494,7 @@ class MLRecommendationEngine:
 
         return stacking_model
 
-    def _evaluate_content_based_model(self, recommender, ratings_df: pd.DataFrame) -> float:
-        """
-        Evaluate content-based model using rating data
-        """
-        # Simple evaluation: check if recommended movies have high ratings
-        sample_movies = ratings_df['movie_id'].unique()[:100]
-        total_score = 0
-        valid_evaluations = 0
 
-        for movie_id in sample_movies:
-            try:
-                recommendations = recommender.recommend(movie_id, n_recommendations=10)
-                if recommendations:
-                    avg_rating = ratings_df[
-                        ratings_df['movie_id'].isin(recommendations)
-                    ]['rating'].mean()
-
-                    if not pd.isna(avg_rating):
-                        total_score += avg_rating
-                        valid_evaluations += 1
-            except:
-                continue
-
-        return total_score / valid_evaluations if valid_evaluations > 0 else 0
 
     def save_models(self, model_dir: str = None) -> None:
         """
@@ -654,8 +563,7 @@ class MLRecommendationEngine:
         """
         if method == 'collaborative_filtering' and 'cf_svd' in self.trained_models:
             return self._get_cf_recommendations(user_id, n_recommendations)
-        elif method == 'content_based' and 'content_based' in self.trained_models:
-            return self._get_content_recommendations(user_id, n_recommendations)
+
         elif method == 'demographic' and 'demographic' in self.trained_models:
             return self._get_demographic_recommendations(user_id, n_recommendations)
         elif method == 'deep_learning' and 'deep_learning_ncf' in self.trained_models:
@@ -669,10 +577,7 @@ class MLRecommendationEngine:
         # Implementation using trained CF model
         return []
 
-    def _get_content_recommendations(self, user_id: int, n_recommendations: int) -> List[int]:
-        """Get content-based recommendations"""
-        # Implementation using trained content-based model
-        return []
+
 
     def _get_demographic_recommendations(self, user_id: int, n_recommendations: int) -> List[int]:
         """Get demographic-based recommendations"""

@@ -54,7 +54,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write(
-            self.style.SUCCESS('🚀 Starting recommendation system setup...')
+            self.style.SUCCESS(' Starting recommendation system setup...')
         )
 
         dry_run = options['dry_run']
@@ -64,12 +64,12 @@ class Command(BaseCommand):
 
         if dry_run:
             self.stdout.write(
-                self.style.WARNING('🔍 DRY RUN MODE - No changes will be made')
+                self.style.WARNING('DRY RUN MODE - No changes will be made')
             )
 
-        self.stdout.write(f'📊 Clustering method: {clustering_method}')
+        self.stdout.write(f'Clustering method: {clustering_method}')
         if clustering_method == 'kmeans':
-            self.stdout.write(f'📊 Number of clusters: {n_clusters}')
+            self.stdout.write(f'Number of clusters: {n_clusters}')
 
         try:
             # Step 1: Setup demographic clusters
@@ -95,7 +95,7 @@ class Command(BaseCommand):
 
     def setup_demographic_clusters(self, dry_run=False, method='kmeans', n_clusters=8):
         """Setup demographic clusters for demographic filtering"""
-        self.stdout.write(f'📊 Setting up demographic clusters using {method} method...')
+        self.stdout.write(f'Setting up demographic clusters using {method} method...')
 
         if dry_run:
             # Show what would be created
@@ -154,7 +154,7 @@ class Command(BaseCommand):
 
         # Create clusters based on method
         if method == 'kmeans':
-            self.stdout.write(f'🤖 Creating {n_clusters} K-means clusters...')
+            self.stdout.write(f'Creating {n_clusters} K-means clusters...')
             demographic_service.create_kmeans_clusters(
                 recalculate=True,
                 n_clusters=n_clusters
@@ -162,22 +162,22 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'✅ Created K-means clusters'))
 
         elif method == 'rule-based':
-            self.stdout.write('📋 Creating rule-based clusters...')
+            self.stdout.write(' Creating rule-based clusters...')
             demographic_service.create_demographic_clusters(recalculate=True)
             self.stdout.write(self.style.SUCCESS(f'✅ Created rule-based clusters'))
 
         elif method == 'both':
-            self.stdout.write(f'🔄 Creating both K-means and rule-based clusters...')
+            self.stdout.write(f'Creating both K-means and rule-based clusters...')
 
             # Create K-means clusters first
-            self.stdout.write(f'🤖 Step 1: Creating {n_clusters} K-means clusters...')
+            self.stdout.write(f'Step 1: Creating {n_clusters} K-means clusters...')
             demographic_service.create_kmeans_clusters(
                 recalculate=True,
                 n_clusters=n_clusters
             )
 
             # Create rule-based clusters
-            self.stdout.write('📋 Step 2: Creating rule-based clusters...')
+            self.stdout.write('  Step 2: Creating rule-based clusters...')
             demographic_service.create_demographic_clusters(recalculate=True)
 
             self.stdout.write(self.style.SUCCESS(f'✅ Created both K-means and rule-based clusters'))
@@ -188,7 +188,7 @@ class Command(BaseCommand):
         )
 
         # Show cluster summary
-        self.stdout.write('\n📊 Cluster Summary:')
+        self.stdout.write('\nCluster Summary:')
         for cluster in DemographicCluster.objects.all()[:10]:  # Show first 10
             cluster_type = "K-means" if cluster.cluster_id.startswith('kmeans_') else "Rule-based"
             self.stdout.write(
@@ -201,10 +201,11 @@ class Command(BaseCommand):
 
     def update_user_preferences(self, batch_size, dry_run=False):
         """Update user preferences based on rating history"""
-        self.stdout.write('👤 Updating user preferences...')
+        self.stdout.write('Updating user preferences...')
 
         users_with_ratings = User.objects.filter(
-            movie_interactions__isnull=False
+            moviereview__review_type='USER',
+            moviereview__rating__isnull=False
         ).distinct()
 
         total_users = users_with_ratings.count()
@@ -300,7 +301,7 @@ class Command(BaseCommand):
                     count=Count('rating')
                 )
 
-                if ratings['count'] and ratings['count'] >= 3:  # At least 3 ratings
+                if ratings['count'] and ratings['count'] >= 3:
                     genre_ratings[str(genre.id)] = {
                         'average_rating': float(ratings['avg_rating']),
                         'rating_count': ratings['count'],
@@ -315,7 +316,7 @@ class Command(BaseCommand):
 
     def show_statistics(self):
         """Show current recommendation system statistics"""
-        self.stdout.write('\n📈 Recommendation System Statistics:')
+        self.stdout.write('\nRecommendation System Statistics:')
         self.stdout.write('=' * 50)
 
         # Demographic clusters

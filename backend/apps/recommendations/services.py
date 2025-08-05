@@ -2700,7 +2700,7 @@ class OptimizedKMeansProductionService:
         self.batch_size = 500  # Nhỏ để tiết kiệm memory
         self.max_clusters = 6  # Giảm từ 8 xuống 6
         self.memory_limit_mb = 256  # Giới hạn memory
-        self.redis_client = cache.client
+        # Không cần redis_client vì sử dụng Django cache framework
 
     def train_offline_and_deploy(self, force_retrain=False):
         """

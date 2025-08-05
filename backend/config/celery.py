@@ -106,6 +106,32 @@ app.conf.beat_schedule = {
         "schedule": timedelta(hours=2),
         "options": {"priority": 8}
     },
+
+    # ===== NEW BACKGROUND RECOMMENDATION TASKS =====
+    # Background collaborative filtering for stale recommendations (batch)
+    "background_collaborative_refresh": {
+        "task": "apps.recommendations.tasks.batch_generate_collaborative_recommendations",
+        "schedule": timedelta(hours=4),
+        "options": {"priority": 6}
+    },
+    # Background hybrid recommendations for stale recommendations (batch)
+    "background_hybrid_refresh": {
+        "task": "apps.recommendations.tasks.batch_generate_hybrid_recommendations",
+        "schedule": timedelta(hours=4),
+        "options": {"priority": 6}
+    },
+    # Background demographic recommendations for stale recommendations (batch)
+    "background_demographic_refresh": {
+        "task": "apps.recommendations.tasks.batch_generate_demographic_recommendations",
+        "schedule": timedelta(hours=6),
+        "options": {"priority": 5}
+    },
+    # Refresh all recommendation types for active users
+    "refresh_all_recommendations_batch": {
+        "task": "apps.recommendations.tasks.refresh_all_recommendations_async",
+        "schedule": timedelta(hours=8),
+        "options": {"priority": 7}
+    },
     # "refresh_demographic_clusters": {
     #     "task": "apps.recommendations.tasks.refresh_demographic_clusters",
     #     "schedule": timedelta(days=1),

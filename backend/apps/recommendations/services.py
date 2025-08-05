@@ -151,7 +151,7 @@ class CollaborativeFilteringService:
         self.min_common_ratings = 5
         self.min_similar_users = 10
         self.similarity_threshold = 0.1
-        self.cache_timeout = 3600  # 1 hour
+        self.cache_timeout = 3600 * 24 * 7  # 7 ngày thay vì 1 giờ
 
     def calculate_user_similarity(self, user1, user2, method='pearson') -> float:
         """
@@ -405,6 +405,7 @@ class CollaborativeFilteringService:
                 return cached_recommendations
 
             # Track recommendation generation
+            logger.info(f"🔄 Generating NEW collaborative recommendations for user {user.id} (no cache found)")
             metrics_service.track_recommendation_generation(
                 recommendation_type='collaborative',
                 user_count=1,
@@ -1804,6 +1805,7 @@ class HybridRecommendationService:
                 return cached_recommendations
 
             # Track recommendation generation
+            logger.info(f"🔄 Generating NEW hybrid recommendations for user {user.id} (no cache found)")
             metrics_service.track_recommendation_generation(
                 recommendation_type='hybrid',
                 user_count=1,
@@ -2697,9 +2699,10 @@ class RecommendationCacheService:
                 ).select_related('movie').order_by('rank')[:limit]
 
             if stored_recommendations.exists():
-                logger.info(f"✅ Using cached {rec_type} recommendations for user {user.id}")
+                logger.info(f"✅ Using cached {rec_type} recommendations for user {user.id} (created: {stored_recommendations.first().created_at})")
                 return [rec.movie for rec in stored_recommendations]
 
+            logger.info(f"❌ No cached {rec_type} recommendations found for user {user.id} (cutoff: {recent_cutoff})")
             return []
 
         except Exception as e:
@@ -2712,7 +2715,21 @@ class RecommendationCacheService:
         Store recommendations with unified logic
         """
         try:
-            # Clear existing recommendations for this user/type
+            # Check if we already have recent recommendations (within cache timeout)
+            cache_timeout = RecommendationCacheService.get_cache_timeout()
+            recent_cutoff = timezone.now() - timedelta(hours=cache_timeout)
+
+            existing_recommendations = RecommendationResult.objects.filter(
+                user=user,
+                recommendation_type=rec_type,
+                created_at__gte=recent_cutoff
+            )
+
+            if existing_recommendations.exists():
+                logger.info(f"⏭️ Skipping storage - recent {rec_type} recommendations already exist for user {user.id}")
+                return
+
+            # Clear existing recommendations for this user/type (only if no recent ones)
             RecommendationResult.objects.filter(
                 user=user,
                 recommendation_type=rec_type
@@ -2757,7 +2774,7 @@ class OptimizedKMeansProductionService:
     """
 
     def __init__(self):
-        self.cache_ttl = 3600 * 24  # 24 giờ
+        self.cache_ttl = 3600 * 24 * 7  # 7 ngày thay vì 24 giờ
         self.batch_size = 500  # Nhỏ để tiết kiệm memory
         self.max_clusters = 6  # Giảm từ 8 xuống 6
         self.memory_limit_mb = 256  # Giới hạn memory
@@ -3094,3 +3111,225 @@ class OptimizedKMeansProductionService:
             stats['cluster_distribution'][cluster.cluster_id] = user_count
 
         return stats
+
+class OptimizedRecommendationService:
+    """
+    🚀 Tối ưu hóa recommendation service với background generation và fallback cache
+    Giải quyết vấn đề timeout khi tạo recommendation
+    """
+
+    def __init__(self):
+        self.collaborative_service = CollaborativeFilteringService()
+        self.hybrid_service = HybridRecommendationService()
+        self.demographic_service = EnhancedDemographicFilteringService()
+        self.cache_service = RecommendationCacheService()
+        self.settings = getattr(settings, 'RECOMMENDATION_CACHE_SETTINGS', {})
+
+    def get_recommendations_with_fallback(self, user, rec_type='hybrid', limit=20, context='homepage'):
+        """
+        Lấy recommendations với fallback strategy:
+        1. Kiểm tra cache chính (7 ngày)
+        2. Kiểm tra fallback cache (24 giờ)
+        3. Tạo recommendations ngay lập tức nếu không có cache
+        4. Luôn trả về recommendations (không bao giờ empty)
+        """
+        try:
+            # 1. Kiểm tra cache chính (7 ngày)
+            recommendations = self.cache_service.get_cached_recommendations(
+                user, rec_type, context, limit
+            )
+
+            if recommendations:
+                logger.info(f"✅ Sử dụng cache chính cho {rec_type} recommendations (user {user.id})")
+                # Trigger background generation để cập nhật cache cho lần sau
+                self._trigger_background_generation(user, rec_type, context)
+                return recommendations
+
+            # 2. Kiểm tra fallback cache (24 giờ)
+            fallback_hours = self.settings.get('FALLBACK_CACHE_HOURS', 24)
+            fallback_cutoff = timezone.now() - timedelta(hours=fallback_hours)
+
+            fallback_recommendations = RecommendationResult.objects.filter(
+                user=user,
+                recommendation_type=rec_type,
+                created_at__gte=fallback_cutoff
+            ).select_related('movie').order_by('rank')[:limit]
+
+            if fallback_recommendations.exists():
+                logger.info(f"🔄 Sử dụng fallback cache cho {rec_type} recommendations (user {user.id})")
+                # Trigger background generation để cập nhật cache chính
+                self._trigger_background_generation(user, rec_type, context)
+                return [rec.movie for rec in fallback_recommendations]
+
+            # 3. Không có cache - tạo recommendations ngay lập tức
+            logger.warning(f"⚠️ Không có cache cho {rec_type} recommendations (user {user.id}) - tạo ngay lập tức")
+            immediate_recommendations = self._generate_immediate_recommendations(user, rec_type, limit, context)
+
+            if immediate_recommendations:
+                # Lưu vào fallback cache ngay lập tức
+                self._save_to_fallback_cache(user, rec_type, context, immediate_recommendations)
+                # Trigger background generation để tạo cache chính
+                self._trigger_background_generation(user, rec_type, context)
+                return immediate_recommendations
+
+            # 4. Fallback cuối cùng - trả về trending/popular movies
+            logger.error(f"❌ Không thể tạo recommendations cho user {user.id}, trả về trending movies")
+            return self._get_trending_fallback(limit)
+
+        except Exception as e:
+            logger.error(f"Error in get_recommendations_with_fallback: {str(e)}")
+            # Fallback cuối cùng
+            return self._get_trending_fallback(limit)
+
+    def _trigger_background_generation(self, user, rec_type, context):
+        """
+        Trigger background generation để tránh timeout
+        Sử dụng Celery tasks cho background processing
+        """
+        try:
+            if self.settings.get('BACKGROUND_GENERATION', True):
+                # Import tasks
+                from .tasks import (
+                    generate_collaborative_recommendations_async,
+                    generate_hybrid_recommendations_async,
+                    generate_demographic_recommendations_async,
+                    refresh_all_recommendations_async
+                )
+
+                if rec_type == 'hybrid':
+                    # Trigger hybrid recommendations background task
+                    task = generate_hybrid_recommendations_async.delay(
+                        user.id, context, limit=20
+                    )
+                    logger.info(f"🔄 Triggered background hybrid generation cho user {user.id} (task: {task.id})")
+
+                elif rec_type == 'collaborative':
+                    # Trigger collaborative filtering background task
+                    task = generate_collaborative_recommendations_async.delay(
+                        user.id, context, limit=20
+                    )
+                    logger.info(f"🔄 Triggered background collaborative generation cho user {user.id} (task: {task.id})")
+
+                elif rec_type == 'demographic':
+                    # Trigger demographic recommendations background task
+                    task = generate_demographic_recommendations_async.delay(
+                        user.id, context, limit=20
+                    )
+                    logger.info(f"🔄 Triggered background demographic generation cho user {user.id} (task: {task.id})")
+
+                else:
+                    # Trigger all types of recommendations
+                    task = refresh_all_recommendations_async.delay(
+                        user.id, context, limit=20
+                    )
+                    logger.info(f"🔄 Triggered background refresh all recommendations cho user {user.id} (task: {task.id})")
+
+        except Exception as e:
+            logger.error(f"Error triggering background generation: {str(e)}")
+
+    def _generate_immediate_recommendations(self, user, rec_type, limit, context):
+        """
+        Tạo recommendations ngay lập tức (không background)
+        Sử dụng khi không có cache nào
+        """
+        try:
+            logger.info(f"🚀 Tạo {rec_type} recommendations ngay lập tức cho user {user.id}")
+
+            if rec_type == 'collaborative':
+                return self.collaborative_service.generate_collaborative_recommendations(
+                    user, limit=limit, context=context
+                )
+            elif rec_type == 'hybrid':
+                return self.hybrid_service.generate_hybrid_recommendations(
+                    user, limit=limit, context=context
+                )
+            elif rec_type == 'demographic':
+                return self.demographic_service.generate_demographic_recommendations(
+                    user, limit=limit, context=context
+                )
+            else:
+                # Fallback to hybrid
+                return self.hybrid_service.generate_hybrid_recommendations(
+                    user, limit=limit, context=context
+                )
+
+        except Exception as e:
+            logger.error(f"Error generating immediate recommendations: {str(e)}")
+            return []
+
+    def _save_to_fallback_cache(self, user, rec_type, context, recommendations):
+        """
+        Lưu recommendations vào fallback cache ngay lập tức
+        """
+        try:
+            # Xóa recommendations cũ
+            RecommendationResult.objects.filter(
+                user=user,
+                recommendation_type=rec_type,
+                context=context
+            ).delete()
+
+            # Lưu recommendations mới
+            for rank, movie in enumerate(recommendations, 1):
+                RecommendationResult.objects.create(
+                    user=user,
+                    movie=movie,
+                    recommendation_type=rec_type,
+                    context=context,
+                    rank=rank,
+                    confidence_score=0.7,  # Lower confidence cho fallback cache
+                    metadata={
+                        'source': 'immediate_generation',
+                        'generated_at': timezone.now().isoformat(),
+                        'cache_type': 'fallback'
+                    }
+                )
+
+            logger.info(f"💾 Lưu {len(recommendations)} recommendations vào fallback cache cho user {user.id}")
+
+        except Exception as e:
+            logger.error(f"Error saving to fallback cache: {str(e)}")
+
+    def _get_trending_fallback(self, limit):
+        """
+        Fallback cuối cùng - trả về trending movies
+        """
+        try:
+            from apps.movies.models import Movie
+
+            # Lấy trending movies dựa trên vote_average và vote_count
+            trending_movies = Movie.objects.filter(
+                vote_count__gte=100,  # Ít nhất 100 votes
+                vote_average__gte=6.0  # Ít nhất 6.0 rating
+            ).order_by('-vote_average', '-vote_count')[:limit]
+
+            logger.info(f"📈 Trả về {len(trending_movies)} trending movies làm fallback")
+            return list(trending_movies)
+
+        except Exception as e:
+            logger.error(f"Error getting trending fallback: {str(e)}")
+            return []
+
+    def _generate_collaborative_background(self, user, context):
+        """
+        Generate collaborative recommendations trong background (legacy method)
+        """
+        try:
+            # Sử dụng threading để tránh blocking
+            import threading
+
+            def generate_async():
+                try:
+                    recommendations = self.collaborative_service.generate_collaborative_recommendations(
+                        user, limit=20, context=context
+                    )
+                    logger.info(f"✅ Background collaborative generation completed cho user {user.id}")
+                except Exception as e:
+                    logger.error(f"Error in background collaborative generation: {str(e)}")
+
+            thread = threading.Thread(target=generate_async)
+            thread.daemon = True
+            thread.start()
+
+        except Exception as e:
+            logger.error(f"Error starting background collaborative generation: {str(e)}")

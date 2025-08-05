@@ -172,6 +172,32 @@ app.conf.beat_schedule = {
         "options": {"priority": 8}
     },
 
+    # ===== NEW BACKGROUND RECOMMENDATION TASKS =====
+    # Background collaborative filtering every 6 hours (batch)
+    "background_collaborative_refresh": {
+        "task": "apps.recommendations.tasks.batch_generate_collaborative_recommendations",
+        "schedule": crontab(hour="*/6", minute=5),  # Every 6 hours at minute 5
+        "options": {"priority": 6}
+    },
+    # Background hybrid recommendations every 6 hours (batch)
+    "background_hybrid_refresh": {
+        "task": "apps.recommendations.tasks.batch_generate_hybrid_recommendations",
+        "schedule": crontab(hour="*/6", minute=15),  # Every 6 hours at minute 15
+        "options": {"priority": 6}
+    },
+    # Background demographic recommendations every 8 hours (batch)
+    "background_demographic_refresh": {
+        "task": "apps.recommendations.tasks.batch_generate_demographic_recommendations",
+        "schedule": crontab(hour="*/8", minute=25),  # Every 8 hours at minute 25
+        "options": {"priority": 5}
+    },
+    # Refresh all recommendation types daily
+    "refresh_all_recommendations_batch": {
+        "task": "apps.recommendations.tasks.refresh_all_recommendations_async",
+        "schedule": crontab(hour=11, minute=0),  # Daily at 11 AM
+        "options": {"priority": 7}
+    },
+
     # ===== CLEANUP TASKS =====
     # Cleanup expired recommendations daily
     "cleanup_expired_recommendations": {

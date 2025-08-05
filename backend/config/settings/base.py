@@ -332,10 +332,13 @@ MIGRATION_SECRET_KEY = env('MIGRATION_SECRET_KEY', default='your-secret-key-here
 
 # Recommendation System Settings
 RECOMMENDATION_CACHE_SETTINGS = {
-    'CACHE_TIMEOUT_HOURS': 24,  # Thống nhất 24 giờ thay vì 1 giờ
+    'CACHE_TIMEOUT_HOURS': 168,  # Tăng từ 24 giờ lên 7 ngày (168 giờ)
     'CONTEXT_AGNOSTIC': True,   # Bỏ qua context khi check cache
     'ENABLE_HYBRID_CACHE': True, # Cache cho hybrid recommendations
     'MIN_CACHE_AGE_MINUTES': 30, # Cache tối thiểu 30 phút
-    'MAX_CACHE_AGE_DAYS': 7,    # Cache tối đa 7 ngày
+    'MAX_CACHE_AGE_DAYS': 30,    # Cache tối đa 30 ngày thay vì 7 ngày
+    'BACKGROUND_GENERATION': True, # Cho phép background generation
+    'ASYNC_TIMEOUT_SECONDS': 300,  # 5 phút timeout cho async generation
+    'FALLBACK_CACHE_HOURS': 24,    # Fallback cache khi generation thất bại
 }
 

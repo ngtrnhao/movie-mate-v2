@@ -18,7 +18,8 @@ from .services import (
     EnhancedDemographicFilteringService,
     HybridRecommendationService,
     AdvancedDemographicVectorizer,
-    AdvancedDemographicSimilarityCalculator
+    AdvancedDemographicSimilarityCalculator,
+    OptimizedRecommendationService
 )
 from apps.movies.models import Movie, MovieReview
 from apps.users.models import User
@@ -38,20 +39,23 @@ class RecommendationViewSet(viewsets.ViewSet):
         self.collaborative_service = CollaborativeFilteringService()
         self.demographic_service = EnhancedDemographicFilteringService()
         self.hybrid_service = HybridRecommendationService()
+        self.optimized_service = OptimizedRecommendationService()
 
     @action(detail=False, methods=['get'])
     def personalized(self, request):
         """
         Get personalized recommendations for authenticated user
+        Sử dụng OptimizedRecommendationService để tránh timeout
         """
         try:
             user = request.user
             limit = int(request.query_params.get('limit', 20))
             context = request.query_params.get('context', 'homepage')
 
-            # Use hybrid service for best results
-            recommendations = self.hybrid_service.generate_hybrid_recommendations(
+            # Sử dụng OptimizedRecommendationService với fallback strategy
+            recommendations = self.optimized_service.get_recommendations_with_fallback(
                 user=user,
+                rec_type='hybrid',
                 limit=limit,
                 context=context
             )
@@ -83,7 +87,8 @@ class RecommendationViewSet(viewsets.ViewSet):
                     'recommendations': formatted_recommendations,
                     'total': len(formatted_recommendations),
                     'context': context,
-                    'generated_at': timezone.now().isoformat()
+                    'generated_at': timezone.now().isoformat(),
+                    'cache_strategy': 'optimized_with_fallback'
                 }
             })
 
@@ -96,14 +101,19 @@ class RecommendationViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def collaborative(self, request):
-        """Get collaborative filtering recommendations"""
+        """Get collaborative filtering recommendations with optimized cache"""
         try:
             user = request.user
             limit = int(request.query_params.get('limit', 20))
             context = request.query_params.get('context', 'homepage')
 
-            cf_service = CollaborativeFilteringService()
-            recommendations = cf_service.generate_collaborative_recommendations(user, limit=limit, context=context)
+            # Sử dụng OptimizedRecommendationService với fallback strategy
+            recommendations = self.optimized_service.get_recommendations_with_fallback(
+                user=user,
+                rec_type='collaborative',
+                limit=limit,
+                context=context
+            )
 
             # Format recommendations for JSON serialization
             formatted_recommendations = []
@@ -131,7 +141,8 @@ class RecommendationViewSet(viewsets.ViewSet):
                 'data': {
                     'recommendations': formatted_recommendations,
                     'method': 'collaborative_filtering',
-                    'total': len(formatted_recommendations)
+                    'total': len(formatted_recommendations),
+                    'cache_strategy': 'optimized_with_fallback'
                 }
             })
         except Exception as e:
@@ -144,14 +155,19 @@ class RecommendationViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def hybrid(self, request):
-        """Get hybrid recommendations"""
+        """Get hybrid recommendations with optimized cache"""
         try:
             user = request.user
             limit = int(request.query_params.get('limit', 20))
             context = request.query_params.get('context', 'homepage')
 
-            hybrid_service = HybridRecommendationService()
-            recommendations = hybrid_service.generate_hybrid_recommendations(user, limit=limit, context=context)
+            # Sử dụng OptimizedRecommendationService với fallback strategy
+            recommendations = self.optimized_service.get_recommendations_with_fallback(
+                user=user,
+                rec_type='hybrid',
+                limit=limit,
+                context=context
+            )
 
             # Format recommendations for JSON serialization
             formatted_recommendations = []
@@ -179,7 +195,8 @@ class RecommendationViewSet(viewsets.ViewSet):
                 'data': {
                     'recommendations': formatted_recommendations,
                     'method': 'hybrid',
-                    'total': len(formatted_recommendations)
+                    'total': len(formatted_recommendations),
+                    'cache_strategy': 'optimized_with_fallback'
                 }
             })
         except Exception as e:
@@ -473,6 +490,136 @@ class RecommendationViewSet(viewsets.ViewSet):
                 'message': 'Failed to get trending movies',
                 'error': str(e)
             }, status=500)
+
+    @action(detail=False, methods=['get'])
+    def background_status(self, request):
+        """
+        Check background task status for recommendations
+        """
+        try:
+            user = request.user
+            context = request.query_params.get('context', 'homepage')
+
+            # Check for running background tasks
+            task_statuses = {}
+
+            # Check collaborative filtering task
+            cf_task_key = f"cf_task:{user.id}:{context}"
+            cf_task_id = cache.get(cf_task_key)
+            if cf_task_id:
+                task_statuses['collaborative'] = {
+                    'status': 'running',
+                    'task_id': cf_task_id,
+                    'type': 'collaborative_filtering'
+                }
+            else:
+                task_statuses['collaborative'] = {
+                    'status': 'idle',
+                    'task_id': None,
+                    'type': 'collaborative_filtering'
+                }
+
+            # Check hybrid task
+            hybrid_task_key = f"hybrid_task:{user.id}:{context}"
+            hybrid_task_id = cache.get(hybrid_task_key)
+            if hybrid_task_id:
+                task_statuses['hybrid'] = {
+                    'status': 'running',
+                    'task_id': hybrid_task_id,
+                    'type': 'hybrid'
+                }
+            else:
+                task_statuses['hybrid'] = {
+                    'status': 'idle',
+                    'task_id': None,
+                    'type': 'hybrid'
+                }
+
+            # Check demographic task
+            demo_task_key = f"demo_task:{user.id}:{context}"
+            demo_task_id = cache.get(demo_task_key)
+            if demo_task_id:
+                task_statuses['demographic'] = {
+                    'status': 'running',
+                    'task_id': demo_task_id,
+                    'type': 'demographic'
+                }
+            else:
+                task_statuses['demographic'] = {
+                    'status': 'idle',
+                    'task_id': None,
+                    'type': 'demographic'
+                }
+
+            # Check refresh all task
+            refresh_all_task_key = f"refresh_all_task:{user.id}:{context}"
+            refresh_all_task_id = cache.get(refresh_all_task_key)
+            if refresh_all_task_id:
+                task_statuses['refresh_all'] = {
+                    'status': 'running',
+                    'task_id': refresh_all_task_id,
+                    'type': 'refresh_all'
+                }
+            else:
+                task_statuses['refresh_all'] = {
+                    'status': 'idle',
+                    'task_id': None,
+                    'type': 'refresh_all'
+                }
+
+            return Response({
+                'status': 'success',
+                'data': {
+                    'user_id': user.id,
+                    'context': context,
+                    'background_tasks': task_statuses,
+                    'checked_at': timezone.now().isoformat()
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error checking background status: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': 'Failed to check background status',
+                'error': str(e)
+            }, status=500)
+
+    @action(detail=False, methods=['post'])
+    def trigger_background_generation(self, request):
+        """
+        Manually trigger background generation for recommendations
+        """
+        try:
+            user = request.user
+            context = request.query_params.get('context', 'homepage')
+            rec_type = request.data.get('type', 'hybrid')  # hybrid, collaborative, demographic, all
+            limit = int(request.data.get('limit', 20))
+
+            # Trigger background generation
+            self.optimized_service._trigger_background_generation(user, rec_type, context)
+
+            return Response({
+                'status': 'success',
+                'data': {
+                    'message': f'Background generation triggered for {rec_type} recommendations',
+                    'user_id': user.id,
+                    'context': context,
+                    'type': rec_type,
+                    'limit': limit,
+                    'triggered_at': timezone.now().isoformat()
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error triggering background generation: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': 'Failed to trigger background generation',
+                'error': str(e)
+            }, status=500)
+
+
 
 class RecommendationAnalyticsView(generics.RetrieveAPIView):
     """

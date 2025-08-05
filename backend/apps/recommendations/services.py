@@ -3184,16 +3184,12 @@ class OptimizedRecommendationService:
                 self._trigger_background_generation(user, rec_type, context)
                 return [rec.movie for rec in fallback_recommendations]
 
-            # 3. Không có cache - tạo recommendations ngay lập tức
-            logger.warning(f"⚠️ Không có cache cho {rec_type} recommendations (user {user.id}) - tạo ngay lập tức")
-            immediate_recommendations = self._generate_immediate_recommendations(user, rec_type, limit, context)
-
-            if immediate_recommendations:
-                # Lưu vào fallback cache ngay lập tức
-                self._save_to_fallback_cache(user, rec_type, context, immediate_recommendations)
-                # Trigger background generation để tạo cache chính
-                self._trigger_background_generation(user, rec_type, context)
-                return immediate_recommendations
+            # 3. Không có cache - trigger background generation và trả về trending movies tạm thời
+            logger.warning(f"⚠️ Không có cache cho {rec_type} recommendations (user {user.id}) - trigger background generation")
+            # Trigger background generation để tạo cache
+            self._trigger_background_generation(user, rec_type, context)
+            # Trả về trending movies tạm thời trong khi chờ background task
+            return self._get_trending_fallback(limit)
 
             # 4. Fallback cuối cùng - trả về trending/popular movies
             logger.error(f"❌ Không thể tạo recommendations cho user {user.id}, trả về trending movies")
@@ -3220,32 +3216,44 @@ class OptimizedRecommendationService:
                 )
 
                 if rec_type == 'hybrid':
-                    # Trigger hybrid recommendations background task
-                    task = generate_hybrid_recommendations_async.delay(
-                        user.id, context, limit=20
+                    # Trigger hybrid recommendations background task với priority cao
+                    task = generate_hybrid_recommendations_async.apply_async(
+                        args=[user.id, context, 20],
+                        kwargs={},
+                        priority=9,
+                        queue='high_priority'
                     )
-                    logger.info(f"🔄 Triggered background hybrid generation cho user {user.id} (task: {task.id})")
+                    logger.info(f"🔄 Triggered background hybrid generation cho user {user.id} (task: {task.id}) với priority cao")
 
                 elif rec_type == 'collaborative':
-                    # Trigger collaborative filtering background task
-                    task = generate_collaborative_recommendations_async.delay(
-                        user.id, context, limit=20
+                    # Trigger collaborative filtering background task với priority cao
+                    task = generate_collaborative_recommendations_async.apply_async(
+                        args=[user.id, context, 20],
+                        kwargs={},
+                        priority=9,
+                        queue='high_priority'
                     )
-                    logger.info(f"🔄 Triggered background collaborative generation cho user {user.id} (task: {task.id})")
+                    logger.info(f"🔄 Triggered background collaborative generation cho user {user.id} (task: {task.id}) với priority cao")
 
                 elif rec_type == 'demographic':
-                    # Trigger demographic recommendations background task
-                    task = generate_demographic_recommendations_async.delay(
-                        user.id, context, limit=20
+                    # Trigger demographic recommendations background task với priority cao
+                    task = generate_demographic_recommendations_async.apply_async(
+                        args=[user.id, context, 20],
+                        kwargs={},
+                        priority=9,
+                        queue='high_priority'
                     )
-                    logger.info(f"🔄 Triggered background demographic generation cho user {user.id} (task: {task.id})")
+                    logger.info(f"🔄 Triggered background demographic generation cho user {user.id} (task: {task.id}) với priority cao")
 
                 else:
-                    # Trigger all types of recommendations
-                    task = refresh_all_recommendations_async.delay(
-                        user.id, context, limit=20
+                    # Trigger all types of recommendations với priority cao
+                    task = refresh_all_recommendations_async.apply_async(
+                        args=[user.id, context, 20],
+                        kwargs={},
+                        priority=9,
+                        queue='high_priority'
                     )
-                    logger.info(f"🔄 Triggered background refresh all recommendations cho user {user.id} (task: {task.id})")
+                    logger.info(f"🔄 Triggered background refresh all recommendations cho user {user.id} (task: {task.id}) với priority cao")
 
         except Exception as e:
             logger.error(f"Error triggering background generation: {str(e)}")
@@ -3322,18 +3330,30 @@ class OptimizedRecommendationService:
         try:
             from apps.movies.models import Movie
 
-            # Lấy trending movies dựa trên vote_average và vote_count
+            # Lấy trending movies dựa trên combined_rating_score và cached ratings
             trending_movies = Movie.objects.filter(
-                vote_count__gte=100,  # Ít nhất 100 votes
-                vote_average__gte=6.0  # Ít nhất 6.0 rating
-            ).order_by('-vote_average', '-vote_count')[:limit]
+                poster_url__isnull=False,
+                poster_url__gt='',
+                combined_rating_score__isnull=False,
+                combined_rating_score__gte=6.0  # Ít nhất 6.0 rating
+            ).order_by('-combined_rating_score', '-cached_imdb_votes')[:limit]
 
             logger.info(f"📈 Trả về {len(trending_movies)} trending movies làm fallback")
             return list(trending_movies)
 
         except Exception as e:
             logger.error(f"Error getting trending fallback: {str(e)}")
-            return []
+            # Fallback cuối cùng - lấy movies có poster
+            try:
+                fallback_movies = Movie.objects.filter(
+                    poster_url__isnull=False,
+                    poster_url__gt=''
+                ).order_by('-created_at')[:limit]
+                logger.info(f"📈 Trả về {len(fallback_movies)} fallback movies")
+                return list(fallback_movies)
+            except Exception as e2:
+                logger.error(f"Error getting fallback movies: {str(e2)}")
+                return []
 
     def _generate_collaborative_background(self, user, context):
         """

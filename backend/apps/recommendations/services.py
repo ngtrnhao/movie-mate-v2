@@ -2751,6 +2751,9 @@ class OptimizedKMeansProductionService:
         """Train với memory optimization"""
         from sklearn.cluster import MiniBatchKMeans
 
+        # Sử dụng AdvancedDemographicVectorizer như refresh_cluster
+        vectorizer = AdvancedDemographicVectorizer()
+
         # Sử dụng MiniBatchKMeans thay vì KMeans thường
         kmeans = MiniBatchKMeans(
             n_clusters=self.max_clusters,
@@ -2762,9 +2765,21 @@ class OptimizedKMeansProductionService:
 
         # Train từng batch
         for batch in users_batches:
-            # Convert to feature matrix
-            features = self._extract_features(batch)
-            kmeans.partial_fit(features)
+            # Convert to feature matrix using comprehensive vectorizer
+            features = []
+            for user_data in batch:
+                try:
+                    # Tạo user object từ user_data
+                    user = User.objects.get(id=user_data['id'])
+                    feature_vector = vectorizer.create_demographic_vector(user)
+                    features.append(feature_vector)
+                except Exception as e:
+                    logger.warning(f"Error creating vector for user {user_data.get('id')}: {str(e)}")
+                    continue
+
+            if features:
+                features_array = np.array(features)
+                kmeans.partial_fit(features_array)
 
             # Check memory usage
             if self._check_memory_usage() > self.memory_limit_mb:
@@ -2820,13 +2835,16 @@ class OptimizedKMeansProductionService:
         # Phase 1: Assign users to clusters using the trained model
         cluster_assignments = {}  # cluster_id -> list of users
 
+        # Sử dụng AdvancedDemographicVectorizer như refresh_cluster
+        vectorizer = AdvancedDemographicVectorizer()
+
         for i in range(0, total_users, self.batch_size):
             batch_users = users[i:i+self.batch_size]
 
             for user in batch_users:
                 try:
-                    # Extract features
-                    features = self._extract_user_features(user)
+                    # Extract features using comprehensive vectorizer
+                    features = vectorizer.create_demographic_vector(user)
 
                     # Predict cluster
                     cluster_label = model.predict([features])[0]

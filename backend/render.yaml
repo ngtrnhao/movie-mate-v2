@@ -97,6 +97,168 @@ services:
     plan: starter
     ipAllowList: []
 
+  # Background Worker Service
+  - type: worker
+    name: movie-mate-background-worker
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: |
+      echo "Building background worker..."
+      pip install -r requirements/prod.txt
+      echo "Background worker dependencies installed"
+    startCommand: |
+      echo "Starting Celery worker..."
+      celery -A config worker --loglevel=info --concurrency=2
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: movie-mate-db
+          property: databaseName
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: movie-mate-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: movie-mate-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: movie-mate-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: movie-mate-db
+          property: port
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: movie-mate-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: movie-mate-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: movie-mate-redis
+          property: connectionString
+      - key: CELERY_WORKER_MAX_TASKS_PER_CHILD
+        value: 1000
+      - key: CELERY_WORKER_PREFETCH_MULTIPLIER
+        value: 1
+      - key: CELERY_TASK_TIME_LIMIT
+        value: 3600
+      - key: CELERY_TASK_SOFT_TIME_LIMIT
+        value: 3000
+      - key: CELERY_WORKER_CONCURRENCY
+        value: 2
+      - key: CELERY_BEAT_SCHEDULE_FILENAME
+        value: "celerybeat-schedule"
+      - key: CELERY_BEAT_MAX_LOOP_INTERVAL
+        value: 300
+      - key: IMDB_API_KEY
+        sync: false
+      - key: ELASTICSEARCH_CLOUD_URL
+        sync: false
+      - key: ELASTICSEARCH_USERNAME
+        sync: false
+      - key: ELASTICSEARCH_PASSWORD
+        sync: false
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+
+  # Celery Beat Scheduler Service (Optional - cho scheduled tasks)
+  - type: worker
+    name: movie-mate-celery-beat
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: |
+      echo "Building Celery Beat scheduler..."
+      pip install -r requirements/prod.txt
+      echo "Celery Beat dependencies installed"
+    startCommand: |
+      echo "Starting Celery Beat scheduler..."
+      celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: movie-mate-db
+          property: databaseName
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: movie-mate-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: movie-mate-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: movie-mate-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: movie-mate-db
+          property: port
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: movie-mate-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: movie-mate-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: movie-mate-redis
+          property: connectionString
+      - key: IMDB_API_KEY
+        sync: false
+      - key: ELASTICSEARCH_CLOUD_URL
+        sync: false
+      - key: ELASTICSEARCH_USERNAME
+        sync: false
+      - key: ELASTICSEARCH_PASSWORD
+        sync: false
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+
 databases:
   - name: movie-mate-db
     databaseName: movie_mate

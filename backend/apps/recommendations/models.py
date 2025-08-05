@@ -284,3 +284,22 @@ class RecommendationMetrics(models.Model):
             models.Index(fields=['click_through_rate']),
             models.Index(fields=['conversion_rate']),
         ]
+
+class ModelStorage(models.Model):
+    """
+    Model để lưu trữ ML models (K-means, etc.)
+    """
+    model_name = models.CharField(max_length=100, unique=True)
+    model_data = models.BinaryField()  # Serialized model data
+    version = models.CharField(max_length=20, default='1.0')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'model_storage'
+        verbose_name = 'Model Storage'
+        verbose_name_plural = 'Model Storage'
+
+    def __str__(self):
+        return f"{self.model_name} v{self.version}"

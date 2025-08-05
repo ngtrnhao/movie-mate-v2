@@ -1,0 +1,65 @@
+{
+  "pearson": {
+    "method": "pearson",
+    "test_users": 5,
+    "total_time": 296.39068579673767,
+    "avg_time_per_user": 59.27813715934754,
+    "successful_comparisons": 5,
+    "failed_comparisons": 0,
+    "avg_similarity": 0.6072905046288951,
+    "similarity_scores": [
+      0.6568087607945116,
+      0.47500175210303197,
+      0.6121225483754081,
+      0.6788108976214728,
+      0.6137085642500505
+    ]
+  },
+  "cosine": {
+    "method": "cosine",
+    "test_users": 5,
+    "total_time": 281.3838801383972,
+    "avg_time_per_user": 56.276776027679446,
+    "successful_comparisons": 5,
+    "failed_comparisons": 0,
+    "avg_similarity": 0.9120059269464535,
+    "similarity_scores": [
+      0.6568087607945116,
+      0.9634441991616214,
+      0.977319115538015,
+      0.9811140674454288,
+      0.9813434917926909
+    ]
+  },
+  "jaccard": {
+    "method": "jaccard",
+    "test_users": 5,
+    "total_time": 278.1994798183441,
+    "avg_time_per_user": 55.63989596366882,
+    "successful_comparisons": 4,
+    "failed_comparisons": 1,
+    "avg_similarity": 0.2731915858678261,
+    "similarity_scores": [
+      0.6568087607945116,
+      0.1200474485000426,
+      0.17062677578119956,
+      0.14528335839555068
+    ]
+  },
+  "euclidean": {
+    "method": "euclidean",
+    "test_users": 5,
+    "total_time": 253.96610474586487,
+    "avg_time_per_user": 50.79322094917298,
+    "successful_comparisons": 5,
+    "failed_comparisons": 0,
+    "avg_similarity": 0.7877980091111259,
+    "similarity_scores": [
+      0.6568087607945116,
+      0.7790711301822534,
+      0.8192259965618189,
+      0.8411110741964803,
+      0.8427730838205647
+    ]
+  }
+}

@@ -15,6 +15,7 @@ from django.conf import settings
 import math
 import random
 import json
+import psutil
 
 
 # Advanced ML Libraries for Enhanced Demographic Filtering
@@ -2681,3 +2682,327 @@ class RecommendationCacheService:
 
         except Exception as e:
             logger.error(f"Error storing recommendations: {str(e)}")
+
+class OptimizedKMeansProductionService:
+    """
+    🎯 Tối ưu K-means cho production với Render yếu
+    Sử dụng hybrid approach: Pre-computed + Caching + Fallback
+    """
+
+    def __init__(self):
+        self.cache_ttl = 3600 * 24  # 24 giờ
+        self.batch_size = 500  # Nhỏ để tiết kiệm memory
+        self.max_clusters = 6  # Giảm từ 8 xuống 6
+        self.memory_limit_mb = 256  # Giới hạn memory
+        self.redis_client = cache.client
+
+    def train_offline_and_deploy(self, force_retrain=False):
+        """
+        🚀 Train offline và deploy model lên production
+        Chỉ chạy trên development environment
+        """
+        if not settings.DEBUG and not force_retrain:
+            logger.warning("Training chỉ được phép trên development")
+            return False
+
+        try:
+            logger.info("🔄 Bắt đầu offline training...")
+
+            # 1. Collect user data in batches
+            users_data = self._collect_users_data_batches()
+
+            # 2. Train model với memory optimization
+            model = self._train_with_memory_optimization(users_data)
+
+            # 3. Save model to multiple storages
+            self._save_model_multi_storage(model)
+
+            # 4. Pre-compute clusters cho tất cả users
+            self._precompute_all_clusters(model)
+
+            logger.info("✅ Offline training hoàn thành!")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Training failed: {str(e)}")
+            return False
+
+    def _collect_users_data_batches(self):
+        """Collect user data theo batches để tiết kiệm memory"""
+        users = User.objects.filter(
+            age__isnull=False,
+            gender__isnull=False
+        ).values('id', 'age', 'gender')
+
+        batches = []
+        for i in range(0, users.count(), self.batch_size):
+            batch = list(users[i:i+self.batch_size])
+            batches.append(batch)
+
+        return batches
+
+    def _train_with_memory_optimization(self, users_batches):
+        """Train với memory optimization"""
+        from sklearn.cluster import MiniBatchKMeans
+
+        # Sử dụng MiniBatchKMeans thay vì KMeans thường
+        kmeans = MiniBatchKMeans(
+            n_clusters=self.max_clusters,
+            batch_size=self.batch_size,
+            random_state=42,
+            max_iter=100,  # Giảm iterations
+            n_init=3       # Giảm init attempts
+        )
+
+        # Train từng batch
+        for batch in users_batches:
+            # Convert to feature matrix
+            features = self._extract_features(batch)
+            kmeans.partial_fit(features)
+
+            # Check memory usage
+            if self._check_memory_usage() > self.memory_limit_mb:
+                logger.warning("⚠️ Memory limit reached, clearing cache...")
+                cache.clear()
+
+        return kmeans
+
+    def _save_model_multi_storage(self, model):
+        """Save model vào multiple storages để đảm bảo availability"""
+        import pickle
+        import json
+
+        # 1. Save to Redis cache
+        model_data = pickle.dumps(model)
+        cache.set('kmeans_model', model_data, timeout=self.cache_ttl)
+
+        # 2. Save to database (serialized)
+        from apps.recommendations.models import ModelStorage
+        ModelStorage.objects.update_or_create(
+            model_name='kmeans_demographic',
+            defaults={
+                'model_data': model_data,
+                'version': '1.0',
+                'created_at': timezone.now()
+            }
+        )
+
+        # 3. Save metadata
+        metadata = {
+            'n_clusters': model.n_clusters,
+            'cluster_centers': model.cluster_centers_.tolist(),
+            'version': '1.0',
+            'created_at': timezone.now().isoformat()
+        }
+        cache.set('kmeans_metadata', json.dumps(metadata), timeout=self.cache_ttl)
+
+        logger.info("💾 Model saved to multiple storages")
+
+    def _precompute_all_clusters(self, model):
+        """Pre-compute clusters cho tất cả users với đầy đủ thông tin demographics"""
+        from apps.recommendations.models import DemographicCluster
+        from apps.recommendations.services import EnhancedDemographicFilteringService
+
+        # Clear existing clusters
+        DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').delete()
+
+        users = User.objects.filter(age__isnull=False, gender__isnull=False)
+        total_users = users.count()
+
+        logger.info(f"🔄 Pre-computing clusters for {total_users} users...")
+
+        # Phase 1: Assign users to clusters using the trained model
+        cluster_assignments = {}  # cluster_id -> list of users
+        
+        for i in range(0, total_users, self.batch_size):
+            batch_users = users[i:i+self.batch_size]
+
+            for user in batch_users:
+                try:
+                    # Extract features
+                    features = self._extract_user_features(user)
+
+                    # Predict cluster
+                    cluster_label = model.predict([features])[0]
+                    cluster_id = f"kmeans_{cluster_label}"
+
+                    # Group users by cluster
+                    if cluster_id not in cluster_assignments:
+                        cluster_assignments[cluster_id] = []
+                    cluster_assignments[cluster_id].append(user)
+
+                    # Update user preference
+                    user_pref, _ = UserPreference.objects.get_or_create(user=user)
+                    user_pref.demographic_cluster = cluster_id
+                    user_pref.save()
+
+                except Exception as e:
+                    logger.warning(f"Failed to process user {user.id}: {str(e)}")
+                    continue
+
+        # Phase 2: Create clusters with full demographic information
+        logger.info("📊 Creating clusters with demographic information...")
+        
+        for cluster_id, cluster_users in cluster_assignments.items():
+            if len(cluster_users) < 3:  # Skip small clusters
+                continue
+
+            # Calculate cluster characteristics
+            ages = [user.age for user in cluster_users if user.age]
+            genders = [user.gender for user in cluster_users if user.gender]
+            occupations = [user.occupation for user in cluster_users if user.occupation]
+
+            # Most common gender
+            from collections import Counter
+            gender_counts = Counter(genders)
+            primary_gender = gender_counts.most_common(1)[0][0] if gender_counts else 'M'
+
+            # Age range
+            age_min = min(ages) if ages else 0
+            age_max = max(ages) if ages else 100
+
+            # Calculate genre preferences for this cluster
+            demographic_service = EnhancedDemographicFilteringService()
+            genre_preferences = demographic_service._calculate_cluster_genre_preferences(cluster_users)
+
+            # Calculate average rating
+            rating_stats = MovieReview.objects.filter(
+                user__in=cluster_users,
+                review_type='USER',
+                rating__isnull=False
+            ).aggregate(
+                avg_rating=Avg('rating'),
+                count=Count('rating')
+            )
+
+            # Create cluster with full information
+            DemographicCluster.objects.create(
+                cluster_id=cluster_id,
+                name=f"K-means Cluster {cluster_id.split('_')[1]}",
+                description=f"K-means cluster {cluster_id.split('_')[1]}: {len(cluster_users)} users, age {age_min}-{age_max}, gender {primary_gender}",
+                age_range_min=age_min,
+                age_range_max=age_max,
+                primary_gender=primary_gender,
+                common_occupations=list(set(occupations))[:5],  # Top 5 occupations
+                preferred_genres=genre_preferences,
+                average_rating=rating_stats['avg_rating'] or 3.0,
+                user_count=len(cluster_users)
+            )
+
+        logger.info("✅ Pre-computation completed with full demographic information!")
+
+    def get_user_cluster_production(self, user):
+        """
+        🎯 Production-ready cluster lookup
+        Fast lookup từ pre-computed data + caching với performance optimization
+        """
+        try:
+            # 1. Try database lookup first (faster than cloud Redis)
+            # Use values() to get only the field we need
+            user_pref_data = UserPreference.objects.filter(
+                user=user
+            ).values('demographic_cluster').first()
+
+            if user_pref_data and user_pref_data.get('demographic_cluster'):
+                cluster_id = user_pref_data['demographic_cluster']
+
+                # Try to cache (async, don't wait for it)
+                try:
+                    cache_key = f"user_cluster:{user.id}"
+                    cache.set(cache_key, cluster_id, timeout=self.cache_ttl)
+                except Exception:
+                    pass  # Ignore cache errors
+
+                return cluster_id
+
+            # 2. Try cache as fallback (if DB lookup failed)
+            try:
+                cache_key = f"user_cluster:{user.id}"
+                cached_cluster = cache.get(cache_key)
+
+                if cached_cluster:
+                    return cached_cluster
+            except Exception:
+                pass  # Ignore cache errors
+
+            # 3. Fallback to rule-based clustering
+            return self._rule_based_fallback(user)
+
+        except Exception as e:
+            logger.error(f"Cluster lookup failed for user {user.id}: {str(e)}")
+            return self._rule_based_fallback(user)
+
+    def _rule_based_fallback(self, user):
+        """Rule-based clustering fallback"""
+        if not user.age or not user.gender:
+            return "kmeans_6"  # Default cluster
+
+        # Simple rule-based logic
+        if user.age < 25:
+            if user.gender == 'M':
+                return "kmeans_2"  # Young male
+            else:
+                return "kmeans_3"  # Young female
+        elif user.age < 45:
+            if user.gender == 'M':
+                return "kmeans_1"  # Adult male
+            else:
+                return "kmeans_5"  # Adult female
+        else:
+            if user.gender == 'M':
+                return "kmeans_0"  # Senior male
+            else:
+                return "kmeans_5"  # Senior female
+
+    def _extract_user_features(self, user):
+        """Extract features từ user data"""
+        # Normalize age (0-1 scale)
+        age_normalized = min(user.age / 100.0, 1.0) if user.age else 0.5
+
+        # Encode gender (0=female, 1=male)
+        gender_encoded = 1 if user.gender == 'M' else 0
+
+        return [age_normalized, gender_encoded]
+
+    def _extract_features(self, users_batch):
+        """Extract features từ batch users"""
+        features = []
+        for user_data in users_batch:
+            age = user_data.get('age', 25)
+            gender = user_data.get('gender', 'M')
+
+            age_normalized = min(age / 100.0, 1.0)
+            gender_encoded = 1 if gender == 'M' else 0
+
+            features.append([age_normalized, gender_encoded])
+
+        return features
+
+    def _check_memory_usage(self):
+        """Check memory usage"""
+        return psutil.virtual_memory().percent
+
+    def get_cluster_statistics(self):
+        """Get statistics về clusters"""
+        from apps.recommendations.models import DemographicCluster
+
+        # Use string filtering for Django ORM
+        clusters = DemographicCluster.objects.filter(
+            cluster_id__startswith='kmeans_'
+        )
+
+        stats = {
+            'total_clusters': clusters.count(),
+            'cluster_distribution': {},
+            'total_users': UserPreference.objects.filter(
+                demographic_cluster__startswith='kmeans_'
+            ).count()
+        }
+
+        for cluster in clusters:
+            user_count = UserPreference.objects.filter(
+                demographic_cluster=cluster.cluster_id
+            ).count()
+            stats['cluster_distribution'][cluster.cluster_id] = user_count
+
+        return stats

@@ -1,0 +1,141 @@
+{
+  "timestamp": "2025-08-02T10:57:13.499017",
+  "title": "Báo cáo phân tích Collaborative Filtering - Hệ thống Movie Mate",
+  "sections": {
+    "overview": {
+      "total_users": 6331,
+      "active_users": 6331,
+      "total_movies": 718002,
+      "total_ratings": 402570,
+      "users_with_ratings": 6239,
+      "rating_coverage": 98.55,
+      "average_ratings_per_user": 64.52,
+      "average_ratings_per_movie": 0.56
+    },
+    "rating_analysis": {
+      "total_ratings": 402570,
+      "distribution": {
+        "0.5": 2188,
+        "1.0": 18830,
+        "1.2": 11,
+        "1.3": 1,
+        "1.4": 5,
+        "1.5": 2380,
+        "2.0": 36323,
+        "2.5": 7297,
+        "3.0": 99058,
+        "3.5": 17942,
+        "4.0": 129066,
+        "4.2": 54,
+        "4.4": 22,
+        "4.5": 12790,
+        "4.6": 3,
+        "4.8": 5,
+        "4.9": 1,
+        "5.0": 76593,
+        "5.2": 1
+      },
+      "statistics": {
+        "average_rating": 3.5559790843828405,
+        "min_rating": 0.5,
+        "max_rating": 5.2
+      },
+      "rating_trends": {
+        "high_ratings_4_5": 218535,
+        "medium_ratings_2_4": 124297,
+        "low_ratings_1_2": 59738,
+        "high_rating_percentage": 54.28,
+        "low_rating_percentage": 14.84
+      }
+    },
+    "utility_matrix": {
+      "matrix_dimensions": {
+        "users": 6239,
+        "movies": 15473,
+        "total_cells": 96536047,
+        "filled_cells": 402570,
+        "sparsity_percentage": 99.58
+      },
+      "user_rating_patterns": {
+        "average_ratings_per_user": 64.52,
+        "max_ratings_per_user": 3178,
+        "min_ratings_per_user": 1
+      },
+      "sparsity_analysis": {
+        "is_sparse": true,
+        "sparsity_level": "Rất thưa",
+        "challenge_level": "Cao"
+      }
+    },
+    "similarity_analysis": {
+      "similarity_statistics": {
+        "average_similarity": 0.752,
+        "max_similarity": 0.856,
+        "min_similarity": 0.649,
+        "total_comparisons": 45
+      },
+      "similarity_distribution": {
+        "high_similarity_08_10": 8,
+        "medium_similarity_05_08": 37,
+        "low_similarity_00_05": 0
+      },
+      "collaborative_potential": {
+        "has_sufficient_similarity": true,
+        "recommendation_quality": "Tốt"
+      }
+    },
+    "performance_analysis": {
+      "performance_metrics": {
+        "precision_at_10": 0.65,
+        "recall_at_10": 0.6,
+        "coverage": 0.7,
+        "diversity": 0.65,
+        "novelty": 0.58
+      },
+      "scalability_analysis": {
+        "current_scale": "6239 users, 15473 movies",
+        "sparsity_impact": "Cao",
+        "recommendation_quality": "Trung bình"
+      },
+      "processing_requirements": {
+        "estimated_memory_gb": 0.72,
+        "estimated_processing_time_ms": 623.9,
+        "recommended_optimization": "Có thể xử lý"
+      }
+    },
+    "conclusions": {
+      "key_findings": [
+        "Hệ thống có 6331 users với 6239 users có rating",
+        "Tổng cộng 402570 ratings được thu thập",
+        "Độ thưa của ma trận rating: 99.59%",
+        "Phân phối rating cho thấy xu hướng tích cực (nhiều rating cao)",
+        "Collaborative Filtering có tiềm năng tốt với dữ liệu hiện tại"
+      ],
+      "strengths": [
+        "Dữ liệu rating đa dạng và phong phú",
+        "Số lượng users và movies lớn",
+        "Phân phối rating hợp lý",
+        "Hệ thống có khả năng mở rộng"
+      ],
+      "challenges": [
+        "Độ thưa cao (99.59%) có thể ảnh hưởng đến chất lượng gợi Ý",
+        "Cần tối ưu hóa thuật toán cho dữ liệu lớn",
+        "Cần cải thiện độ chính xác của similarity calculation"
+      ],
+      "recommendations": [
+        "Triển khai matrix factorization để xử lý độ thưa",
+        "Sử dụng hybrid approach kết hợp content-based",
+        "Tối ưu hóa similarity calculation với caching",
+        "Thêm demographic information để cải thiện accuracy",
+        "Triển khai real-time recommendation system"
+      ],
+      "implementation_priority": [
+        "1. Tối ưu hóa similarity calculation",
+        "2. Triển khai matrix factorization",
+        "3. Cải thiện hybrid approach",
+        "4. Thêm demographic filtering",
+        "5. Tối ưu hóa performance"
+      ]
+    }
+  }
+}

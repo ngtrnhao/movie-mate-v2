@@ -19,42 +19,6 @@ app.conf.worker_max_tasks_per_child = 1
 app.conf.beat_scheduler = 'celery.beat.PersistentScheduler'
 app.conf.beat_schedule_filename = 'celerybeat-schedule'
 
-# Timeout configurations for long-running tasks
-app.conf.task_soft_time_limit = 600  # 10 minutes soft timeout
-app.conf.task_time_limit = 900       # 15 minutes hard timeout
-app.conf.worker_prefetch_multiplier = 1  # Process one task at a time
-app.conf.task_acks_late = True       # Acknowledge task after completion
-app.conf.task_reject_on_worker_lost = True  # Reject task if worker dies
-
-# Queue and priority configurations
-app.conf.task_routes = {
-    # High priority tasks - user-facing recommendations
-    'apps.recommendations.tasks.generate_collaborative_recommendations_async': {'queue': 'high_priority'},
-    'apps.recommendations.tasks.generate_hybrid_recommendations_async': {'queue': 'high_priority'},
-    'apps.recommendations.tasks.generate_demographic_recommendations_async': {'queue': 'high_priority'},
-    'apps.recommendations.tasks.generate_user_recommendations_async': {'queue': 'high_priority'},
-
-    # Medium priority tasks - background processing
-    'apps.recommendations.tasks.batch_generate_*': {'queue': 'medium_priority'},
-    'apps.recommendations.tasks.refresh_all_recommendations_async': {'queue': 'medium_priority'},
-
-    # Low priority tasks - maintenance and cleanup
-    'apps.recommendations.tasks.cleanup_*': {'queue': 'low_priority'},
-    'apps.recommendations.tasks.bulk_refresh_stale_recommendations': {'queue': 'low_priority'},
-
-    # Default queue for other tasks
-    '*': {'queue': 'default'}
-}
-
-# Queue configurations
-app.conf.task_default_queue = 'default'
-app.conf.task_default_exchange = 'default'
-app.conf.task_default_routing_key = 'default'
-
-# Priority settings
-app.conf.task_queue_max_priority = 10
-app.conf.task_default_priority = 5
-
 # Configure celery beat schedule
 app.conf.beat_schedule = {
     "sync_popular_movies": {

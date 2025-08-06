@@ -55,49 +55,6 @@ app.conf.update(
     enable_utc=True,
 )
 
-# Queue and priority configurations for production
-app.conf.task_routes = {
-    # High priority tasks - user-facing recommendations
-    'apps.recommendations.tasks.generate_collaborative_recommendations_async': {'queue': 'high_priority'},
-    'apps.recommendations.tasks.generate_hybrid_recommendations_async': {'queue': 'high_priority'},
-    'apps.recommendations.tasks.generate_demographic_recommendations_async': {'queue': 'high_priority'},
-    'apps.recommendations.tasks.generate_user_recommendations_async': {'queue': 'high_priority'},
-
-    # Medium priority tasks - background processing
-    'apps.recommendations.tasks.batch_generate_*': {'queue': 'medium_priority'},
-    'apps.recommendations.tasks.refresh_all_recommendations_async': {'queue': 'medium_priority'},
-    'apps.users.tasks.update_user_similarities_batch': {'queue': 'medium_priority'},
-    'apps.users.tasks.generate_recommendations_for_active_users': {'queue': 'medium_priority'},
-
-    # Low priority tasks - maintenance and cleanup
-    'apps.recommendations.tasks.cleanup_*': {'queue': 'low_priority'},
-    'apps.recommendations.tasks.bulk_refresh_stale_recommendations': {'queue': 'low_priority'},
-    'apps.recommendations.tasks.auto_manage_large_user_base': {'queue': 'low_priority'},
-
-    # Movie sync tasks - medium priority
-    'apps.movies.tasks.sync_*': {'queue': 'medium_priority'},
-    'apps.movies.tasks.update_movie_cache': {'queue': 'medium_priority'},
-
-    # Quality metrics - low priority
-    'apps.movies.tasks.calculate_quality_*': {'queue': 'low_priority'},
-    'apps.movies.tasks.quality_maintenance_auto': {'queue': 'low_priority'},
-
-    # User interaction processing - medium priority
-    'apps.movies.tasks.process_user_interactions_auto': {'queue': 'medium_priority'},
-
-    # Default queue for other tasks
-    '*': {'queue': 'default'}
-}
-
-# Queue configurations
-app.conf.task_default_queue = 'default'
-app.conf.task_default_exchange = 'default'
-app.conf.task_default_routing_key = 'default'
-
-# Priority settings
-app.conf.task_queue_max_priority = 10
-app.conf.task_default_priority = 5
-
 # Configure celery beat schedule for production
 app.conf.beat_schedule = {
     # ===== MOVIE SYNC TASKS =====

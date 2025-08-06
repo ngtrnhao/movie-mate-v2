@@ -61,19 +61,19 @@ app.conf.beat_schedule = {
     # Sync popular movies weekly (Sunday 2 AM)
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": crontab(hour=2, minute=0, day_of_week=0),  # Sunday 2 AM
+        "schedule": crontab(hour=1, minute=0, day_of_week="*/5"),  # every 5 days
         "options": {"priority": 8}
     },
     # Sync top rated movies weekly (Monday 3 AM)
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": crontab(hour=3, minute=0, day_of_week=1),  # Monday 3 AM
+        "schedule": crontab(hour=3, minute=0, day_of_week="*/5"),  # every 5 days
         "options": {"priority": 8}
     },
     # Sync upcoming movies every 3 days (2 AM)
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": crontab(hour=2, minute=0, day_of_month="*/3"),  # Every 3 days at 2 AM
+        "schedule": crontab(hour=2, minute=0, day_of_month="*/5"),  # every 5 days
         "options": {"priority": 7}
     },
 
@@ -95,7 +95,7 @@ app.conf.beat_schedule = {
     # Process user interactions hourly
     "process_user_interactions_frequent": {
         "task": "apps.movies.tasks.process_user_interactions_auto",
-        "schedule": crontab(minute=0),  # Every hour at minute 0
+        "schedule": crontab(minute="*/10"),  # Every 10 minutes
         "kwargs": {"hours": 2},
         "options": {"priority": 7}
     },

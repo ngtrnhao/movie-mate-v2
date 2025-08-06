@@ -26,8 +26,8 @@ class RecommendationTaskLock:
         """
         lock_key = RecommendationTaskLock.get_lock_key(user_id, context)
 
-        # Try to acquire lock with timeout
-        acquired = cache.set(lock_key, True, timeout=timeout, nx=True)
+        # Try to acquire lock with timeout using cache.add() which is atomic
+        acquired = cache.add(lock_key, True, timeout=timeout)
 
         if acquired:
             logger.info(f"Acquired recommendation task lock for user {user_id}, context {context}")

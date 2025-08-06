@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
-@shared_task(bind=True, priority=9)
+@shared_task(bind=True)
 def generate_user_recommendations_async(self, user_id: int, context: str = 'homepage', limit: int = 20):
     """
     Generate recommendations for a user asynchronously
@@ -132,7 +132,7 @@ def generate_user_recommendations_async(self, user_id: int, context: str = 'home
         cache.delete(task_cache_key)
         return 0
 
-@shared_task(bind=True, priority=9)
+@shared_task(bind=True)
 def generate_collaborative_recommendations_async(self, user_id: int, context: str = 'homepage', limit: int = 20):
     """
     Generate collaborative filtering recommendations asynchronously
@@ -189,7 +189,7 @@ def generate_collaborative_recommendations_async(self, user_id: int, context: st
                 recommendation_type='collaborative',
                 context=context
             ).exclude(
-                movie__in=recommendations[:limit]
+                movie__in=[movie for movie in recommendations[:limit]]
             ).delete()
             logger.info(f"✅ Đã xóa recommendations cũ và lưu {len(recommendations)} recommendations mới cho user {user_id}")
         else:
@@ -205,7 +205,7 @@ def generate_collaborative_recommendations_async(self, user_id: int, context: st
         logger.error(f"❌ Error in background collaborative filtering for user {user_id}: {str(e)}")
         return 0
 
-@shared_task(bind=True, priority=9)
+@shared_task(bind=True)
 def generate_hybrid_recommendations_async(self, user_id: int, context: str = 'homepage', limit: int = 20):
     """
     Generate hybrid recommendations asynchronously
@@ -262,7 +262,7 @@ def generate_hybrid_recommendations_async(self, user_id: int, context: str = 'ho
                 recommendation_type='hybrid',
                 context=context
             ).exclude(
-                movie__in=recommendations[:limit]
+                movie__in=[movie for movie in recommendations[:limit]]
             ).delete()
             logger.info(f"✅ Đã xóa recommendations cũ và lưu {len(recommendations)} hybrid recommendations mới cho user {user_id}")
         else:
@@ -278,7 +278,7 @@ def generate_hybrid_recommendations_async(self, user_id: int, context: str = 'ho
         logger.error(f"❌ Error in background hybrid recommendations for user {user_id}: {str(e)}")
         return 0
 
-@shared_task(bind=True, priority=9)
+@shared_task(bind=True)
 def generate_demographic_recommendations_async(self, user_id: int, context: str = 'homepage', limit: int = 20):
     """
     Generate demographic recommendations asynchronously

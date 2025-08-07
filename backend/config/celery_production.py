@@ -221,6 +221,32 @@ app.conf.beat_schedule = {
         "schedule": crontab(hour=10, minute=0, day_of_month="*/2"),  # Every 2 days at 10 AM
         "options": {"priority": 6}
     },
+
+    # ===== PURE CF OPTIMIZATION TASKS =====
+    # Detect and generate missing CF recommendations every 4 hours
+    "detect_missing_cf_recommendations": {
+        "task": "apps.recommendations.tasks.detect_and_generate_missing_cf_recommendations",
+        "schedule": crontab(hour="*/4", minute=35),  # Every 4 hours at minute 35
+        "options": {"priority": 7}
+    },
+    # Smart CF prioritization daily at 1 AM
+    "smart_cf_prioritization": {
+        "task": "apps.recommendations.tasks.smart_cf_recommendation_prioritization",
+        "schedule": crontab(hour=1, minute=30),  # Daily at 1:30 AM
+        "options": {"priority": 8}
+    },
+    # Precompute user similarities daily at 2 AM
+    "precompute_similarities": {
+        "task": "apps.recommendations.tasks.precompute_user_similarities_batch",
+        "schedule": crontab(hour=2, minute=30),  # Daily at 2:30 AM
+        "options": {"priority": 7}
+    },
+    # Monitor CF system health three times daily (6 AM, 2 PM, 10 PM)
+    "monitor_cf_health": {
+        "task": "apps.recommendations.tasks.monitor_cf_system_health",
+        "schedule": crontab(hour="6,14,22", minute=45),  # 6 AM, 2 PM, 10 PM
+        "options": {"priority": 5}
+    },
 }
 
 @app.task(bind=True, ignore_result=True)

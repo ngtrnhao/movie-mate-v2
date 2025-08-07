@@ -677,3 +677,277 @@ def cleanup_expired_recommendations(self):
     Clean up expired recommendations (alias for cleanup_old_recommendations)
     """
     return cleanup_old_recommendations(days_old=7)
+
+@shared_task(bind=True)
+def detect_and_generate_missing_cf_recommendations(self):
+    """
+    Detect users without CF recommendations và trigger generation
+    Automatically finds users missing pure CF recommendations and generates them
+    """
+    try:
+        logger.info("🔍 Starting detection of users missing CF recommendations...")
+
+        from django.db.models import Count, Q
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # Find users WITHOUT any CF recommendations
+        users_without_cf = User.objects.filter(
+            is_active=True,
+            age__isnull=False,
+            gender__isnull=False
+        ).exclude(
+            recommendations__recommendation_type='collaborative',
+            recommendations__context='homepage'
+        ).distinct()
+
+        # Find users with OLD CF recommendations (>7 days)
+        cutoff_date = timezone.now() - timedelta(days=7)
+        users_with_stale_cf = User.objects.filter(
+            recommendations__recommendation_type='collaborative',
+            recommendations__context='homepage',
+            recommendations__created_at__lt=cutoff_date
+        ).distinct()
+
+        # Combine both groups
+        users_needing_cf = users_without_cf.union(users_with_stale_cf)[:200]  # Limit
+
+        logger.info(f"👥 Found {len(users_needing_cf)} users needing CF recommendations")
+        logger.info(f"   - {users_without_cf.count()} users without CF recs")
+        logger.info(f"   - {users_with_stale_cf.count()} users with stale CF recs")
+
+        # Trigger CF generation for each user
+        triggered_count = 0
+        for user in users_needing_cf:
+            try:
+                # Check if user has enough ratings for CF
+                from apps.movies.models import MovieReview
+                rating_count = MovieReview.objects.filter(
+                    user=user,
+                    review_type='USER'
+                ).count()
+
+                if rating_count >= 10:  # Minimum ratings for CF
+                    generate_collaborative_recommendations_async.delay(
+                        user.id, 'homepage', 20
+                    )
+                    triggered_count += 1
+                else:
+                    logger.debug(f"User {user.id} has only {rating_count} ratings, skipping CF")
+
+            except Exception as e:
+                logger.error(f"Error triggering CF for user {user.id}: {str(e)}")
+                continue
+
+        logger.info(f"✅ CF generation triggered for {triggered_count} users")
+
+        return {
+            'status': 'success',
+            'users_found': len(users_needing_cf),
+            'cf_triggered': triggered_count
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Error in detect_and_generate_missing_cf_recommendations: {str(e)}")
+        raise self.retry(exc=e, countdown=300, max_retries=2)
+
+@shared_task(bind=True)
+def smart_cf_recommendation_prioritization(self):
+    """
+    Intelligent prioritization for CF recommendation generation
+    Prioritizes active users and those with recent activity for CF recommendations
+    """
+    try:
+        logger.info("🎯 Starting smart CF prioritization...")
+
+        from django.db.models import Count
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # Priority 1: Active users without ANY recommendations
+        priority_1_users = User.objects.filter(
+            is_active=True,
+            last_login__gte=timezone.now() - timedelta(days=7)
+        ).exclude(
+            recommendations__context='homepage'
+        ).annotate(
+            rating_count=Count('moviereview')
+        ).filter(
+            rating_count__gte=20  # High-activity users
+        ).order_by('-rating_count')[:50]
+
+        # Priority 2: Users with recent activity but old CF recs
+        priority_2_users = User.objects.filter(
+            is_active=True,
+            last_login__gte=timezone.now() - timedelta(days=3),
+            recommendations__recommendation_type='collaborative',
+            recommendations__created_at__lt=timezone.now() - timedelta(days=14)
+        ).annotate(
+            rating_count=Count('moviereview')
+        ).filter(
+            rating_count__gte=15
+        ).order_by('-last_login')[:30]
+
+        # Process Priority 1 first
+        for user in priority_1_users:
+            generate_collaborative_recommendations_async.apply_async(
+                args=[user.id, 'homepage', 20],
+                priority=9,  # High priority
+                queue='high_priority'
+            )
+
+        # Process Priority 2
+        for user in priority_2_users:
+            generate_collaborative_recommendations_async.apply_async(
+                args=[user.id, 'homepage', 20],
+                priority=5,  # Medium priority
+                queue='normal'
+            )
+
+        logger.info(f"✅ Smart prioritization completed: {len(priority_1_users)} P1, {len(priority_2_users)} P2")
+
+        return {
+            'priority_1_count': len(priority_1_users),
+            'priority_2_count': len(priority_2_users)
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Error in smart_cf_recommendation_prioritization: {str(e)}")
+        raise self.retry(exc=e, countdown=300, max_retries=2)
+
+@shared_task(bind=True)
+def precompute_user_similarities_batch(self):
+    """
+    Precompute similarities cho active users để improve CF performance
+    Background task to precompute user similarities for faster CF recommendations
+    """
+    try:
+        logger.info("🔄 Starting similarity precomputation for active users...")
+
+        from django.db.models import Count
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.recommendations.models import UserSimilarity
+        from apps.recommendations.services import CollaborativeFilteringService
+        from django.db.models import Q
+
+        # Get top 500 most active users
+        active_users = User.objects.annotate(
+            rating_count=Count('moviereview')
+        ).filter(
+            rating_count__gte=20,
+            last_login__gte=timezone.now() - timedelta(days=30)
+        ).order_by('-rating_count')[:500]
+
+        logger.info(f"🔄 Starting similarity precomputation for {len(active_users)} users")
+
+        # Compute similarities for active users only
+        cf_service = CollaborativeFilteringService()
+        similarities_created = 0
+
+        for i, user in enumerate(active_users[:100], 1):  # Limit to 100 users per run
+            try:
+                # Check if similarities already exist
+                existing_count = UserSimilarity.objects.filter(
+                    Q(user1=user) | Q(user2=user)
+                ).count()
+
+                if existing_count < 10:  # Need more similarities
+                    similar_users = cf_service.find_similar_users(user, limit=50)
+
+                    similarities_to_create = []
+                    for similar_user, similarity_score in similar_users:
+                        similarities_to_create.append(UserSimilarity(
+                            user1=user,
+                            user2=similar_user,
+                            similarity_score=similarity_score,
+                            similarity_type='collaborative'
+                        ))
+
+                    if similarities_to_create:
+                        UserSimilarity.objects.bulk_create(
+                            similarities_to_create,
+                            ignore_conflicts=True
+                        )
+                        similarities_created += len(similarities_to_create)
+
+                if i % 10 == 0:
+                    logger.info(f"🔄 Processed {i}/100 users, created {similarities_created} similarities")
+
+            except Exception as e:
+                logger.error(f"Error processing user {user.id}: {str(e)}")
+                continue
+
+        logger.info(f"✅ Similarity precomputation completed: {similarities_created} similarities created")
+        return similarities_created
+
+    except Exception as e:
+        logger.error(f"❌ Error in precompute_user_similarities_batch: {str(e)}")
+        raise self.retry(exc=e, countdown=300, max_retries=2)
+
+@shared_task(bind=True)
+def monitor_cf_system_health(self):
+    """
+    Monitor và báo cáo health của CF recommendation system
+    Health monitoring task for CF system performance and coverage
+    """
+    try:
+        logger.info("📊 Starting CF system health monitoring...")
+
+        from apps.recommendations.models import RecommendationResult, UserSimilarity
+        from django.db.models import Count
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # Basic stats
+        total_users = User.objects.count()
+        active_users = User.objects.filter(
+            last_login__gte=timezone.now() - timedelta(days=7)
+        ).count()
+
+        # CF Coverage stats
+        cf_users = RecommendationResult.objects.filter(
+            recommendation_type='collaborative'
+        ).values_list('user_id', flat=True).distinct().count()
+
+        recent_cf = RecommendationResult.objects.filter(
+            recommendation_type='collaborative',
+            created_at__gte=timezone.now() - timedelta(hours=24)
+        ).count()
+
+        # Similarity stats
+        total_similarities = UserSimilarity.objects.count()
+        recent_similarities = UserSimilarity.objects.filter(
+            created_at__gte=timezone.now() - timedelta(days=7)
+        ).count()
+
+        # Calculate coverage percentages
+        cf_coverage = (cf_users / total_users * 100) if total_users > 0 else 0
+        active_cf_coverage = (cf_users / active_users * 100) if active_users > 0 else 0
+
+        health_report = {
+            'timestamp': timezone.now().isoformat(),
+            'total_users': total_users,
+            'active_users_7d': active_users,
+            'cf_coverage_users': cf_users,
+            'cf_coverage_percentage': round(cf_coverage, 2),
+            'active_cf_coverage_percentage': round(active_cf_coverage, 2),
+            'recent_cf_recommendations_24h': recent_cf,
+            'total_similarities': total_similarities,
+            'recent_similarities_7d': recent_similarities,
+            'status': 'healthy' if cf_coverage > 50 else 'needs_attention'
+        }
+
+        logger.info(f"📊 CF System Health Report:")
+        logger.info(f"   - Total users: {total_users}")
+        logger.info(f"   - Active users (7d): {active_users}")
+        logger.info(f"   - CF coverage: {cf_users}/{total_users} ({cf_coverage:.1f}%)")
+        logger.info(f"   - Recent CF recs (24h): {recent_cf}")
+        logger.info(f"   - Total similarities: {total_similarities}")
+        logger.info(f"   - Status: {health_report['status']}")
+
+        return health_report
+
+    except Exception as e:
+        logger.error(f"❌ Error in monitor_cf_system_health: {str(e)}")
+        return {'status': 'error', 'error': str(e)}

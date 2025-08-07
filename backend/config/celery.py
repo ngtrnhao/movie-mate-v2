@@ -156,6 +156,32 @@ app.conf.beat_schedule = {
         "schedule": timedelta(days=1),
         "options": {"priority": 6}
     },
+
+    # ===== NEW PURE CF OPTIMIZATION TASKS =====
+    # Detect and generate missing CF recommendations every 4 hours
+    "detect_missing_cf_recommendations": {
+        "task": "apps.recommendations.tasks.detect_and_generate_missing_cf_recommendations",
+        "schedule": timedelta(hours=4),
+        "options": {"priority": 7}
+    },
+    # Smart CF prioritization daily at 1 AM
+    "smart_cf_prioritization": {
+        "task": "apps.recommendations.tasks.smart_cf_recommendation_prioritization",
+        "schedule": crontab(hour=1, minute=0),
+        "options": {"priority": 8}
+    },
+    # Precompute user similarities daily at 2 AM
+    "precompute_similarities": {
+        "task": "apps.recommendations.tasks.precompute_user_similarities_batch",
+        "schedule": crontab(hour=2, minute=0),
+        "options": {"priority": 7}
+    },
+    # Monitor CF system health twice daily (8 AM and 8 PM)
+    "monitor_cf_health": {
+        "task": "apps.recommendations.tasks.monitor_cf_system_health",
+        "schedule": crontab(hour="8,20", minute=30),
+        "options": {"priority": 5}
+    },
 }
 
 # Task time limits are now configured in Django settings

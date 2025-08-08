@@ -247,7 +247,7 @@ class RecommendationViewSet(viewsets.ViewSet):
                 }, status=400)
 
             df_service = EnhancedDemographicFilteringService()
-            recommendations = df_service.generate_demographic_recommendations(
+            recommendations = df_service.generate_enhanced_demographic_recommendations(
                 user, limit=limit, context=context, store=True
             )
 

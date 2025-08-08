@@ -151,7 +151,7 @@ class CollaborativeFilteringService:
         self.min_common_ratings = 5
         self.min_similar_users = 10
         self.similarity_threshold = 0.1
-        self.cache_timeout = 3600 * 24 * 7  # 7 ngày thay vì 1 giờ
+        self.cache_timeout = 3600 * 24 * 7
 
     def calculate_user_similarity(self, user1, user2, method='pearson') -> float:
         """
@@ -752,7 +752,7 @@ class EnhancedDemographicFilteringService:
             self.kmeans_model = None
             self.scaler = None
 
-    def create_kmeans_clusters(self, recalculate=False, n_clusters=8):
+    def create_kmeans_clusters(self, recalculate=False, n_clusters=8, adaptive=True, k_min=4, k_max=12):
         """
         Create demographic clusters using K-means clustering
         """
@@ -768,7 +768,7 @@ class EnhancedDemographicFilteringService:
                     self._load_kmeans_model()
                 return
 
-            logger.info(f"🔄 Creating K-means clusters with {n_clusters} clusters...")
+            logger.info(f"Creating K-means clusters with {n_clusters} clusters...")
 
             # Clear existing K-means clusters if recalculating
             if recalculate:
@@ -811,9 +811,45 @@ class EnhancedDemographicFilteringService:
             scaler = StandardScaler()
             X_scaled = scaler.fit_transform(X)
 
+            # Optionally select optimal K adaptively (silhouette)
+            optimal_k = n_clusters
+            if adaptive:
+                try:
+                    from sklearn.cluster import MiniBatchKMeans
+                    from sklearn.metrics import silhouette_score
+
+                    # Boundaries for K
+                    k_lower = max(2, k_min)
+                    k_upper = min(k_max, len(X_scaled) - 1)
+                    if k_upper <= k_lower:
+                        k_upper = max(k_lower + 1, 3)
+
+                    best_score = -1.0
+                    best_k = n_clusters
+
+                    # Sample size for silhouette to reduce cost
+                    sample_size = min(5000, len(X_scaled))
+
+                    for k in range(k_lower, k_upper + 1):
+                        try:
+                            mbk = MiniBatchKMeans(n_clusters=k, random_state=42, batch_size=min(1000, len(X_scaled)), n_init=5)
+                            labels = mbk.fit_predict(X_scaled)
+                            score = silhouette_score(X_scaled, labels, sample_size=sample_size)
+                            if score > best_score:
+                                best_score = score
+                                best_k = k
+                        except Exception as e:
+                            logger.debug(f"Silhouette failed for k={k}: {e}")
+                            continue
+
+                    optimal_k = best_k
+                    logger.info(f"✅ Adaptive K selection chose k={optimal_k} (silhouette={best_score:.4f})")
+                except Exception as e:
+                    logger.warning(f"Adaptive K selection failed, using n_clusters={n_clusters}: {e}")
+
             # Perform K-means clustering
             logger.info(" Running K-means clustering...")
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init=10)
             cluster_labels = kmeans.fit_predict(X_scaled)
 
             # Store the model for future use
@@ -823,7 +859,7 @@ class EnhancedDemographicFilteringService:
             # Create clusters in database
             logger.info(" Creating cluster records in database...")
 
-            for cluster_id in range(n_clusters):
+            for cluster_id in range(self.kmeans_model.n_clusters):
                 # Get users in this cluster
                 cluster_users = [users_list[i] for i in range(len(users_list)) if cluster_labels[i] == cluster_id]
 
@@ -1905,7 +1941,7 @@ class HybridRecommendationService:
                 else:
                     predicted_rating = min(5.0, 2.5 + (rec['score'] * 2.5))
 
-                confidence = min(1.0, len(rec['methods']) / 4.0)
+                confidence = min(1.0, sum(self.weights.get(m, 0.0) for m in rec['methods']))
                 novelty = 0.5 + (0.3 if 'trending' in rec['methods'] else 0.0)
 
                 final_recommendations.append({
@@ -2799,7 +2835,12 @@ class OptimizedKMeansProductionService:
     def __init__(self):
         self.cache_ttl = 3600 * 24 * 7  # 7 ngày thay vì 24 giờ
         self.batch_size = 500  # Nhỏ để tiết kiệm memory
-        self.max_clusters = 6  # Giảm từ 8 xuống 6
+        # Thiết lập mặc định K thích ứng cho production
+        self.adaptive_k = True
+        self.k_min = 4
+        self.k_max = 12
+        self.silhouette_sample_size = 5000
+        self.max_clusters = 6  # Giá trị fallback nếu tắt adaptive
         self.memory_limit_mb = 256  # Giới hạn memory
         # Không cần redis_client vì sử dụng Django cache framework
 
@@ -2849,40 +2890,83 @@ class OptimizedKMeansProductionService:
         return batches
 
     def _train_with_memory_optimization(self, users_batches):
-        """Train với memory optimization"""
+        """Train với memory optimization và chọn K thích ứng (nếu bật)."""
         from sklearn.cluster import MiniBatchKMeans
+        from sklearn.metrics import silhouette_score
 
-        # Sử dụng AdvancedDemographicVectorizer như refresh_cluster
         vectorizer = AdvancedDemographicVectorizer()
 
-        # Sử dụng MiniBatchKMeans thay vì KMeans thường
+        # 1) Thu thập mẫu đặc trưng để chọn K (giới hạn sample để tiết kiệm bộ nhớ)
+        sample_features = []
+        sample_limit = self.silhouette_sample_size
+        for batch in users_batches:
+            if len(sample_features) >= sample_limit:
+                break
+            for user_data in batch:
+                if len(sample_features) >= sample_limit:
+                    break
+                try:
+                    user = User.objects.get(id=user_data['id'])
+                    fv = vectorizer.create_demographic_vector(user)
+                    sample_features.append(fv)
+                except Exception as e:
+                    logger.warning(f"Error creating vector for user {user_data.get('id')}: {e}")
+                    continue
+
+        optimal_k = self.max_clusters
+        if self.adaptive_k and len(sample_features) >= max(100, self.k_min * 5):  # cần mẫu tối thiểu
+            try:
+                Xs = np.array(sample_features)
+                k_lower = max(2, self.k_min)
+                k_upper = min(self.k_max, len(Xs) - 1)
+                if k_upper <= k_lower:
+                    k_upper = max(k_lower + 1, 3)
+
+                best_score = -1.0
+                best_k = optimal_k
+                batch_for_test = min(1000, len(Xs))
+
+                for k in range(k_lower, k_upper + 1):
+                    try:
+                        mbk = MiniBatchKMeans(n_clusters=k, random_state=42, batch_size=batch_for_test, n_init=5)
+                        labels = mbk.fit_predict(Xs)
+                        score = silhouette_score(Xs, labels, sample_size=min(len(Xs), 5000))
+                        if score > best_score:
+                            best_score = score
+                            best_k = k
+                    except Exception as e:
+                        logger.debug(f"Silhouette failed for k={k}: {e}")
+                        continue
+
+                optimal_k = best_k
+                logger.info(f"✅ Adaptive K (production) chọn k={optimal_k} (silhouette={best_score:.4f})")
+            except Exception as e:
+                logger.warning(f"Adaptive K selection (production) failed, dùng mặc định {optimal_k}: {e}")
+
+        # 2) Khởi tạo mô hình với K tối ưu và train qua toàn bộ batches bằng partial_fit
         kmeans = MiniBatchKMeans(
-            n_clusters=self.max_clusters,
+            n_clusters=optimal_k,
             batch_size=self.batch_size,
             random_state=42,
-            max_iter=100,  # Giảm iterations
-            n_init=3       # Giảm init attempts
+            max_iter=100,
+            n_init=3
         )
 
-        # Train từng batch
         for batch in users_batches:
-            # Convert to feature matrix using comprehensive vectorizer
             features = []
             for user_data in batch:
                 try:
-                    # Tạo user object từ user_data
                     user = User.objects.get(id=user_data['id'])
-                    feature_vector = vectorizer.create_demographic_vector(user)
-                    features.append(feature_vector)
+                    fv = vectorizer.create_demographic_vector(user)
+                    features.append(fv)
                 except Exception as e:
-                    logger.warning(f"Error creating vector for user {user_data.get('id')}: {str(e)}")
+                    logger.warning(f"Error creating vector for user {user_data.get('id')}: {e}")
                     continue
 
             if features:
                 features_array = np.array(features)
                 kmeans.partial_fit(features_array)
 
-            # Check memory usage
             if self._check_memory_usage() > self.memory_limit_mb:
                 logger.warning("⚠️ Memory limit reached, clearing cache...")
                 cache.clear()

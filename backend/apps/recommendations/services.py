@@ -1559,9 +1559,11 @@ class EnhancedDemographicFilteringService:
             similar_users = self._get_similar_users_from_cluster(user, user_cluster, limit=20)
             if not similar_users:
                 logger.warning(f"No similar users found in cluster {user_cluster} for user {user.id}")
-                return []
+                logger.info(f"Using cluster-based cold start logic for user {user.id}")
+                # Pass empty list - cold start logic sẽ handle trong _generate_recommendations
+                similar_users = []
 
-            # Generate recommendations from similar users
+            # Generate recommendations from similar users (handles cold start internally)
             recommendations = self._generate_recommendations_from_similar_users(
                 user, similar_users, limit=limit
             )
@@ -1589,7 +1591,10 @@ class EnhancedDemographicFilteringService:
     def _generate_recommendations_from_similar_users(self, target_user,
                                                    similar_users: List[Tuple],
                                                    limit: int) -> List[Dict]:
-        """Generate candidate recommendations from similar users"""
+        """
+        Generate candidate recommendations from similar users
+        FIXED: Theo lý thuyết Demographic Filtering - xử lý cold start
+        """
         try:
             # Get movies user has already interacted with
             user_movie_ids = set(MovieReview.objects.filter(
@@ -1599,9 +1604,10 @@ class EnhancedDemographicFilteringService:
 
             # Collect candidate movies from similar users
             candidate_movies = defaultdict(list)
+            users_with_ratings = []
 
+            # First pass: collect movies from similar users who have ratings
             for similar_user, similarity_score in similar_users:
-                # Get highly rated movies from similar user
                 similar_user_ratings = MovieReview.objects.filter(
                     user=similar_user,
                     review_type='USER',
@@ -1611,14 +1617,47 @@ class EnhancedDemographicFilteringService:
                     movie_id__in=user_movie_ids
                 ).select_related('movie')
 
-                for rating in similar_user_ratings:
-                    rating_value = float(rating.rating) if rating.rating else 0.0
-                    weighted_score = rating_value * similarity_score
-                    candidate_movies[rating.movie].append({
-                        'weighted_score': weighted_score,
-                        'similarity': similarity_score,
-                        'rating': rating_value
-                    })
+                if similar_user_ratings.exists():
+                    users_with_ratings.append((similar_user, similarity_score))
+                    for rating in similar_user_ratings:
+                        rating_value = float(rating.rating) if rating.rating else 0.0
+                        weighted_score = rating_value * similarity_score
+                        candidate_movies[rating.movie].append({
+                            'weighted_score': weighted_score,
+                            'similarity': similarity_score,
+                            'rating': rating_value
+                        })
+
+            # If no similar users have ratings (cold start), use cluster-based approach
+            if not users_with_ratings:
+                logger.info(f"No ratings from similar users for cold start user {target_user.id}")
+                # Get all users from target user's cluster who have ratings
+                from apps.recommendations.models import UserPreference
+                target_cluster = UserPreference.objects.filter(user=target_user).first()
+                if target_cluster and target_cluster.demographic_cluster:
+                    cluster_users = User.objects.filter(
+                        recommendation_preference__demographic_cluster=target_cluster.demographic_cluster
+                    ).exclude(id=target_user.id)
+
+                    cluster_ratings = MovieReview.objects.filter(
+                        user__in=cluster_users,
+                        review_type='USER',
+                        rating__gte=4.0,
+                        rating__isnull=False
+                    ).exclude(
+                        movie_id__in=user_movie_ids
+                    ).select_related('movie')
+
+                    for rating in cluster_ratings:
+                        rating_value = float(rating.rating) if rating.rating else 0.0
+                        # Use average similarity for cluster members
+                        default_similarity = 0.5
+                        weighted_score = rating_value * default_similarity
+                        candidate_movies[rating.movie].append({
+                            'weighted_score': weighted_score,
+                            'similarity': default_similarity,
+                            'rating': rating_value
+                        })
 
             # Calculate final scores for candidates
             recommendations = []
@@ -1802,24 +1841,23 @@ class EnhancedDemographicFilteringService:
     def _get_similar_users_from_cluster(self, user, cluster, limit=20):
         """
         Get similar users from the same demographic cluster
+        FIXED: Theo lý thuyết Demographic Filtering - KHÔNG cần user mới có ratings
         """
         try:
-            # Get users from the same cluster with ratings
-            users_with_ratings = User.objects.filter(
-                recommendation_preference__demographic_cluster=cluster,
-                moviereview__review_type='USER',
-                moviereview__rating__isnull=False
-            ).exclude(id=user.id).distinct()[:limit]
+            # Get ALL users from the same cluster (demographic principle)
+            cluster_users = User.objects.filter(
+                recommendation_preference__demographic_cluster=cluster
+            ).exclude(id=user.id)[:limit * 2]  # Get more candidates
 
-            if not users_with_ratings.exists():
-                logger.warning(f"No users with ratings found in cluster {cluster}")
+            if not cluster_users.exists():
+                logger.warning(f"No users found in cluster {cluster}")
                 return []
 
-            # Calculate similarities
+            # Calculate similarities based on demographic vectors only
             similar_users = []
             target_user_vector = self.vectorizer.create_demographic_vector(user)
 
-            for other_user in users_with_ratings:
+            for other_user in cluster_users:
                 other_vector = self.vectorizer.create_demographic_vector(other_user)
                 similarity = cosine_similarity([target_user_vector], [other_vector])[0][0]
 

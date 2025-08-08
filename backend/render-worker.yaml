@@ -1,8 +1,9 @@
-# Background Worker Configuration for existing backend
+# Combined Celery Worker + Beat Scheduler Configuration
+# Single service that runs both worker and beat scheduler (cost-effective)
 # Use this when you already have backend and PostgreSQL deployed
 
 services:
-  # Background Worker Service
+  # Combined Celery Service (Worker + Beat Scheduler)
   - type: worker
     name: movie-mate-background-worker
     runtime: python
@@ -13,8 +14,18 @@ services:
       pip install -r requirements/prod.txt
       echo "Background worker dependencies installed"
     startCommand: |
-      echo "Starting Celery worker..."
-      celery -A config worker --loglevel=info --concurrency=2
+      echo "🚀 Starting Combined Celery Service (Worker + Beat)..."
+      echo "📊 This service includes:"
+      echo "   ✅ Celery Worker - Process tasks"
+      echo "   ✅ Celery Beat - Auto-schedule 27 tasks"
+      echo "   📅 Tasks: movie sync, cache updates, recommendations, etc."
+      echo ""
+      echo "🕐 Starting Celery Beat scheduler in background..."
+      celery -A config beat --loglevel=info --scheduler=celery.beat.PersistentScheduler --detach --pidfile=celerybeat.pid &
+      echo "📊 Beat scheduler started successfully"
+      echo ""
+      echo "🚀 Starting Celery Worker in foreground..."
+      celery -A config worker --loglevel=info --concurrency=2 --max-tasks-per-child=100
     envVars:
       - key: DJANGO_ENV
         value: production
@@ -57,60 +68,8 @@ services:
       - key: EMAIL_HOST_PASSWORD
         sync: false
 
-  # Celery Beat Scheduler Service (Optional)
-  - type: worker
-    name: movie-mate-celery-beat
-    runtime: python
-    rootDir: backend
-    plan: starter
-    buildCommand: |
-      echo "Building Celery Beat scheduler..."
-      pip install -r requirements/prod.txt
-      echo "Celery Beat dependencies installed"
-    startCommand: |
-      echo "Starting Celery Beat scheduler..."
-      celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    envVars:
-      - key: DJANGO_ENV
-        value: production
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings.prod
-      - key: DJANGO_SECRET_KEY
-        sync: false
-      - key: DEBUG
-        value: false
-      - key: POSTGRES_DB
-        sync: false
-      - key: POSTGRES_USER
-        sync: false
-      - key: POSTGRES_PASSWORD
-        sync: false
-      - key: POSTGRES_HOST
-        sync: false
-      - key: POSTGRES_PORT
-        value: 5432
-      - key: REDIS_URL
-        sync: false
-      - key: CELERY_BROKER_URL
-        sync: false
-      - key: CELERY_RESULT_BACKEND
-        sync: false
-      - key: IMDB_API_KEY
-        sync: false
-      - key: ELASTICSEARCH_CLOUD_URL
-        sync: false
-      - key: ELASTICSEARCH_USERNAME
-        sync: false
-      - key: ELASTICSEARCH_PASSWORD
-        sync: false
-      - key: EMAIL_HOST
-        value: smtp.gmail.com
-      - key: EMAIL_PORT
-        value: 587
-      - key: EMAIL_HOST_USER
-        sync: false
-      - key: EMAIL_HOST_PASSWORD
-        sync: false
+  # 🎯 REMOVED: Separate Celery Beat service (now combined above)
+  # This saves cost by running Worker + Beat in single container
 
   # Redis Service (if you don't have one)
   - type: redis

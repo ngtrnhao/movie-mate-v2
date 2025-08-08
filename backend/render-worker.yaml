@@ -14,18 +14,8 @@ services:
       pip install -r requirements/prod.txt
       echo "Background worker dependencies installed"
     startCommand: |
-      echo "🚀 Starting Combined Celery Service (Worker + Beat)..."
-      echo "📊 This service includes:"
-      echo "   ✅ Celery Worker - Process tasks"
-      echo "   ✅ Celery Beat - Auto-schedule 27 tasks"
-      echo "   📅 Tasks: movie sync, cache updates, recommendations, etc."
-      echo ""
-      echo "🕐 Starting Celery Beat scheduler in background..."
-      celery -A config beat --loglevel=info --scheduler=celery.beat.PersistentScheduler --detach --pidfile=celerybeat.pid &
-      echo "📊 Beat scheduler started successfully"
-      echo ""
-      echo "🚀 Starting Celery Worker in foreground..."
-      celery -A config worker --loglevel=info --concurrency=2 --max-tasks-per-child=100
+      chmod +x start_combined_celery.sh
+      ./start_combined_celery.sh
     envVars:
       - key: DJANGO_ENV
         value: production

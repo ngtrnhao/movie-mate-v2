@@ -210,7 +210,9 @@ const LandingPage = () => {
       navigate('/login');
     }
   }, [handleProfileMenuClose, navigate, user?.id]);
-
+  const handleExploreClick = useCallback(() => {
+    navigate('/home');
+  }, [navigate]);
   const handleSettingsClick = useCallback(() => {
     handleProfileMenuClose();
     navigate('/settings');
@@ -489,6 +491,7 @@ const LandingPage = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="flex h-11 items-center justify-center rounded-md bg-red-600 px-8 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                onClick={handleExploreClick}
               >
                 {t('hero.exploreMovies')}
                 <motion.span

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -20,14 +20,13 @@ import {
   IconButton,
   Alert,
   CircularProgress,
-  Chip,
+  // Chip,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   LocationOn as LocationIcon,
   Person as PersonIcon,
   Work as WorkIcon,
-  DateRange as DateIcon,
   CheckCircle as CheckIcon,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
@@ -39,22 +38,60 @@ import {
   autoDetectLocationAPI,
   getProfileCompletionStatusAPI,
 } from '../../api/profileService';
-
-const steps = [
-  { id: 'personal', label: 'Personal Info', icon: <PersonIcon /> },
-  { id: 'demographic', label: 'Demographics', icon: <WorkIcon /> },
-  { id: 'location', label: 'Location', icon: <LocationIcon /> },
-];
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 
 const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
+  const { t } = useTranslation('profile');
+
+  const steps = [
+    { id: 'personal', label: t('modal.steps.personal'), icon: <PersonIcon /> },
+    { id: 'demographic', label: t('modal.steps.demographic'), icon: <WorkIcon /> },
+    { id: 'location', label: t('modal.steps.location'), icon: <LocationIcon /> },
+  ];
+
+  const inputSx = {
+    '& .MuiInputBase-root': {
+      color: '#e5e7eb',
+      background: '#0f172a',
+      '&:hover .MuiOutlinedInput-notchedOutline': {
+        borderColor: '#ef4444',
+      },
+      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+        borderColor: '#ef4444',
+        borderWidth: '2px',
+      },
+    },
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: '#334155',
+      borderWidth: '1px',
+    },
+    '& .MuiInputLabel-root': {
+      color: '#cbd5e1',
+      fontWeight: 600,
+      fontSize: '1rem',
+      '&.Mui-focused': {
+        color: '#ef4444',
+      },
+    },
+    '& .MuiFormHelperText-root': {
+      color: '#9ca3af',
+      '&.Mui-error': {
+        color: '#fca5a5',
+      },
+    },
+    '& .MuiInputBase-input::placeholder': {
+      color: '#9ca3af',
+      opacity: 1,
+    },
+  };
 
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [choices, setChoices] = useState({});
-  const [completionStatus, setCompletionStatus] = useState(null);
+  // const [_completionStatus, _setCompletionStatus] = useState(null);
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -70,30 +107,7 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
   const [errors, setErrors] = useState({});
 
   // Load data when modal opens
-  useEffect(() => {
-    if (open && user) {
-      loadInitialData();
-    }
-  }, [open, user]);
-
-  // Check if modal should be shown based on conditions
-  useEffect(() => {
-    if (open && user) {
-      // Log current conditions for debugging
-      console.log('Profile Completion Modal Conditions:', {
-        isAuthenticated: true,
-        isEmailVerified: user.is_email_verified,
-        isProfileComplete: user.is_profile_complete,
-        profileCompletionPercentage: user.profile_completion_percentage,
-        shouldShowModal:
-          user.is_email_verified &&
-          !user.is_profile_complete &&
-          user.profile_completion_percentage < 80,
-      });
-    }
-  }, [open, user]);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       console.log('Loading initial data...');
 
@@ -112,7 +126,7 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       }
 
       if (statusData.status === 'success') {
-        setCompletionStatus(statusData.data);
+        // _setCompletionStatus(statusData.data);
 
         // Set profile data as loaded
         dispatch(setProfileDataLoaded(true));
@@ -145,9 +159,32 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       });
     } catch (error) {
       console.error('Error loading initial data:', error);
-      toast.error('Failed to load profile data');
+      toast.error(t('toasts.load_failed'));
     }
-  };
+  }, [dispatch, onClose, t, user]);
+
+  useEffect(() => {
+    if (open && user) {
+      loadInitialData();
+    }
+  }, [open, user, loadInitialData]);
+
+  // Check if modal should be shown based on conditions
+  useEffect(() => {
+    if (open && user) {
+      // Log current conditions for debugging
+      console.log('Profile Completion Modal Conditions:', {
+        isAuthenticated: true,
+        isEmailVerified: user.is_email_verified,
+        isProfileComplete: user.is_profile_complete,
+        profileCompletionPercentage: user.profile_completion_percentage,
+        shouldShowModal:
+          user.is_email_verified &&
+          !user.is_profile_complete &&
+          user.profile_completion_percentage < 80,
+      });
+    }
+  }, [open, user]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -170,32 +207,32 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
     switch (activeStep) {
       case 0: // Personal Info
         if (!formData.first_name.trim()) {
-          newErrors.first_name = 'First name is required';
+          newErrors.first_name = t('errors.first_name_required_basic');
         }
         if (!formData.last_name.trim()) {
-          newErrors.last_name = 'Last name is required';
+          newErrors.last_name = t('errors.last_name_required_basic');
         }
         if (!formData.birth_date) {
-          newErrors.birth_date = 'Birth date is required';
+          newErrors.birth_date = t('errors.birth_date_required_basic');
         } else {
           // Validate age (13-120)
           const birthDate = new Date(formData.birth_date);
           const today = new Date();
           const age = today.getFullYear() - birthDate.getFullYear();
           if (age < 13) {
-            newErrors.birth_date = 'You must be at least 13 years old';
+            newErrors.birth_date = t('errors.age_min_13');
           } else if (age > 120) {
-            newErrors.birth_date = 'Please enter a valid birth date';
+            newErrors.birth_date = t('errors.age_max_120');
           }
         }
         break;
 
       case 1: // Demographics
         if (!formData.gender) {
-          newErrors.gender = 'Gender is required';
+          newErrors.gender = t('errors.gender_required_basic');
         }
         if (!formData.occupation) {
-          newErrors.occupation = 'Occupation is required';
+          newErrors.occupation = t('errors.occupation_required_basic');
         }
         break;
 
@@ -229,11 +266,11 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
           location: result.data.location || prev.location,
           zip_code: result.data.zip_code || prev.zip_code,
         }));
-        toast.success('Location detected successfully!');
+        toast.success(t('toasts.location_detect_success'));
       }
     } catch (error) {
       console.error('Error detecting location:', error);
-      toast.error('Could not detect location automatically');
+      toast.error(t('toasts.location_detect_failed'));
     } finally {
       setLoadingLocation(false);
     }
@@ -244,29 +281,29 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
 
     // Validate ALL required demographic fields for complete profile
     if (!formData.first_name.trim()) {
-      newErrors.first_name = 'First name is required for complete profile';
+      newErrors.first_name = t('errors.first_name_required');
     }
     if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Last name is required for complete profile';
+      newErrors.last_name = t('errors.last_name_required');
     }
     if (!formData.birth_date) {
-      newErrors.birth_date = 'Birth date is required for personalized recommendations';
+      newErrors.birth_date = t('errors.birth_date_required_recs');
     } else {
       // Validate age (13-120)
       const birthDate = new Date(formData.birth_date);
       const today = new Date();
       const age = today.getFullYear() - birthDate.getFullYear();
       if (age < 13) {
-        newErrors.birth_date = 'You must be at least 13 years old';
+        newErrors.birth_date = t('errors.age_min_13');
       } else if (age > 120) {
-        newErrors.birth_date = 'Please enter a valid birth date';
+        newErrors.birth_date = t('errors.age_max_120');
       }
     }
     if (!formData.gender) {
-      newErrors.gender = 'Gender is required for demographic recommendations';
+      newErrors.gender = t('errors.gender_required_recs');
     }
     if (!formData.occupation) {
-      newErrors.occupation = 'Occupation is required for recommendation algorithms';
+      newErrors.occupation = t('errors.occupation_required_recs');
     }
 
     setErrors(newErrors);
@@ -303,7 +340,7 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
   const handleSubmit = async () => {
     // Validate COMPLETE profile before submission
     if (!validateCompleteProfile()) {
-      toast.error('Please complete all required fields for personalized recommendations');
+      toast.error(t('toasts.complete_required_for_recs'));
       return;
     }
 
@@ -326,7 +363,7 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
           })
         );
 
-        toast.success('Profile completed successfully!');
+        toast.success(t('toasts.complete_success'));
 
         // Call completion callback
         if (onComplete) {
@@ -341,7 +378,7 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       if (error.errors) {
         setErrors(error.errors);
       } else {
-        toast.error(error.message || 'Failed to update profile');
+        toast.error(error.message || t('toasts.update_failed'));
       }
     } finally {
       setLoading(false);
@@ -356,51 +393,52 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="First Name"
+                label={t('modal.labels.first_name')}
                 value={formData.first_name}
                 onChange={e => handleInputChange('first_name', e.target.value)}
                 error={!!errors.first_name}
                 helperText={errors.first_name}
                 required
+                sx={inputSx}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Last Name"
+                label={t('modal.labels.last_name')}
                 value={formData.last_name}
                 onChange={e => handleInputChange('last_name', e.target.value)}
                 error={!!errors.last_name}
                 helperText={errors.last_name}
                 required
+                sx={inputSx}
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Birth Date"
+                label={t('modal.labels.birth_date')}
                 type="date"
                 value={formData.birth_date}
                 onChange={e => handleInputChange('birth_date', e.target.value)}
                 error={!!errors.birth_date}
-                helperText={
-                  errors.birth_date ||
-                  'Used to calculate your age and provide better recommendations'
-                }
+                helperText={errors.birth_date || t('modal.helper.birthdate_purpose')}
                 InputLabelProps={{ shrink: true }}
                 required
+                sx={inputSx}
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Bio"
+                label={t('modal.labels.bio')}
                 multiline
                 rows={3}
                 value={formData.bio}
                 onChange={e => handleInputChange('bio', e.target.value)}
-                placeholder="Tell us a bit about yourself..."
-                helperText="Optional - This helps other users learn about you"
+                placeholder={t('modal.placeholders.bio')}
+                helperText={t('modal.helper.bio_optional')}
+                sx={inputSx}
               />
             </Grid>
           </Grid>
@@ -411,17 +449,35 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth error={!!errors.gender} required>
-                <InputLabel id="gender-label">Gender</InputLabel>
+                <InputLabel
+                  id="gender-label"
+                  sx={{ color: '#cbd5e1', fontWeight: 600, fontSize: '1rem' }}
+                >
+                  {t('modal.labels.gender')}
+                </InputLabel>
                 <Select
                   labelId="gender-label"
                   value={formData.gender}
                   onChange={e => handleInputChange('gender', e.target.value)}
-                  label="Gender"
-                  sx={{ minHeight: '56px' }}
+                  label={t('modal.labels.gender')}
+                  sx={{
+                    minHeight: '56px',
+                    color: '#e5e7eb',
+                    background: '#0f172a',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#334155',
+                      borderWidth: '1px',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#ef4444' },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#ef4444',
+                      borderWidth: '2px',
+                    },
+                  }}
                 >
                   {choices.gender_choices?.map(choice => (
                     <MenuItem key={choice.value} value={choice.value}>
-                      {choice.label}
+                      {t(`options.gender.${choice.value}`, { defaultValue: choice.label })}
                     </MenuItem>
                   ))}
                 </Select>
@@ -430,24 +486,47 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
                     {errors.gender}
                   </Typography>
                 )}
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, ml: 2 }}>
-                  Available choices: {choices.gender_choices?.length || 0}
+                <Typography
+                  variant="caption"
+                  sx={{ mt: 1, ml: 2, color: '#9ca3af', fontWeight: 500 }}
+                >
+                  {t('modal.helper.available_choices', {
+                    count: choices.gender_choices?.length || 0,
+                  })}
                 </Typography>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth error={!!errors.occupation} required>
-                <InputLabel id="occupation-label">Occupation</InputLabel>
+                <InputLabel
+                  id="occupation-label"
+                  sx={{ color: '#cbd5e1', fontWeight: 600, fontSize: '1rem' }}
+                >
+                  {t('modal.labels.occupation')}
+                </InputLabel>
                 <Select
                   labelId="occupation-label"
                   value={formData.occupation}
                   onChange={e => handleInputChange('occupation', e.target.value)}
-                  label="Occupation"
-                  sx={{ minHeight: '56px' }}
+                  label={t('modal.labels.occupation')}
+                  sx={{
+                    minHeight: '56px',
+                    color: '#e5e7eb',
+                    background: '#0f172a',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#334155',
+                      borderWidth: '1px',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#ef4444' },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#ef4444',
+                      borderWidth: '2px',
+                    },
+                  }}
                 >
                   {choices.occupation_choices?.map(choice => (
                     <MenuItem key={choice.value} value={choice.value}>
-                      {choice.label}
+                      {t(`options.occupation.${choice.value}`, { defaultValue: choice.label })}
                     </MenuItem>
                   ))}
                 </Select>
@@ -456,17 +535,30 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
                     {errors.occupation}
                   </Typography>
                 )}
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, ml: 2 }}>
-                  Available choices: {choices.occupation_choices?.length || 0}
+                <Typography
+                  variant="caption"
+                  sx={{ mt: 1, ml: 2, color: '#9ca3af', fontWeight: 500 }}
+                >
+                  {t('modal.helper.available_choices', {
+                    count: choices.occupation_choices?.length || 0,
+                  })}
                 </Typography>
               </FormControl>
             </Grid>
             <Grid item xs={12}>
-              <Alert severity="info" sx={{ mt: 2 }}>
+              <Alert
+                severity="info"
+                sx={{
+                  mt: 2,
+                  background: 'rgba(239,68,68,0.1)',
+                  border: '1px solid #ef4444',
+                  color: '#f3f4f6',
+                  '& .MuiAlert-icon': { color: '#ef4444' },
+                }}
+              >
                 <Typography variant="body2">
-                  <strong>Why we ask:</strong> This information helps us provide personalized movie
-                  recommendations based on preferences similar to users with your demographic
-                  profile.
+                  <strong>{t('modal.info.why_we_ask_title')}</strong>{' '}
+                  {t('modal.info.why_we_ask_text')}
                 </Typography>
               </Alert>
             </Grid>
@@ -476,51 +568,84 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       case 2:
         return (
           <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Location"
-                  value={formData.location}
-                  onChange={e => handleInputChange('location', e.target.value)}
-                  placeholder="e.g., New York, NY, USA"
-                  helperText="Optional - Helps provide region-specific recommendations"
-                />
-                <Button
-                  variant="outlined"
-                  onClick={handleAutoDetectLocation}
-                  disabled={loadingLocation}
-                  startIcon={loadingLocation ? <CircularProgress size={16} /> : <LocationIcon />}
-                  sx={{ minWidth: 140 }}
-                >
-                  {loadingLocation ? 'Detecting...' : 'Auto Detect'}
-                </Button>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} md={7}>
               <TextField
                 fullWidth
-                label="Zip Code"
-                value={formData.zip_code}
-                onChange={e => handleInputChange('zip_code', e.target.value)}
-                placeholder="e.g., 10001"
-                helperText="Optional"
+                label={t('modal.labels.location')}
+                value={formData.location}
+                onChange={e => handleInputChange('location', e.target.value)}
+                placeholder={t('modal.placeholders.location')}
+                helperText={t('modal.helper.location_optional')}
+                sx={inputSx}
               />
             </Grid>
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                label={t('modal.labels.zip_code')}
+                value={formData.zip_code}
+                onChange={e => handleInputChange('zip_code', e.target.value)}
+                placeholder={t('modal.placeholders.zip_code')}
+                helperText={t('modal.helper.optional')}
+                sx={inputSx}
+              />
+            </Grid>
+            <Grid
+              item
+              xs={12}
+              md={2}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: { xs: 'flex-start', md: 'flex-end' },
+              }}
+            >
+              <Button
+                variant="outlined"
+                onClick={handleAutoDetectLocation}
+                disabled={loadingLocation}
+                startIcon={loadingLocation ? <CircularProgress size={16} /> : <LocationIcon />}
+                sx={{
+                  minWidth: 160,
+                  color: loadingLocation ? '#fff' : '#ef4444',
+                  borderColor: '#ef4444',
+                  background: loadingLocation ? '#ef4444' : 'rgba(239,68,68,0.05)',
+                  fontWeight: 700,
+                  '&:hover': { background: '#ef4444', color: '#fff', borderColor: '#ef4444' },
+                }}
+              >
+                {loadingLocation ? t('modal.buttons.detecting') : t('modal.buttons.auto_detect')}
+              </Button>
+            </Grid>
             <Grid item xs={12}>
-              <Alert severity="info">
+              <Alert
+                severity="info"
+                sx={{
+                  background: 'rgba(239,68,68,0.1)',
+                  border: '1px solid #ef4444',
+                  color: '#f3f4f6',
+                  '& .MuiAlert-icon': { color: '#ef4444' },
+                }}
+              >
                 <Typography variant="body2">
-                  📍 <strong>Optional Location Info</strong> - This helps provide region-specific
-                  movie recommendations and local cinema information.
+                  📍 <strong>{t('modal.info.location_info_title')}</strong> -{' '}
+                  {t('modal.info.location_info_text')}
                 </Typography>
               </Alert>
             </Grid>
             <Grid item xs={12}>
-              <Alert severity="warning">
+              <Alert
+                severity="warning"
+                sx={{
+                  background: 'rgba(239,68,68,0.1)',
+                  border: '1px solid #ef4444',
+                  color: '#f3f4f6',
+                  '& .MuiAlert-icon': { color: '#ef4444' },
+                }}
+              >
                 <Typography variant="body2">
-                  🎯 <strong>Ready to Complete!</strong> Click "Complete Profile" to generate your
-                  personalized movie recommendations. This will create your demographic profile and
-                  recommendations based on your preferences.
+                  🎯 <strong>{t('modal.info.ready_to_complete_title')}</strong>{' '}
+                  {t('modal.info.ready_to_complete_text')}
                 </Typography>
               </Alert>
             </Grid>
@@ -569,31 +694,43 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       maxWidth="md"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 2 },
+        sx: {
+          borderRadius: 3,
+          background: '#111827',
+          color: '#ffffff',
+          border: '1px solid #374151',
+          boxShadow: 6,
+        },
       }}
     >
       <DialogTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
-            <Typography variant="h6" component="div">
-              Complete Your Profile
+            <Typography variant="h6" component="div" sx={{ color: '#ef4444', fontWeight: 700 }}>
+              {t('modal.title')}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Help us provide better movie recommendations
+            <Typography variant="body2" sx={{ color: '#e5e7eb' }}>
+              {t('modal.subtitle')}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                {getCompletionPercentage()}% complete
+              <Typography variant="body2" sx={{ color: '#e5e7eb' }}>
+                {t('modal.helper.percent_complete', { percent: getCompletionPercentage() })}
               </Typography>
               <LinearProgress
                 variant="determinate"
                 value={getCompletionPercentage()}
-                sx={{ width: 100, height: 6, borderRadius: 3 }}
+                sx={{
+                  width: 100,
+                  height: 6,
+                  borderRadius: 3,
+                  background: '#374151',
+                  '& .MuiLinearProgress-bar': { backgroundColor: '#ef4444' },
+                }}
               />
             </Box>
-            <IconButton onClick={onClose} size="small">
+            <IconButton onClick={onClose} size="small" sx={{ color: '#9ca3af' }}>
               <CloseIcon />
             </IconButton>
           </Box>
@@ -602,7 +739,22 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
 
       <DialogContent>
         <Box sx={{ mt: 2 }}>
-          <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            sx={{
+              mb: 4,
+              '& .MuiStepConnector-line': { borderColor: '#374151' },
+              '& .MuiStepIcon-root': {
+                color: '#6b7280',
+                '&.Mui-active': { color: '#ef4444' },
+                '&.Mui-completed': { color: '#22c55e' },
+              },
+              '& .MuiStepLabel-label': { color: '#cbd5e1', fontWeight: 700, fontSize: '1.05rem' },
+              '& .MuiStepLabel-label.Mui-active': { color: '#ffffff' },
+              '& .MuiStepLabel-label.Mui-completed': { color: '#e5e7eb' },
+            }}
+          >
             {steps.map((step, index) => (
               <Step key={step.id}>
                 <StepLabel
@@ -627,21 +779,55 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 1 }}>
-        <Button onClick={onClose} disabled={loading}>
-          Skip for now
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          sx={{
+            color: '#fff',
+            borderColor: '#6b7280',
+            background: 'rgba(55,65,81,0.5)',
+            '&:hover': { background: '#374151', borderColor: '#ef4444', color: '#ef4444' },
+            borderRadius: 2,
+          }}
+          variant="outlined"
+        >
+          {t('modal.buttons.skip')}
         </Button>
 
         <Box sx={{ flex: 1 }} />
 
         {activeStep > 0 && (
-          <Button onClick={handleBack} disabled={loading}>
-            Back
+          <Button
+            onClick={handleBack}
+            disabled={loading}
+            sx={{
+              color: '#fff',
+              borderColor: '#6b7280',
+              background: 'rgba(55,65,81,0.5)',
+              '&:hover': { background: '#374151', borderColor: '#ef4444', color: '#ef4444' },
+              borderRadius: 2,
+            }}
+            variant="outlined"
+          >
+            {t('modal.buttons.back')}
           </Button>
         )}
 
         {activeStep < steps.length - 1 ? (
-          <Button variant="contained" onClick={handleNext} disabled={loading}>
-            Next
+          <Button
+            variant="contained"
+            onClick={handleNext}
+            disabled={loading}
+            sx={{
+              background: '#ef4444',
+              color: '#fff',
+              fontWeight: 700,
+              borderRadius: 2,
+              boxShadow: 3,
+              '&:hover': { background: '#dc2626' },
+            }}
+          >
+            {t('modal.buttons.next')}
           </Button>
         ) : (
           <Button
@@ -649,8 +835,16 @@ const ProfileCompletionModal = ({ open, onClose, onComplete }) => {
             onClick={handleSubmit}
             disabled={loading}
             startIcon={loading ? <CircularProgress size={16} /> : null}
+            sx={{
+              background: '#ef4444',
+              color: '#fff',
+              fontWeight: 700,
+              borderRadius: 2,
+              boxShadow: 3,
+              '&:hover': { background: '#dc2626' },
+            }}
           >
-            {loading ? 'Saving...' : 'Complete Profile'}
+            {loading ? t('modal.buttons.saving') : t('modal.buttons.complete_profile')}
           </Button>
         )}
       </DialogActions>

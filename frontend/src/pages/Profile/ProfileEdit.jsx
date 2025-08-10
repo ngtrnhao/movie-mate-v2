@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -40,10 +40,12 @@ import {
   autoDetectLocationAPI,
   uploadAvatarAPI,
 } from '../../api/profileService';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 
 const ProfileEdit = () => {
   const dispatch = useDispatch();
   const { user: currentUser } = useSelector(state => state.auth);
+  const { t } = useTranslation('profile');
 
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -70,7 +72,7 @@ const ProfileEdit = () => {
     if (currentUser?.id) {
       loadData();
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, loadData]);
 
   // Update form when user data changes
   useEffect(() => {
@@ -89,7 +91,7 @@ const ProfileEdit = () => {
     }
   }, [userData]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -108,11 +110,17 @@ const ProfileEdit = () => {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('Failed to load profile data');
+      toast.error(t('toasts.load_failed'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      loadData();
+    }
+  }, [currentUser?.id, loadData]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -133,19 +141,19 @@ const ProfileEdit = () => {
     const newErrors = {};
 
     if (!formData.first_name.trim()) {
-      newErrors.first_name = 'First name is required';
+      newErrors.first_name = t('errors.first_name_required_basic');
     }
     if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Last name is required';
+      newErrors.last_name = t('errors.last_name_required_basic');
     }
     if (formData.birth_date) {
       const birthDate = new Date(formData.birth_date);
       const today = new Date();
       const age = today.getFullYear() - birthDate.getFullYear();
       if (age < 13) {
-        newErrors.birth_date = 'You must be at least 13 years old';
+        newErrors.birth_date = t('errors.age_min_13');
       } else if (age > 120) {
-        newErrors.birth_date = 'Please enter a valid birth date';
+        newErrors.birth_date = t('errors.age_max_120');
       }
     }
 
@@ -166,7 +174,7 @@ const ProfileEdit = () => {
         // Update Redux store
         dispatch(updateUser(result.data));
 
-        toast.success('Profile updated successfully!');
+        toast.success(t('toasts.update_success'));
         setEditMode(false);
       }
     } catch (error) {
@@ -175,7 +183,7 @@ const ProfileEdit = () => {
       if (error.errors) {
         setErrors(error.errors);
       } else {
-        toast.error(error.message || 'Failed to update profile');
+        toast.error(error.message || t('toasts.update_failed'));
       }
     } finally {
       setLoading(false);
@@ -248,11 +256,11 @@ const ProfileEdit = () => {
       if (result.status === 'success') {
         dispatch(updateUser({ avatarUrl: result.data.avatar_url }));
         setFormData(prev => ({ ...prev, avatar_url: result.data.avatar_url }));
-        toast.success('Avatar updated successfully!');
+        toast.success(t('toasts.avatar_success'));
       }
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      toast.error('Failed to upload avatar');
+      toast.error(t('toasts.avatar_failed'));
     } finally {
       setLoading(false);
     }
@@ -265,11 +273,11 @@ const ProfileEdit = () => {
 
   const getMissingFields = () => {
     const missing = [];
-    if (!formData.birth_date) missing.push('Birth Date');
-    if (!formData.gender) missing.push('Gender');
-    if (!formData.occupation) missing.push('Occupation');
-    if (!formData.location) missing.push('Location');
-    if (!formData.bio) missing.push('Bio');
+    if (!formData.birth_date) missing.push(t('page.labels.birth_date'));
+    if (!formData.gender) missing.push(t('page.labels.gender'));
+    if (!formData.occupation) missing.push(t('page.labels.occupation'));
+    if (!formData.location) missing.push(t('page.labels.location'));
+    if (!formData.bio) missing.push(t('page.labels.bio'));
     return missing;
   };
 
@@ -281,7 +289,7 @@ const ProfileEdit = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <PersonIcon sx={{ color: '#ef4444' }} />
             <Typography variant="h6" sx={{ color: '#ef4444', fontWeight: 700 }}>
-              Profile Completion
+              {t('page.sections.completion')}
             </Typography>
             <Chip
               label={`${getCompletionPercentage()}%`}
@@ -321,8 +329,8 @@ const ProfileEdit = () => {
               }}
             >
               <Typography variant="body2" sx={{ color: '#f3f4f6' }}>
-                <strong style={{ color: '#ef4444' }}>Improve your recommendations:</strong> Complete
-                these fields:{' '}
+                <strong style={{ color: '#ef4444' }}>{t('page.tips.improve_title')}:</strong>{' '}
+                {t('page.tips.complete_prefix')}{' '}
                 <span style={{ color: '#fbbf24' }}>{getMissingFields().join(', ')}</span>
               </Typography>
             </Alert>
@@ -333,7 +341,7 @@ const ProfileEdit = () => {
       <Paper elevation={3} sx={{ p: 4, background: '#111827', color: '#fff', borderRadius: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
           <Typography variant="h4" component="h1" sx={{ color: '#ef4444', fontWeight: 700 }}>
-            Profile Settings
+            {t('page.title')}
           </Typography>
           {!editMode ? (
             <Button
@@ -349,7 +357,7 @@ const ProfileEdit = () => {
                 '&:hover': { background: '#dc2626' },
               }}
             >
-              Edit Profile
+              {t('page.buttons.edit')}
             </Button>
           ) : (
             <Box sx={{ display: 'flex', gap: 2 }}>
@@ -366,7 +374,7 @@ const ProfileEdit = () => {
                   borderRadius: 2,
                 }}
               >
-                Cancel
+                {t('page.buttons.cancel')}
               </Button>
               <Button
                 variant="contained"
@@ -382,7 +390,7 @@ const ProfileEdit = () => {
                   '&:hover': { background: '#dc2626' },
                 }}
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? t('page.buttons.saving') : t('page.buttons.save')}
               </Button>
             </Box>
           )}
@@ -464,14 +472,14 @@ const ProfileEdit = () => {
                     gap: 1,
                   }}
                 >
-                  <PersonIcon sx={{ color: '#ef4444' }} /> Personal Information
+                  <PersonIcon sx={{ color: '#ef4444' }} /> {t('page.sections.personal')}
                 </Typography>
                 <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="First Name"
+                  label={t('page.labels.first_name')}
                   value={formData.first_name}
                   onChange={e => handleInputChange('first_name', e.target.value)}
                   error={!!errors.first_name}
@@ -524,7 +532,7 @@ const ProfileEdit = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Last Name"
+                  label={t('page.labels.last_name')}
                   value={formData.last_name}
                   onChange={e => handleInputChange('last_name', e.target.value)}
                   error={!!errors.last_name}
@@ -577,14 +585,12 @@ const ProfileEdit = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Birth Date"
+                  label={t('page.labels.birth_date')}
                   type="date"
                   value={formData.birth_date}
                   onChange={e => handleInputChange('birth_date', e.target.value)}
                   error={!!errors.birth_date}
-                  helperText={
-                    errors.birth_date || 'Used for age calculation and better recommendations'
-                  }
+                  helperText={errors.birth_date || t('page.helper.birthdate_purpose')}
                   InputLabelProps={{ shrink: true }}
                   disabled={!editMode}
                   sx={{
@@ -640,12 +646,12 @@ const ProfileEdit = () => {
                       textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                     }}
                   >
-                    Gender
+                    {t('page.labels.gender')}
                   </InputLabel>
                   <Select
                     value={formData.gender}
                     onChange={e => handleInputChange('gender', e.target.value)}
-                    label="Gender"
+                    label={t('page.labels.gender')}
                     sx={{
                       color: '#1f2937',
                       background: '#ffffff',
@@ -676,7 +682,7 @@ const ProfileEdit = () => {
                   >
                     {choices.gender_choices?.map(choice => (
                       <MenuItem key={choice.value} value={choice.value} sx={{ color: '#1f2937' }}>
-                        {choice.label}
+                        {t(`options.gender.${choice.value}`, { defaultValue: choice.label })}
                       </MenuItem>
                     ))}
                   </Select>
@@ -696,7 +702,7 @@ const ProfileEdit = () => {
                     gap: 1,
                   }}
                 >
-                  <WorkIcon sx={{ color: '#ef4444' }} /> Demographics
+                  <WorkIcon sx={{ color: '#ef4444' }} /> {t('page.sections.demographics')}
                 </Typography>
                 <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
               </Grid>
@@ -710,12 +716,12 @@ const ProfileEdit = () => {
                       textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                     }}
                   >
-                    Occupation
+                    {t('page.labels.occupation')}
                   </InputLabel>
                   <Select
                     value={formData.occupation}
                     onChange={e => handleInputChange('occupation', e.target.value)}
-                    label="Occupation"
+                    label={t('page.labels.occupation')}
                     sx={{
                       color: '#1f2937',
                       background: '#ffffff',
@@ -746,7 +752,7 @@ const ProfileEdit = () => {
                   >
                     {choices.occupation_choices?.map(choice => (
                       <MenuItem key={choice.value} value={choice.value} sx={{ color: '#1f2937' }}>
-                        {choice.label}
+                        {t(`options.occupation.${choice.value}`, { defaultValue: choice.label })}
                       </MenuItem>
                     ))}
                   </Select>
@@ -766,17 +772,17 @@ const ProfileEdit = () => {
                     gap: 1,
                   }}
                 >
-                  <LocationIcon sx={{ color: '#ef4444' }} /> Location
+                  <LocationIcon sx={{ color: '#ef4444' }} /> {t('page.sections.location')}
                 </Typography>
                 <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
               </Grid>
               <Grid item xs={12} sm={editMode ? 8 : 12}>
                 <TextField
                   fullWidth
-                  label="Location"
+                  label={t('page.labels.location')}
                   value={formData.location}
                   onChange={e => handleInputChange('location', e.target.value)}
-                  placeholder="e.g., New York, NY, USA"
+                  placeholder={t('page.placeholders.location')}
                   disabled={!editMode}
                   sx={{
                     '& .MuiInputBase-root': {
@@ -830,17 +836,17 @@ const ProfileEdit = () => {
                       '&:hover': { background: '#ef4444', color: '#fff', borderColor: '#ef4444' },
                     }}
                   >
-                    {loadingLocation ? 'Detecting...' : 'Auto Detect'}
+                    {loadingLocation ? t('page.buttons.detecting') : t('page.buttons.auto_detect')}
                   </Button>
                 </Grid>
               )}
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Zip Code"
+                  label={t('page.labels.zip_code')}
                   value={formData.zip_code}
                   onChange={e => handleInputChange('zip_code', e.target.value)}
-                  placeholder="e.g., 10001"
+                  placeholder={t('page.placeholders.zip_code')}
                   disabled={!editMode}
                   sx={{
                     '& .MuiInputBase-root': {
@@ -881,12 +887,12 @@ const ProfileEdit = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Bio"
+                  label={t('page.labels.bio')}
                   multiline
                   rows={4}
                   value={formData.bio}
                   onChange={e => handleInputChange('bio', e.target.value)}
-                  placeholder="Tell us a bit about yourself..."
+                  placeholder={t('page.placeholders.bio')}
                   disabled={!editMode}
                   sx={{
                     '& .MuiInputBase-root': {

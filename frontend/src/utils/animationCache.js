@@ -115,7 +115,7 @@ if (typeof window !== 'undefined') {
   // Auto-save cache periodically
   setInterval(() => {
     animationCache.persistToStorage();
-  }, 30000); // Save every 30 seconds
+  }, 30000);
 }
 
 export default animationCache;

@@ -1,0 +1,146 @@
+{
+  "modal": {
+    "title": "Complete Your Profile",
+    "subtitle": "Help us provide better movie recommendations",
+    "steps": {
+      "personal": "Personal Info",
+      "demographic": "Demographics",
+      "location": "Location"
+    },
+    "labels": {
+      "first_name": "First Name",
+      "last_name": "Last Name",
+      "birth_date": "Birth Date",
+      "gender": "Gender",
+      "occupation": "Occupation",
+      "location": "Location",
+      "zip_code": "Zip Code",
+      "bio": "Bio"
+    },
+    "placeholders": {
+      "bio": "Tell us a bit about yourself...",
+      "location": "e.g., New York, NY, USA",
+      "zip_code": "e.g., 10001"
+    },
+    "helper": {
+      "birthdate_purpose": "Used to calculate your age and provide better recommendations",
+      "available_choices": "Available choices: {{count}}",
+      "location_optional": "Optional - Helps provide region-specific recommendations",
+      "optional": "Optional",
+      "percent_complete": "{{percent}}% complete"
+    },
+    "buttons": {
+      "skip": "Skip for now",
+      "back": "Back",
+      "next": "Next",
+      "saving": "Saving...",
+      "complete_profile": "Complete Profile",
+      "auto_detect": "Auto Detect",
+      "detecting": "Detecting..."
+    },
+    "info": {
+      "why_we_ask_title": "Why we ask:",
+      "why_we_ask_text": "This information helps us provide personalized movie recommendations based on preferences similar to users with your demographic profile.",
+      "location_info_title": "Optional Location Info",
+      "location_info_text": "This helps provide region-specific movie recommendations and local cinema information.",
+      "ready_to_complete_title": "Ready to Complete!",
+      "ready_to_complete_text": "Click \"Complete Profile\" to generate your personalized movie recommendations. This will create your demographic profile and recommendations based on your preferences."
+    }
+  },
+  "page": {
+    "title": "Profile Settings",
+    "sections": {
+      "completion": "Profile Completion",
+      "personal": "Personal Information",
+      "demographics": "Demographics",
+      "location": "Location"
+    },
+    "labels": {
+      "first_name": "First Name",
+      "last_name": "Last Name",
+      "birth_date": "Birth Date",
+      "gender": "Gender",
+      "occupation": "Occupation",
+      "location": "Location",
+      "zip_code": "Zip Code",
+      "bio": "Bio"
+    },
+    "placeholders": {
+      "bio": "Tell us a bit about yourself...",
+      "location": "e.g., New York, NY, USA",
+      "zip_code": "e.g., 10001"
+    },
+    "helper": {
+      "birthdate_purpose": "Used for age calculation and better recommendations"
+    },
+    "buttons": {
+      "edit": "Edit Profile",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "auto_detect": "Auto Detect",
+      "detecting": "Detecting..."
+    },
+    "tips": {
+      "improve_title": "Improve your recommendations",
+      "complete_prefix": "Complete these fields:"
+    }
+  },
+  "errors": {
+    "first_name_required": "First name is required for complete profile",
+    "last_name_required": "Last name is required for complete profile",
+    "birth_date_required_recs": "Birth date is required for personalized recommendations",
+    "gender_required_recs": "Gender is required for demographic recommendations",
+    "occupation_required_recs": "Occupation is required for recommendation algorithms",
+    "age_min_13": "You must be at least 13 years old",
+    "age_max_120": "Please enter a valid birth date",
+    "first_name_required_basic": "First name is required",
+    "last_name_required_basic": "Last name is required",
+    "birth_date_required_basic": "Birth date is required",
+    "gender_required_basic": "Gender is required",
+    "occupation_required_basic": "Occupation is required"
+  },
+  "toasts": {
+    "load_failed": "Failed to load profile data",
+    "location_detect_success": "Location detected successfully!",
+    "location_detect_failed": "Could not detect location automatically",
+    "complete_required_for_recs": "Please complete all required fields for personalized recommendations",
+    "complete_success": "Profile completed successfully!",
+    "update_failed": "Failed to update profile",
+    "update_success": "Profile updated successfully!",
+    "avatar_success": "Avatar updated successfully!",
+    "avatar_failed": "Failed to upload avatar"
+  },
+  "options": {
+    "gender": {
+      "M": "Male",
+      "F": "Female",
+      "O": "Other"
+    },
+    "occupation": {
+      "other": "Other",
+      "academic/educator": "Academic/Educator",
+      "artist": "Artist",
+      "clerical/admin": "Clerical/Admin",
+      "college/grad student": "College/Grad Student",
+      "customer service": "Customer Service",
+      "doctor/health care": "Doctor/Health Care",
+      "executive/managerial": "Executive/Managerial",
+      "farmer": "Farmer",
+      "homemaker": "Homemaker",
+      "K-12 student": "K-12 Student",
+      "lawyer": "Lawyer",
+      "programmer": "Programmer",
+      "retired": "Retired",
+      "sales/marketing": "Sales/Marketing",
+      "scientist": "Scientist",
+      "self-employed": "Self-employed",
+      "technician/engineer": "Technician/Engineer",
+      "tradesman/craftsman": "Tradesman/Craftsman",
+      "unemployed": "Unemployed",
+      "writer": "Writer"
+    }
+  }
+}
+
+

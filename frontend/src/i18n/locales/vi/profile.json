@@ -1,0 +1,147 @@
+{
+  "modal": {
+    "title": "Hoàn thiện hồ sơ",
+    "subtitle": "Giúp chúng tôi đề xuất phim chính xác hơn",
+    "steps": {
+      "personal": "Thông tin cá nhân",
+      "demographic": "Nhân khẩu học",
+      "location": "Vị trí"
+    },
+    "labels": {
+      "first_name": "Tên",
+      "last_name": "Họ",
+      "birth_date": "Ngày sinh",
+      "gender": "Giới tính",
+      "occupation": "Nghề nghiệp",
+      "location": "Vị trí",
+      "zip_code": "Mã bưu chính",
+      "bio": "Giới thiệu"
+    },
+    "placeholders": {
+      "bio": "Hãy giới thiệu ngắn về bản thân...",
+      "location": "vd: Hà Nội, Việt Nam",
+      "zip_code": "vd: 10001"
+    },
+    "helper": {
+      "birthdate_purpose": "Dùng để tính tuổi và cải thiện chất lượng gợi ý",
+      "available_choices": "Số lựa chọn: {{count}}",
+      "location_optional": "Tùy chọn - Giúp gợi ý theo khu vực",
+      "optional": "Tùy chọn",
+      "percent_complete": "Hoàn thành {{percent}}%",
+      "bio_optional": "Tùy chọn - Giúp cải thiện gợi ý"
+    },
+    "buttons": {
+      "skip": "Để sau",
+      "back": "Quay lại",
+      "next": "Tiếp tục",
+      "saving": "Đang lưu...",
+      "complete_profile": "Hoàn tất hồ sơ",
+      "auto_detect": "Tự phát hiện",
+      "detecting": "Đang phát hiện..."
+    },
+    "info": {
+      "why_we_ask_title": "Vì sao cần thông tin này:",
+      "why_we_ask_text": "Thông tin giúp cá nhân hóa gợi ý phim dựa trên người dùng có hồ sơ nhân khẩu học tương tự.",
+      "location_info_title": "Thông tin vị trí (tùy chọn)",
+      "location_info_text": "Hỗ trợ gợi ý theo khu vực.",
+      "ready_to_complete_title": "Sẵn sàng hoàn tất!",
+      "ready_to_complete_text": "Nhấn \"Hoàn tất hồ sơ\" để tạo gợi ý phim cá nhân hóa. Hệ thống sẽ tạo hồ sơ nhân khẩu học và gợi ý dựa trên sở thích của bạn."
+    }
+  },
+  "page": {
+    "title": "Cài đặt hồ sơ",
+    "sections": {
+      "completion": "Mức độ hoàn thiện hồ sơ",
+      "personal": "Thông tin cá nhân",
+      "demographics": "Nhân khẩu học",
+      "location": "Vị trí"
+    },
+    "labels": {
+      "first_name": "Tên",
+      "last_name": "Họ",
+      "birth_date": "Ngày sinh",
+      "gender": "Giới tính",
+      "occupation": "Nghề nghiệp",
+      "location": "Vị trí",
+      "zip_code": "Mã bưu chính",
+      "bio": "Giới thiệu"
+    },
+    "placeholders": {
+      "bio": "Hãy giới thiệu ngắn về bản thân...",
+      "location": "vd: Hà Nội, Việt Nam",
+      "zip_code": "vd: 10001"
+    },
+    "helper": {
+      "birthdate_purpose": "Dùng để tính tuổi và cải thiện gợi ý"
+    },
+    "buttons": {
+      "edit": "Chỉnh sửa hồ sơ",
+      "cancel": "Hủy",
+      "save": "Lưu thay đổi",
+      "saving": "Đang lưu...",
+      "auto_detect": "Tự phát hiện",
+      "detecting": "Đang phát hiện..."
+    },
+    "tips": {
+      "improve_title": "Cải thiện gợi ý của bạn",
+      "complete_prefix": "Hãy hoàn thiện các trường:"
+    }
+  },
+  "errors": {
+    "first_name_required": "Cần nhập Tên để hoàn thiện hồ sơ",
+    "last_name_required": "Cần nhập Họ để hoàn thiện hồ sơ",
+    "birth_date_required_recs": "Cần ngày sinh để cá nhân hóa gợi ý",
+    "gender_required_recs": "Cần chọn giới tính để gợi ý theo nhân khẩu học",
+    "occupation_required_recs": "Cần chọn nghề nghiệp để thuật toán gợi ý hoạt động chính xác",
+    "age_min_13": "Bạn phải ít nhất 13 tuổi",
+    "age_max_120": "Vui lòng nhập ngày sinh hợp lệ",
+    "first_name_required_basic": "Cần nhập Tên",
+    "last_name_required_basic": "Cần nhập Họ",
+    "birth_date_required_basic": "Cần nhập Ngày sinh",
+    "gender_required_basic": "Cần chọn Giới tính",
+    "occupation_required_basic": "Cần chọn Nghề nghiệp"
+  },
+  "toasts": {
+    "load_failed": "Không thể tải dữ liệu hồ sơ",
+    "location_detect_success": "Đã phát hiện vị trí thành công!",
+    "location_detect_failed": "Không thể tự động phát hiện vị trí",
+    "complete_required_for_recs": "Hãy hoàn thiện các trường bắt buộc để nhận gợi ý cá nhân hóa",
+    "complete_success": "Hoàn tất hồ sơ thành công!",
+    "update_failed": "Cập nhật hồ sơ thất bại",
+    "update_success": "Cập nhật hồ sơ thành công!",
+    "avatar_success": "Cập nhật ảnh đại diện thành công!",
+    "avatar_failed": "Tải ảnh đại diện thất bại"
+  },
+  "options": {
+    "gender": {
+      "M": "Nam",
+      "F": "Nữ",
+      "O": "Khác"
+    },
+    "occupation": {
+      "other": "Khác",
+      "academic/educator": "Học thuật/Giảng viên",
+      "artist": "Nghệ sĩ",
+      "clerical/admin": "Văn thư/Hành chính",
+      "college/grad student": "Sinh viên Đại học/Cao học",
+      "customer service": "Dịch vụ khách hàng",
+      "doctor/health care": "Bác sĩ/Chăm sóc sức khỏe",
+      "executive/managerial": "Quản trị/Quản lý",
+      "farmer": "Nông dân",
+      "homemaker": "Nội trợ",
+      "K-12 student": "Học sinh Phổ thông (K-12)",
+      "lawyer": "Luật sư",
+      "programmer": "Lập trình viên",
+      "retired": "Nghỉ hưu",
+      "sales/marketing": "Bán hàng/Marketing",
+      "scientist": "Nhà khoa học",
+      "self-employed": "Tự doanh",
+      "technician/engineer": "Kỹ thuật viên/Kỹ sư",
+      "tradesman/craftsman": "Thợ lành nghề/Thủ công",
+      "unemployed": "Thất nghiệp",
+      "writer": "Nhà văn"
+    }
+  }
+}
+
+

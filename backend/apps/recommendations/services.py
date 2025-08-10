@@ -1917,12 +1917,10 @@ class HybridRecommendationService:
                 user, limit=limit*2, context=context
             )
 
-            # Get basic demographic filtering recommendations (DON'T auto-store)
-            demographic_recs = self.demographic_service.generate_demographic_recommendations(
+            # Get ENHANCED demographic filtering recommendations (with behavioral features)
+            demographic_recs = self.demographic_service.generate_enhanced_demographic_recommendations(
                 user, limit=limit*2, context=context, store=False
             )
-
-
 
             # Get trending recommendations
             trending_recs = self._get_trending_recommendations(user, limit=limit//2)
@@ -3397,8 +3395,8 @@ class OptimizedRecommendationService:
                     user, limit=limit, context=context
                 )
             elif rec_type == 'demographic':
-                return self.demographic_service.generate_demographic_recommendations(
-                    user, limit=limit, context=context
+                return self.demographic_service.generate_enhanced_demographic_recommendations(
+                    user, limit=limit, context=context, store=True
                 )
             else:
                 # Fallback to hybrid

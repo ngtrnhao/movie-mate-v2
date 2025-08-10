@@ -119,7 +119,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'avatar_url', 'bio',
             'birth_date', 'age', 'age_group', 'gender', 'location', 'occupation', 'zip_code',
-            'is_email_verified', 'created_at', 'updated_at', 'user_type',
+            'is_email_verified', 'created_at', 'updated_at', 'user_type', 'is_active',
             'groups', 'is_profile_complete', 'profile_completion_percentage',
             'occupation_display', 'gender_display', 'age_group_display'
         ]
@@ -151,7 +151,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'avatar_url', 'bio',
             'birth_date', 'age', 'age_group', 'gender', 'location', 'occupation', 'zip_code',
-            'is_email_verified', 'created_at', 'updated_at', 'user_type', 'date_joined',
+            'is_email_verified', 'created_at', 'updated_at', 'user_type', 'date_joined', 'is_active',
             'subscription_start_date', 'subscription_end_date', 'groups',
             'is_profile_complete', 'profile_completion_percentage',
             'occupation_display', 'gender_display', 'age_group_display'

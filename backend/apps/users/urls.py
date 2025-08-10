@@ -28,7 +28,8 @@ from .views import (
     ProfileUpdateView,
     LocationDetectionView,
     ProfileChoicesView,
-    ProfileCompletionStatusView
+    ProfileCompletionStatusView,
+    AdminUserManagementViewSet,
 )
 
 router = DefaultRouter()
@@ -39,6 +40,7 @@ router.register(r'watchlist-items', UserWatchlistItemViewSet, basename='user-wat
 router.register(r'favorite-genres', UserFavoriteGenreViewSet, basename='user-favorite-genre')
 router.register(r'favorite-movies', UserFavoriteMovieViewSet, basename='user-favorite-movie')
 router.register(r'admin-dashboard', AdminDashboardViewSet, basename='admin-dashboard')
+router.register(r'admin-users', AdminUserManagementViewSet, basename='admin-users')
 router.register(r'moderator-dashboard', ModeratorDashboardViewSet, basename='moderator-dashboard')
 
 urlpatterns = [

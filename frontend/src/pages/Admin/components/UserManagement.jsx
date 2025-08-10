@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getCommunityStats } from '../../../api/movieService';
+import {
+  listAdminUsers,
+  updateAdminUserRole,
+  setAdminUserActive,
+  notifyAdminUser,
+} from '../../../api/moderatorService';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -9,29 +14,35 @@ const UserManagement = () => {
   const [filterRole, setFilterRole] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [pagination, setPagination] = useState({ currentPage: 1, pageSize: 20, totalCount: 0 });
+  const [newRole, setNewRole] = useState('');
+  const [lockModalOpen, setLockModalOpen] = useState(false);
+  const [lockReason, setLockReason] = useState('Vi phạm điều khoản sử dụng');
+  const [lockNotify, setLockNotify] = useState(true);
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page = 1) => {
     try {
       setLoading(true);
-      // For now, using community stats as placeholder
-      // TODO: Create proper admin API endpoint for user management
-      const response = await getCommunityStats();
-      // Mock user data for now
-      setUsers([
-        {
-          id: 1,
-          username: 'admin_user',
-          email: 'admin@example.com',
-          user_type: 'member',
-          groups: ['Administrators'],
-          created_at: '2024-01-01',
-          avatar_url: '/images/avatar_default.jpg',
-        },
-      ]);
+      setError(null);
+      const response = await listAdminUsers({
+        page,
+        page_size: pagination.pageSize,
+        search: searchTerm,
+        role: filterRole,
+      });
+      const data = response?.data || response?.results || [];
+      const pg = response?.pagination || {};
+      setUsers(data);
+      setPagination(prev => ({
+        ...prev,
+        currentPage: pg.current_page || page,
+        totalCount: pg.total_count || data.length,
+      }));
     } catch (err) {
       setError('Không thể tải danh sách người dùng');
       console.error('Error fetching users:', err);
@@ -40,32 +51,31 @@ const UserManagement = () => {
     }
   };
 
-  const handleRoleChange = async (userId, newRole) => {
+  const handleRoleChange = async (userId, role) => {
     try {
-      // This would be implemented with a proper API endpoint
-      console.log(`Changing role for user ${userId} to ${newRole}`);
-      // await api.patch(`/users/users/${userId}/`, { role: newRole });
-
-      // Update local state
-      setUsers(
-        users.map(user =>
-          user.id === userId
-            ? {
-                ...user,
-                groups:
-                  newRole === 'admin'
-                    ? ['Administrators']
-                    : newRole === 'moderator'
-                      ? ['Moderators']
-                      : [],
-              }
-            : user
-        )
-      );
-
+      await updateAdminUserRole(userId, role);
+      await fetchUsers(pagination.currentPage);
       setShowModal(false);
     } catch (err) {
       console.error('Error updating user role:', err);
+      alert(err?.error || 'Không thể cập nhật vai trò');
+    }
+  };
+
+  const handleToggleActive = async (userId, isActive) => {
+    try {
+      await setAdminUserActive(userId, isActive);
+      if (!isActive && lockNotify) {
+        await notifyAdminUser(
+          userId,
+          'Tài khoản của bạn đã bị khóa',
+          lockReason || 'Tài khoản bị khóa do vi phạm chính sách cộng đồng.'
+        );
+      }
+      await fetchUsers(pagination.currentPage);
+    } catch (err) {
+      console.error('Error updating user status:', err);
+      alert(err?.error || 'Không thể cập nhật trạng thái');
     }
   };
 
@@ -76,9 +86,9 @@ const UserManagement = () => {
 
     const matchesRole =
       filterRole === 'all' ||
-      (filterRole === 'admin' && user.groups?.includes('Administrators')) ||
-      (filterRole === 'moderator' && user.groups?.includes('Moderators')) ||
-      (filterRole === 'user' && (!user.groups || user.groups.length === 0));
+      (filterRole === 'admin' && user.role === 'admin') ||
+      (filterRole === 'moderator' && user.role === 'moderator') ||
+      (filterRole === 'user' && user.role === 'user');
 
     return matchesSearch && matchesRole;
   });
@@ -119,13 +129,13 @@ const UserManagement = () => {
   }
 
   const getRoleBadge = user => {
-    if (user.groups?.includes('Administrators')) {
+    if (user.role === 'admin') {
       return (
         <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
           Admin
         </span>
       );
-    } else if (user.groups?.includes('Moderators')) {
+    } else if (user.role === 'moderator') {
       return (
         <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
           Moderator
@@ -140,23 +150,7 @@ const UserManagement = () => {
     }
   };
 
-  const getUserTypeBadge = userType => {
-    const typeMap = {
-      member: { label: 'Member', color: 'bg-blue-100 text-blue-800' },
-      premium_basic: { label: 'Premium Basic', color: 'bg-amber-100 text-amber-800' },
-      premium_standard: { label: 'Premium Standard', color: 'bg-yellow-100 text-yellow-800' },
-      premium_vip: { label: 'Premium VIP', color: 'bg-purple-100 text-purple-800' },
-    };
-
-    const type = typeMap[userType] || { label: userType, color: 'bg-gray-100 text-gray-800' };
-    return (
-      <span
-        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${type.color}`}
-      >
-        {type.label}
-      </span>
-    );
-  };
+  // Note: user type badge không dùng ở Admin view hiện tại
 
   return (
     <div className="p-6">
@@ -208,10 +202,7 @@ const UserManagement = () => {
                     <div className="ml-4">
                       <div className="flex items-center">
                         <p className="text-sm font-medium text-gray-900">{user.username}</p>
-                        <div className="ml-2 flex space-x-1">
-                          {getRoleBadge(user)}
-                          {getUserTypeBadge(user.user_type)}
-                        </div>
+                        <div className="ml-2 flex space-x-1">{getRoleBadge(user)}</div>
                       </div>
                       <p className="text-sm text-gray-500">{user.email}</p>
                       <p className="text-sm text-gray-500">
@@ -222,12 +213,32 @@ const UserManagement = () => {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => {
+                        if (user.is_active) {
+                          setSelectedUser(user);
+                          setLockReason('Vi phạm điều khoản sử dụng');
+                          setLockNotify(true);
+                          setLockModalOpen(true);
+                        } else {
+                          handleToggleActive(user.id, true);
+                        }
+                      }}
+                      className={`inline-flex items-center rounded-md border px-3 py-1 text-sm ${
+                        user.is_active
+                          ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
+                          : 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
+                      }`}
+                    >
+                      {user.is_active ? 'Khóa' : 'Mở khóa'}
+                    </button>
+                    <button
+                      onClick={() => {
                         setSelectedUser(user);
+                        setNewRole(user.role);
                         setShowModal(true);
                       }}
-                      className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-3 py-1 text-sm font-medium leading-4 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      className="inline-flex items-center rounded-md border border-indigo-300 bg-indigo-50 px-3 py-1 text-sm text-indigo-700 hover:bg-indigo-100"
                     >
-                      Chỉnh sửa
+                      Đổi vai trò
                     </button>
                   </div>
                 </div>
@@ -235,6 +246,28 @@ const UserManagement = () => {
             </li>
           ))}
         </ul>
+      </div>
+
+      {/* Pagination */}
+      <div className="mt-4 flex items-center justify-between">
+        <button
+          onClick={() => fetchUsers(Math.max(1, pagination.currentPage - 1))}
+          className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+          disabled={pagination.currentPage <= 1}
+        >
+          Trước
+        </button>
+        <div className="text-sm text-gray-600">
+          Trang {pagination.currentPage} /{' '}
+          {Math.max(1, Math.ceil(pagination.totalCount / Math.max(1, pagination.pageSize)))}
+        </div>
+        <button
+          onClick={() => fetchUsers(pagination.currentPage + 1)}
+          className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+          disabled={pagination.currentPage * pagination.pageSize >= pagination.totalCount}
+        >
+          Sau
+        </button>
       </div>
 
       {filteredUsers.length === 0 && (
@@ -245,7 +278,7 @@ const UserManagement = () => {
 
       {/* Role Change Modal */}
       {showModal && selectedUser && (
-        <div className="fixed inset-0 z-50 size-full overflow-y-auto bg-gray-600 bg-opacity-50">
+        <div className="fixed inset-0 z-50 size-full overflow-y-auto bg-gray-600/50">
           <div className="relative top-20 mx-auto w-96 rounded-md border bg-white p-5 shadow-lg">
             <div className="mt-3">
               <h3 className="mb-4 text-lg font-medium text-gray-900">
@@ -254,27 +287,13 @@ const UserManagement = () => {
               <div className="space-y-3">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Vai trò hiện tại
-                  </label>
-                  <div className="text-sm text-gray-500">
-                    {selectedUser.groups?.includes('Administrators')
-                      ? 'Admin'
-                      : selectedUser.groups?.includes('Moderators')
-                        ? 'Moderator'
-                        : 'User'}
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
                     Vai trò mới
                   </label>
                   <select
                     className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
-                    defaultValue=""
+                    value={newRole}
+                    onChange={e => setNewRole(e.target.value)}
                   >
-                    <option value="" disabled>
-                      Chọn vai trò
-                    </option>
                     <option value="user">User</option>
                     <option value="moderator">Moderator</option>
                     <option value="admin">Admin</option>
@@ -289,10 +308,60 @@ const UserManagement = () => {
                   Hủy
                 </button>
                 <button
-                  onClick={() => handleRoleChange(selectedUser.id, 'moderator')}
+                  onClick={() => handleRoleChange(selectedUser.id, newRole)}
                   className="rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   Cập nhật
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lockModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 size-full overflow-y-auto bg-gray-600/50">
+          <div className="relative top-20 mx-auto w-full max-w-lg rounded-md border bg-white p-5 shadow-lg">
+            <div className="mt-1">
+              <h3 className="mb-3 text-lg font-medium text-gray-900">
+                Khóa tài khoản: {selectedUser.username}
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Lý do khóa</label>
+                  <textarea
+                    rows={3}
+                    value={lockReason}
+                    onChange={e => setLockReason(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-red-500 focus:outline-none focus:ring-red-500"
+                    placeholder="Nhập lý do khóa tài khoản..."
+                  />
+                </div>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={lockNotify}
+                    onChange={e => setLockNotify(e.target.checked)}
+                    className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  />
+                  <span className="text-sm text-gray-700">Gửi thông báo cho người dùng</span>
+                </label>
+              </div>
+              <div className="mt-5 flex justify-end space-x-3">
+                <button
+                  onClick={() => setLockModalOpen(false)}
+                  className="rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleToggleActive(selectedUser.id, false);
+                    setLockModalOpen(false);
+                  }}
+                  className="rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
+                  Xác nhận khóa
                 </button>
               </div>
             </div>

@@ -12,7 +12,7 @@ import time
 logger = logging.getLogger(__name__)
 
 class MovieSearchService:
-    # 🎛️ ELASTICSEARCH TOGGLE - Set to False to force ORM fallback
+    #  ELASTICSEARCH TOGGLE - Set to False to force ORM fallback
     ELASTICSEARCH_ENABLED = True
 
     def __init__(self):

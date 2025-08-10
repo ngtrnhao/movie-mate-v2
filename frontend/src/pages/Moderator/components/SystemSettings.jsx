@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { selectIsAdmin } from '../../../store/slices/authSlice';
+import { getSystemSettings } from '../../../api/moderatorService';
 
 const SystemSettings = () => {
   const [settings, setSettings] = useState({
@@ -30,12 +33,58 @@ const SystemSettings = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const isAdmin = useSelector(selectIsAdmin);
 
-  // Mock data - replace with actual API calls
+  // Load settings from backend (read-only for moderator)
   useEffect(() => {
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const load = async () => {
+      try {
+        setLoading(true);
+        const resp = await getSystemSettings();
+        const data = resp?.data || resp; // support either wrapper
+
+        // Map backend structure to UI settings as best-effort
+        const systemFeatures = data?.system_features || {};
+        const learning = data?.learning_algorithm || {};
+        const notif = data?.notification_settings || {};
+        const security = data?.security_settings || {};
+
+        setSettings(prev => ({
+          moderation: {
+            ...prev.moderation,
+            enableAutoModeration:
+              systemFeatures.auto_moderate_enabled ?? prev.moderation.enableAutoModeration,
+          },
+          content: {
+            ...prev.content,
+            enableContentFiltering:
+              data?.content_policies?.language_filtering_enabled ??
+              prev.content.enableContentFiltering,
+            requireEmailVerification: prev.content.requireEmailVerification,
+          },
+          system: {
+            ...prev.system,
+            enableNotifications: notif.email_notifications ?? prev.system.enableNotifications,
+            backupFrequency: prev.system.backupFrequency,
+            logRetentionDays: prev.system.logRetentionDays,
+            maintenanceMode: prev.system.maintenanceMode,
+          },
+          security: {
+            ...prev.security,
+            enableTwoFactor: security.two_factor_required ?? prev.security.enableTwoFactor,
+            sessionTimeout: prev.security.sessionTimeout,
+            maxLoginAttempts: prev.security.maxLoginAttempts,
+            enableRateLimiting: security.rate_limiting_enabled ?? prev.security.enableRateLimiting,
+          },
+        }));
+      } catch (e) {
+        // fallback to defaults
+        console.warn('Failed to load system settings for moderator:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const handleSettingChange = (category, key, value) => {
@@ -51,10 +100,13 @@ const SystemSettings = () => {
   const handleSaveSettings = async () => {
     setSaving(true);
     try {
-      // API call would go here
-      console.log('Saving settings:', settings);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      // Show success notification
+      if (!isAdmin) {
+        alert('Bạn không có quyền lưu cài đặt.');
+        return;
+      }
+      // TODO: implement real save API for admin only
+      console.log('Saving settings (admin only):', settings);
+      await new Promise(resolve => setTimeout(resolve, 600));
     } catch (error) {
       console.error('Failed to save settings:', error);
       // Show error notification
@@ -64,6 +116,10 @@ const SystemSettings = () => {
   };
 
   const handleResetSettings = () => {
+    if (!isAdmin) {
+      alert('Bạn không có quyền đặt lại cài đặt.');
+      return;
+    }
     if (window.confirm('Bạn có chắc chắn muốn đặt lại tất cả cài đặt về mặc định?')) {
       // Reset to default settings
       setSettings({
@@ -115,14 +171,23 @@ const SystemSettings = () => {
         <div className="flex space-x-2">
           <button
             onClick={handleResetSettings}
-            className="rounded-md bg-gray-100 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-200"
+            disabled={!isAdmin}
+            className={`rounded-md px-4 py-2 transition-colors ${
+              isAdmin
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'cursor-not-allowed bg-gray-100 text-gray-400'
+            }`}
           >
             Đặt lại mặc định
           </button>
           <button
             onClick={handleSaveSettings}
-            disabled={saving}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+            disabled={saving || !isAdmin}
+            className={`rounded-md px-4 py-2 transition-colors ${
+              isAdmin
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : 'cursor-not-allowed bg-indigo-200 text-white/70'
+            }`}
           >
             {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
           </button>
@@ -149,9 +214,10 @@ const SystemSettings = () => {
                 onClick={() =>
                   handleSettingChange('moderation', 'autoApprove', !settings.moderation.autoApprove)
                 }
+                disabled={!isAdmin}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.moderation.autoApprove ? 'bg-indigo-600' : 'bg-gray-200'
-                }`}
+                } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span
                   className={`inline-block size-4 rounded-full bg-white transition-transform${
@@ -176,9 +242,10 @@ const SystemSettings = () => {
                     !settings.moderation.requireModeration
                   )
                 }
+                disabled={!isAdmin}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.moderation.requireModeration ? 'bg-indigo-600' : 'bg-gray-200'
-                }`}
+                } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span
                   className={`inline-block size-4 rounded-full bg-white transition-transform${

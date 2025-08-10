@@ -26,6 +26,7 @@ from .serializers import (
     ProfileChoicesSerializer
 
 )
+from .permissions import IsAdmin, assign_user_role, remove_user_role
 from .services import send_verification_email, send_password_reset_email
 from rest_framework.views import APIView
 import logging
@@ -1143,6 +1144,157 @@ class ModeratorDashboardViewSet(viewsets.ViewSet):
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminUserManagementViewSet(viewsets.ViewSet):
+    """
+    Admin user management endpoints
+    - list users with filters and pagination
+    - update user roles (admin/moderator/user)
+    - activate/deactivate (ban/unban)
+    """
+    permission_classes = [IsAdmin]
+
+    def list(self, request):
+        try:
+            # Filters
+            page = int(request.query_params.get('page', 1))
+            page_size = min(int(request.query_params.get('page_size', 20)), 100)
+            search = request.query_params.get('search', '').strip()
+            role = request.query_params.get('role', 'all')  # admin, moderator, user, all
+            status_filter = request.query_params.get('status', 'all')  # active, banned, all
+            ordering = request.query_params.get('ordering', '-date_joined')
+
+            users_qs = User.objects.all()
+
+            if search:
+                users_qs = users_qs.filter(Q(username__icontains=search) | Q(email__icontains=search))
+
+            if role == 'admin':
+                users_qs = users_qs.filter(groups__name='Administrators')
+            elif role == 'moderator':
+                users_qs = users_qs.filter(groups__name='Moderators')
+            elif role == 'user':
+                users_qs = users_qs.exclude(Q(groups__name='Administrators') | Q(groups__name='Moderators'))
+
+            if status_filter == 'active':
+                users_qs = users_qs.filter(is_active=True)
+            elif status_filter == 'banned':
+                users_qs = users_qs.filter(is_active=False)
+
+            # Ordering fallback safety
+            try:
+                users_qs = users_qs.order_by(ordering)
+            except Exception:
+                users_qs = users_qs.order_by('-date_joined')
+
+            total_count = users_qs.count()
+            start = (page - 1) * page_size
+            end = start + page_size
+            users = users_qs.select_related().prefetch_related('groups')[start:end]
+
+            def serialize_user(u: User):
+                groups_list = list(u.groups.values_list('name', flat=True))
+                return {
+                    'id': u.id,
+                    'username': u.username,
+                    'email': u.email,
+                    'avatar_url': getattr(u, 'avatar_url', None),
+                    'created_at': getattr(u, 'created_at', u.date_joined).isoformat() if getattr(u, 'created_at', None) else u.date_joined.isoformat(),
+                    'last_login': u.last_login.isoformat() if u.last_login else None,
+                    'role': 'admin' if 'Administrators' in groups_list else ('moderator' if 'Moderators' in groups_list else 'user'),
+                    'is_active': u.is_active,
+                    'groups': groups_list,
+                }
+
+            data = [serialize_user(u) for u in users]
+
+            return Response({
+                'status': 'success',
+                'data': data,
+                'pagination': {
+                    'current_page': page,
+                    'page_size': page_size,
+                    'total_count': total_count,
+                    'total_pages': (total_count + page_size - 1) // page_size,
+                    'has_next': end < total_count,
+                    'has_previous': page > 1,
+                },
+            })
+        except Exception as e:
+            logger.error(f"Error listing users (admin): {str(e)}")
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def update_role(self, request, pk=None):
+        try:
+            user = User.objects.get(pk=pk)
+            role = request.data.get('role')  # 'admin' | 'moderator' | 'user'
+
+            if role not in ['admin', 'moderator', 'user']:
+                return Response({'status': 'error', 'message': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Remove both roles first if setting plain user
+            if role == 'user':
+                remove_user_role(user, 'admin')
+                remove_user_role(user, 'moderator')
+            elif role == 'admin':
+                # Ensure moderator role is not required; keep both or only admin? Here we ensure admin only
+                remove_user_role(user, 'moderator')
+                assign_user_role(user, 'admin')
+            elif role == 'moderator':
+                remove_user_role(user, 'admin')
+                assign_user_role(user, 'moderator')
+
+            groups_list = list(user.groups.values_list('name', flat=True))
+            return Response({
+                'status': 'success',
+                'data': {
+                    'id': user.id,
+                    'role': 'admin' if 'Administrators' in groups_list else ('moderator' if 'Moderators' in groups_list else 'user'),
+                    'groups': groups_list,
+                },
+            })
+        except User.DoesNotExist:
+            return Response({'status': 'error', 'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error updating user role (admin) {pk}: {str(e)}")
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def set_active(self, request, pk=None):
+        try:
+            user = User.objects.get(pk=pk)
+            is_active = request.data.get('is_active')
+            if isinstance(is_active, bool) is False and str(is_active).lower() not in ['true', 'false']:
+                return Response({'status': 'error', 'message': 'Invalid is_active'}, status=status.HTTP_400_BAD_REQUEST)
+
+            user.is_active = True if (is_active is True or str(is_active).lower() == 'true') else False
+            user.save()
+            return Response({'status': 'success', 'data': {'id': user.id, 'is_active': user.is_active}})
+        except User.DoesNotExist:
+            return Response({'status': 'error', 'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error setting user active (admin) {pk}: {str(e)}")
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def notify_user(self, request, pk=None):
+        """Send a notification to a specific user (placeholder)."""
+        try:
+            user = User.objects.get(pk=pk)
+            subject = request.data.get('subject', 'Thông báo từ hệ thống')
+            message = request.data.get('message', '')
+
+            # Placeholder: In real app, integrate email/notification service here
+            logger.info(f"[ADMIN NOTIFY] user_id={user.id}, subject={subject}, message={message}")
+
+            return Response({'status': 'success', 'data': {'user_id': user.id, 'notified': True}})
+        except User.DoesNotExist:
+            return Response({'status': 'error', 'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error notifying user (admin) {pk}: {str(e)}")
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])
     def system_notifications(self, request):

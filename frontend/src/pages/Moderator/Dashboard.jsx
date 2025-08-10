@@ -988,7 +988,9 @@ const ModeratorDashboard = () => {
       case 'analytics':
         return <Analytics />;
       case 'settings':
-        return isAdmin ? <AdminSettings /> : <SystemSettings />;
+        // Hiển thị cùng một UI cho cả admin và moderator
+        // Admin có thể lưu/chỉnh, moderator chỉ xem (đã được khóa trong các component con)
+        return <AdminSettings />;
       // case 'system-users':
       //   return isAdmin ? <UserManagement /> : null;
       default:

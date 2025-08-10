@@ -29,6 +29,11 @@ const UserManagement = () => {
   });
   const [error, setError] = useState(null);
   const [moderationLoading, setModerationLoading] = useState(false);
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [actionType, setActionType] = useState('warn'); // warn | suspend | ban | unban
+  const [actionReason, setActionReason] = useState('Vi phạm nội quy cộng đồng');
+  const [actionDuration, setActionDuration] = useState(7); // days for suspend
+  const [actionTargets, setActionTargets] = useState([]); // array of userIds
 
   // Dynamic tabs with real counts from API
   const tabs = [
@@ -158,14 +163,31 @@ const UserManagement = () => {
       try {
         setModerationLoading(true);
 
-        const response = await moderateUser(userId, action, reason, durationDays);
+        // Map UI action to API action
+        const mapAction = a => {
+          switch (a) {
+            case 'warn':
+              return 'warning';
+            case 'suspend':
+              return 'temp_ban';
+            case 'ban':
+              return 'permanent_ban';
+            case 'unban':
+              return 'reactivate';
+            default:
+              return a;
+          }
+        };
+
+        const apiAction = mapAction(action);
+        const response = await moderateUser(userId, apiAction, reason, durationDays);
 
         if (response.status === 'success') {
           // Refresh users list after action
           await fetchFlaggedUsers(pagination.currentPage, pagination.pageSize);
 
-          // Clear cache to ensure fresh data
-          moderationCacheService.clearCache('flagged_users');
+          // Invalidate cache to ensure fresh data
+          moderationCacheService.invalidateCache('flagged_users');
 
           console.log('✅ User moderation action completed:', {
             userId,
@@ -187,6 +209,53 @@ const UserManagement = () => {
     },
     [fetchFlaggedUsers, pagination.currentPage, pagination.pageSize]
   );
+
+  // Bulk moderation action
+  const handleBulkModeration = useCallback(
+    async (action, reason = '', durationDays = 0) => {
+      if (selectedUsers.length === 0) return;
+      try {
+        setModerationLoading(true);
+        const results = await Promise.allSettled(
+          selectedUsers.map(uid => handleModerationAction(uid, action, reason, durationDays))
+        );
+        const failed = results.filter(r => r.status === 'rejected').length;
+        if (failed > 0) {
+          alert(`Một số thao tác thất bại: ${failed}`);
+        }
+        setSelectedUsers([]);
+      } finally {
+        setModerationLoading(false);
+      }
+    },
+    [selectedUsers, handleModerationAction]
+  );
+
+  // Open action modal (single or bulk)
+  const openActionModal = (type, targets = []) => {
+    setActionType(type);
+    setActionTargets(targets);
+    setActionReason(
+      type === 'warn'
+        ? 'Cảnh báo: Nội dung/hoạt động vi phạm quy tắc'
+        : type === 'suspend'
+          ? 'Tạm khóa tài khoản do vi phạm'
+          : type === 'ban'
+            ? 'Cấm vĩnh viễn do vi phạm nghiêm trọng'
+            : 'Mở khóa tài khoản'
+    );
+    setActionDuration(7);
+    setActionModalOpen(true);
+  };
+
+  const confirmActionModal = async () => {
+    setActionModalOpen(false);
+    if (actionTargets.length === 1) {
+      await handleModerationAction(actionTargets[0], actionType, actionReason, actionDuration);
+    } else if (actionTargets.length > 1) {
+      await handleBulkModeration(actionType, actionReason, actionDuration);
+    }
+  };
 
   // Filter users (now working with real API data)
   useEffect(() => {
@@ -365,13 +434,25 @@ const UserManagement = () => {
         <div className="flex space-x-2">
           {selectedUsers.length > 0 && (
             <>
-              <button className="rounded-md bg-yellow-600 px-4 py-2 text-sm text-white hover:bg-yellow-700">
+              <button
+                onClick={() => openActionModal('warn', [...selectedUsers])}
+                className="rounded-md bg-yellow-600 px-4 py-2 text-sm text-white hover:bg-yellow-700"
+                disabled={moderationLoading}
+              >
                 Cảnh báo ({selectedUsers.length})
               </button>
-              <button className="rounded-md bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700">
+              <button
+                onClick={() => openActionModal('suspend', [...selectedUsers])}
+                className="rounded-md bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700"
+                disabled={moderationLoading}
+              >
                 Tạm khóa ({selectedUsers.length})
               </button>
-              <button className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700">
+              <button
+                onClick={() => openActionModal('ban', [...selectedUsers])}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                disabled={moderationLoading}
+              >
                 Cấm ({selectedUsers.length})
               </button>
               <button
@@ -575,23 +656,14 @@ const UserManagement = () => {
                   ) : (
                     <>
                       <button
-                        onClick={() =>
-                          handleModerationAction(
-                            user.id,
-                            'suspend',
-                            'Tạm khóa do vi phạm nội quy',
-                            7
-                          )
-                        }
+                        onClick={() => openActionModal('suspend', [user.id])}
                         className="text-yellow-600 hover:text-yellow-900"
                         disabled={moderationLoading}
                       >
                         Tạm khóa
                       </button>
                       <button
-                        onClick={() =>
-                          handleModerationAction(user.id, 'ban', 'Cấm do vi phạm nghiêm trọng', 365)
-                        }
+                        onClick={() => openActionModal('ban', [user.id])}
                         className="text-red-600 hover:text-red-900"
                         disabled={moderationLoading}
                       >
@@ -599,23 +671,6 @@ const UserManagement = () => {
                       </button>
                     </>
                   )}
-                  {user.role === 'user' ? (
-                    <button
-                      onClick={() => handleModerationAction(user.id, 'promote_moderator')}
-                      className="text-blue-600 hover:text-blue-900"
-                      disabled={moderationLoading}
-                    >
-                      Thăng Moderator
-                    </button>
-                  ) : user.role === 'moderator' ? (
-                    <button
-                      onClick={() => handleModerationAction(user.id, 'demote_user')}
-                      className="text-gray-600 hover:text-gray-900"
-                      disabled={moderationLoading}
-                    >
-                      Hạ cấp
-                    </button>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -629,6 +684,69 @@ const UserManagement = () => {
           <div className="mb-4 text-6xl text-gray-400">👥</div>
           <h3 className="mb-2 text-lg font-medium text-gray-900">Không tìm thấy người dùng</h3>
           <p className="text-gray-600">Thử thay đổi bộ lọc hoặc tìm kiếm khác</p>
+        </div>
+      )}
+
+      {/* Moderation Action Modal */}
+      {actionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {actionType === 'warn' && 'Gửi cảnh báo'}
+              {actionType === 'suspend' && 'Tạm khóa tài khoản'}
+              {actionType === 'ban' && 'Cấm vĩnh viễn tài khoản'}
+              {actionType === 'unban' && 'Mở khóa tài khoản'}
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Áp dụng cho {actionTargets.length} người dùng
+            </p>
+            <div className="mt-4 space-y-4">
+              {(actionType === 'warn' || actionType === 'suspend' || actionType === 'ban') && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Lý do</label>
+                  <textarea
+                    rows={3}
+                    value={actionReason}
+                    onChange={e => setActionReason(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              )}
+              {actionType === 'suspend' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Thời gian tạm khóa (ngày)
+                  </label>
+                  <select
+                    value={actionDuration}
+                    onChange={e => setActionDuration(parseInt(e.target.value))}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value={1}>1 ngày</option>
+                    <option value={3}>3 ngày</option>
+                    <option value={7}>7 ngày</option>
+                    <option value={14}>14 ngày</option>
+                    <option value={30}>30 ngày</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setActionModalOpen(false)}
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmActionModal}
+                disabled={moderationLoading}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

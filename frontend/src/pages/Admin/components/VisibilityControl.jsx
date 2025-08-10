@@ -9,32 +9,31 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XMarkIcon,
-  PencilIcon,
+  // PencilIcon,
   AdjustmentsHorizontalIcon,
   MagnifyingGlassIcon,
   XCircleIcon,
-  PlusIcon,
+  // PlusIcon,
   SparklesIcon,
   ShieldCheckIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon,
+  // InformationCircleIcon,
   Cog6ToothIcon,
   ChartBarIcon,
   DocumentTextIcon,
-  PlayIcon,
-  PauseIcon,
-  EyeDropperIcon,
-  WrenchScrewdriverIcon,
-  ArrowPathIcon,
-  CheckBadgeIcon,
-  ExclamationCircleIcon,
+  // PlayIcon,
+  // PauseIcon,
+  // EyeDropperIcon,
+  // WrenchScrewdriverIcon,
+  // ArrowPathIcon,
+  // CheckBadgeIcon,
+  // ExclamationCircleIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import {
   StarIcon as StarIconSolid,
   FireIcon as FireIconSolid,
   TrophyIcon as TrophyIconSolid,
-  CheckCircleIcon as CheckCircleIconSolid,
-  ExclamationTriangleIcon as ExclamationTriangleIconSolid,
 } from '@heroicons/react/24/solid';
 import {
   getAdminMovies,
@@ -48,11 +47,21 @@ import {
   enrichMovie,
   updateMovieQuality,
   updateMovieVisibility,
-  getMovieEnrichmentStatus,
-  getMovieQualityDetails,
+  approveMovie,
+  rejectMovie,
+  updateMoviePriority,
+  scheduleMovieAction,
+  updateAdminMovie,
+  deleteAdminMovie,
+  // getMovieEnrichmentStatus,
+  // getMovieQualityDetails,
 } from '../../../api/adminMovieService';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useProductionMetrics } from '../../../hooks/useProductionMetrics';
+import MovieDetailsModal from '../../../components/common/MovieDetailsModal';
+import MovieFormModal from '../../../components/common/MovieFormModal';
+import ProductionMetricsCard from './ProductionMetricsCard';
+import SchedulePublishModal from './SchedulePublishModal';
 
 const VisibilityControl = () => {
   // State Management
@@ -133,13 +142,21 @@ const VisibilityControl = () => {
     scheduled: 0,
   });
 
+  // Detail / Metrics / Edit / Schedule modals state
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState(null);
+  const [metricsModalOpen, setMetricsModalOpen] = useState(false);
+  const [selectedMetricsMovie, setSelectedMetricsMovie] = useState(null);
+  const [showMovieForm, setShowMovieForm] = useState(false);
+  const [editMovie, setEditMovie] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedMovieForSchedule, setSelectedMovieForSchedule] = useState(null);
+
   const {
-    data: productionMetrics,
     loading: metricsLoading,
     error: metricsError,
     refreshMetrics,
-  } = useProductionMetrics({ disableAutoRefresh: true }); // Disable auto-refresh, rely on AdminDataContext
-  const [localData, setLocalData] = useState({});
+  } = useProductionMetrics({ disableAutoRefresh: true });
 
   // Visibility Categories Configuration with Enhanced Styling
   const visibilityCategories = {
@@ -664,6 +681,150 @@ const VisibilityControl = () => {
     setHasPrevious(false);
   };
 
+  // Approve / Reject actions
+  const approveMovieAction = useCallback(
+    async movieId => {
+      try {
+        await approveMovie(movieId);
+        await Promise.all([fetchMovies('init', currentAfter), fetchStats()]);
+      } catch (error) {
+        console.error('Error approving movie:', error);
+      }
+    },
+    [fetchMovies, fetchStats, currentAfter]
+  );
+
+  const rejectMovieAction = useCallback(
+    async (movieId, reason = 'Không đạt yêu cầu chất lượng') => {
+      try {
+        await rejectMovie(movieId, reason);
+        await Promise.all([fetchMovies('init', currentAfter), fetchStats()]);
+      } catch (error) {
+        console.error('Error rejecting movie:', error);
+      }
+    },
+    [fetchMovies, fetchStats, currentAfter]
+  );
+
+  // Toggle publish (publish/unpublish)
+  const togglePublishStatus = useCallback(
+    async movieId => {
+      try {
+        await performBulkAction('toggle_publish', [movieId]);
+        await Promise.all([fetchMovies('init', currentAfter), fetchStats()]);
+      } catch (error) {
+        console.error('Error toggling publish status:', error);
+      }
+    },
+    [fetchMovies, fetchStats, currentAfter]
+  );
+
+  // Priority update
+  const updatePriorityAction = useCallback(
+    async (movieId, priority) => {
+      try {
+        await updateMoviePriority(movieId, priority);
+        await fetchMovies('init', currentAfter);
+      } catch (error) {
+        console.error('Error updating priority:', error);
+      }
+    },
+    [fetchMovies, currentAfter]
+  );
+
+  // Details modal handlers
+  const handleViewDetails = useCallback(movie => {
+    const enhancedMovie = { ...movie, title: movie?.title || 'Unknown Movie' };
+    setSelectedMovie(enhancedMovie);
+    setDetailsModalOpen(true);
+  }, []);
+
+  const handleCloseDetails = useCallback(() => {
+    setSelectedMovie(null);
+    setDetailsModalOpen(false);
+  }, []);
+
+  // Metrics modal
+  const handleViewMetrics = useCallback(movie => {
+    setSelectedMetricsMovie(movie);
+    setMetricsModalOpen(true);
+  }, []);
+
+  // Edit / Delete
+  const handleEditMovie = useCallback(
+    async (movieId, movieData) => {
+      try {
+        await updateAdminMovie(movieId, movieData);
+        setShowMovieForm(false);
+        setEditMovie(null);
+        await fetchMovies('init', currentAfter);
+      } catch (error) {
+        alert(error.error || 'Không thể cập nhật phim');
+      }
+    },
+    [fetchMovies, currentAfter]
+  );
+
+  const handleDeleteMovie = useCallback(
+    async movieId => {
+      if (!window.confirm('Bạn có chắc chắn muốn xóa phim này?')) return;
+      try {
+        await deleteAdminMovie(movieId);
+        await fetchMovies('init', currentAfter);
+      } catch (error) {
+        alert(error.error || 'Không thể xóa phim');
+      }
+    },
+    [fetchMovies, currentAfter]
+  );
+
+  // Schedule publish
+  const handleOpenScheduleModal = useCallback(movie => {
+    setSelectedMovieForSchedule(movie);
+    setShowScheduleModal(true);
+  }, []);
+
+  const handleSchedulePublish = useCallback(
+    async scheduleData => {
+      try {
+        const fullScheduleData = {
+          movie_id: selectedMovieForSchedule.id,
+          action_type: 'publish',
+          ...scheduleData,
+        };
+        await scheduleMovieAction(fullScheduleData);
+        alert('Đã lên lịch xuất bản phim thành công!');
+        setShowScheduleModal(false);
+        setSelectedMovieForSchedule(null);
+        await fetchMovies('init', currentAfter);
+      } catch (error) {
+        alert(error.error || 'Không thể lên lịch xuất bản phim');
+      }
+    },
+    [selectedMovieForSchedule, fetchMovies, currentAfter]
+  );
+
+  // Quality Review handler (borrowed behavior from MovieManagement)
+  const handleQualityReview = useCallback(movie => {
+    // Open the common MovieQualityModal via local Quality modal flag
+    // Reuse existing quality modal state and data
+    const enhancedMovie = {
+      ...movie,
+      quality_metrics: movie.quality_metrics || {
+        quality_score: movie.quality_score ?? null,
+        content_completeness: movie.content_completeness ?? '0.00',
+        minimum_quality_met: movie.minimum_quality_met ?? false,
+        overall_quality_rating: movie.overall_quality_rating || 'Not Assessed',
+        completion_status: movie.completion_status || 'Incomplete',
+        quality_issues: movie.quality_issues || [],
+        quality_suggestions: movie.quality_suggestions || [],
+      },
+    };
+    setSelectedMovie(enhancedMovie);
+    setQualityData(prev => ({ ...prev, movie_id: movie.id }));
+    setShowQualityModal(true);
+  }, []);
+
   // Pagination handlers
   const handleNextPage = () => {
     if (hasNext && (typeof hasNext === 'string' || Array.isArray(hasNext))) {
@@ -709,6 +870,14 @@ const VisibilityControl = () => {
     const runtime = movie?.runtime ? `${movie.runtime} min` : 'N/A';
     const qualityScore = movie?.quality_score || 0;
     const completeness = movie?.content_completeness || 0;
+    const approvalStatus = movie?.approval_status || 'PENDING';
+    const isFeatured = !!(movie?.admin_control?.admin_featured ?? movie?.admin_featured);
+    const isPublished = !!(movie?.admin_control?.visibility_status
+      ? movie.admin_control.visibility_status === 'PUBLISHED'
+      : movie?.is_published);
+    const adminPriority =
+      movie?.admin_control?.admin_priority ??
+      (typeof movie?.admin_priority === 'number' ? movie.admin_priority : 0);
 
     return (
       <div
@@ -880,6 +1049,78 @@ const VisibilityControl = () => {
 
           {/* Actions */}
           <div className="mt-4 space-y-2">
+            {/* Primary Actions Row - align with MovieManagement */}
+            <div className="space-y-2">
+              {/* View Details */}
+              <button
+                onClick={() => handleViewDetails(movie)}
+                className="inline-flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                <EyeIcon className="mr-1.5 size-4" />
+                Xem chi tiết
+              </button>
+
+              {/* Approval actions */}
+              {(approvalStatus === 'NEEDS_REVIEW' || approvalStatus === 'PENDING') && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => approveMovieAction(movie.id)}
+                    className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
+                  >
+                    <CheckCircleIcon className="mr-1.5 size-4" />
+                    Duyệt
+                  </button>
+                  <button
+                    onClick={() => rejectMovieAction(movie.id, 'Không đạt yêu cầu chất lượng')}
+                    className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                  >
+                    <XCircleIcon className="mr-1.5 size-4" />
+                    Từ chối
+                  </button>
+                </div>
+              )}
+
+              {/* Schedule publish for pending */}
+              {approvalStatus === 'PENDING' && (
+                <button
+                  onClick={() => handleOpenScheduleModal(movie)}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  <CalendarIcon className="mr-1.5 size-4" />
+                  Lên lịch xuất bản
+                </button>
+              )}
+
+              {/* Admin control actions */}
+              {approvalStatus === 'APPROVED' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => toggleVisibility(movie.id, 'featured')}
+                    className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-xs font-medium ${
+                      isFeatured
+                        ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    } transition-colors`}
+                  >
+                    <StarIcon className="mr-1 size-3" />
+                    {isFeatured ? 'Bỏ Featured' : 'Featured'}
+                  </button>
+
+                  <button
+                    onClick={() => togglePublishStatus(movie.id)}
+                    className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-xs font-medium ${
+                      isPublished
+                        ? 'border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    } transition-colors`}
+                  >
+                    <EyeIcon className="mr-1 size-3" />
+                    {isPublished ? 'Ẩn' : 'Xuất bản'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Primary Visibility Toggle */}
             <button
               onClick={() => toggleVisibility(movie.id, activeSection)}
@@ -920,128 +1161,68 @@ const VisibilityControl = () => {
               )}
 
               <button
-                className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                title="Chỉnh sửa"
+                onClick={() => handleViewMetrics(movie)}
+                className="inline-flex items-center justify-center rounded-md border border-purple-300 bg-purple-50 px-3 py-2 text-xs font-medium text-purple-800 transition-colors hover:bg-purple-100"
+                title="Xem Production Metrics"
               >
-                <PencilIcon className="mr-1 size-3" />
-                Chỉnh sửa
+                <ChartBarIcon className="mr-1 size-3" />
+                Xem Metrics
               </button>
             </div>
 
-            {/* Enhanced Functionality Actions */}
-            <div className="mt-3 space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                {/* Data Enrichment */}
+            {/* Quality & Enrichment Actions borrowed from MovieManagement */}
+            <div className="space-y-2">
+              {Array.isArray(movie?.quality_issues) && movie.quality_issues.length > 0 && (
                 <button
-                  onClick={() => {
-                    setEnrichmentData({ ...enrichmentData, movie_id: movie.id });
-                    setShowEnrichmentModal(true);
-                  }}
-                  disabled={enrichmentProcessing[movie.id]}
-                  className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    enrichmentProcessing[movie.id]
-                      ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
-                      : 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 focus:ring-blue-500'
-                  }`}
-                  title="Bổ sung dữ liệu từ TMDB/IMDB"
+                  onClick={() => handleQualityReview(movie)}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800 hover:bg-orange-100 transition-colors"
                 >
-                  {enrichmentProcessing[movie.id] ? (
-                    <ArrowPathIcon className="mr-1 size-3 animate-spin" />
-                  ) : (
-                    <SparklesIcon className="mr-1 size-3" />
-                  )}
-                  Bổ sung
+                  <ExclamationTriangleIcon className="mr-1 size-3" />
+                  Khắc phục chất lượng ({movie.quality_issues.length})
                 </button>
+              )}
 
-                {/* Quality Assessment */}
-                <button
-                  onClick={() => {
-                    setQualityData({ ...qualityData, movie_id: movie.id });
-                    setShowQualityModal(true);
-                  }}
-                  disabled={qualityProcessing[movie.id]}
-                  className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    qualityProcessing[movie.id]
-                      ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
-                      : 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100 focus:ring-green-500'
-                  }`}
-                  title="Đánh giá chất lượng nội dung"
-                >
-                  {qualityProcessing[movie.id] ? (
-                    <ArrowPathIcon className="mr-1 size-3 animate-spin" />
-                  ) : (
-                    <ShieldCheckIcon className="mr-1 size-3" />
-                  )}
-                  Chất lượng
-                </button>
+              <button
+                onClick={() => handleQualityReview(movie)}
+                className="inline-flex w-full items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+              >
+                <ChartBarIcon className="mr-1 size-3" />
+                Đánh giá chất lượng
+              </button>
 
-                {/* Display Mode */}
-                <button
-                  onClick={() => {
-                    setDisplayModeData({ ...displayModeData, movie_id: movie.id });
-                    setShowDisplayModeModal(true);
-                  }}
-                  disabled={displayModeProcessing[movie.id]}
-                  className={`inline-flex items-center justify-center rounded-md border px-3 py-2 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    displayModeProcessing[movie.id]
-                      ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
-                      : 'border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 focus:ring-purple-500'
-                  }`}
-                  title="Điều chỉnh chế độ hiển thị"
-                >
-                  {displayModeProcessing[movie.id] ? (
-                    <ArrowPathIcon className="mr-1 size-3 animate-spin" />
-                  ) : (
-                    <Cog6ToothIcon className="mr-1 size-3" />
-                  )}
-                  Hiển thị
-                </button>
-              </div>
-
-              {/* Status Indicators */}
-              <div className="flex items-center justify-between text-xs">
-                {/* Enrichment Status */}
-                {enrichmentStatus[movie.id] && (
-                  <div className="flex items-center">
-                    {enrichmentStatus[movie.id].status === 'completed' ? (
-                      <CheckCircleIconSolid className="mr-1 size-3 text-green-500" />
-                    ) : enrichmentStatus[movie.id].status === 'failed' ? (
-                      <ExclamationTriangleIconSolid className="mr-1 size-3 text-red-500" />
-                    ) : (
-                      <InformationCircleIcon className="mr-1 size-3 text-blue-500" />
-                    )}
-                    <span className="text-gray-500">Enrichment</span>
-                  </div>
+              <button
+                onClick={() =>
+                  handleEnrichMovieData(movie.id, {
+                    focusAreas: ['basic', 'visual'],
+                    enrichType: 'quality_based',
+                  })
+                }
+                disabled={enrichmentProcessing[movie.id]}
+                className="inline-flex w-full items-center justify-center rounded-md border border-green-300 bg-green-50 px-3 py-2 text-xs font-medium text-green-800 hover:bg-green-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                title="Bổ sung dữ liệu phim"
+              >
+                {enrichmentProcessing[movie.id] ? (
+                  <>
+                    <div className="mr-1 size-3 animate-spin rounded-full border-2 border-green-800 border-t-transparent" />
+                    Đang xử lý...
+                  </>
+                ) : enrichmentStatus[movie.id]?.status === 'completed' ? (
+                  <>
+                    <CheckCircleIcon className="mr-1 size-3" />
+                    Đã cập nhật ✓
+                  </>
+                ) : enrichmentStatus[movie.id]?.status === 'failed' ? (
+                  <>
+                    <ExclamationTriangleIcon className="mr-1 size-3" />
+                    Lỗi
+                  </>
+                ) : (
+                  <>
+                    <DocumentTextIcon className="mr-1 size-3" />
+                    Bổ sung dữ liệu
+                  </>
                 )}
-
-                {/* Quality Status */}
-                {qualityStatus[movie.id] && (
-                  <div className="flex items-center">
-                    {qualityStatus[movie.id].status === 'completed' ? (
-                      <CheckCircleIconSolid className="mr-1 size-3 text-green-500" />
-                    ) : qualityStatus[movie.id].status === 'failed' ? (
-                      <ExclamationTriangleIconSolid className="mr-1 size-3 text-red-500" />
-                    ) : (
-                      <InformationCircleIcon className="mr-1 size-3 text-blue-500" />
-                    )}
-                    <span className="text-gray-500">Quality</span>
-                  </div>
-                )}
-
-                {/* Display Mode Status */}
-                {displayModeStatus[movie.id] && (
-                  <div className="flex items-center">
-                    {displayModeStatus[movie.id].status === 'completed' ? (
-                      <CheckCircleIconSolid className="mr-1 size-3 text-green-500" />
-                    ) : displayModeStatus[movie.id].status === 'failed' ? (
-                      <ExclamationTriangleIconSolid className="mr-1 size-3 text-red-500" />
-                    ) : (
-                      <InformationCircleIcon className="mr-1 size-3 text-blue-500" />
-                    )}
-                    <span className="text-gray-500">Display</span>
-                  </div>
-                )}
-              </div>
+              </button>
             </div>
 
             {/* Priority Adjustment */}
@@ -1049,27 +1230,45 @@ const VisibilityControl = () => {
               <span className="text-xs text-gray-500">Ưu tiên:</span>
               <div className="flex items-center space-x-1">
                 <button
-                  onClick={() => {
-                    // TODO: Implement priority update
-                    console.log('Decrease priority for movie:', movie.id);
-                  }}
+                  onClick={() =>
+                    updatePriorityAction(movie.id, Math.max(0, (adminPriority || 0) - 1))
+                  }
                   className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
                 >
                   -
                 </button>
                 <span className="w-6 text-center text-xs font-medium text-gray-700">
-                  {movie.admin_priority || 0}
+                  {adminPriority}
                 </span>
                 <button
-                  onClick={() => {
-                    // TODO: Implement priority update
-                    console.log('Increase priority for movie:', movie.id);
-                  }}
+                  onClick={() =>
+                    updatePriorityAction(movie.id, Math.min(10, (adminPriority || 0) + 1))
+                  }
                   className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
                 >
                   +
                 </button>
               </div>
+            </div>
+
+            {/* Edit / Delete */}
+            <div className="flex space-x-2 mt-2">
+              <button
+                onClick={() => {
+                  setEditMovie(movie);
+                  setShowMovieForm(true);
+                }}
+                className="inline-flex items-center rounded-md border border-yellow-500 bg-yellow-50 px-3 py-1 text-xs font-medium text-yellow-700 hover:bg-yellow-100"
+              >
+                Sửa
+              </button>
+              <button
+                onClick={() => handleDeleteMovie(movie.id)}
+                className="inline-flex items-center rounded-md border border-red-500 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+              >
+                <TrashIcon className="mr-1 size-3" />
+                Xóa
+              </button>
             </div>
           </div>
         </div>
@@ -1504,7 +1703,7 @@ const VisibilityControl = () => {
 
         {/* Scheduler Modal */}
         {showScheduler && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Lên lịch hiển thị</h3>
@@ -1597,7 +1796,7 @@ const VisibilityControl = () => {
 
         {/* Data Enrichment Modal */}
         {showEnrichmentModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Bổ sung dữ liệu phim</h3>
@@ -1713,7 +1912,7 @@ const VisibilityControl = () => {
 
         {/* Quality Assessment Modal */}
         {showQualityModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Đánh giá chất lượng</h3>
@@ -1842,7 +2041,7 @@ const VisibilityControl = () => {
 
         {/* Display Mode Modal */}
         {showDisplayModeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Điều chỉnh chế độ hiển thị</h3>
@@ -2010,6 +2209,55 @@ const VisibilityControl = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Movie Details Modal */}
+        {detailsModalOpen && selectedMovie && (
+          <MovieDetailsModal movie={selectedMovie} open={true} onClose={handleCloseDetails} />
+        )}
+
+        {/* Production Metrics Modal */}
+        {metricsModalOpen && selectedMetricsMovie && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-3xl rounded-lg bg-white p-6 shadow-xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Production Metrics</h3>
+                <button
+                  onClick={() => setMetricsModalOpen(false)}
+                  className="text-gray-400 transition-colors hover:text-gray-500"
+                >
+                  <XMarkIcon className="size-6" />
+                </button>
+              </div>
+              <ProductionMetricsCard movie={selectedMetricsMovie} />
+            </div>
+          </div>
+        )}
+
+        {/* Movie Form Modal (Edit) */}
+        {showMovieForm && editMovie && (
+          <MovieFormModal
+            open={showMovieForm}
+            onClose={() => {
+              setShowMovieForm(false);
+              setEditMovie(null);
+            }}
+            onSubmit={data => handleEditMovie(editMovie.id, data)}
+            movie={editMovie}
+          />
+        )}
+
+        {/* Schedule Publish Modal */}
+        {showScheduleModal && selectedMovieForSchedule && (
+          <SchedulePublishModal
+            isOpen={showScheduleModal}
+            onClose={() => {
+              setShowScheduleModal(false);
+              setSelectedMovieForSchedule(null);
+            }}
+            onSchedule={handleSchedulePublish}
+            movieTitle={selectedMovieForSchedule?.title}
+          />
         )}
       </div>
     );

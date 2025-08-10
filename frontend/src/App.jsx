@@ -21,7 +21,7 @@ import Profile from './pages/Profile';
 import ProfileEdit from './pages/Profile/ProfileEdit';
 import PrivateRoute from './components/auth/PrivateRoute';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   rehydrateAuth,
@@ -30,6 +30,7 @@ import {
 } from './store/slices/authSlice';
 import ProfileCompletionModal from './components/modals/ProfileCompletionModal';
 import EmailVerificationChecker from './components/auth/EmailVerificationChecker';
+import AccountLockedModal from './components/modals/AccountLockedModal';
 // import AdManager from './components/ads/AdManager';
 import PricingPage from './pages/Pricing';
 import CheckoutPage from './pages/Checkout';
@@ -71,6 +72,8 @@ if (typeof window !== 'undefined') {
 function App() {
   const dispatch = useDispatch();
   const showProfileCompletionModal = useSelector(selectShowProfileCompletionModal);
+  const user = useSelector(state => state.auth.user);
+  const [showLockedModal, setShowLockedModal] = useState(false);
 
   // Debug logging for modal state
   useEffect(() => {
@@ -105,6 +108,31 @@ function App() {
       }
     });
   }, [dispatch]);
+
+  // Hiển thị modal khi tài khoản bị khóa (dựa trên is_active === false)
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      const storedUser = userStr ? JSON.parse(userStr) : null;
+      const inactive = storedUser && storedUser.is_active === false;
+      // Nếu trước đó có flag trong session (qua lần render trước khi bị logout/redirect)
+      const pending = sessionStorage.getItem('accountLockedNotice') === '1';
+      if (inactive || pending) {
+        setShowLockedModal(true);
+        sessionStorage.removeItem('accountLockedNotice');
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  // Theo dõi thay đổi user trong Redux: nếu bị khóa, bật modal và đặt flag phiên để giữ sau reload
+  useEffect(() => {
+    if (user && user.is_active === false) {
+      setShowLockedModal(true);
+      sessionStorage.setItem('accountLockedNotice', '1');
+    }
+  }, [user]);
 
   // Thiết lập trình xử lý lỗi toàn cục để ngăn chặn lỗi từ script của bên thứ ba làm sập ứng dụng
   useEffect(() => {
@@ -243,6 +271,10 @@ function App() {
                     }
                   />
                 </Routes>
+                <AccountLockedModal
+                  isOpen={showLockedModal}
+                  onClose={() => setShowLockedModal(false)}
+                />
 
                 {/* <PerformanceMonitor /> */}
 

@@ -706,7 +706,6 @@ const MovieManagement = () => {
     }
   };
 
-  // Status Badge Component with Fixed Tailwind Classes
   const getStatusBadge = (status, type = 'approval') => {
     const approvalStatusStyles = {
       APPROVED: 'bg-green-100 text-green-800 border-green-200',

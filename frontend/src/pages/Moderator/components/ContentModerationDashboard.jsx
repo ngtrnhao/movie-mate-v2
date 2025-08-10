@@ -64,9 +64,9 @@ const ContentModerationDashboard = () => {
         { page: currentPage, pageSize: 20, ...filters }
       );
 
-      // API returns { results: [...], count: ..., page_info: {...} }
-      setReviews(response.results || []);
-      setTotalPages(response.page_info?.total_pages || 1);
+      // API may return either { results: [...] } or { data: [...] }
+      setReviews(response.results || response.data || []);
+      setTotalPages(response.page_info?.total_pages || response.total_pages || 1);
 
       // Update API stats from response
       setApiStats({

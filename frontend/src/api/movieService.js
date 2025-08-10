@@ -755,6 +755,8 @@ export const getModerationQueueOptimized = async (page = 1, pageSize = 20, filte
     const params = new URLSearchParams();
     params.append('page', page);
     params.append('page_size', pageSize);
+    // Skip COUNT(*) on server for faster response with large datasets
+    params.append('skip_count', 'true');
 
     // Add filters
     if (filters.status) params.append('status', filters.status);
@@ -778,6 +780,8 @@ export const getUltraOptimizedModerationQueue = async (page = 1, pageSize = 20, 
     const params = new URLSearchParams();
     params.append('page', page);
     params.append('page_size', pageSize);
+    // Skip COUNT(*) on server for faster response with large datasets
+    params.append('skip_count', 'true');
 
     // Add filters
     if (filters.status) params.append('status', filters.status);
@@ -788,9 +792,8 @@ export const getUltraOptimizedModerationQueue = async (page = 1, pageSize = 20, 
     if (filters.date_from) params.append('date_from', filters.date_from);
     if (filters.date_to) params.append('date_to', filters.date_to);
 
-    const response = await axiosInstance.get(
-      `/api/reviews/ultra_optimized_moderation_queue/?${params}`
-    );
+    // Route to improved optimized endpoint for unified behavior and better stats
+    const response = await axiosInstance.get(`/api/reviews/moderation_queue_optimized/?${params}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching ultra-optimized moderation queue:', error);

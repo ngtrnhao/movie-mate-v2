@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -29,7 +29,6 @@ import {
   PhotoCamera as PhotoCameraIcon,
   Person as PersonIcon,
   Work as WorkIcon,
-  Cake as CakeIcon,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
@@ -41,10 +40,8 @@ import {
   autoDetectLocationAPI,
   uploadAvatarAPI,
 } from '../../api/profileService';
-import { useTheme } from '@mui/material/styles';
 
 const ProfileEdit = () => {
-  const theme = useTheme();
   const dispatch = useDispatch();
   const { user: currentUser } = useSelector(state => state.auth);
 
@@ -460,14 +457,14 @@ const ProfileEdit = () => {
                   variant="h6"
                   sx={{
                     mb: 2,
-                    color: '#ffffff',
+                    color: '#ef4444',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1,
                   }}
                 >
-                  <PersonIcon sx={{ color: '#ffffff' }} /> Personal Information
+                  <PersonIcon sx={{ color: '#ef4444' }} /> Personal Information
                 </Typography>
                 <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
               </Grid>
@@ -498,7 +495,7 @@ const ProfileEdit = () => {
                       borderWidth: '1px',
                     },
                     '& .MuiInputLabel-root': {
-                      color: '#ffffff',
+                      color: '#f3f4f6',
                       fontWeight: 600,
                       fontSize: '1rem',
                       textShadow: '0 1px 2px rgba(0,0,0,0.5)',
@@ -517,7 +514,7 @@ const ProfileEdit = () => {
                       },
                     },
                     '& .MuiInputBase-input::placeholder': {
-                      color: '#6b7280',
+                      color: '#4b5563',
                       opacity: 1,
                       fontWeight: 400,
                     },
@@ -551,7 +548,7 @@ const ProfileEdit = () => {
                       borderWidth: '1px',
                     },
                     '& .MuiInputLabel-root': {
-                      color: '#ffffff',
+                      color: '#f3f4f6',
                       fontWeight: 600,
                       fontSize: '1rem',
                       textShadow: '0 1px 2px rgba(0,0,0,0.5)',
@@ -570,7 +567,7 @@ const ProfileEdit = () => {
                       },
                     },
                     '& .MuiInputBase-input::placeholder': {
-                      color: '#6b7280',
+                      color: '#4b5563',
                       opacity: 1,
                       fontWeight: 400,
                     },
@@ -607,7 +604,7 @@ const ProfileEdit = () => {
                       borderWidth: '1px',
                     },
                     '& .MuiInputLabel-root': {
-                      color: '#ffffff',
+                      color: '#f3f4f6',
                       fontWeight: 600,
                       fontSize: '1rem',
                       textShadow: '0 1px 2px rgba(0,0,0,0.5)',
@@ -626,7 +623,7 @@ const ProfileEdit = () => {
                       },
                     },
                     '& .MuiInputBase-input::placeholder': {
-                      color: '#6b7280',
+                      color: '#4b5563',
                       opacity: 1,
                       fontWeight: 400,
                     },
@@ -798,20 +795,20 @@ const ProfileEdit = () => {
                       borderWidth: '1px',
                     },
                     '& .MuiInputLabel-root': {
-                      color: '#9ca3af',
+                      color: '#f3f4f6',
                       '&.Mui-focused': {
                         color: '#ef4444',
                       },
                     },
                     '& .MuiFormHelperText-root': {
-                      color: '#9ca3af',
+                      color: '#d1d5db',
                       '&.Mui-error': {
                         color: '#f87171',
                       },
                     },
                     '& .MuiInputBase-input::placeholder': {
-                      color: '#9ca3af',
-                      opacity: 0.7,
+                      color: '#4b5563',
+                      opacity: 1,
                     },
                   }}
                 />
@@ -862,20 +859,20 @@ const ProfileEdit = () => {
                       borderWidth: '1px',
                     },
                     '& .MuiInputLabel-root': {
-                      color: '#9ca3af',
+                      color: '#f3f4f6',
                       '&.Mui-focused': {
                         color: '#ef4444',
                       },
                     },
                     '& .MuiFormHelperText-root': {
-                      color: '#9ca3af',
+                      color: '#d1d5db',
                       '&.Mui-error': {
                         color: '#f87171',
                       },
                     },
                     '& .MuiInputBase-input::placeholder': {
-                      color: '#9ca3af',
-                      opacity: 0.7,
+                      color: '#4b5563',
+                      opacity: 1,
                     },
                   }}
                 />
@@ -908,20 +905,20 @@ const ProfileEdit = () => {
                       borderWidth: '1px',
                     },
                     '& .MuiInputLabel-root': {
-                      color: '#9ca3af',
+                      color: '#f3f4f6',
                       '&.Mui-focused': {
                         color: '#ef4444',
                       },
                     },
                     '& .MuiFormHelperText-root': {
-                      color: '#9ca3af',
+                      color: '#d1d5db',
                       '&.Mui-error': {
                         color: '#f87171',
                       },
                     },
                     '& .MuiInputBase-input::placeholder': {
-                      color: '#9ca3af',
-                      opacity: 0.7,
+                      color: '#4b5563',
+                      opacity: 1,
                     },
                   }}
                 />

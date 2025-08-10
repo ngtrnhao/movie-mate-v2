@@ -81,7 +81,7 @@ export const getDashboardOverview = async () => {
  * DEPRECATED: Use getDashboardOverview instead to prevent duplicate API calls
  * @deprecated Use getDashboardOverview and extract recent_activities from response
  */
-export const getRecentModerationActivities = async (limit = 10) => {
+export const getRecentModerationActivities = async () => {
   console.warn('⚠️ getRecentModerationActivities is deprecated. Use getDashboardOverview instead.');
   try {
     const response = await getDashboardOverview();
@@ -157,7 +157,7 @@ export const getFlaggedUsers = async (params = {}) => {
 export const moderateUser = async (userId, action, reason = '', durationDays = 0) => {
   try {
     const response = await axiosInstance.post(
-      `/api/users/moderator-dashboard/${userId}/moderate_user/`,
+      `/api/auth/moderator-dashboard/${userId}/moderate_user/`,
       {
         action,
         reason,
@@ -169,6 +169,77 @@ export const moderateUser = async (userId, action, reason = '', durationDays = 0
     console.error('Error moderating user:', error);
     throw {
       error: error.response?.data?.message || 'Failed to moderate user',
+      details: error.response?.data,
+    };
+  }
+};
+
+/**
+ * Admin: list users with filters/pagination
+ */
+export const listAdminUsers = async (_params = {}) => {
+  try {
+    const response = await axiosInstance.get('/api/auth/admin-users/', { params: _params });
+    return response.data;
+  } catch (error) {
+    console.error('Error listing admin users:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to list users',
+      details: error.response?.data,
+    };
+  }
+};
+
+/**
+ * Admin: update user role (admin/moderator/user)
+ */
+export const updateAdminUserRole = async (userId, role) => {
+  try {
+    const response = await axiosInstance.post(`/api/auth/admin-users/${userId}/update_role/`, {
+      role,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to update user role',
+      details: error.response?.data,
+    };
+  }
+};
+
+/**
+ * Admin: set user active (ban/unban)
+ */
+export const setAdminUserActive = async (userId, isActive) => {
+  try {
+    const response = await axiosInstance.post(`/api/auth/admin-users/${userId}/set_active/`, {
+      is_active: isActive,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error setting user active state:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to update user active state',
+      details: error.response?.data,
+    };
+  }
+};
+
+/**
+ * Admin: notify a user with subject/message
+ */
+export const notifyAdminUser = async (userId, subject, message) => {
+  try {
+    const response = await axiosInstance.post(`/api/auth/admin-users/${userId}/notify_user/`, {
+      subject,
+      message,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error notifying user:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to notify user',
       details: error.response?.data,
     };
   }
@@ -283,7 +354,7 @@ export const getPerformanceAnalytics = async () => {
  */
 export const getModerationQueue = async (params = {}) => {
   try {
-    const response = await axiosInstance.get('/api/movies/reviews/moderation_queue/', {
+    const response = await axiosInstance.get('/api/movies/reviews/moderation_queue_optimized/', {
       params,
     });
     return response.data;

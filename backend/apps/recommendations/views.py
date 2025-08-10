@@ -215,6 +215,9 @@ class RecommendationViewSet(viewsets.ViewSet):
             limit = int(request.query_params.get('limit', 20))
             context = request.query_params.get('context', 'homepage')
 
+            # Debug log
+            logger.info(f"📋 Demographic API called - User: {user.id}, Limit: {limit}, Context: {context}")
+
             # Check if user has complete demographic data
             has_complete_demographic = (
                 user.age and

@@ -1527,7 +1527,8 @@ class EnhancedDemographicFilteringService:
             from django.utils import timezone
             from datetime import timedelta
 
-            recent_cutoff = timezone.now() - timedelta(hours=1)
+            # Check cache with longer timeout để tránh regenerate quá thường xuyên
+            recent_cutoff = timezone.now() - timedelta(hours=24)  # Tăng từ 1 giờ lên 24 giờ
             stored_recommendations = RecommendationResult.objects.filter(
                 user=user,
                 recommendation_type='demographic',
@@ -1536,8 +1537,11 @@ class EnhancedDemographicFilteringService:
             ).select_related('movie').order_by('rank')[:limit]
 
             if stored_recommendations.exists():
-                logger.info(f"✅ Using cached demographic recommendations for user {user.id}")
+                logger.info(f"✅ Using cached demographic recommendations for user {user.id} (from {stored_recommendations.first().created_at})")
                 return [rec.movie for rec in stored_recommendations]
+
+            # Log cache miss cho debugging
+            logger.info(f"❌ No cached demographic recommendations found for user {user.id} (cutoff: {recent_cutoff})")
 
             logger.info(f"Generating enhanced demographic recommendations for user {user.id}")
 
@@ -1846,7 +1850,7 @@ class EnhancedDemographicFilteringService:
         try:
             # Get ALL users from the same cluster (demographic principle)
             cluster_users = User.objects.filter(
-                recommendation_preference__demographic_cluster=cluster
+                recommendation_preference__demographic_cluster=cluster.cluster_id
             ).exclude(id=user.id)[:limit * 2]  # Get more candidates
 
             if not cluster_users.exists():
@@ -3304,15 +3308,32 @@ class OptimizedRecommendationService:
                 self._trigger_background_generation(user, rec_type, context)
                 return [rec.movie for rec in fallback_recommendations]
 
-            # 3. Không có cache - trigger background generation và trả về trending movies tạm thời
-            logger.warning(f"⚠️ Không có cache cho {rec_type} recommendations (user {user.id}) - trigger background generation")
-            # Trigger background generation để tạo cache
-            self._trigger_background_generation(user, rec_type, context)
-            # Trả về trending movies tạm thời trong khi chờ background task
-            return self._get_trending_fallback(limit)
+            # 3. Không có cache - tạo recommendations ngay lập tức
+            logger.warning(f"⚠️ Không có cache cho {rec_type} recommendations (user {user.id}) - tạo ngay lập tức")
+            try:
+                # Tạo recommendations ngay lập tức
+                immediate_recommendations = self._generate_recommendations_immediately(
+                    user, rec_type, limit, context
+                )
+
+                if immediate_recommendations:
+                    # Lưu vào fallback cache để tránh regenerate
+                    self._save_to_fallback_cache(user, rec_type, context, immediate_recommendations)
+                    logger.info(f"✅ Tạo thành công {len(immediate_recommendations)} {rec_type} recommendations cho user {user.id}")
+
+                    # Trigger background generation để cập nhật cache cho lần sau
+                    self._trigger_background_generation(user, rec_type, context)
+                    return immediate_recommendations
+                else:
+                    logger.warning(f"⚠️ Immediate generation trả về empty, fallback về trending")
+
+            except Exception as e:
+                logger.error(f"❌ Lỗi khi tạo immediate recommendations: {str(e)}")
 
             # 4. Fallback cuối cùng - trả về trending/popular movies
-            logger.error(f"❌ Không thể tạo recommendations cho user {user.id}, trả về trending movies")
+            logger.warning(f"⚠️ Fallback về trending movies cho user {user.id}")
+            # Trigger background generation để tạo cache cho lần sau
+            self._trigger_background_generation(user, rec_type, context)
             return self._get_trending_fallback(limit)
 
         except Exception as e:
@@ -3378,13 +3399,12 @@ class OptimizedRecommendationService:
         except Exception as e:
             logger.error(f"Error triggering background generation: {str(e)}")
 
-    def _generate_immediate_recommendations(self, user, rec_type, limit, context):
+    def _generate_recommendations_immediately(self, user, rec_type, limit, context):
         """
-        Tạo recommendations ngay lập tức (không background)
-        Sử dụng khi không có cache nào
+        Tạo recommendations ngay lập tức dựa trên rec_type
         """
         try:
-            logger.info(f"🚀 Tạo {rec_type} recommendations ngay lập tức cho user {user.id}")
+            logger.info(f"🔄 Generating immediate {rec_type} recommendations for user {user.id}")
 
             if rec_type == 'collaborative':
                 return self.collaborative_service.generate_collaborative_recommendations(
@@ -3405,7 +3425,7 @@ class OptimizedRecommendationService:
                 )
 
         except Exception as e:
-            logger.error(f"Error generating immediate recommendations: {str(e)}")
+            logger.error(f"Error generating immediate {rec_type} recommendations: {str(e)}")
             return []
 
     def _save_to_fallback_cache(self, user, rec_type, context, recommendations):

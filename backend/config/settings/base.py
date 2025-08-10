@@ -236,6 +236,22 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
+# ===== CELERY QUEUE ROUTING =====
+CELERY_TASK_ROUTES = {
+    # Background recommendation tasks - high priority
+    'apps.recommendations.tasks.generate_hybrid_recommendations_async': {'queue': 'high_priority'},
+    'apps.recommendations.tasks.generate_collaborative_recommendations_async': {'queue': 'high_priority'},
+    'apps.recommendations.tasks.generate_demographic_recommendations_async': {'queue': 'high_priority'},
+    'apps.recommendations.tasks.refresh_all_recommendations_async': {'queue': 'high_priority'},
+
+    # Batch processing tasks - medium priority
+    'apps.recommendations.tasks.batch_*': {'queue': 'batch_processing'},
+
+    # Default tasks - default queue
+    'apps.movies.tasks.*': {'queue': 'default'},
+    'apps.users.tasks.*': {'queue': 'default'},
+}
+
 
 IMDB_API_KEY = env('IMDB_API_KEY', default='your-rapidapi-key-here')
 

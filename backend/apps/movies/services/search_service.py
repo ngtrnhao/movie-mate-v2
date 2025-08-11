@@ -320,6 +320,12 @@ class MovieSearchService:
 
             # 🚀 ENHANCED FUNCTION SCORE for quality-weighted results
             if params.get('q') and params.get('quality_weighted', True):
+                # Reduce non-text boosts on very short queries so lexical relevance dominates
+                qt = params.get('q', '')
+                short_query = len(qt.split()) <= 4
+                score_mode_value = 'sum' if short_query else 'multiply'
+                boost_mode_value = 'sum' if short_query else 'multiply'
+
                 search = search.query(
                     'function_score',
                     query=search.query,
@@ -327,26 +333,26 @@ class MovieSearchService:
                         # Boost high-quality content
                         {
                             'filter': {'range': {'quality_score': {'gte': 8.0}}},
-                            'weight': 2.0
+                            'weight': 1.6 if short_query else 2.0
                         },
                         # Boost complete content
                         {
                             'filter': {'range': {'content_completeness': {'gte': 90.0}}},
-                            'weight': 1.5
+                            'weight': 1.3 if short_query else 1.5
                         },
                         # Boost trending content
                         {
                             'filter': {'range': {'trending_score': {'gte': 7.0}}},
-                            'weight': 1.3
+                            'weight': 1.15 if short_query else 1.3
                         },
                         # Boost engaged content
                         {
                             'filter': {'range': {'engagement_rate': {'gte': 0.1}}},
-                            'weight': 1.2
+                            'weight': 1.1 if short_query else 1.2
                         }
                     ],
-                    score_mode='multiply',
-                    boost_mode='multiply'
+                    score_mode=score_mode_value,
+                    boost_mode=boost_mode_value
                 )
 
             # Keyset Pagination for Elasticsearch
@@ -547,11 +553,20 @@ class MovieSearchService:
                     ]
                 )
             else:
-                # English-optimized search giữ nguyên
+                # English-optimized search with stronger exact/phrase boosts for titles
                 search = search.query(
                     'bool',
                     should=[
-                        # Title search with high boost
+                        # Exact phrase on raw/keyword fields
+                        {
+                            'multi_match': {
+                                'query': query_text,
+                                'fields': ['title_en.raw^20', 'title.raw^16', 'original_title.raw^12'],
+                                'type': 'phrase',
+                                'boost': 10
+                            }
+                        },
+                        # Title search with high boost (analyzed)
                         {
                             'multi_match': {
                                 'query': query_text,

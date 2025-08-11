@@ -66,6 +66,32 @@ const HeroBannerRecommendation = () => {
   // Use recommendation data or fallback
   const movie = heroBannerMovie || mockMovie;
 
+  // Trailer helpers
+  const isYouTubeUrl = url =>
+    typeof url === 'string' && (url.includes('youtube.com/watch') || url.includes('youtu.be/'));
+
+  const extractYouTubeKey = url => {
+    try {
+      if (!url) return null;
+      if (url.includes('youtu.be/')) {
+        const parts = url.split('youtu.be/')[1];
+        return parts ? parts.split(/[?&#]/)[0] : null;
+      }
+      const u = new URL(url);
+      return u.searchParams.get('v');
+    } catch {
+      return null;
+    }
+  };
+
+  const trailerKey =
+    movie.trailer_key ||
+    (isYouTubeUrl(movie.trailer_url) ? extractYouTubeKey(movie.trailer_url) : null);
+  const youtubeEmbedUrl = trailerKey
+    ? `https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailerKey}`
+    : null;
+  const isMp4 = typeof movie.trailer_url === 'string' && movie.trailer_url.endsWith('.mp4');
+
   // Localized fields
   const localizedTitle = getDisplayTitle(movie, i18n.language);
   const localizedOverview = getDisplayOverview(movie, i18n.language) || movie.overview;
@@ -140,20 +166,37 @@ const HeroBannerRecommendation = () => {
 
   return (
     <section ref={heroRef} className="relative min-h-[105vh] w-full">
-      {/* Background Video */}
+      {/* Background Media */}
       <div className="absolute inset-0">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="size-full object-cover"
-          poster={movie.poster_url}
-        >
-          <source src={movie.trailer_url} type="video/mp4" />
-          {/* Fallback image if video fails to load */}
-          <img src={movie.poster_url} alt={localizedTitle} className="size-full object-cover" />
-        </video>
+        {youtubeEmbedUrl ? (
+          <iframe
+            src={youtubeEmbedUrl}
+            title={localizedTitle}
+            className="size-full object-cover"
+            frameBorder="0"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        ) : isMp4 && movie.trailer_url ? (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="size-full object-cover"
+            poster={movie.poster_url}
+          >
+            <source src={movie.trailer_url} type="video/mp4" />
+            {/* Fallback image if video fails to load */}
+            <img src={movie.poster_url} alt={localizedTitle} className="size-full object-cover" />
+          </video>
+        ) : (
+          <img
+            src={movie.backdrop_url || movie.poster_url}
+            alt={localizedTitle}
+            className="size-full object-cover"
+          />
+        )}
         {/* Enhanced Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" />
@@ -214,7 +257,7 @@ const HeroBannerRecommendation = () => {
           </div>
 
           {/* Overview */}
-          <p className="max-w-xl break-words text-lg font-medium text-gray-200 drop-shadow-md">
+          <p className="max-w-xl break-words text-lg font-medium text-gray-200 drop-shadow-md line-clamp-6">
             {localizedOverview}
           </p>
 

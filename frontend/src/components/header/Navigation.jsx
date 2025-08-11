@@ -33,14 +33,14 @@ const Navigation = () => {
       >
         {t('nav.pricing', 'Pricing')}
       </NavLink>
-      <NavLink
+      {/* <NavLink
         to="/watchlist"
         className={({ isActive }) =>
           isActive ? 'text-yellow-200' : 'text-white hover:text-yellow-500 transition-colors'
         }
       >
         {t('nav.watchlist')}
-      </NavLink>
+      </NavLink> */}
 
       {/* Admin/Moderator Dashboard Links */}
       {hasAdminAccess && (

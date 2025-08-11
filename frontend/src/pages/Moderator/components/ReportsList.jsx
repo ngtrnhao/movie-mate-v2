@@ -445,20 +445,40 @@ const ReportsList = ({ isAdmin }) => {
                   </div>
 
                   <div className="ml-4 flex flex-col gap-2">
-                    <button
-                      onClick={() => handleModerate(report.id, 'approve')}
-                      className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                    >
-                      <CheckIcon className="mr-1 size-4" />
-                      Duyệt
-                    </button>
-                    <button
-                      onClick={() => handleModerate(report.id, 'reject')}
-                      className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                    >
-                      <XMarkIcon className="mr-1 size-4" />
-                      Từ chối
-                    </button>
+                    {report.is_approved === null ? (
+                      <>
+                        <button
+                          onClick={() => handleModerate(report.id, 'approve')}
+                          className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        >
+                          <CheckIcon className="mr-1 size-4" />
+                          Duyệt
+                        </button>
+                        <button
+                          onClick={() => handleModerate(report.id, 'reject')}
+                          className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                        >
+                          <XMarkIcon className="mr-1 size-4" />
+                          Từ chối
+                        </button>
+                      </>
+                    ) : report.is_approved ? (
+                      <button
+                        disabled
+                        className="inline-flex cursor-not-allowed items-center rounded-md border border-green-200 bg-green-100 px-3 py-2 text-sm font-medium text-green-700"
+                      >
+                        <CheckIcon className="mr-1 size-4" />
+                        Đã duyệt
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="inline-flex cursor-not-allowed items-center rounded-md border border-red-200 bg-red-100 px-3 py-2 text-sm font-medium text-red-700"
+                      >
+                        <XMarkIcon className="mr-1 size-4" />
+                        Đã từ chối
+                      </button>
+                    )}
                     <button
                       onClick={() => window.open(`/movies/${report.movie?.id}`, '_blank')}
                       className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"

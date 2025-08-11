@@ -740,7 +740,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
         """
         try:
             # Cache key for complete details
-            cache_key = f'movie_details_complete_v3_{pk}'  # v2 to bust old cache
+            cache_key = f'movie_details_complete_v4_{pk}'
             cached_data = cache.get(cache_key)
 
             if cached_data:
@@ -1643,8 +1643,6 @@ class MovieReviewViewSet(viewsets.ModelViewSet):
             date_to = request.query_params.get('date_to', '')
             page = int(request.query_params.get('page', 1))
             page_size = min(int(request.query_params.get('page_size', 20)), 100)
-            skip_count = str(request.query_params.get('skip_count', 'false')).lower() == 'true'
-            skip_count = str(request.query_params.get('skip_count', 'false')).lower() == 'true'
             skip_count = str(request.query_params.get('skip_count', 'false')).lower() == 'true'
 
             # Base queryset - reviews that need moderation

@@ -86,7 +86,7 @@ const SystemSettings = () => {
                 type="text"
                 value={settings.siteName}
                 onChange={e => handleSettingChange('siteName', e.target.value)}
-                className="w-64 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-64 rounded-md border text-gray-700 border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
               />
             </SettingItem>
 
@@ -95,7 +95,7 @@ const SystemSettings = () => {
                 value={settings.siteDescription}
                 onChange={e => handleSettingChange('siteDescription', e.target.value)}
                 rows={2}
-                className="w-64 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-64 rounded-md border text-gray-700 border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
               />
             </SettingItem>
 
@@ -107,7 +107,7 @@ const SystemSettings = () => {
                 type="number"
                 value={settings.maxReviewsPerUser}
                 onChange={e => handleSettingChange('maxReviewsPerUser', parseInt(e.target.value))}
-                className="w-32 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-32 rounded-md border text-gray-700 border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
               />
             </SettingItem>
 
@@ -119,7 +119,7 @@ const SystemSettings = () => {
                 type="number"
                 value={settings.maxReviewsPerDay}
                 onChange={e => handleSettingChange('maxReviewsPerDay', parseInt(e.target.value))}
-                className="w-32 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-32 rounded-md border text-gray-700 border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
               />
             </SettingItem>
           </div>
@@ -247,7 +247,7 @@ const SystemSettings = () => {
                 type="number"
                 value={settings.maxFileSize}
                 onChange={e => handleSettingChange('maxFileSize', parseInt(e.target.value))}
-                className="w-32 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-32 rounded-md border text-gray-700 border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
               />
             </SettingItem>
           </div>

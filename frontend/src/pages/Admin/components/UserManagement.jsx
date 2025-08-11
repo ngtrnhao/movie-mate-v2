@@ -8,7 +8,7 @@ import {
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
@@ -20,6 +20,7 @@ const UserManagement = () => {
   const [lockReason, setLockReason] = useState('Vi phạm điều khoản sử dụng');
   const [lockNotify, setLockNotify] = useState(true);
 
+  // Tự động fetch khi load trang lần đầu; khi nhập/đổi filter chỉ gọi API khi nhấn nút Tìm kiếm
   useEffect(() => {
     fetchUsers(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -167,20 +168,37 @@ const UserManagement = () => {
             placeholder="Tìm kiếm theo tên hoặc email..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           />
         </div>
         <div className="sm:w-48">
           <select
             value={filterRole}
             onChange={e => setFilterRole(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           >
-            <option value="all">Tất cả vai trò</option>
-            <option value="admin">Admin</option>
-            <option value="moderator">Moderator</option>
-            <option value="user">User</option>
+            <option className="text-gray-700" value="all">
+              Tất cả vai trò
+            </option>
+            <option className="text-gray-700" value="admin">
+              Admin
+            </option>
+            <option className="text-gray-700" value="moderator">
+              Moderator
+            </option>
+            <option className="text-gray-700" value="user">
+              User
+            </option>
           </select>
+        </div>
+        <div className="sm:w-40">
+          <button
+            onClick={() => fetchUsers(1)}
+            className="w-full rounded-md border border-indigo-300 bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+            disabled={loading}
+          >
+            Tìm kiếm
+          </button>
         </div>
       </div>
 
@@ -290,13 +308,19 @@ const UserManagement = () => {
                     Vai trò mới
                   </label>
                   <select
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                    className="w-full rounded-md border text-gray-700 border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
                     value={newRole}
                     onChange={e => setNewRole(e.target.value)}
                   >
-                    <option value="user">User</option>
-                    <option value="moderator">Moderator</option>
-                    <option value="admin">Admin</option>
+                    <option className="text-gray-700" value="user">
+                      User
+                    </option>
+                    <option className="text-gray-700" value="moderator">
+                      Moderator
+                    </option>
+                    <option className="text-gray-700" value="admin">
+                      Admin
+                    </option>
                   </select>
                 </div>
               </div>

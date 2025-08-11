@@ -15,6 +15,7 @@ from django.conf import settings
 import math
 import random
 import json
+import pickle
 try:
     import psutil
     PSUTIL_AVAILABLE = True
@@ -706,13 +707,25 @@ class EnhancedDemographicFilteringService:
             if model_storage:
                 try:
                     import pickle
-                    model_data = pickle.loads(model_storage.model_data)
+                    loaded_obj = pickle.loads(model_storage.model_data)
 
-                    if isinstance(model_data, dict) and 'model' in model_data:
-                        self.kmeans_model = model_data['model']
-                        self.scaler = model_data.get('scaler')
-                        logger.info("✅ Model loaded from ModelStorage successfully")
-                        return
+                    # Case 1: New format -> dict payload with 'model'/'scaler'
+                    if isinstance(loaded_obj, dict):
+                        model = loaded_obj.get('model') or loaded_obj.get('kmeans_model')
+                        scaler = loaded_obj.get('scaler')
+                        if model is not None:
+                            self.kmeans_model = model
+                            self.scaler = scaler
+                            logger.info("✅ Model loaded from ModelStorage successfully")
+                            return
+
+                    # Case 2: Backward compatibility -> raw KMeans object
+                    self.kmeans_model = loaded_obj
+                    # scaler có thể không tồn tại trong định dạng cũ
+                    if not hasattr(self, 'scaler') or self.scaler is None:
+                        self.scaler = None
+                    logger.info("✅ Model loaded from ModelStorage (raw model)")
+                    return
                 except Exception as e:
                     logger.warning(f"Error loading from ModelStorage: {str(e)}")
 
@@ -3249,21 +3262,26 @@ class OptimizedKMeansProductionService:
 
     def _save_model_multi_storage(self, model):
         """Save model vào multiple storages để đảm bảo availability"""
-        import pickle
-        import json
 
-        # 1. Save to Redis cache
-        model_data = pickle.dumps(model)
-        cache.set('kmeans_model', model_data, timeout=self.cache_ttl)
+        # Chuẩn hóa định dạng lưu trữ để load tương thích
+        payload = {
+            'model': model,
+            'scaler': getattr(self, 'scaler', None)
+        }
 
-        # 2. Save to database (serialized)
+        # 1. Save to Redis cache (đồng bộ định dạng)
+        model_bytes = pickle.dumps(payload)
+        cache.set('kmeans_model', model_bytes, timeout=self.cache_ttl)
+
+        # 2. Save to database (serialized, kèm is_active)
         from apps.recommendations.models import ModelStorage
         ModelStorage.objects.update_or_create(
             model_name='kmeans_demographic',
             defaults={
-                'model_data': model_data,
+                'model_data': model_bytes,
                 'version': '1.0',
-                'created_at': timezone.now()
+                'created_at': timezone.now(),
+                'is_active': True,
             }
         )
 

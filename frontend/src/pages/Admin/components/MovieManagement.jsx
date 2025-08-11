@@ -159,6 +159,14 @@ const MovieManagement = () => {
     enrichType: 'comprehensive',
   });
 
+  // Loading states for actions
+  const [actionLoading, setActionLoading] = useState({}); // key: `${movieId}:${action}` => boolean
+  const [bulkActionLoading, setBulkActionLoading] = useState(null); // current bulk action string or null
+
+  const isMovieActionLoading = (movieId, action) => !!actionLoading[`${movieId}:${action}`];
+  const setMovieActionLoading = (movieId, action, value) =>
+    setActionLoading(prev => ({ ...prev, [`${movieId}:${action}`]: value }));
+
   // Search & Filter States (draft vs applied)
   const [searchQuery, setSearchQuery] = useState(''); // draft
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -316,10 +324,13 @@ const MovieManagement = () => {
   const toggleFeatured = useCallback(
     async movieId => {
       try {
+        setMovieActionLoading(movieId, 'toggle_featured', true);
         await toggleMovieFeatured(movieId);
         await handleActionSuccess();
       } catch (error) {
         console.error('Error toggling featured:', error);
+      } finally {
+        setMovieActionLoading(movieId, 'toggle_featured', false);
       }
     },
     [handleActionSuccess]
@@ -328,10 +339,13 @@ const MovieManagement = () => {
   const approveMovieAction = useCallback(
     async movieId => {
       try {
+        setMovieActionLoading(movieId, 'approve', true);
         await approveMovie(movieId);
         await handleActionSuccess();
       } catch (error) {
         console.error('Error approving movie:', error);
+      } finally {
+        setMovieActionLoading(movieId, 'approve', false);
       }
     },
     [handleActionSuccess]
@@ -340,10 +354,13 @@ const MovieManagement = () => {
   const rejectMovieAction = useCallback(
     async (movieId, reason = '') => {
       try {
+        setMovieActionLoading(movieId, 'reject', true);
         await rejectMovie(movieId, reason);
         await handleActionSuccess();
       } catch (error) {
         console.error('Error rejecting movie:', error);
+      } finally {
+        setMovieActionLoading(movieId, 'reject', false);
       }
     },
     [handleActionSuccess]
@@ -352,10 +369,13 @@ const MovieManagement = () => {
   const updatePriorityAction = useCallback(
     async (movieId, priority) => {
       try {
+        setMovieActionLoading(movieId, 'update_priority', true);
         await updateMoviePriority(movieId, priority);
         fetchMovies();
       } catch (error) {
         console.error('Error updating priority:', error);
+      } finally {
+        setMovieActionLoading(movieId, 'update_priority', false);
       }
     },
     [fetchMovies]
@@ -364,10 +384,13 @@ const MovieManagement = () => {
   const togglePublishStatus = useCallback(
     async movieId => {
       try {
+        setMovieActionLoading(movieId, 'toggle_publish', true);
         await performBulkAction('toggle_publish', [movieId]);
         await handleActionSuccess();
       } catch (error) {
         console.error('Error toggling publish status:', error);
+      } finally {
+        setMovieActionLoading(movieId, 'toggle_publish', false);
       }
     },
     [handleActionSuccess]
@@ -540,12 +563,15 @@ const MovieManagement = () => {
   const bulkAction = useCallback(
     async (action, movieIds) => {
       try {
+        setBulkActionLoading(action);
         await performBulkAction(action, movieIds);
         setSelectedMovies([]);
         fetchMovies();
         refreshDashboard();
       } catch (error) {
         console.error('Error performing bulk action:', error);
+      } finally {
+        setBulkActionLoading(null);
       }
     },
     [fetchMovies, refreshDashboard]
@@ -945,19 +971,41 @@ const MovieManagement = () => {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => approveMovieAction(movie.id)}
-                      disabled={!approvalInfo?.can_approve}
+                      disabled={
+                        !approvalInfo?.can_approve || isMovieActionLoading(movie.id, 'approve')
+                      }
                       className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <CheckCircleIcon className="mr-1.5 size-4" />
-                      Duyệt
+                      {isMovieActionLoading(movie.id, 'approve') ? (
+                        <>
+                          <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Đang duyệt...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircleIcon className="mr-1.5 size-4" />
+                          Duyệt
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => rejectMovieAction(movie.id, 'Không đạt yêu cầu chất lượng')}
-                      disabled={!approvalInfo?.can_reject}
+                      disabled={
+                        !approvalInfo?.can_reject || isMovieActionLoading(movie.id, 'reject')
+                      }
                       className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <XCircleIcon className="mr-1.5 size-4" />
-                      Từ chối
+                      {isMovieActionLoading(movie.id, 'reject') ? (
+                        <>
+                          <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Đang từ chối...
+                        </>
+                      ) : (
+                        <>
+                          <XCircleIcon className="mr-1.5 size-4" />
+                          Từ chối
+                        </>
+                      )}
                     </button>
                   </div>
                 )}
@@ -984,9 +1032,19 @@ const MovieManagement = () => {
                         ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                     } transition-colors`}
+                    disabled={isMovieActionLoading(movie.id, 'toggle_featured')}
                   >
-                    <StarIcon className="mr-1 size-3" />
-                    {isFeatured ? 'Bỏ Featured' : 'Featured'}
+                    {isMovieActionLoading(movie.id, 'toggle_featured') ? (
+                      <>
+                        <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      <>
+                        <StarIcon className="mr-1 size-3" />
+                        {isFeatured ? 'Bỏ Featured' : 'Featured'}
+                      </>
+                    )}
                   </button>
 
                   <button
@@ -996,9 +1054,21 @@ const MovieManagement = () => {
                         ? 'border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                     } transition-colors`}
+                    disabled={isMovieActionLoading(movie.id, 'toggle_publish')}
                   >
-                    <EyeIcon className="mr-1 size-3" />
-                    {movie?.admin_control?.visibility_status === 'PUBLISHED' ? 'Ẩn' : 'Xuất bản'}
+                    {isMovieActionLoading(movie.id, 'toggle_publish') ? (
+                      <>
+                        <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Đang cập nhật...
+                      </>
+                    ) : (
+                      <>
+                        <EyeIcon className="mr-1 size-3" />
+                        {movie?.admin_control?.visibility_status === 'PUBLISHED'
+                          ? 'Ẩn'
+                          : 'Xuất bản'}
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -1080,6 +1150,7 @@ const MovieManagement = () => {
                         )
                       }
                       className="rounded border text-gray-700 border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                      disabled={isMovieActionLoading(movie.id, 'update_priority')}
                     >
                       -
                     </button>
@@ -1094,6 +1165,7 @@ const MovieManagement = () => {
                         )
                       }
                       className="rounded border text-gray-700 border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+                      disabled={isMovieActionLoading(movie.id, 'update_priority')}
                     >
                       +
                     </button>
@@ -1368,9 +1440,19 @@ const MovieManagement = () => {
                 <button
                   onClick={() => bulkAction('approve', selectedMovies)}
                   className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                  disabled={!!bulkActionLoading}
                 >
-                  <CheckCircleIcon className="mr-1 size-4" />
-                  Duyệt
+                  {bulkActionLoading === 'approve' ? (
+                    <>
+                      <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Đang duyệt...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircleIcon className="mr-1 size-4" />
+                      Duyệt
+                    </>
+                  )}
                 </button>
                 {/* Bulk Reject */}
                 <button
@@ -1378,16 +1460,35 @@ const MovieManagement = () => {
                   disabled={!allApproved && !allRejected}
                   className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <XCircleIcon className="mr-1 size-4" />
-                  Từ chối
+                  {bulkActionLoading === 'reject' ? (
+                    <>
+                      <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Đang từ chối...
+                    </>
+                  ) : (
+                    <>
+                      <XCircleIcon className="mr-1 size-4" />
+                      Từ chối
+                    </>
+                  )}
                 </button>
                 {/* Bulk Feature */}
                 <button
                   onClick={() => bulkAction('feature', selectedMovies)}
                   className="inline-flex items-center rounded-md border border-transparent bg-yellow-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
+                  disabled={!!bulkActionLoading}
                 >
-                  <StarIcon className="mr-1 size-4" />
-                  Featured
+                  {bulkActionLoading === 'feature' ? (
+                    <>
+                      <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Đang gắn featured...
+                    </>
+                  ) : (
+                    <>
+                      <StarIcon className="mr-1 size-4" />
+                      Featured
+                    </>
+                  )}
                 </button>
                 {/* Bulk Unfeature */}
                 <button
@@ -1395,16 +1496,35 @@ const MovieManagement = () => {
                   disabled={!allFeatured}
                   className="inline-flex items-center rounded-md border border-transparent bg-yellow-400 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <StarIcon className="mr-1 size-4" />
-                  Bỏ Featured
+                  {bulkActionLoading === 'unfeature' ? (
+                    <>
+                      <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Đang bỏ featured...
+                    </>
+                  ) : (
+                    <>
+                      <StarIcon className="mr-1 size-4" />
+                      Bỏ Featured
+                    </>
+                  )}
                 </button>
                 {/* Bulk Publish */}
                 <button
                   onClick={() => bulkAction('publish', selectedMovies)}
                   className="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  disabled={!!bulkActionLoading}
                 >
-                  <EyeIcon className="mr-1 size-4" />
-                  Xuất bản
+                  {bulkActionLoading === 'publish' ? (
+                    <>
+                      <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Đang xuất bản...
+                    </>
+                  ) : (
+                    <>
+                      <EyeIcon className="mr-1 size-4" />
+                      Xuất bản
+                    </>
+                  )}
                 </button>
                 {/* Bulk Unpublish */}
                 <button
@@ -1412,8 +1532,17 @@ const MovieManagement = () => {
                   disabled={!allPublished}
                   className="inline-flex items-center rounded-md border border-transparent bg-blue-400 px-3 py-2 text-sm font-medium leading-4 text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <EyeSlashIcon className="mr-1 size-4" />
-                  Bỏ xuất bản
+                  {bulkActionLoading === 'unpublish' ? (
+                    <>
+                      <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Đang bỏ xuất bản...
+                    </>
+                  ) : (
+                    <>
+                      <EyeSlashIcon className="mr-1 size-4" />
+                      Bỏ xuất bản
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1587,11 +1716,11 @@ const MovieManagement = () => {
             <FilmIcon className="mx-auto size-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có phim nào</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {debouncedSearchQuery || Object.values(filters).some(v => v && v !== '-created_at')
+              {appliedSearch || Object.values(filters).some(v => v && v !== '-created_at')
                 ? 'Không tìm thấy phim nào với tiêu chí đã chọn.'
                 : 'Chưa có phim nào trong hệ thống.'}
             </p>
-            {(debouncedSearchQuery || hasActiveFilters) && (
+            {(appliedSearch || hasActiveFilters) && (
               <div className="mt-6">
                 <button
                   onClick={() => {
@@ -1633,10 +1762,10 @@ const MovieManagement = () => {
                     <span className="text-sm text-gray-600">
                       Hiển thị <span className="font-medium text-gray-900">{movies.length}</span>{' '}
                       phim
-                      {debouncedSearchQuery && (
+                      {appliedSearch && (
                         <span className="text-gray-500">
                           {' '}
-                          • Tìm kiếm: "<span className="font-medium">{debouncedSearchQuery}</span>"
+                          • Tìm kiếm: "<span className="font-medium">{appliedSearch}</span>"
                         </span>
                       )}
                     </span>

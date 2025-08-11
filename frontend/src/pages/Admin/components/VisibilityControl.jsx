@@ -933,7 +933,7 @@ const VisibilityControl = () => {
           {/* Visibility Status Badges */}
           <div className="mt-4 space-y-2">
             {/* Production Status Badge */}
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
               {movie.is_published &&
               movie.approval_status === 'APPROVED' &&
               movie.minimum_quality_met ? (
@@ -947,7 +947,7 @@ const VisibilityControl = () => {
                   Chưa hiển thị trên Production
                 </span>
               )}
-            </div>
+            </div> */}
 
             {/* Category Status Badges */}
             <div className="flex flex-wrap gap-1">

@@ -495,8 +495,13 @@ class CollaborativeFilteringService:
                 context=context
             ).delete()
 
-            # Create new recommendations
+            # Create new recommendations (dedupe by (user, movie, type, context))
             recommendation_objects = []
+            existing_pairs = set(RecommendationResult.objects.filter(
+                user=user,
+                recommendation_type=rec_type,
+                context=context
+            ).values_list('movie_id', flat=True))
 
             for rank, rec in enumerate(recommendations, 1):
                 recommendation_objects.append(
@@ -1430,7 +1435,6 @@ class EnhancedDemographicFilteringService:
                             'cluster_avg_rating': rec['avg_rating'],
                             'cluster_rating_count': rec['rating_count'],
                             'demographic_score': demographic_score,
-                            # Component scores breakdown theo Bảng 2.7
                             'component_scores': {
                                 'age_score': round(age_score, 3),
                                 'gender_score': round(gender_score, 3),
@@ -1587,6 +1591,7 @@ class EnhancedDemographicFilteringService:
 
             # Create new recommendations
             recommendation_objects = []
+            existing_pairs = set()
 
             for rank, rec in enumerate(recommendations, 1):
                 # Convert all values to ensure JSON serialization
@@ -1611,20 +1616,20 @@ class EnhancedDemographicFilteringService:
 
                     explanation = convert_decimals(explanation)
 
-                recommendation_objects.append(
-                    RecommendationResult(
-                        user=user,
-                        movie=rec['movie'],
-                        recommendation_type=rec_type,
-                        context=context,
-                        predicted_rating=predicted_rating,
-                        confidence_score=confidence_score,
-                        novelty_score=novelty_score,
-                        rank=rank,
-                        score=score,
-                        explanation=explanation
-                    )
-                )
+                if getattr(rec['movie'], 'id') in existing_pairs:
+                    continue
+                recommendation_objects.append(RecommendationResult(
+                    user=user,
+                    movie=rec['movie'],
+                    recommendation_type=rec_type,
+                    context=context,
+                    predicted_rating=predicted_rating,
+                    confidence_score=confidence_score,
+                    novelty_score=novelty_score,
+                    rank=rank,
+                    score=score,
+                    explanation=explanation
+                ))
 
             RecommendationResult.objects.bulk_create(recommendation_objects)
 
@@ -1914,7 +1919,7 @@ class EnhancedDemographicFilteringService:
     def _store_enhanced_recommendations(self, user, recommendations: List[Dict], context: str):
         """Store enhanced recommendations in database"""
         try:
-            # Clear existing recommendations
+            # Clear existing demographic recommendations
             RecommendationResult.objects.filter(
                 user=user,
                 recommendation_type='demographic',
@@ -2052,6 +2057,13 @@ class HybridRecommendationService:
             'demographic': 0.4,
             'trending': 0.1
         }
+        self.store_min_count = 20  # số lượng tối thiểu cần lưu để cache có ý nghĩa
+        self.df_min_count_to_store = 10  # cần tối thiểu X phim DF trước khi lưu hybrid
+
+    @staticmethod
+    def _is_profile_complete(user) -> bool:
+        """Check minimal profile required for demographic & hybrid to be meaningful."""
+        return getattr(user, 'age', None) is not None and getattr(user, 'gender', None) is not None
 
     def generate_hybrid_recommendations(self, user, limit=20, context='homepage') -> List[any]:
         """
@@ -2089,6 +2101,11 @@ class HybridRecommendationService:
 
             # Get trending recommendations
             trending_recs = self._get_trending_recommendations(user, limit=limit//2)
+
+            # Guard: If profile incomplete and no CF/DF yet, return trending only (do not store as hybrid)
+            if not self._is_profile_complete(user) and not collaborative_recs and not demographic_recs:
+                logger.info("⏳ Profile incomplete and no CF/DF candidates. Returning trending only without storing hybrid meta.")
+                return trending_recs
 
             # Combine recommendations with weights
             for movie in collaborative_recs:
@@ -2130,9 +2147,12 @@ class HybridRecommendationService:
                 reverse=True
             )
 
+            # Quy ước: luôn chuẩn bị nhiều hơn để lưu cache (tránh trường hợp chỉ lưu 1 phim khi limit nhỏ)
+            store_count = max(limit, self.store_min_count)
+
             # Prepare for storage with full metadata
             final_recommendations = []
-            for rec in sorted_recommendations[:limit]:
+            for rec in sorted_recommendations[:store_count]:
                 # Calculate predicted rating based on methods used with conditional logic
                 predicted_rating = None
                 methods = rec['methods']
@@ -2199,14 +2219,32 @@ class HybridRecommendationService:
             # )
 
             # Return list of Movie objects
-            # Store recommendations using unified cache service
-            RecommendationCacheService.store_recommendations(user, final_recommendations, 'hybrid', context)
+            # Decide whether to store: skip nếu profile chưa đủ, trending-only, chưa có DF gần đây, hoặc DF quá ít
+            trending_only = all((rec.get('methods') == ['trending']) for rec in final_recommendations)
+            has_recent_df = RecommendationResult.objects.filter(
+                user=user,
+                recommendation_type='demographic',
+                context=context,
+                created_at__gte=timezone.now() - timedelta(minutes=5)
+            ).exists()
 
-            # Return: ưu tiên cache để đảm bảo nhất quán, nếu không có cache thì trả danh sách mới
+            enough_df_candidates = len(demographic_recs) >= self.df_min_count_to_store
+
+            if self._is_profile_complete(user) and not trending_only and has_recent_df and enough_df_candidates:
+                # Store recommendations using unified cache service
+                RecommendationCacheService.store_recommendations(user, final_recommendations, 'hybrid', context)
+            else:
+                logger.info("ℹ️ Skip storing hybrid (profile incomplete / no recent DF / trending-only / DF too few) to prevent rank pollution.")
+
+            # Return: trả theo limit yêu cầu (nếu DF còn ít, ưu tiên trả trending để UI không rỗng)
             had_cache = bool(cached_recommendations)
             if had_cache:
                 return cached_recommendations
-            return [rec['movie'] for rec in final_recommendations]
+            if enough_df_candidates:
+                return [rec['movie'] for rec in final_recommendations[:limit]]
+            else:
+                # DF chưa đủ → trả trending-only không lưu
+                return trending_recs[:limit]
 
         except Exception as e:
             logger.error(f"Error generating hybrid recommendations: {str(e)}")
@@ -3573,8 +3611,10 @@ class OptimizedRecommendationService:
                 )
 
                 if immediate_recommendations:
-                    # Lưu vào fallback cache để tránh regenerate
-                    self._save_to_fallback_cache(user, rec_type, context, immediate_recommendations)
+                    # Với hybrid/demographic: service đã lưu metadata đầy đủ qua RecommendationCacheService
+                    # Chỉ dùng fallback cache cho collaborative để đơn giản
+                    if rec_type == 'collaborative':
+                        self._save_to_fallback_cache(user, rec_type, context, immediate_recommendations)
                     logger.info(f"✅ Tạo thành công {len(immediate_recommendations)} {rec_type} recommendations cho user {user.id}")
 
                     # Trigger background generation để cập nhật cache cho lần sau
@@ -3689,7 +3729,12 @@ class OptimizedRecommendationService:
         Lưu recommendations vào fallback cache ngay lập tức
         """
         try:
-            # Xóa recommendations cũ
+            # Chỉ áp dụng fallback cache cho collaborative để tránh làm bẩn hybrid/demographic meta
+            if rec_type != 'collaborative':
+                logger.info(f"ℹ️ Skip fallback cache for {rec_type} to prevent rank pollution")
+                return
+
+            # Xóa recommendations cũ (chỉ collaborative)
             RecommendationResult.objects.filter(
                 user=user,
                 recommendation_type=rec_type,

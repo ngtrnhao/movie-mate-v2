@@ -119,14 +119,25 @@ def setup_user_recommendation_profile(sender, instance, created, **kwargs):
                 logger.info(f"User {instance.id} already assigned to K-means cluster {existing_cluster.cluster_id}")
 
             # Generate initial recommendations
-            logger.info(f"Scheduling initial hybrid recommendations for user {instance.id}")
+            # Thay đổi: Ưu tiên demographic trước, sau đó mới hybrid để tránh hybrid 1 phim khi DF chưa xong
+            logger.info(f"Scheduling initial demographic then hybrid recommendations for user {instance.id}")
 
             try:
-                from .tasks import generate_hybrid_recommendations_for_user
-                generate_hybrid_recommendations_for_user.delay(instance.id, action='initial')
-                logger.info(f"Scheduled initial recommendation task for user {instance.id}")
+                from apps.recommendations.tasks import (
+                    generate_demographic_recommendations_async,
+                    generate_hybrid_recommendations_async,
+                )
+                # Trigger demographic first
+                df_task = generate_demographic_recommendations_async.delay(instance.id, 'homepage', 20)
+                logger.info(f"Scheduled DF task {df_task.id} for user {instance.id}")
+                # Chain: hybrid delayed hơn (30s) để đợi DF populate trước
+                hybrid_task = generate_hybrid_recommendations_async.apply_async(
+                    args=[instance.id, 'homepage', 20],
+                    countdown=30
+                )
+                logger.info(f"Scheduled Hybrid task {hybrid_task.id} for user {instance.id} (after 30s)")
             except Exception as e:
-                logger.warning(f"Failed to schedule recommendation task for user {instance.id}: {str(e)}")
+                logger.warning(f"Failed to schedule recommendation tasks for user {instance.id}: {str(e)}")
 
                 # Fallback ONLY when Celery fails after profile completion
                 try:

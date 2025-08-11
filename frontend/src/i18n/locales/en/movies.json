@@ -214,6 +214,69 @@
     "runtime": "Longest First",
     "vote_count": "Most Voted"
   },
+  "recommendations": {
+    "collaborative": {
+      "title": "Collaborative Recommendations",
+      "description": "Based on users with similar taste preferences",
+      "loading": "Loading collaborative recommendations...",
+      "empty": "No collaborative recommendations available yet. Try rating some movies!",
+      "error": "Failed to load collaborative recommendations",
+      "signInRequired": "Sign in to get collaborative recommendations"
+    },
+    "demographic": {
+      "title": "Demographic Recommendations",
+      "description": "Based on your age, gender, and demographic profile",
+      "loading": "Loading demographic recommendations...",
+      "empty": "No demographic recommendations available yet. Complete your profile!",
+      "error": "Failed to load demographic recommendations",
+      "signInRequired": "Sign in to get demographic recommendations"
+    },
+    "personalized": {
+      "title": "Personalized Recommendations",
+      "description": "Tailored just for you",
+      "loading": "Loading personalized recommendations...",
+      "empty": "No recommendations available at the moment.",
+      "error": "Failed to load recommendations",
+      "signInRequired": "Please log in to see personalized recommendations.",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing...",
+      "tryAgain": "Try Again",
+      "fallbackNote": "Personalized recommendations are currently unavailable. Showing popular movies instead."
+    },
+    "common": {
+      "whyRecommended": "Why Recommended?",
+      "recommendedForYou": "Recommended for You",
+      "basedOnPreferences": "This movie was recommended based on your preferences and viewing history.",
+      "methods": {
+        "collaborative": "Collaborative Filtering",
+        "demographic": "Demographic Filtering",
+        "hybrid": "Hybrid Algorithm",
+        "popular": "Popular Movies",
+        "fallback": "Popular Movies"
+      },
+      "methodDescriptions": {
+        "collaborative": "Based on users with similar preferences",
+        "demographic": "Based on users with similar demographics",
+        "hybrid": "Combines multiple recommendation methods",
+        "popular": "Currently popular movies",
+        "fallback": "Popular movies (recommendation system unavailable)"
+      },
+      "feedback": {
+        "like": "Like this recommendation",
+        "dislike": "Don't recommend similar movies",
+        "notInterested": "Not interested"
+      },
+      "showing": "Showing {{count}} movies using {{method}}",
+      "cached": "Cached",
+      "match": "match"
+    }
+  },
+  "hero": {
+    "loading": "Loading personalized recommendations...",
+    "recommendedBadge": "Recommended for You",
+    "viewDetails": "View Details",
+    "whyRecommended": "Why Recommended?"
+  },
   "countries": {
     "US": "United States",
     "GB": "United Kingdom",

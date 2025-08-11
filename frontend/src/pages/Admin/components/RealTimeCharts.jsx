@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -24,9 +24,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { useUserInteractionStats } from '../../../hooks/useUserInteractionStats';
-import { useTrendingAnalytics } from '../../../hooks/useTrendingAnalytics';
-import { useProductionMetrics } from '../../../hooks/useProductionMetrics';
+import { useAdminData } from '../../../contexts/AdminDataContext';
 
 // Register Chart.js components
 ChartJS.register(
@@ -44,20 +42,54 @@ ChartJS.register(
 
 const RealTimeCharts = () => {
   const {
-    data: userStats,
-    loading: userLoading,
-    refetch: refetchUserStats,
-  } = useUserInteractionStats();
-  const {
-    data: trendingData,
-    loading: trendingLoading,
-    refetch: refetchTrending,
-  } = useTrendingAnalytics();
-  const {
-    data: productionMetrics,
-    loading: metricsLoading,
-    refreshMetrics: refetchMetrics,
-  } = useProductionMetrics({ disableAutoRefresh: true }); // Disable auto-refresh, rely on AdminDataContext
+    userInteractionStats: userStats,
+    trendingAnalytics: trendingData,
+    productionMetrics,
+    loading,
+    errors,
+    loadDataOnDemand,
+    refreshUserInteractionStats,
+    refreshTrendingAnalytics,
+    refreshProductionMetrics,
+  } = useAdminData();
+
+  // Check what data we have and load missing data on demand (with debounce)
+  useEffect(() => {
+    // Debounce to avoid rapid successive calls
+    const timer = setTimeout(() => {
+      const missingData = [];
+
+      // Prioritize production metrics as most important
+      if (!productionMetrics && !loading.production && !errors.production) {
+        missingData.push('production');
+      }
+
+      // Only load userInteraction and trending if really needed for charts
+      // Skip if there are errors to avoid repeated failures
+      if (!userStats && !loading.userInteraction && !errors.userInteraction) {
+        // Only load if user explicitly wants real-time charts
+        console.log('📊 [RealTimeCharts] UserInteraction data available on demand');
+        // missingData.push('userInteraction'); // Commented out to avoid auto-loading
+      }
+      if (!trendingData && !loading.trending && !errors.trending) {
+        // Only load if user explicitly wants trending charts
+        console.log('📈 [RealTimeCharts] Trending data available on demand');
+        // missingData.push('trending'); // Commented out to avoid auto-loading
+      }
+
+      if (missingData.length > 0) {
+        console.log('🔄 [RealTimeCharts] Loading missing data (debounced):', missingData);
+        loadDataOnDemand(missingData);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [userStats, trendingData, productionMetrics, loading, errors, loadDataOnDemand]);
+
+  // Derived loading states
+  const userLoading = loading.userInteraction;
+  const trendingLoading = loading.trending;
+  const metricsLoading = loading.production;
 
   const [realTimeData, setRealTimeData] = useState({
     userActivity: [],
@@ -67,7 +99,48 @@ const RealTimeCharts = () => {
     lastUpdated: new Date(),
   });
 
-  const intervalRef = useRef(null);
+  // Manual data loading for heavy operations
+  const loadAdditionalData = useCallback(() => {
+    console.log('🔄 [RealTimeCharts] Manually loading additional data...');
+    const additionalData = [];
+
+    if (!userStats && !loading.userInteraction) {
+      additionalData.push('userInteraction');
+    }
+    if (!trendingData && !loading.trending) {
+      additionalData.push('trending');
+    }
+
+    if (additionalData.length > 0) {
+      loadDataOnDemand(additionalData);
+    }
+  }, [userStats, trendingData, loading, loadDataOnDemand]);
+
+  // Process real backend data
+  const processRealTimeData = useCallback(
+    (userInteractionStats, trendingAnalytics, productionMetrics) => {
+      // Generate time series from real interaction data
+      const userActivity = generateTimeSeriesFromRealData(userInteractionStats);
+
+      // Process real action breakdown
+      const viewCounts = processActionBreakdown(userInteractionStats.action_breakdown || []);
+
+      // Process device breakdown (simulate from user data if not available)
+      const deviceBreakdown = processDeviceBreakdown(userInteractionStats);
+
+      // Process performance metrics from production data
+      const performanceMetrics = processPerformanceMetrics(productionMetrics);
+
+      return {
+        userActivity,
+        viewCounts,
+        deviceBreakdown,
+        performanceMetrics,
+        lastUpdated: new Date(),
+      };
+    },
+    [] // Empty dependency array since helper functions don't change
+  );
 
   // Process real data when available
   useEffect(() => {
@@ -89,7 +162,7 @@ const RealTimeCharts = () => {
       console.log('Debug - processedData:', processedData);
       setRealTimeData(processedData);
     }
-  }, [userStats, trendingData, productionMetrics]);
+  }, [userStats, trendingData, productionMetrics, processRealTimeData]);
 
   // Remove separate interval - rely on AdminDataContext for auto-refresh
   // useEffect(() => {
@@ -109,39 +182,16 @@ const RealTimeCharts = () => {
   //   };
   // }, [refetchUserStats, refetchTrending, refetchMetrics]);
 
-  // Process real backend data
-  const processRealTimeData = (userInteractionStats, trendingAnalytics, productionMetrics) => {
-    // Generate time series from real interaction data
-    const userActivity = generateTimeSeriesFromRealData(userInteractionStats);
-
-    // Process real action breakdown
-    const viewCounts = processActionBreakdown(userInteractionStats.action_breakdown || []);
-
-    // Process device breakdown (simulate from user data if not available)
-    const deviceBreakdown = processDeviceBreakdown(userInteractionStats);
-
-    // Process performance metrics from production data
-    const performanceMetrics = processPerformanceMetrics(productionMetrics);
-
-    return {
-      userActivity,
-      viewCounts,
-      deviceBreakdown,
-      performanceMetrics,
-      lastUpdated: new Date(),
-    };
-  };
-
   // Generate realistic time series data from real stats
   const generateTimeSeriesFromRealData = stats => {
     const now = new Date();
     const data = [];
-    const baseValue = stats.overview?.total_interactions || 0;
+    const _baseValue = stats.overview?.total_interactions || 0;
     const todayInteractions = stats.overview?.today_interactions || 0;
-    const weekInteractions = stats.overview?.week_interactions || 0;
+    const _weekInteractions = stats.overview?.week_interactions || 0;
 
     // Calculate realistic hourly distribution
-    const hourlyAverage = Math.max(1, Math.floor(todayInteractions / 24));
+    const _hourlyAverage = Math.max(1, Math.floor(todayInteractions / 24));
 
     for (let i = 29; i >= 0; i--) {
       const time = new Date(now.getTime() - i * 2 * 60 * 1000); // 2-minute intervals
@@ -209,45 +259,66 @@ const RealTimeCharts = () => {
   const processPerformanceMetrics = productionData => {
     console.log('Debug - processPerformanceMetrics input:', productionData);
 
-    // Get data from the correct path based on debug logs
-    const engagementStats = productionData.raw_data?.engagement_stats || {};
-    const trendingAnalytics = productionData.trending_analytics?.summary || {};
-    const summary = productionData.summary || {};
+    // New mapping: API returns engagement_stats at top level
+    const engagementStats =
+      productionData?.engagement_stats || productionData?.data?.engagement_stats || {};
 
-    console.log('Debug - engagementStats:', engagementStats);
-    console.log('Debug - trendingAnalytics:', trendingAnalytics);
+    const performanceScore = Number(
+      engagementStats?.avg_performance_score ?? productionData?.avg_performance_score ?? 0
+    );
+    const homepageViews = Number(
+      engagementStats?.total_homepage_views ?? productionData?.total_homepage_views ?? 0
+    );
+    const detailViews = Number(
+      engagementStats?.total_detail_views ?? productionData?.total_detail_views ?? 0
+    );
+    const trendingScore = Number(
+      engagementStats?.avg_trending_score ?? productionData?.avg_trending_score ?? 0
+    );
+    const userEngagement = Number(
+      engagementStats?.avg_engagement_rate ?? productionData?.avg_engagement_rate ?? 0
+    );
 
     const result = [
       {
         metric: 'Performance Score',
-        value: trendingAnalytics.avg_performance_score || summary.avg_performance_score || 0,
-        status: (trendingAnalytics.avg_performance_score || 0) > 70 ? 'good' : 'warning',
+        value: performanceScore,
+        status: performanceScore > 70 ? 'good' : 'warning',
       },
       {
         metric: 'Homepage Views',
-        value: engagementStats.total_homepage_views || summary.total_homepage_views || 0,
+        value: homepageViews,
         status: 'neutral',
       },
       {
         metric: 'Detail Views',
-        value: engagementStats.total_detail_views || summary.total_detail_views || 0,
+        value: detailViews,
         status: 'neutral',
       },
       {
         metric: 'Trending Score',
-        value: trendingAnalytics.avg_trending_score || summary.avg_trending_score || 0,
-        status: (trendingAnalytics.avg_trending_score || 0) > 60 ? 'good' : 'warning',
+        value: trendingScore,
+        status: trendingScore > 60 ? 'good' : 'warning',
       },
       {
         metric: 'User Engagement',
-        value: engagementStats.avg_engagement_rate || summary.avg_user_favorites || 0,
-        status: (engagementStats.avg_engagement_rate || 0) > 50 ? 'good' : 'warning',
+        value: userEngagement,
+        status: userEngagement > 50 ? 'good' : 'warning',
       },
     ];
 
     console.log('Debug - processPerformanceMetrics result:', result);
     return result;
   };
+
+  // Update performance metrics as soon as production data arrives
+  useEffect(() => {
+    const productionData = productionMetrics?.data || productionMetrics;
+    if (productionData) {
+      const metrics = processPerformanceMetrics(productionData);
+      setRealTimeData(prev => ({ ...prev, performanceMetrics: metrics, lastUpdated: new Date() }));
+    }
+  }, [productionMetrics]);
 
   // Chart configurations
   const lineChartOptions = {
@@ -482,16 +553,27 @@ const RealTimeCharts = () => {
             Dữ liệu được cập nhật lúc: {realTimeData.lastUpdated.toLocaleTimeString('vi-VN')}
           </span>
         </div>
-        <button
-          onClick={() => {
-            refetchUserStats();
-            refetchTrending();
-            refetchMetrics();
-          }}
-          className="text-sm font-medium text-blue-600 hover:text-blue-800"
-        >
-          Làm mới ngay
-        </button>
+        <div className="flex items-center space-x-3">
+          {(!userStats || !trendingData) && (
+            <button
+              onClick={loadAdditionalData}
+              disabled={userLoading || trendingLoading}
+              className="text-sm font-medium text-green-600 hover:text-green-800 disabled:text-gray-400"
+            >
+              {userLoading || trendingLoading ? 'Đang tải...' : 'Tải thêm dữ liệu'}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              refreshUserInteractionStats(true);
+              refreshTrendingAnalytics(true);
+              refreshProductionMetrics(true);
+            }}
+            className="text-sm font-medium text-blue-600 hover:text-blue-800"
+          >
+            Làm mới ngay
+          </button>
+        </div>
       </div>
 
       {/* Charts Grid */}

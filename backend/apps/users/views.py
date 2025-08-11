@@ -1715,21 +1715,9 @@ class ProfileUpdateView(APIView):
 
             # If profile just became complete, trigger recommendation generation
             if was_incomplete_before and is_complete_after:
-                logger.info(f"User {updated_user.id} has complete profile - generating new recommendations")
-
-                # Clear any existing recommendations to force regeneration
-                from apps.recommendations.models import RecommendationResult
-                RecommendationResult.objects.filter(
-                    user=updated_user,
-                    context='homepage'
-                ).delete()
-
-                # Trigger recommendation generation in background
-                try:
-                    from apps.recommendations.tasks import generate_user_recommendations_async
-                    generate_user_recommendations_async.delay(updated_user.id, 'homepage')
-                except Exception as e:
-                    logger.warning(f"Failed to trigger recommendation generation for user {updated_user.id}: {str(e)}")
+                logger.info(f"User {updated_user.id} has complete profile - signal will handle recommendation generation")
+                # Note: Let signal handle recommendation generation to avoid duplicate tasks
+                # signals.py already handles this via post_save signal
 
             # Return updated user data
             response_serializer = UserProfileSerializer(updated_user)

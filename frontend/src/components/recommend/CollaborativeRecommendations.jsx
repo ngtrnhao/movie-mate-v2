@@ -6,6 +6,7 @@ import {
 } from '../../api/recommendationService';
 import MovieCard from '../movies/movie-card';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 
 const MOVIES_PER_VIEW = 5;
 const CARD_WIDTH = 270;
@@ -19,6 +20,7 @@ const CollaborativeRecommendations = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+  const { t } = useTranslation('movies');
 
   // Fetch collaborative recommendations
   useEffect(() => {
@@ -37,11 +39,11 @@ const CollaborativeRecommendations = () => {
         if (response.status === 'success' && response.data?.recommendations) {
           setRecommendations(response.data.recommendations);
         } else {
-          setError('No collaborative recommendations available');
+          setError(t('recommendations.collaborative.empty'));
         }
       } catch (err) {
         console.error('Error fetching collaborative recommendations:', err);
-        setError(err.message || 'Failed to load collaborative recommendations');
+        setError(err.message || t('recommendations.collaborative.error'));
       } finally {
         setLoading(false);
       }
@@ -91,10 +93,10 @@ const CollaborativeRecommendations = () => {
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
           <h2 className="mb-6 text-2xl font-semibold text-white">
-            <span className="text-blue-500">🤝</span> Collaborative Recommendations
+            <span className="text-blue-500">🤝</span> {t('recommendations.collaborative.title')}
           </h2>
           <p className="mb-4 text-sm text-gray-400">
-            Based on users with similar taste preferences
+            {t('recommendations.collaborative.description')}
           </p>
           <div className="flex justify-center py-8">
             <LoadingSpinner />
@@ -110,16 +112,16 @@ const CollaborativeRecommendations = () => {
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
           <h2 className="mb-6 text-2xl font-semibold text-white">
-            <span className="text-blue-500">🤝</span> Collaborative Recommendations
+            <span className="text-blue-500">🤝</span> {t('recommendations.collaborative.title')}
           </h2>
           <p className="mb-4 text-sm text-gray-400">
-            Based on users with similar taste preferences
+            {t('recommendations.collaborative.description')}
           </p>
           <div className="text-center py-8">
             <p className="text-gray-400">{error}</p>
             {!isAuthenticated && (
               <p className="text-sm text-gray-500 mt-2">
-                Sign in to get collaborative recommendations
+                {t('recommendations.collaborative.signInRequired')}
               </p>
             )}
           </div>
@@ -134,16 +136,16 @@ const CollaborativeRecommendations = () => {
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
           <h2 className="mb-6 text-2xl font-semibold text-white">
-            <span className="text-blue-500">🤝</span> Collaborative Recommendations
+            <span className="text-blue-500">🤝</span> {t('recommendations.collaborative.title')}
           </h2>
           <p className="mb-4 text-sm text-gray-400">
-            Based on users with similar taste preferences
+            {t('recommendations.collaborative.description')}
           </p>
           <div className="text-center py-8">
             <p className="text-gray-400">
               {!isAuthenticated
-                ? 'Sign in to get collaborative recommendations'
-                : 'No collaborative recommendations available yet. Try rating some movies!'}
+                ? t('recommendations.collaborative.signInRequired')
+                : t('recommendations.collaborative.empty')}
             </p>
           </div>
         </div>
@@ -155,9 +157,11 @@ const CollaborativeRecommendations = () => {
     <section className="w-full py-8">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
         <h2 className="mb-6 text-2xl font-semibold text-white">
-          <span className="text-blue-500">🤝</span> Collaborative Recommendations
+          <span className="text-blue-500">🤝</span> {t('recommendations.collaborative.title')}
         </h2>
-        <p className="mb-4 text-sm text-gray-400">Based on users with similar taste preferences</p>
+        <p className="mb-4 text-sm text-gray-400">
+          {t('recommendations.collaborative.description')}
+        </p>
 
         <div className="relative">
           {/* Navigation buttons */}

@@ -6,6 +6,7 @@ import {
 } from '../../api/recommendationService';
 import MovieCard from '../movies/movie-card';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 
 const MOVIES_PER_VIEW = 5;
 const CARD_WIDTH = 270;
@@ -19,6 +20,7 @@ const DemographicRecommendations = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+  const { t } = useTranslation('movies');
 
   // Fetch demographic recommendations
   useEffect(() => {
@@ -37,11 +39,11 @@ const DemographicRecommendations = () => {
         if (response.status === 'success' && response.data?.recommendations) {
           setRecommendations(response.data.recommendations);
         } else {
-          setError('No demographic recommendations available');
+          setError(t('recommendations.demographic.empty'));
         }
       } catch (err) {
         console.error('Error fetching demographic recommendations:', err);
-        setError(err.message || 'Failed to load demographic recommendations');
+        setError(err.message || t('recommendations.demographic.error'));
       } finally {
         setLoading(false);
       }
@@ -86,10 +88,10 @@ const DemographicRecommendations = () => {
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
           <h2 className="mb-6 text-2xl font-semibold text-white">
-            <span className="text-green-500">👥</span> Demographic Recommendations
+            <span className="text-green-500">👥</span> {t('recommendations.demographic.title')}
           </h2>
           <p className="mb-4 text-sm text-gray-400">
-            Based on your age, gender, and demographic profile
+            {t('recommendations.demographic.description')}
           </p>
           <div className="flex justify-center py-8">
             <LoadingSpinner />
@@ -105,16 +107,16 @@ const DemographicRecommendations = () => {
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
           <h2 className="mb-6 text-2xl font-semibold text-white">
-            <span className="text-green-500">👥</span> Demographic Recommendations
+            <span className="text-green-500">👥</span> {t('recommendations.demographic.title')}
           </h2>
           <p className="mb-4 text-sm text-gray-400">
-            Based on your age, gender, and demographic profile
+            {t('recommendations.demographic.description')}
           </p>
           <div className="text-center py-8">
             <p className="text-gray-400">{error}</p>
             {!isAuthenticated && (
               <p className="text-sm text-gray-500 mt-2">
-                Sign in to get demographic recommendations
+                {t('recommendations.demographic.signInRequired')}
               </p>
             )}
           </div>
@@ -129,16 +131,16 @@ const DemographicRecommendations = () => {
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
           <h2 className="mb-6 text-2xl font-semibold text-white">
-            <span className="text-green-500">👥</span> Demographic Recommendations
+            <span className="text-green-500">👥</span> {t('recommendations.demographic.title')}
           </h2>
           <p className="mb-4 text-sm text-gray-400">
-            Based on your age, gender, and demographic profile
+            {t('recommendations.demographic.description')}
           </p>
           <div className="text-center py-8">
             <p className="text-gray-400">
               {!isAuthenticated
-                ? 'Sign in to get demographic recommendations'
-                : 'No demographic recommendations available yet. Complete your profile!'}
+                ? t('recommendations.demographic.signInRequired')
+                : t('recommendations.demographic.empty')}
             </p>
           </div>
         </div>
@@ -150,11 +152,9 @@ const DemographicRecommendations = () => {
     <section className="w-full py-8">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
         <h2 className="mb-6 text-2xl font-semibold text-white">
-          <span className="text-green-500">👥</span> Demographic Recommendations
+          <span className="text-green-500">👥</span> {t('recommendations.demographic.title')}
         </h2>
-        <p className="mb-4 text-sm text-gray-400">
-          Based on your age, gender, and demographic profile
-        </p>
+        <p className="mb-4 text-sm text-gray-400">{t('recommendations.demographic.description')}</p>
 
         <div className="relative">
           {/* Navigation buttons */}

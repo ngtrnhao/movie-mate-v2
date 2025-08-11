@@ -160,38 +160,22 @@ def generate_collaborative_recommendations_async(self, user_id: int, context: st
             context=context
         ).select_related('movie').order_by('rank')[:20])
 
-        # Generate collaborative recommendations
+        # Generate collaborative recommendations via service (service tự lưu RecommendationResult với đầy đủ metadata)
         cf_service = CollaborativeFilteringService()
-        recommendations = cf_service.generate_collaborative_recommendations(user, limit, context)
-
-        # Store new recommendations
-        for rank, movie in enumerate(recommendations[:limit], 1):
-            RecommendationResult.objects.create(
-                user=user,
-                movie=movie,
-                recommendation_type='collaborative',
-                context=context,
-                rank=rank,
-                score=1.0 - (rank * 0.05),
-                confidence_score=0.8,
-                explanation={
-                    'reason': 'Generated using collaborative filtering',
-                    'method': 'collaborative',
-                    'similar_users_count': len(cf_service.find_similar_users(user, limit=10))
-                }
-            )
+        movies = cf_service.generate_collaborative_recommendations(user, limit, context)
+        logger.info(f"CF service returned {len(movies)} movies; results saved via cache service")
 
         # Chỉ xóa recommendations cũ sau khi đã lưu recommendations mới thành công
-        if recommendations:
+        if movies:
             # Xóa recommendations cũ
             RecommendationResult.objects.filter(
                 user=user,
                 recommendation_type='collaborative',
                 context=context
             ).exclude(
-                movie__in=[movie for movie in recommendations[:limit]]
+                movie__in=[movie for movie in movies[:limit]]
             ).delete()
-            logger.info(f"✅ Đã xóa recommendations cũ và lưu {len(recommendations)} recommendations mới cho user {user_id}")
+            logger.info(f"✅ Đã xóa recommendations cũ và lưu {len(movies)} recommendations mới cho user {user_id}")
         else:
             # Nếu không tạo được recommendations mới, giữ lại recommendations cũ
             logger.warning(f"⚠️ Không tạo được recommendations mới, giữ lại {len(old_recommendations)} recommendations cũ cho user {user_id}")
@@ -199,7 +183,7 @@ def generate_collaborative_recommendations_async(self, user_id: int, context: st
         # Clear task cache
         cache.delete(task_cache_key)
         logger.info(f"✅ Background collaborative filtering completed for user {user_id}")
-        return len(recommendations)
+        return len(movies)
 
     except Exception as e:
         logger.error(f"❌ Error in background collaborative filtering for user {user_id}: {str(e)}")
@@ -233,38 +217,22 @@ def generate_hybrid_recommendations_async(self, user_id: int, context: str = 'ho
             context=context
         ).select_related('movie').order_by('rank')[:20])
 
-        # Generate hybrid recommendations
+        # Generate hybrid recommendations via service (service tự lưu RecommendationResult với đầy đủ metadata)
         hybrid_service = HybridRecommendationService()
-        recommendations = hybrid_service.generate_hybrid_recommendations(user, limit, context)
-
-        # Store new recommendations
-        for rank, movie in enumerate(recommendations[:limit], 1):
-            RecommendationResult.objects.create(
-                user=user,
-                movie=movie,
-                recommendation_type='hybrid',
-                context=context,
-                rank=rank,
-                score=1.0 - (rank * 0.05),
-                confidence_score=0.9,
-                explanation={
-                    'reason': 'Generated using hybrid method',
-                    'method': 'hybrid',
-                    'combines': ['collaborative', 'demographic', 'trending']
-                }
-            )
+        movies = hybrid_service.generate_hybrid_recommendations(user, limit, context)
+        logger.info(f"Hybrid service returned {len(movies)} movies; results saved via cache service")
 
         # Chỉ xóa recommendations cũ sau khi đã lưu recommendations mới thành công
-        if recommendations:
+        if movies:
             # Xóa recommendations cũ
             RecommendationResult.objects.filter(
                 user=user,
                 recommendation_type='hybrid',
                 context=context
             ).exclude(
-                movie__in=[movie for movie in recommendations[:limit]]
+                movie__in=[movie for movie in movies[:limit]]
             ).delete()
-            logger.info(f"✅ Đã xóa recommendations cũ và lưu {len(recommendations)} hybrid recommendations mới cho user {user_id}")
+            logger.info(f"✅ Đã xóa recommendations cũ và lưu {len(movies)} hybrid recommendations mới cho user {user_id}")
         else:
             # Nếu không tạo được recommendations mới, giữ lại recommendations cũ
             logger.warning(f"⚠️ Không tạo được hybrid recommendations mới, giữ lại {len(old_recommendations)} recommendations cũ cho user {user_id}")
@@ -272,7 +240,7 @@ def generate_hybrid_recommendations_async(self, user_id: int, context: str = 'ho
         # Clear task cache
         cache.delete(task_cache_key)
         logger.info(f"✅ Background hybrid recommendations completed for user {user_id}")
-        return len(recommendations)
+        return len(movies)
 
     except Exception as e:
         logger.error(f"❌ Error in background hybrid recommendations for user {user_id}: {str(e)}")
@@ -319,9 +287,9 @@ def generate_demographic_recommendations_async(self, user_id: int, context: str 
             context=context
         ).delete()
 
-        # Generate demographic recommendations
+        # Generate enhanced demographic recommendations
         demo_service = EnhancedDemographicFilteringService()
-        recommendations = demo_service.generate_demographic_recommendations(user, limit, context, store=False)
+        recommendations = demo_service.generate_enhanced_demographic_recommendations(user, limit, context, store=False)
 
         # Store recommendations
         for rank, movie in enumerate(recommendations[:limit], 1):

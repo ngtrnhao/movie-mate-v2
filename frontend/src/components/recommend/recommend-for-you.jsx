@@ -6,6 +6,7 @@ import {
 } from '../../api/recommendationService';
 import MovieCard from '../movies/movie-card';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 
 const MOVIES_PER_VIEW = 5;
 const CARD_WIDTH = 270; // px (desktop)
@@ -19,6 +20,7 @@ const RecommendForYou = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
+  const { t } = useTranslation('movies');
 
   // Fetch recommendations
   useEffect(() => {
@@ -37,11 +39,11 @@ const RecommendForYou = () => {
         if (response.status === 'success' && response.data?.recommendations) {
           setRecommendations(response.data.recommendations);
         } else {
-          setError('No recommendations available');
+          setError(t('recommendations.personalized.empty'));
         }
       } catch (err) {
         console.error('Error fetching recommendations:', err);
-        setError(err.message || 'Failed to load recommendations');
+        setError(err.message || t('recommendations.personalized.error'));
       } finally {
         setLoading(false);
       }
@@ -85,7 +87,9 @@ const RecommendForYou = () => {
     return (
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
-          <h2 className="mb-6 text-2xl font-semibold text-white">Recommended for You</h2>
+          <h2 className="mb-6 text-2xl font-semibold text-white">
+            {t('recommendations.common.recommendedForYou')}
+          </h2>
           <div className="flex justify-center py-8">
             <LoadingSpinner />
           </div>
@@ -99,12 +103,14 @@ const RecommendForYou = () => {
     return (
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
-          <h2 className="mb-6 text-2xl font-semibold text-white">Recommended for You</h2>
+          <h2 className="mb-6 text-2xl font-semibold text-white">
+            {t('recommendations.common.recommendedForYou')}
+          </h2>
           <div className="text-center py-8">
             <p className="text-gray-400">{error}</p>
             {!isAuthenticated && (
               <p className="text-sm text-gray-500 mt-2">
-                Sign in to get personalized recommendations
+                {t('recommendations.personalized.signInRequired')}
               </p>
             )}
           </div>
@@ -118,12 +124,14 @@ const RecommendForYou = () => {
     return (
       <section className="w-full py-8">
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
-          <h2 className="mb-6 text-2xl font-semibold text-white">Recommended for You</h2>
+          <h2 className="mb-6 text-2xl font-semibold text-white">
+            {t('recommendations.common.recommendedForYou')}
+          </h2>
           <div className="text-center py-8">
             <p className="text-gray-400">
               {!isAuthenticated
-                ? 'Sign in to get personalized recommendations'
-                : 'No recommendations available yet. Try rating some movies!'}
+                ? t('recommendations.personalized.signInRequired')
+                : t('recommendations.personalized.empty')}
             </p>
           </div>
         </div>
@@ -134,7 +142,9 @@ const RecommendForYou = () => {
   return (
     <section className="w-full py-8">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-lg">
-        <h2 className="mb-6 text-2xl font-semibold text-white">Recommended for You</h2>
+        <h2 className="mb-6 text-2xl font-semibold text-white">
+          {t('recommendations.common.recommendedForYou')}
+        </h2>
 
         <div className="relative">
           {/* Navigation buttons */}

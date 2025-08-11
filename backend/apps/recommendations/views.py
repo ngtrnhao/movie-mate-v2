@@ -60,25 +60,53 @@ class RecommendationViewSet(viewsets.ViewSet):
                 context=context
             )
 
-            # Format response
+            # Format response with metadata from RecommendationResult
             formatted_recommendations = []
+            try:
+                movie_ids = [m.id for m in recommendations]
+                meta_qs = RecommendationResult.objects.filter(
+                    user=user,
+                    recommendation_type='hybrid',
+                    context=context,
+                    movie_id__in=movie_ids
+                ).values('movie_id', 'predicted_rating', 'confidence_score', 'score', 'rank', 'explanation')
+                meta_map = {m['movie_id']: m for m in meta_qs}
+            except Exception:
+                meta_map = {}
+
             for movie in recommendations:
+                meta = meta_map.get(movie.id) or {}
                 formatted_recommendations.append({
                     'id': movie.id,
                     'title': movie.title,
                     'title_vi': getattr(movie, 'title_vi', None),
                     'title_en': getattr(movie, 'title_en', None),
+                    'original_title': getattr(movie, 'original_title', None),
                     'poster_url': movie.poster_url,
                     'backdrop_url': movie.backdrop_url,
-                    'overview': getattr(movie, 'overview_en', None),  # Use overview_en as default
+                    'overview': getattr(movie, 'overview_en', None),
                     'overview_vi': getattr(movie, 'overview_vi', None),
                     'overview_en': getattr(movie, 'overview_en', None),
                     'release_date': movie.release_date,
-                    'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,  # Convert Decimal to float
-                    'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,  # Convert Decimal to float
-                    'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()],
-                    'recommendation_score': float(getattr(movie, 'recommendation_score', 0.0)),  # Convert to float
-                    'recommendation_reason': getattr(movie, 'recommendation_reason', ''),
+                    # Ratings
+                    'rating': float(getattr(movie, 'combined_rating_score', None) or getattr(movie, 'cached_imdb_rating', 0) or 0),
+                    'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
+                    'vote_count': int(movie.cached_imdb_votes) if getattr(movie, 'cached_imdb_votes', None) is not None else None,
+                    'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
+                    # Movie details
+                    'runtime': movie.runtime,
+                    'is_popular': getattr(movie, 'is_popular', False),
+                    'is_top_rated': getattr(movie, 'is_top_rated', False),
+                    'is_upcoming': getattr(movie, 'is_upcoming', False),
+                    'adult': getattr(movie, 'is_adult', False),
+                    # Localized genres (include language)
+                    'genres': [{'id': g.id, 'name': g.name, 'language': getattr(g, 'language', None)} for g in movie.genres.all()],
+                    # Recommendation meta
+                    'recommendation_score': float(meta.get('score', getattr(movie, 'recommendation_score', 0.0)) or 0.0),
+                    'predicted_rating': float(meta['predicted_rating']) if meta.get('predicted_rating') is not None else None,
+                    'confidence_score': float(meta['confidence_score']) if meta.get('confidence_score') is not None else None,
+                    'rank': meta.get('rank'),
+                    'explanation': meta.get('explanation') or {},
                 })
 
             return Response({
@@ -115,25 +143,49 @@ class RecommendationViewSet(viewsets.ViewSet):
                 context=context
             )
 
-            # Format recommendations for JSON serialization
+            # Format recommendations for JSON serialization with metadata
             formatted_recommendations = []
+            try:
+                movie_ids = [m.id for m in recommendations]
+                meta_qs = RecommendationResult.objects.filter(
+                    user=user,
+                    recommendation_type='collaborative',
+                    context=context,
+                    movie_id__in=movie_ids
+                ).values('movie_id', 'predicted_rating', 'confidence_score', 'score', 'rank', 'explanation')
+                meta_map = {m['movie_id']: m for m in meta_qs}
+            except Exception:
+                meta_map = {}
+
             for movie in recommendations:
+                meta = meta_map.get(movie.id) or {}
                 formatted_recommendations.append({
                     'id': movie.id,
                     'title': movie.title,
                     'title_vi': getattr(movie, 'title_vi', None),
                     'title_en': getattr(movie, 'title_en', None),
+                    'original_title': getattr(movie, 'original_title', None),
                     'poster_url': movie.poster_url,
                     'backdrop_url': movie.backdrop_url,
-                    'overview': getattr(movie, 'overview_en', None),  # Use overview_en as default
+                    'overview': getattr(movie, 'overview_en', None),
                     'overview_vi': getattr(movie, 'overview_vi', None),
                     'overview_en': getattr(movie, 'overview_en', None),
                     'release_date': movie.release_date,
-                    'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,  # Convert Decimal to float
-                    'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,  # Convert Decimal to float
-                    'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()],
-                    'recommendation_score': float(getattr(movie, 'recommendation_score', 0.0)),  # Convert to float
-                    'recommendation_reason': getattr(movie, 'recommendation_reason', ''),
+                    'rating': float(getattr(movie, 'combined_rating_score', None) or getattr(movie, 'cached_imdb_rating', 0) or 0),
+                    'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
+                    'vote_count': int(movie.cached_imdb_votes) if getattr(movie, 'cached_imdb_votes', None) is not None else None,
+                    'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
+                    'runtime': movie.runtime,
+                    'is_popular': getattr(movie, 'is_popular', False),
+                    'is_top_rated': getattr(movie, 'is_top_rated', False),
+                    'is_upcoming': getattr(movie, 'is_upcoming', False),
+                    'adult': getattr(movie, 'is_adult', False),
+                    'genres': [{'id': g.id, 'name': g.name, 'language': getattr(g, 'language', None)} for g in movie.genres.all()],
+                    'recommendation_score': float(meta.get('score', getattr(movie, 'recommendation_score', 0.0)) or 0.0),
+                    'predicted_rating': float(meta['predicted_rating']) if meta.get('predicted_rating') is not None else None,
+                    'confidence_score': float(meta['confidence_score']) if meta.get('confidence_score') is not None else None,
+                    'rank': meta.get('rank'),
+                    'explanation': meta.get('explanation') or {},
                 })
 
             return Response({
@@ -169,9 +221,22 @@ class RecommendationViewSet(viewsets.ViewSet):
                 context=context
             )
 
-            # Format recommendations for JSON serialization
+            # Format recommendations for JSON serialization with metadata
             formatted_recommendations = []
+            try:
+                movie_ids = [m.id for m in recommendations]
+                meta_qs = RecommendationResult.objects.filter(
+                    user=user,
+                    recommendation_type='hybrid',
+                    context=context,
+                    movie_id__in=movie_ids
+                ).values('movie_id', 'predicted_rating', 'confidence_score', 'score', 'rank', 'explanation')
+                meta_map = {m['movie_id']: m for m in meta_qs}
+            except Exception:
+                meta_map = {}
+
             for movie in recommendations:
+                meta = meta_map.get(movie.id) or {}
                 formatted_recommendations.append({
                     'id': movie.id,
                     'title': movie.title,
@@ -186,8 +251,11 @@ class RecommendationViewSet(viewsets.ViewSet):
                     'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
                     'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
                     'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()],
-                    'recommendation_score': float(getattr(movie, 'recommendation_score', 0.0)),
-                    'recommendation_reason': getattr(movie, 'recommendation_reason', ''),
+                    'recommendation_score': float(meta.get('score', getattr(movie, 'recommendation_score', 0.0)) or 0.0),
+                    'predicted_rating': float(meta['predicted_rating']) if meta.get('predicted_rating') is not None else None,
+                    'confidence_score': float(meta['confidence_score']) if meta.get('confidence_score') is not None else None,
+                    'rank': meta.get('rank'),
+                    'explanation': meta.get('explanation') or {},
                 })
 
             return Response({
@@ -254,25 +322,49 @@ class RecommendationViewSet(viewsets.ViewSet):
                 user, limit=limit, context=context, store=True
             )
 
-            # Format recommendations for JSON serialization
+            # Format recommendations for JSON serialization with metadata and explanation
             formatted_recommendations = []
+            try:
+                movie_ids = [m.id for m in recommendations]
+                meta_qs = RecommendationResult.objects.filter(
+                    user=user,
+                    recommendation_type='demographic',
+                    context=context,
+                    movie_id__in=movie_ids
+                ).values('movie_id', 'predicted_rating', 'confidence_score', 'score', 'rank', 'explanation')
+                meta_map = {m['movie_id']: m for m in meta_qs}
+            except Exception:
+                meta_map = {}
+
             for movie in recommendations:
+                meta = meta_map.get(movie.id) or {}
                 formatted_recommendations.append({
                     'id': movie.id,
                     'title': movie.title,
                     'title_vi': getattr(movie, 'title_vi', None),
                     'title_en': getattr(movie, 'title_en', None),
+                    'original_title': getattr(movie, 'original_title', None),
                     'poster_url': movie.poster_url,
                     'backdrop_url': movie.backdrop_url,
-                    'overview': getattr(movie, 'overview_en', None),  # Use overview_en as default
+                    'overview': getattr(movie, 'overview_en', None),
                     'overview_vi': getattr(movie, 'overview_vi', None),
                     'overview_en': getattr(movie, 'overview_en', None),
                     'release_date': movie.release_date,
-                    'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,  # Convert Decimal to float
-                    'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,  # Convert Decimal to float
-                    'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()],
-                    'recommendation_score': float(getattr(movie, 'recommendation_score', 0.0)),  # Convert to float
-                    'recommendation_reason': getattr(movie, 'recommendation_reason', ''),
+                    'rating': float(getattr(movie, 'combined_rating_score', None) or getattr(movie, 'cached_imdb_rating', 0) or 0),
+                    'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
+                    'vote_count': int(movie.cached_imdb_votes) if getattr(movie, 'cached_imdb_votes', None) is not None else None,
+                    'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
+                    'runtime': movie.runtime,
+                    'is_popular': getattr(movie, 'is_popular', False),
+                    'is_top_rated': getattr(movie, 'is_top_rated', False),
+                    'is_upcoming': getattr(movie, 'is_upcoming', False),
+                    'adult': getattr(movie, 'is_adult', False),
+                    'genres': [{'id': g.id, 'name': g.name, 'language': getattr(g, 'language', None)} for g in movie.genres.all()],
+                    'recommendation_score': float(meta.get('score', getattr(movie, 'recommendation_score', 0.0)) or 0.0),
+                    'predicted_rating': float(meta['predicted_rating']) if meta.get('predicted_rating') is not None else None,
+                    'confidence_score': float(meta['confidence_score']) if meta.get('confidence_score') is not None else None,
+                    'rank': meta.get('rank'),
+                    'explanation': meta.get('explanation') or {},
                 })
 
             return Response({

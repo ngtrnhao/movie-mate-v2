@@ -44,7 +44,7 @@ import {
   deleteAdminMovie,
   scheduleMovieAction,
 } from '../../../api/adminMovieService';
-import { useDebounce } from '../../../hooks/useDebounce';
+// Note: We intentionally avoid debounce for admin search; apply via explicit button
 import { useRefreshDashboard } from '../../../hooks/useDashboardData';
 import MovieFormModal from '../../../components/common/MovieFormModal';
 import SchedulePublishModal from './SchedulePublishModal';
@@ -159,11 +159,11 @@ const MovieManagement = () => {
     enrichType: 'comprehensive',
   });
 
-  // Search & Filter States
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearchQuery = useDebounce(searchQuery, 500); // 500ms debounce
+  // Search & Filter States (draft vs applied)
+  const [searchQuery, setSearchQuery] = useState(''); // draft
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [filters, setFilters] = useState({
+  const initialFilters = {
     approval_status: 'NEEDS_REVIEW', // Mặc định luôn có filter hợp lệ cho ES
     visibility_status: '',
     is_published: '',
@@ -187,7 +187,9 @@ const MovieManagement = () => {
     engagement_rate_min: null,
     homepage_views_min: null,
     user_favorites_min: null,
-  });
+  };
+  const [filters, setFilters] = useState(initialFilters); // draft
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   // Keyset pagination state
   const [afterStack, setAfterStack] = useState([]); // Stack of after_created_at for prev
   const [currentAfter, setCurrentAfter] = useState(null); // Current after_created_at
@@ -209,8 +211,8 @@ const MovieManagement = () => {
       try {
         const params = {
           pageSize: 40,
-          filters: { ...filters, sort_by: '-created_at' },
-          search: debouncedSearchQuery,
+          filters: { ...appliedFilters, sort_by: '-created_at' },
+          search: appliedSearch,
         };
         if (effectiveAfter) {
           params.filters.after_created_at = effectiveAfter;
@@ -238,7 +240,7 @@ const MovieManagement = () => {
         setLoading(false);
       }
     },
-    [filters, debouncedSearchQuery, currentAfter, afterStack]
+    [appliedFilters, appliedSearch, currentAfter, afterStack]
   );
 
   // Fetch overview data
@@ -262,12 +264,24 @@ const MovieManagement = () => {
     fetchOverviewData();
   }, [fetchOverviewData]);
 
-  // Initial fetch and refetch when filters/search change
+  // Initial fetch and refetch when APPLIED filters/search change
   useEffect(() => {
     setCurrentAfter(null);
     fetchMovies('init');
     // eslint-disable-next-line
-  }, [filters, debouncedSearchQuery]);
+  }, [appliedFilters, appliedSearch]);
+
+  // Apply search and filters explicitly
+  const applySearchAndFilters = useCallback(() => {
+    setAppliedSearch(searchQuery.trim());
+    setAppliedFilters(prev => ({ ...prev, ...filters }));
+    // Reset pagination
+    setCurrentAfter(null);
+    setAfterStack([]);
+    setHasPrevious(false);
+    // Trigger fetch
+    fetchMovies('init', null);
+  }, [searchQuery, filters, fetchMovies]);
 
   // Next page
   const handleNextPage = () => {
@@ -560,10 +574,6 @@ const MovieManagement = () => {
   // Event Handlers
   const handleSearchChange = e => {
     setSearchQuery(e.target.value);
-    // Reset pagination when search changes
-    setCurrentAfter(null);
-    setAfterStack([]);
-    setHasPrevious(false);
   };
 
   const handleFilterChange = (key, value) => {
@@ -571,10 +581,7 @@ const MovieManagement = () => {
       ...prev,
       [key]: value,
     }));
-    // Reset pagination when filters change
-    setCurrentAfter(null);
-    setAfterStack([]);
-    setHasPrevious(false);
+    // Do not auto-fetch; wait for explicit apply
   };
 
   const handleAdvancedFilterChange = (key, value) => {
@@ -582,10 +589,7 @@ const MovieManagement = () => {
       ...prev,
       [key]: value,
     }));
-    // Reset pagination when filters change
-    setCurrentAfter(null);
-    setAfterStack([]);
-    setHasPrevious(false);
+    // Do not auto-fetch; wait for explicit apply
   };
 
   const handleResetAdvancedFilters = () => {
@@ -608,10 +612,6 @@ const MovieManagement = () => {
       homepage_views_min: null,
       user_favorites_min: null,
     }));
-    // Reset pagination
-    setCurrentAfter(null);
-    setAfterStack([]);
-    setHasPrevious(false);
   };
 
   const toggleAdvancedFilters = () => {
@@ -1160,8 +1160,8 @@ const MovieManagement = () => {
       key => filters[key] !== null && filters[key] !== undefined && filters[key] !== ''
     );
 
-    return hasBasicFilters || hasAdvancedFilters || debouncedSearchQuery;
-  }, [filters, debouncedSearchQuery]);
+    return hasBasicFilters || hasAdvancedFilters || appliedSearch;
+  }, [filters, appliedSearch]);
 
   return (
     <div className="space-y-6">
@@ -1326,6 +1326,12 @@ const MovieManagement = () => {
                 type="text"
                 value={searchQuery}
                 onChange={handleSearchChange}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applySearchAndFilters();
+                  }
+                }}
                 className="block w-full rounded-md border border-gray-300 bg-white py-2 pl-10 pr-3 leading-5 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:placeholder:text-gray-400"
                 placeholder="Tìm kiếm theo tên phim..."
               />
@@ -1340,6 +1346,15 @@ const MovieManagement = () => {
                 </div>
               )}
             </div>
+          </div>
+          <div className="ml-3">
+            <button
+              onClick={applySearchAndFilters}
+              className="inline-flex items-center rounded-md border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            >
+              <MagnifyingGlassIcon className="mr-2 size-4" />
+              Tìm kiếm
+            </button>
           </div>
 
           {selectedMovies.length > 0 && (
@@ -1524,7 +1539,11 @@ const MovieManagement = () => {
               Xóa tất cả bộ lọc
             </button>
             <button
-              onClick={() => setShowFilters(false)}
+              onClick={() => {
+                setAppliedFilters(filters);
+                setShowFilters(false);
+                applySearchAndFilters();
+              }}
               className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Áp dụng

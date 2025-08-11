@@ -275,7 +275,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.campaign_type || ''}
           onChange={e => handleFilterChange('campaign_type', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
         >
           <option value="">All Campaigns</option>
           {campaignTypeOptions.map(option => (
@@ -371,7 +371,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.trending_category || ''}
           onChange={e => handleFilterChange('trending_category', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+          className="block w-full rounded-md text-gray-700 border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
         >
           <option value="">All Categories</option>
           {trendingCategories.map(option => (

@@ -3,11 +3,12 @@ import { useSelector } from 'react-redux';
 import MovieCard from '../movies/movie-card/MovieCard';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
+import { useTranslation } from '../../i18n/hooks/useTranslation';
 
 const PersonalizedRecommendations = ({
   context = 'homepage',
   limit = 20,
-  title = 'Personalized Recommendations',
+  title,
   showMethodInfo = true,
   allowRefresh = true,
 }) => {
@@ -18,6 +19,10 @@ const PersonalizedRecommendations = ({
   const [refreshing, setRefreshing] = useState(false);
 
   const { user, token } = useSelector(state => state.auth);
+  const { t } = useTranslation();
+
+  // Use translated title if not provided
+  const displayTitle = title || t('movies.recommendations.personalized.title');
 
   useEffect(() => {
     if (user && token) {
@@ -163,34 +168,18 @@ const PersonalizedRecommendations = ({
   };
 
   const getMethodDisplayName = method => {
-    const methodNames = {
-      collaborative: 'Collaborative Filtering',
-      demographic: 'Demographic Filtering',
-      hybrid: 'Hybrid Algorithm',
-
-      popular: 'Popular Movies',
-      fallback: 'Popular Movies',
-    };
-    return methodNames[method] || method;
+    return t(`movies.recommendations.common.methods.${method}`) || method;
   };
 
   const getMethodDescription = method => {
-    const descriptions = {
-      collaborative: 'Based on users with similar preferences',
-      demographic: 'Based on users with similar demographics',
-      hybrid: 'Combines multiple recommendation methods',
-
-      popular: 'Currently popular movies',
-      fallback: 'Popular movies (recommendation system unavailable)',
-    };
-    return descriptions[method] || '';
+    return t(`movies.recommendations.common.methodDescriptions.${method}`) || '';
   };
 
   if (!user) {
     return (
       <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">{title}</h2>
-        <p className="text-gray-400">Please log in to see personalized recommendations.</p>
+        <h2 className="text-2xl font-bold text-white mb-4">{displayTitle}</h2>
+        <p className="text-gray-400">{t('movies.recommendations.personalized.signInRequired')}</p>
       </div>
     );
   }
@@ -198,7 +187,7 @@ const PersonalizedRecommendations = ({
   if (loading) {
     return (
       <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">{title}</h2>
+        <h2 className="text-2xl font-bold text-white mb-4">{displayTitle}</h2>
         <LoadingSpinner />
       </div>
     );
@@ -207,7 +196,7 @@ const PersonalizedRecommendations = ({
   if (error && recommendations.length === 0) {
     return (
       <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">{title}</h2>
+        <h2 className="text-2xl font-bold text-white mb-4">{displayTitle}</h2>
         <ErrorMessage message={error} onRetry={() => fetchRecommendations(true)} />
       </div>
     );
@@ -218,7 +207,7 @@ const PersonalizedRecommendations = ({
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">{title}</h2>
+          <h2 className="text-2xl font-bold text-white">{displayTitle}</h2>
           {showMethodInfo && recommendationInfo && (
             <div className="mt-2">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -226,7 +215,7 @@ const PersonalizedRecommendations = ({
               </span>
               {recommendationInfo.cached && (
                 <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Cached
+                  {t('movies.recommendations.common.cached')}
                 </span>
               )}
               <p className="text-sm text-gray-400 mt-1">
@@ -263,7 +252,7 @@ const PersonalizedRecommendations = ({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Refreshing...
+                {t('movies.recommendations.personalized.refreshing')}
               </>
             ) : (
               <>
@@ -275,7 +264,7 @@ const PersonalizedRecommendations = ({
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                   />
                 </svg>
-                Refresh
+                {t('movies.recommendations.personalized.refresh')}
               </>
             )}
           </button>
@@ -286,8 +275,7 @@ const PersonalizedRecommendations = ({
       {error && recommendations.length > 0 && (
         <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
           <p className="text-sm">
-            <strong>Note:</strong> Personalized recommendations are currently unavailable. Showing
-            popular movies instead.
+            <strong>Note:</strong> {t('movies.recommendations.personalized.fallbackNote')}
           </p>
         </div>
       )}
@@ -313,7 +301,7 @@ const PersonalizedRecommendations = ({
                       handleFeedback(movie, 'like');
                     }}
                     className="p-1 bg-green-600 text-white rounded-full hover:bg-green-700"
-                    title="Like this recommendation"
+                    title={t('movies.recommendations.common.feedback.like')}
                   >
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path
@@ -329,7 +317,7 @@ const PersonalizedRecommendations = ({
                       handleFeedback(movie, 'dislike');
                     }}
                     className="p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
-                    title="Don't recommend similar movies"
+                    title={t('movies.recommendations.common.feedback.dislike')}
                   >
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path
@@ -346,12 +334,12 @@ const PersonalizedRecommendations = ({
         </div>
       ) : (
         <div className="text-center py-8">
-          <p className="text-gray-400 text-lg">No recommendations available at the moment.</p>
+          <p className="text-gray-400 text-lg">{t('movies.recommendations.personalized.empty')}</p>
           <button
             onClick={() => fetchRecommendations(true)}
             className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Try Again
+            {t('movies.recommendations.personalized.tryAgain')}
           </button>
         </div>
       )}
@@ -360,9 +348,11 @@ const PersonalizedRecommendations = ({
       {recommendationInfo && recommendations.length > 0 && (
         <div className="mt-6 pt-4 border-t border-gray-700">
           <p className="text-sm text-gray-400 text-center">
-            Showing {recommendationInfo.count} movies using{' '}
-            {getMethodDisplayName(recommendationInfo.method)}
-            {recommendationInfo.cached && ' (cached)'}
+            {t('movies.recommendations.common.showing', {
+              count: recommendationInfo.count,
+              method: getMethodDisplayName(recommendationInfo.method),
+            })}
+            {recommendationInfo.cached && ` (${t('movies.recommendations.common.cached')})`}
           </p>
         </div>
       )}

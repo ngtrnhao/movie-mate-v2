@@ -20,30 +20,74 @@ const handleError = (error, operation) => {
   };
 };
 
+// Helper function to retry API requests
+const retryRequest = async (requestFn, retries = 2, delay = 1000) => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      console.log(`Attempt ${attempt + 1} failed:`, error.message);
+
+      if (attempt === retries) {
+        throw error; // Last attempt failed, throw the error
+      }
+
+      // Skip retry for certain errors
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        throw error; // Don't retry auth errors
+      }
+
+      // Don't retry if request was canceled/aborted
+      if (
+        error.name === 'AbortError' ||
+        error.name === 'CanceledError' ||
+        error.code === 'ERR_CANCELED'
+      ) {
+        throw error; // Don't retry canceled requests
+      }
+
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
+    }
+  }
+};
+
 // === DASHBOARD OVERVIEW ===
 
 /**
  * Get admin dashboard overview with stats and recent movies
  */
-export const getDashboardOverview = async () => {
-  try {
-    const response = await axiosInstance.get('/api/admin/movies/dashboard_overview/');
-    return handleResponse(response);
-  } catch (error) {
-    handleError(error, 'fetch dashboard overview');
-  }
+export const getDashboardOverview = async (options = {}) => {
+  const { signal } = options;
+  return retryRequest(async () => {
+    try {
+      const response = await axiosInstance.get('/api/admin/movies/dashboard_overview/', {
+        signal,
+        timeout: 15000, // 15 second timeout
+      });
+      return handleResponse(response);
+    } catch (error) {
+      handleError(error, 'fetch dashboard overview');
+    }
+  });
 };
 
 /**
  * Get production metrics for analytics
  */
-export const getProductionMetrics = async () => {
-  try {
-    const response = await axiosInstance.get('/api/admin/movies/production_metrics/');
-    return handleResponse(response);
-  } catch (error) {
-    handleError(error, 'fetch production metrics');
-  }
+export const getProductionMetrics = async (options = {}) => {
+  const { signal } = options;
+  return retryRequest(async () => {
+    try {
+      const response = await axiosInstance.get('/api/admin/movies/production_metrics/', {
+        signal,
+        timeout: 45000, // 45 second timeout for complex data
+      });
+      return handleResponse(response);
+    } catch (error) {
+      handleError(error, 'fetch production metrics');
+    }
+  }, 1); // Only 1 retry for production metrics due to complexity
 };
 
 // === MOVIE ENRICHMENT SERVICES ===
@@ -58,7 +102,7 @@ export const getProductionMetrics = async () => {
  */
 export const enrichMovie = async (movieId, options = {}) => {
   try {
-    const response = await axiosInstance.post(`/api/admin/movies/${movieId}/enrich/`, {
+    await axiosInstance.post(`/api/admin/movies/${movieId}/enrich/`, {
       force_refresh: options.forceRefresh || false,
       focus_areas: options.focusAreas || null,
       enrich_type: options.enrichType || 'comprehensive',
@@ -142,25 +186,37 @@ export const enrichMoviesWithQualityIssues = async (options = {}) => {
 /**
  * Get user interaction statistics for admin dashboard
  */
-export const getUserInteractionStats = async () => {
-  try {
-    const response = await axiosInstance.get('/api/admin/movies/user_interaction_stats/');
-    return handleResponse(response);
-  } catch (error) {
-    handleError(error, 'fetch user interaction stats');
-  }
+export const getUserInteractionStats = async (options = {}) => {
+  const { signal } = options;
+  return retryRequest(async () => {
+    try {
+      const response = await axiosInstance.get('/api/admin/movies/user_interaction_stats/', {
+        signal,
+        timeout: 30000, // 30 second timeout
+      });
+      return handleResponse(response);
+    } catch (error) {
+      handleError(error, 'fetch user interaction stats');
+    }
+  });
 };
 
 /**
  * Get trending analytics for admin dashboard
  */
-export const getTrendingAnalytics = async () => {
-  try {
-    const response = await axiosInstance.get('/api/admin/movies/trending_analytics/');
-    return handleResponse(response);
-  } catch (error) {
-    handleError(error, 'fetch trending analytics');
-  }
+export const getTrendingAnalytics = async (options = {}) => {
+  const { signal } = options;
+  return retryRequest(async () => {
+    try {
+      const response = await axiosInstance.get('/api/admin/movies/trending_analytics/', {
+        signal,
+        timeout: 35000, // 35 second timeout
+      });
+      return handleResponse(response);
+    } catch (error) {
+      handleError(error, 'fetch trending analytics');
+    }
+  });
 };
 
 // === MOVIE MANAGEMENT ===

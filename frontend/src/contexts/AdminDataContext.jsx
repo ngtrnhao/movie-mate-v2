@@ -54,12 +54,12 @@ const initialState = {
 
   // Settings
   autoRefresh: true,
-  refreshInterval: 30000, // 30 seconds default
+  refreshInterval: 60000, // 60 seconds default (reduced frequency)
 
   // Tab-based control
   activeTab: null,
   tabRefreshMap: {
-    overview: ['dashboard', 'production', 'trending', 'userInteraction'],
+    overview: ['dashboard'], // Only load dashboard initially, load others on demand
     realtime_analytics: ['production', 'trending', 'userInteraction'],
     auto_processing: ['dashboard'],
     movies: ['dashboard', 'production'],
@@ -188,9 +188,16 @@ export const AdminDataProvider = ({ children }) => {
         return;
       }
 
-      // Check cache if not forcing refresh
-      if (!force && !isDataStale(dataType)) {
-        console.log(`💾 [AdminDataContext] ${dataType} cache hit, skipping fetch`);
+      // Check cache if not forcing refresh (with extended cache time for heavy operations)
+      const extendedCacheTime = {
+        dashboard: 180000, // 3 minutes
+        production: 300000, // 5 minutes
+        trending: 600000, // 10 minutes
+        userInteraction: 600000, // 10 minutes
+      };
+
+      if (!force && !isDataStale(dataType, extendedCacheTime[dataType])) {
+        console.log(`💾 [AdminDataContext] ${dataType} cache hit (extended), skipping fetch`);
         return;
       }
 
@@ -199,15 +206,29 @@ export const AdminDataProvider = ({ children }) => {
         abortControllersRef.current[dataType].abort();
       }
 
-      // Create new abort controller
+      // Create new abort controller with timeout
       const abortController = new AbortController();
       abortControllersRef.current[dataType] = abortController;
+
+      // Set timeout based on data type (more time for complex data)
+      const timeouts = {
+        dashboard: 15000, // 15 seconds for basic stats
+        production: 45000, // 45 seconds for complex production metrics (increased)
+        trending: 35000, // 35 seconds for trending analytics (increased)
+        userInteraction: 30000, // 30 seconds for user stats (increased)
+      };
+
+      const timeout = setTimeout(() => {
+        abortController.abort();
+      }, timeouts[dataType] || 20000);
 
       dispatch({ type: ACTIONS.SET_LOADING, dataType, loading: true });
       dispatch({ type: ACTIONS.CLEAR_ERROR, dataType });
 
       try {
-        console.log(`🚀 [AdminDataContext] Fetching ${dataType}...`);
+        console.log(
+          `🚀 [AdminDataContext] Fetching ${dataType} with ${timeouts[dataType] || 20000}ms timeout...`
+        );
         const data = await fetchFunction(abortController.signal);
 
         // Check if request was aborted
@@ -237,8 +258,13 @@ export const AdminDataProvider = ({ children }) => {
 
         console.log(`✅ [AdminDataContext] ${dataType} fetched successfully`);
       } catch (error) {
-        if (error.name === 'AbortError') {
-          console.log(`🛑 [AdminDataContext] ${dataType} fetch aborted`);
+        if (error.name === 'AbortError' || error.name === 'CanceledError') {
+          console.log(`🛑 [AdminDataContext] ${dataType} fetch aborted (timeout or canceled)`);
+          dispatch({
+            type: ACTIONS.SET_ERROR,
+            dataType,
+            error: `Request canceled or timeout - ${dataType}`,
+          });
           return;
         }
 
@@ -246,9 +272,12 @@ export const AdminDataProvider = ({ children }) => {
         dispatch({
           type: ACTIONS.SET_ERROR,
           dataType,
-          error: error.message || `Failed to fetch ${dataType}`,
+          error: error.error || error.message || `Failed to fetch ${dataType}`,
         });
       } finally {
+        // Clear timeout
+        clearTimeout(timeout);
+
         // Clean up abort controller
         if (abortControllersRef.current[dataType] === abortController) {
           delete abortControllersRef.current[dataType];
@@ -335,6 +364,48 @@ export const AdminDataProvider = ({ children }) => {
     ]);
   }, []);
 
+  // Load specific data types on demand (for lazy loading with throttling)
+  const loadDataOnDemand = useCallback(
+    async (dataTypes, force = false) => {
+      console.log('📋 [AdminDataContext] Loading data on demand:', dataTypes);
+
+      // Filter out data types that are already loading to prevent duplicates
+      const filteredDataTypes = dataTypes.filter(dataType => {
+        const isLoading = state.loading[dataType];
+        if (isLoading && !force) {
+          console.log(
+            `⏸️ [AdminDataContext] ${dataType} already loading, skipping duplicate request`
+          );
+          return false;
+        }
+        return true;
+      });
+
+      if (filteredDataTypes.length === 0) {
+        console.log('📋 [AdminDataContext] No new data types to load');
+        return;
+      }
+
+      const promises = filteredDataTypes.map(dataType => {
+        switch (dataType) {
+          case 'dashboard':
+            return refreshFunctionsRef.current.dashboard(force);
+          case 'production':
+            return refreshFunctionsRef.current.production(force);
+          case 'trending':
+            return refreshFunctionsRef.current.trending(force);
+          case 'userInteraction':
+            return refreshFunctionsRef.current.userInteraction(force);
+          default:
+            return Promise.resolve();
+        }
+      });
+
+      await Promise.allSettled(promises);
+    },
+    [state.loading]
+  );
+
   // Setup auto-refresh intervals
   useEffect(() => {
     if (!state.autoRefresh) return;
@@ -356,17 +427,24 @@ export const AdminDataProvider = ({ children }) => {
       return;
     }
 
-    // Different refresh intervals for different data types
+    // Different refresh intervals for different data types (optimized for performance)
     const intervals = {
-      dashboard: 60000, // 1 minute
-      production: 30000, // 30 seconds
-      trending: 60000, // 1 minute
-      userInteraction: 120000, // 2 minutes
+      dashboard: 120000, // 2 minutes (less frequent for basic stats)
+      production: 90000, // 1.5 minutes (slightly reduced)
+      trending: 300000, // 5 minutes (trends don't change quickly)
+      userInteraction: 600000, // 10 minutes (interaction stats are less time-sensitive)
     };
 
     // Set up intervals ONLY for data types relevant to current tab
     activeTabDataTypes.forEach(dataType => {
       const interval = intervals[dataType];
+
+      // Skip auto-refresh for heavy operations unless specifically needed
+      if (dataType === 'userInteraction' || dataType === 'trending') {
+        console.log(`⏸️ [AdminDataContext] Skipping auto-refresh for ${dataType} (manual only)`);
+        return;
+      }
+
       if (interval) {
         intervalsRef.current[dataType] = setInterval(() => {
           console.log(
@@ -390,23 +468,38 @@ export const AdminDataProvider = ({ children }) => {
       }
     });
 
-    // Initial fetch for relevant data only
-    const initialFetchPromises = activeTabDataTypes.map(dataType => {
-      switch (dataType) {
-        case 'dashboard':
-          return refreshFunctionsRef.current.dashboard();
-        case 'production':
-          return refreshFunctionsRef.current.production();
-        case 'trending':
-          return refreshFunctionsRef.current.trending();
-        case 'userInteraction':
-          return refreshFunctionsRef.current.userInteraction();
-        default:
-          return Promise.resolve();
-      }
-    });
+    // Initial fetch for relevant data only (prioritize essential data)
+    const initialFetchPromises = activeTabDataTypes
+      .filter(dataType => {
+        // Always fetch dashboard and production
+        if (dataType === 'dashboard' || dataType === 'production') {
+          return true;
+        }
+        // Only fetch userInteraction and trending if specifically requested
+        if (dataType === 'userInteraction' || dataType === 'trending') {
+          console.log(`📋 [AdminDataContext] Deferring ${dataType} to manual load`);
+          return false;
+        }
+        return true;
+      })
+      .map(dataType => {
+        switch (dataType) {
+          case 'dashboard':
+            return refreshFunctionsRef.current.dashboard();
+          case 'production':
+            return refreshFunctionsRef.current.production();
+          case 'trending':
+            return refreshFunctionsRef.current.trending();
+          case 'userInteraction':
+            return refreshFunctionsRef.current.userInteraction();
+          default:
+            return Promise.resolve();
+        }
+      });
 
-    Promise.allSettled(initialFetchPromises);
+    if (initialFetchPromises.length > 0) {
+      Promise.allSettled(initialFetchPromises);
+    }
 
     // Cleanup intervals
     return () => {
@@ -454,6 +547,7 @@ export const AdminDataProvider = ({ children }) => {
     refreshTrendingAnalytics,
     refreshUserInteractionStats,
     refreshAllData,
+    loadDataOnDemand,
 
     // Combined loading state
     isLoading: Object.values(state.loading).some(Boolean),

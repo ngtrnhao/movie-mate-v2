@@ -1,9 +1,5 @@
 import { useState, useMemo } from 'react';
-import {
-  useAdminDashboard,
-  useAdminComprehensiveMetrics,
-  useAdminUserInteractionStats,
-} from '../../../contexts/AdminDataContext';
+import { useAdminData } from '../../../contexts/AdminDataContext';
 import RealTimeCharts from './RealTimeCharts';
 import {
   ChartBarIcon,
@@ -15,31 +11,37 @@ import {
 
 const AdminDashboardOverview = () => {
   const {
-    data: dashboardData,
-    loading: isDashboardLoading,
-    error: dashboardError,
-  } = useAdminDashboard();
-
-  const {
-    data: productionMetrics,
-    loading: isMetricsLoading,
-    error: metricsError,
+    dashboardData,
+    productionMetrics,
+    userInteractionStats,
+    loading,
+    errors,
     lastUpdated,
-    refreshMetrics,
-    isStale,
-  } = useAdminComprehensiveMetrics({ autoRefresh: false });
+    refreshProductionMetrics,
+    isDataStale,
+  } = useAdminData();
 
-  const {
-    data: userInteractionStats,
-    loading: isUserStatsLoading,
-    error: userStatsError,
-  } = useAdminUserInteractionStats();
+  // Derived states for backward compatibility
+  const isDashboardLoading = loading.dashboard;
+  const isMetricsLoading = loading.production;
+  const isUserStatsLoading = loading.userInteraction;
+  const dashboardError = errors.dashboard;
+  const metricsError = errors.production;
+  const userStatsError = errors.userInteraction;
+  const refreshMetrics = refreshProductionMetrics;
+  const isStale = isDataStale('production');
 
-  const [showCharts, setShowCharts] = useState(true);
+  const [showCharts, setShowCharts] = useState(false); // Default to false for lazy loading
 
   // Memoize the computed stats to prevent infinite re-renders
   const stats = useMemo(() => {
-    if (!dashboardData || !productionMetrics || !userInteractionStats) {
+    // Allow partial rendering - show data even if some sources are missing
+    const productionData = productionMetrics?.data || productionMetrics || {};
+    const userData = userInteractionStats?.data || userInteractionStats || {};
+    const dashboardDataRes = dashboardData?.data || dashboardData || {};
+
+    // If no dashboard data, return empty stats
+    if (!dashboardData) {
       return {
         systemStats: {},
         userStats: {},
@@ -49,11 +51,6 @@ const AdminDashboardOverview = () => {
         performanceStats: {},
       };
     }
-
-    // Get the actual data from the API response structure
-    const productionData = productionMetrics?.data || productionMetrics;
-    const userData = userInteractionStats?.data || userInteractionStats;
-    const dashboardDataRes = dashboardData?.data || dashboardData;
 
     // Enhanced stats with real production data
     return {
@@ -80,29 +77,37 @@ const AdminDashboardOverview = () => {
         bounceRate: productionData?.engagement_stats?.avg_trending_score || 0,
       },
       contentStats: {
-        totalMovies: productionData?.total_movies || 0,
+        totalMovies: dashboardDataRes?.total_movies || productionData?.total_movies || 0,
         totalReviews: 15678,
         totalComments: 45678,
         reportedContent: 234,
         pendingModeration: dashboardDataRes?.pending_approval || 0,
         contentGrowth: productionData?.engagement_stats?.avg_engagement_rate || 0,
         averageRating: 4.2,
-        publishedMovies: productionData?.published_count || 0,
-        adminFeatured: productionData?.admin_featured_count || 0,
-        qualityIssues: productionData?.quality_stats?.quality_issues || 0,
+        publishedMovies: dashboardDataRes?.published_movies || productionData?.published_count || 0,
+        adminFeatured:
+          dashboardDataRes?.admin_featured || productionData?.admin_featured_count || 0,
+        qualityIssues:
+          dashboardDataRes?.quality_issues || productionData?.quality_stats?.quality_issues || 0,
         avgQualityScore: productionData?.quality_stats?.avg_quality_score || 0,
         contentCompleteness: productionData?.quality_stats?.avg_completeness || 0,
+        approvedMovies: dashboardDataRes?.approved_movies || 0,
+        rejectedMovies: dashboardDataRes?.rejected_movies || 0,
       },
       moderationStats: {
-        pendingReviews: 47,
+        pendingReviews: dashboardDataRes?.pending_approval || 47,
         processedToday: 156,
         averageResponseTime: 2.3,
         moderatorEfficiency: 94.2,
         autoModerationRate: 67.8,
         falsePositiveRate: 2.1,
         approvedContentRatio:
-          productionData?.total_movies > 0
-            ? Math.round((productionData?.published_count / productionData?.total_movies) * 100)
+          (dashboardDataRes?.total_movies || productionData?.total_movies) > 0
+            ? Math.round(
+                ((dashboardDataRes?.published_movies || productionData?.published_count) /
+                  (dashboardDataRes?.total_movies || productionData?.total_movies)) *
+                  100
+              )
             : 0,
       },
       securityStats: {
@@ -288,7 +293,15 @@ const AdminDashboardOverview = () => {
             </div>
             {lastUpdated && (
               <div className="text-xs text-purple-200">
-                Cập nhật lần cuối: {lastUpdated.toLocaleTimeString('vi-VN')}
+                Cập nhật lần cuối:{' '}
+                {(() => {
+                  // Get the most recent timestamp from available data
+                  const timestamps = Object.values(lastUpdated).filter(Boolean);
+                  if (timestamps.length === 0) return 'Chưa có dữ liệu';
+
+                  const mostRecent = new Date(Math.max(...timestamps.map(t => t.getTime())));
+                  return mostRecent.toLocaleTimeString('vi-VN');
+                })()}
               </div>
             )}
           </div>
@@ -421,6 +434,63 @@ const AdminDashboardOverview = () => {
         </div>
       </div>
 
+      {/* Additional Admin Stats */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="rounded-lg border-l-4 border-green-500 bg-white p-6 shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Đã duyệt</p>
+              <p className="text-3xl font-bold text-green-600">
+                {stats.contentStats.approvedMovies?.toLocaleString() || '0'}
+              </p>
+              <div className="mt-1 flex items-center text-xs text-green-600">
+                <span>Tỷ lệ: {stats.moderationStats.approvedContentRatio}%</span>
+              </div>
+            </div>
+            <div className="rounded-full bg-green-100 p-3">
+              <span className="text-2xl">✅</span>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">Phim đã được phê duyệt</p>
+        </div>
+
+        <div className="rounded-lg border-l-4 border-orange-500 bg-white p-6 shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Chờ duyệt</p>
+              <p className="text-3xl font-bold text-orange-600">
+                {stats.contentStats.pendingModeration?.toLocaleString() || '0'}
+              </p>
+              <div className="mt-1 flex items-center text-xs text-orange-600">
+                <span>Cần xử lý</span>
+              </div>
+            </div>
+            <div className="rounded-full bg-orange-100 p-3">
+              <span className="text-2xl">⏳</span>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">Phim đang chờ duyệt</p>
+        </div>
+
+        <div className="rounded-lg border-l-4 border-red-500 bg-white p-6 shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Đã từ chối</p>
+              <p className="text-3xl font-bold text-red-600">
+                {stats.contentStats.rejectedMovies?.toLocaleString() || '0'}
+              </p>
+              <div className="mt-1 flex items-center text-xs text-red-600">
+                <span>Không đạt yêu cầu</span>
+              </div>
+            </div>
+            <div className="rounded-full bg-red-100 p-3">
+              <span className="text-2xl">❌</span>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">Phim bị từ chối</p>
+        </div>
+      </div>
+
       {/* Enhanced User Engagement Metrics */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -509,6 +579,47 @@ const AdminDashboardOverview = () => {
           </div>
         </div>
       </div>
+
+      {/* Recent Movies */}
+      {dashboardData?.recent_movies && dashboardData.recent_movies.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-medium text-gray-900">Phim mới nhất</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {dashboardData.recent_movies.map(movie => (
+              <div
+                key={movie.id}
+                className="flex items-center space-x-3 rounded-lg border p-3 hover:bg-gray-50"
+              >
+                <img
+                  src={movie.poster_url || '/placeholder-movie.jpg'}
+                  alt={movie.title}
+                  className="h-16 w-12 rounded object-cover"
+                  onError={e => {
+                    e.target.src = '/placeholder-movie.jpg';
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900">{movie.title}</p>
+                  <p className="text-xs text-gray-500">
+                    {movie.approval_status === 'PENDING' && (
+                      <span className="text-orange-600">⏳ Chờ duyệt</span>
+                    )}
+                    {movie.approval_status === 'APPROVED' && (
+                      <span className="text-green-600">✅ Đã duyệt</span>
+                    )}
+                    {movie.approval_status === 'REJECTED' && (
+                      <span className="text-red-600">❌ Từ chối</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(movie.created_at).toLocaleString('vi-VN')}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Activity with Enhanced Info */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

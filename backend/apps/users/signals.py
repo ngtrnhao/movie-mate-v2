@@ -26,24 +26,24 @@ def setup_user_recommendation_profile(sender, instance, created, **kwargs):
 
     # Only proceed if user has COMPLETE demographic data
     has_complete_demographic_data = (
-        instance.age and
-        instance.gender and
-        instance.occupation and
-        instance.location and
-        instance.user_type
+        instance.age is not None and
+        instance.gender and instance.gender.strip() and
+        instance.occupation and instance.occupation.strip() and
+        instance.location and instance.location.strip() and
+        instance.user_type and instance.user_type.strip()
     )
 
     if not has_complete_demographic_data:
         missing_fields = []
-        if not instance.age:
+        if instance.age is None:
             missing_fields.append('age')
-        if not instance.gender:
+        if not instance.gender or not instance.gender.strip():
             missing_fields.append('gender')
-        if not instance.occupation:
+        if not instance.occupation or not instance.occupation.strip():
             missing_fields.append('occupation')
-        if not instance.location:
+        if not instance.location or not instance.location.strip():
             missing_fields.append('location')
-        if not instance.user_type:
+        if not instance.user_type or not instance.user_type.strip():
             missing_fields.append('user_type')
 
         logger.info(f"User {instance.id} profile incomplete - missing: {missing_fields} - no setup")
@@ -69,6 +69,7 @@ def setup_user_recommendation_profile(sender, instance, created, **kwargs):
     if not user_pref:
         logger.info(f"User {instance.id} first time profile completion - full setup")
 
+    logger.info(f"Complete demographic profile update for user {instance.id}: age={instance.age}, gender={instance.gender}, occupation={instance.occupation}")
     logger.info(f"User {instance.id} profile completion - starting recommendation setup")
 
     try:

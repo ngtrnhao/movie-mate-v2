@@ -278,5 +278,68 @@
     "exploreAll": "Bạn đã khám phá tất cả {{count}} phim!",
     "noTrailer": "Không có trailer cho phim này",
     "noChanges": "Không có thay đổi"
+  },
+  "recommendations": {
+    "collaborative": {
+      "title": "Gợi Ý Cộng Tác",
+      "description": "Dựa trên người dùng có sở thích tương tự",
+      "loading": "Đang tải gợi ý cộng tác...",
+      "empty": "Chưa có gợi ý cộng tác. Hãy thử đánh giá một số phim!",
+      "error": "Không thể tải gợi ý cộng tác",
+      "signInRequired": "Đăng nhập để nhận gợi ý cộng tác"
+    },
+    "demographic": {
+      "title": "Gợi Ý Nhân Khẩu Học",
+      "description": "Dựa trên tuổi, giới tính và hồ sơ nhân khẩu học của bạn",
+      "loading": "Đang tải gợi ý nhân khẩu học...",
+      "empty": "Chưa có gợi ý nhân khẩu học. Hãy hoàn thiện hồ sơ của bạn!",
+      "error": "Không thể tải gợi ý nhân khẩu học",
+      "signInRequired": "Đăng nhập để nhận gợi ý nhân khẩu học"
+    },
+    "personalized": {
+      "title": "Gợi Ý Cá Nhân Hóa",
+      "description": "Được tùy chỉnh riêng cho bạn",
+      "loading": "Đang tải gợi ý cá nhân hóa...",
+      "empty": "Hiện tại không có gợi ý nào.",
+      "error": "Không thể tải gợi ý",
+      "signInRequired": "Vui lòng đăng nhập để xem gợi ý cá nhân hóa.",
+      "refresh": "Làm mới",
+      "refreshing": "Đang làm mới...",
+      "tryAgain": "Thử lại",
+      "fallbackNote": "Gợi ý cá nhân hóa hiện không khả dụng. Hiển thị phim phổ biến thay thế."
+    },
+    "common": {
+      "whyRecommended": "Tại sao được đề xuất?",
+      "recommendedForYou": "Đề xuất cho bạn",
+      "basedOnPreferences": "Phim này được đề xuất dựa trên sở thích và lịch sử xem của bạn.",
+      "methods": {
+        "collaborative": "Lọc Cộng Tác",
+        "demographic": "Lọc Nhân Khẩu Học",
+        "hybrid": "Thuật Toán Kết Hợp",
+        "popular": "Phim Phổ Biến",
+        "fallback": "Phim Phổ Biến"
+      },
+      "methodDescriptions": {
+        "collaborative": "Dựa trên người dùng có sở thích tương tự",
+        "demographic": "Dựa trên người dùng có nhân khẩu học tương tự",
+        "hybrid": "Kết hợp nhiều phương pháp gợi ý",
+        "popular": "Phim đang phổ biến",
+        "fallback": "Phim phổ biến (hệ thống gợi ý không khả dụng)"
+      },
+      "feedback": {
+        "like": "Thích gợi ý này",
+        "dislike": "Không đề xuất phim tương tự",
+        "notInterested": "Không quan tâm"
+      },
+      "showing": "Hiển thị {{count}} phim sử dụng {{method}}",
+      "cached": "Đã lưu cache",
+      "match": "phù hợp"
+    }
+  },
+  "hero": {
+    "loading": "Đang tải gợi ý cá nhân hóa...",
+    "recommendedBadge": "Đề xuất cho bạn",
+    "viewDetails": "Xem chi tiết",
+    "whyRecommended": "Vì sao được đề xuất?"
   }
 }

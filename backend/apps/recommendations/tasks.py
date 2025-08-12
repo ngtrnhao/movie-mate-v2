@@ -287,30 +287,15 @@ def generate_demographic_recommendations_async(self, user_id: int, context: str 
             context=context
         ).delete()
 
-        # Generate enhanced demographic recommendations
+        # Generate enhanced demographic recommendations and let the service
+        # persist full metadata (predicted_rating, confidence, novelty, explanation)
         demo_service = EnhancedDemographicFilteringService()
-        recommendations = demo_service.generate_enhanced_demographic_recommendations(user, limit, context, store=False)
+        recommendations = demo_service.generate_enhanced_demographic_recommendations(
+            user, limit, context, store=True
+        )
 
-        # Store recommendations
-        for rank, movie in enumerate(recommendations[:limit], 1):
-            RecommendationResult.objects.create(
-                user=user,
-                movie=movie,
-                recommendation_type='demographic',
-                context=context,
-                rank=rank,
-                score=1.0 - (rank * 0.05),
-                confidence_score=0.7,
-                explanation={
-                    'reason': 'Generated using demographic filtering',
-                    'method': 'demographic',
-                    'user_profile': {
-                        'age': user.age,
-                        'gender': user.gender,
-                        'occupation': user.occupation
-                    }
-                }
-            )
+        # NOTE: Do not overwrite detailed metadata by re-inserting minimal rows here.
+        # The service already stored enhanced recommendations in RecommendationResult.
 
         logger.info(f"✅ Background demographic recommendations completed for user {user_id}")
         return len(recommendations)

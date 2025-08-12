@@ -603,11 +603,11 @@ class EnhancedDemographicFilteringService:
         # Tự động load K-means model nếu có clusters trong database
         self._load_kmeans_model()
 
-        # Ensure scaler is available if model is loaded
+        # Do NOT initialize a blank scaler in production. If scaler is missing,
+        # fallback logic will use unscaled vectors (and we should fix payload).
+        # This prevents unfitted StandardScaler errors during transform.
         if self.kmeans_model is not None and self.scaler is None:
-            from sklearn.preprocessing import StandardScaler
-            self.scaler = StandardScaler()
-            logger.info("✅ Initialized default scaler for K-means model")
+            logger.warning("K-means model loaded without fitted scaler; using unscaled vectors until scaler payload is provided")
 
     def _get_model_cache_path(self) -> str:
         """
@@ -3169,6 +3169,17 @@ class OptimizedKMeansProductionService:
         self.memory_limit_mb = 256  # Giới hạn memory
         # Không cần redis_client vì sử dụng Django cache framework
 
+    def _refresh_db_connection(self):
+        """Đảm bảo kết nối DB còn sống trong các vòng lặp dài."""
+        try:
+            from django.db import close_old_connections, connection
+            close_old_connections()
+            # ensure_connection sẽ mở lại nếu đã đóng/timeout
+            connection.ensure_connection()
+        except Exception as e:
+            # Chỉ log ở mức debug để tránh spam log
+            logger.debug(f"Skip DB connection refresh: {e}")
+
     def train_offline_and_deploy(self, force_retrain=False):
         """
         🚀 Train offline và deploy model lên production
@@ -3225,17 +3236,33 @@ class OptimizedKMeansProductionService:
         sample_features = []
         sample_limit = self.silhouette_sample_size
         for batch in users_batches:
+            # Làm mới kết nối per-batch để tránh "connection already closed"
+            self._refresh_db_connection()
             if len(sample_features) >= sample_limit:
                 break
-            for user_data in batch:
+            # Giảm N+1 queries: lấy toàn bộ user của batch bằng in_bulk
+            try:
+                user_ids = [u.get('id') for u in batch if u.get('id')]
+                if not user_ids:
+                    continue
+                user_map = User.objects.only(
+                    'id', 'age', 'gender', 'occupation', 'location', 'zip_code', 'user_type'
+                ).in_bulk(user_ids)
+            except Exception as e:
+                logger.warning(f"Batch user fetch failed: {e}")
+                continue
+
+            for user_id in user_ids:
                 if len(sample_features) >= sample_limit:
                     break
+                user = user_map.get(user_id)
+                if not user:
+                    continue
                 try:
-                    user = User.objects.get(id=user_data['id'])
                     fv = vectorizer.create_demographic_vector(user)
                     sample_features.append(fv)
                 except Exception as e:
-                    logger.warning(f"Error creating vector for user {user_data.get('id')}: {e}")
+                    logger.warning(f"Error creating vector for user {user_id}: {e}")
                     continue
 
         optimal_k = self.max_clusters
@@ -3268,7 +3295,21 @@ class OptimizedKMeansProductionService:
             except Exception as e:
                 logger.warning(f"Adaptive K selection (production) failed, dùng mặc định {optimal_k}: {e}")
 
-        # 2) Khởi tạo mô hình với K tối ưu và train qua toàn bộ batches bằng partial_fit
+        # 2) Khởi tạo scaler (nếu có sample) và mô hình với K tối ưu, train qua toàn bộ batches bằng partial_fit
+        scaler = None
+        try:
+            if 'Xs' in locals() and isinstance(Xs, np.ndarray) and Xs.size > 0:
+                from sklearn.preprocessing import StandardScaler
+                scaler = StandardScaler()
+                scaler.fit(Xs)
+                self.scaler = scaler
+            else:
+                self.scaler = None
+        except Exception as e:
+            logger.warning(f"Could not fit StandardScaler on sample: {e}")
+            scaler = None
+            self.scaler = None
+
         kmeans = MiniBatchKMeans(
             n_clusters=optimal_k,
             batch_size=self.batch_size,
@@ -3278,18 +3319,41 @@ class OptimizedKMeansProductionService:
         )
 
         for batch in users_batches:
+            # Refresh kết nối mỗi batch
+            self._refresh_db_connection()
             features = []
-            for user_data in batch:
+            # Lấy user theo batch bằng in_bulk để giảm số lần truy vấn
+            try:
+                user_ids = [u.get('id') for u in batch if u.get('id')]
+                if user_ids:
+                    user_map = User.objects.only(
+                        'id', 'age', 'gender', 'occupation', 'location', 'zip_code', 'user_type'
+                    ).in_bulk(user_ids)
+                else:
+                    user_map = {}
+            except Exception as e:
+                logger.warning(f"Batch user fetch failed: {e}")
+                user_map = {}
+
+            for user_id in user_ids:
+                user = user_map.get(user_id)
+                if not user:
+                    continue
                 try:
-                    user = User.objects.get(id=user_data['id'])
                     fv = vectorizer.create_demographic_vector(user)
                     features.append(fv)
                 except Exception as e:
-                    logger.warning(f"Error creating vector for user {user_data.get('id')}: {e}")
+                    logger.warning(f"Error creating vector for user {user_id}: {e}")
                     continue
 
             if features:
                 features_array = np.array(features)
+                # Chuẩn hoá theo scaler nếu có
+                if scaler is not None:
+                    try:
+                        features_array = scaler.transform(features_array)
+                    except Exception as e:
+                        logger.warning(f"Scaler transform failed during training: {e}")
                 kmeans.partial_fit(features_array)
 
             if self._check_memory_usage() > self.memory_limit_mb:
@@ -3342,7 +3406,9 @@ class OptimizedKMeansProductionService:
         # Clear existing clusters
         DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').delete()
 
-        users = User.objects.filter(age__isnull=False, gender__isnull=False)
+        users = User.objects.filter(age__isnull=False, gender__isnull=False).only(
+            'id', 'age', 'gender', 'occupation', 'location', 'zip_code', 'user_type'
+        )
         total_users = users.count()
 
         logger.info(f"🔄 Pre-computing clusters for {total_users} users...")
@@ -3354,7 +3420,9 @@ class OptimizedKMeansProductionService:
         vectorizer = AdvancedDemographicVectorizer()
 
         for i in range(0, total_users, self.batch_size):
-            batch_users = users[i:i+self.batch_size]
+            # Làm mới kết nối trước khi xử lý mỗi batch
+            self._refresh_db_connection()
+            batch_users = list(users[i:i+self.batch_size])
 
             for user in batch_users:
                 try:
@@ -3440,10 +3508,21 @@ class OptimizedKMeansProductionService:
         Fast lookup từ pre-computed data + caching với performance optimization
         """
         try:
+            # Chấp nhận cả user object hoặc user id
+            if hasattr(user, 'id'):
+                user_obj = user
+                user_id = user.id
+            else:
+                user_id = int(user)
+                # đảm bảo có object để fallback rule-based
+                user_obj = User.objects.only(
+                    'id', 'age', 'gender', 'occupation', 'location', 'zip_code', 'user_type'
+                ).get(id=user_id)
+
             # 1. Try database lookup first (faster than cloud Redis)
             # Use values() to get only the field we need
             user_pref_data = UserPreference.objects.filter(
-                user=user
+                user=user_id
             ).values('demographic_cluster').first()
 
             if user_pref_data and user_pref_data.get('demographic_cluster'):
@@ -3451,7 +3530,7 @@ class OptimizedKMeansProductionService:
 
                 # Try to cache (async, don't wait for it)
                 try:
-                    cache_key = f"user_cluster:{user.id}"
+                    cache_key = f"user_cluster:{user_id}"
                     cache.set(cache_key, cluster_id, timeout=self.cache_ttl)
                 except Exception:
                     pass  # Ignore cache errors
@@ -3460,7 +3539,7 @@ class OptimizedKMeansProductionService:
 
             # 2. Try cache as fallback (if DB lookup failed)
             try:
-                cache_key = f"user_cluster:{user.id}"
+                cache_key = f"user_cluster:{user_id}"
                 cached_cluster = cache.get(cache_key)
 
                 if cached_cluster:
@@ -3469,11 +3548,25 @@ class OptimizedKMeansProductionService:
                 pass  # Ignore cache errors
 
             # 3. Fallback to rule-based clustering
-            return self._rule_based_fallback(user)
+            return self._rule_based_fallback(user_obj)
 
         except Exception as e:
-            logger.error(f"Cluster lookup failed for user {user.id}: {str(e)}")
-            return self._rule_based_fallback(user)
+            try:
+                uid = user.id if hasattr(user, 'id') else user
+            except Exception:
+                uid = 'unknown'
+            logger.error(f"Cluster lookup failed for user {uid}: {str(e)}")
+            # Fallback an toàn
+            if hasattr(user, 'id'):
+                return self._rule_based_fallback(user)
+            try:
+                user_obj = User.objects.only(
+                    'id', 'age', 'gender', 'occupation', 'location', 'zip_code', 'user_type'
+                ).get(id=int(user))
+                return self._rule_based_fallback(user_obj)
+            except Exception:
+                # Fallback cuối cùng
+                return "kmeans_6"
 
     def _rule_based_fallback(self, user):
         """Rule-based clustering fallback"""

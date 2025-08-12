@@ -5,7 +5,7 @@ Sử dụng hybrid approach: Pre-computed + Caching + Fallback
 """
 
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.db import transaction, close_old_connections, connection
 from apps.recommendations.services import OptimizedKMeansProductionService
 from apps.recommendations.models import DemographicCluster, UserPreference
 from django.contrib.auth import get_user_model
@@ -51,6 +51,13 @@ class Command(BaseCommand):
 
         self.stdout.write(f"🎯 Bắt đầu optimize K-means production - Mode: {mode}")
 
+        # Đảm bảo kết nối DB sẵn sàng trước khi chạy job dài
+        try:
+            close_old_connections()
+            connection.ensure_connection()
+        except Exception:
+            pass
+
         service = OptimizedKMeansProductionService()
         service.batch_size = batch_size
 
@@ -58,12 +65,16 @@ class Command(BaseCommand):
 
         try:
             if mode == 'train':
+                self._refresh_db()
                 self._train_mode(service, force_retrain, dry_run)
             elif mode == 'deploy':
+                self._refresh_db()
                 self._deploy_mode(service, dry_run)
             elif mode == 'stats':
+                self._refresh_db()
                 self._stats_mode(service)
             elif mode == 'cleanup':
+                self._refresh_db()
                 self._cleanup_mode(service, dry_run)
             else:
                 self.stdout.write(self.style.ERROR(f"❌ Mode không hợp lệ: {mode}"))
@@ -77,6 +88,13 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f"✅ Hoàn thành! Thời gian: {elapsed_time:.2f} giây")
         )
+
+    def _refresh_db(self):
+        try:
+            close_old_connections()
+            connection.ensure_connection()
+        except Exception:
+            pass
 
     def _train_mode(self, service, force_retrain, dry_run):
         """Train mode - chỉ chạy trên development"""

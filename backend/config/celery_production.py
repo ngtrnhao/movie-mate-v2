@@ -61,7 +61,8 @@ app.conf.beat_schedule = {
     # Sync popular movies weekly (Sunday 2 AM)
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": crontab(hour=1, minute=0, day_of_week="*/5"),  # every 5 days
+        # "schedule": crontab(hour=1, minute=0, day_of_week="*/5"),  # every 5 days
+        "schedule": timedelta(minutes=30),
         "options": {"priority": 8}
     },
     # Sync top rated movies weekly (Monday 3 AM)

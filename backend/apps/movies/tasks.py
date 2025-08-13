@@ -1094,84 +1094,133 @@ def process_scheduled_actions_auto(self):
                 admin_control = getattr(movie, 'admin_control', None)
                 if not admin_control:
                     admin_control, _ = MovieAdminControl.objects.get_or_create(movie=movie)
-                movie_updated = False
 
-                # Process auto-publish
-                if (scheduling.auto_publish and
+                # Determine intended actions with precedence to "un-" actions
+                should_unpublish = bool(
+                    scheduling.auto_unpublish and
+                    scheduling.unpublish_date and
+                    scheduling.unpublish_date <= now
+                )
+                should_publish = bool(
+                    scheduling.auto_publish and
                     scheduling.publish_date and
                     scheduling.publish_date <= now and
-                    not admin_control.is_published):
+                    not should_unpublish  # prevent publish if unpublish is already due
+                )
+                should_unfeature = bool(
+                    scheduling.auto_unfeature and
+                    scheduling.featured_until and
+                    scheduling.featured_until <= now
+                )
+                should_feature = bool(
+                    scheduling.auto_feature and
+                    scheduling.featured_from and
+                    scheduling.featured_from <= now and
+                    not should_unfeature  # prevent feature if unfeature is already due
+                )
 
-                    admin_control.is_published = True
-                    admin_control.visibility_status = 'PUBLISHED'
-                    movie_updated = True
-                    actions_processed['published'] += 1
-                    logger.info(f"📢 Auto-published movie: {movie.title} (ID: {movie.id})")
+                # Track per-movie actions
+                did_publish = False
+                did_unpublish = False
+                did_feature = False
+                did_unfeature = False
+                movie_updated = False
 
-                # Process auto-unpublish
-                if (scheduling.auto_unpublish and
-                    scheduling.unpublish_date and
-                    scheduling.unpublish_date <= now and
-                    admin_control.is_published):
-
+                # Apply publish/unpublish once based on precedence
+                if should_unpublish and admin_control.is_published:
                     admin_control.is_published = False
                     admin_control.visibility_status = 'DRAFT'
                     movie_updated = True
+                    did_unpublish = True
                     actions_processed['unpublished'] += 1
                     logger.info(f"📪 Auto-unpublished movie: {movie.title} (ID: {movie.id})")
+                elif should_publish and not admin_control.is_published:
+                    admin_control.is_published = True
+                    admin_control.visibility_status = 'PUBLISHED'
+                    movie_updated = True
+                    did_publish = True
+                    actions_processed['published'] += 1
+                    logger.info(f"📢 Auto-published movie: {movie.title} (ID: {movie.id})")
 
-                # Process auto-feature
-                if (scheduling.auto_feature and
-                    scheduling.featured_from and
-                    scheduling.featured_from <= now and
-                    not admin_control.admin_featured):
-
+                # Apply feature/unfeature once based on precedence
+                if should_unfeature and admin_control.admin_featured:
+                    admin_control.admin_featured = False
+                    admin_control.admin_priority = 0
+                    movie_updated = True
+                    did_unfeature = True
+                    actions_processed['unfeatured'] += 1
+                    logger.info(f"⭐ Auto-unfeatured movie: {movie.title} (ID: {movie.id})")
+                elif should_feature and not admin_control.admin_featured:
                     admin_control.admin_featured = True
                     if admin_control.admin_priority == 0:
                         admin_control.admin_priority = 1
                     movie_updated = True
+                    did_feature = True
                     actions_processed['featured'] += 1
                     logger.info(f"⭐ Auto-featured movie: {movie.title} (ID: {movie.id})")
 
-                # Process auto-unfeature
-                if (scheduling.auto_unfeature and
-                    scheduling.featured_until and
-                    scheduling.featured_until <= now and
-                    admin_control.admin_featured):
-
-                    admin_control.admin_featured = False
-                    admin_control.admin_priority = 0
-                    movie_updated = True
-                    actions_processed['unfeatured'] += 1
-                    logger.info(f"⭐ Auto-unfeatured movie: {movie.title} (ID: {movie.id})")
-
-                # Save admin_control if any changes were made
+                # Persist admin control changes
                 if movie_updated:
                     admin_control.save(update_fields=[
                         'is_published', 'visibility_status',
                         'admin_featured', 'admin_priority'
                     ])
 
-                    # Update scheduling record's last action - Fixed to use shorter action description
-                    action_summary = []
-                    if actions_processed['published'] > 0:
-                        action_summary.append('pub')
-                    if actions_processed['unpublished'] > 0:
-                        action_summary.append('unpub')
-                    if actions_processed['featured'] > 0:
-                        action_summary.append('feat')
-                    if actions_processed['unfeatured'] > 0:
-                        action_summary.append('unfeat')
+                # Disable one-time auto flags based on time conditions to prevent toggling
+                flags_updated = False
+                past_unpublish_due = bool(scheduling.unpublish_date and scheduling.unpublish_date <= now)
+                publish_due_now = bool(scheduling.publish_date and scheduling.publish_date <= now and not past_unpublish_due)
 
-                    last_action = f"auto_{'_'.join(action_summary)}" if action_summary else "auto_none"
-                    # Ensure it doesn't exceed 50 characters
+                if past_unpublish_due:
+                    if scheduling.auto_unpublish:
+                        scheduling.auto_unpublish = False
+                        flags_updated = True
+                    if scheduling.auto_publish:
+                        scheduling.auto_publish = False
+                        flags_updated = True
+                elif publish_due_now:
+                    if scheduling.auto_publish:
+                        scheduling.auto_publish = False
+                        flags_updated = True
+
+                past_unfeature_due = bool(scheduling.featured_until and scheduling.featured_until <= now)
+                feature_due_now = bool(scheduling.featured_from and scheduling.featured_from <= now and not past_unfeature_due)
+
+                if past_unfeature_due:
+                    if scheduling.auto_unfeature:
+                        scheduling.auto_unfeature = False
+                        flags_updated = True
+                    if scheduling.auto_feature:
+                        scheduling.auto_feature = False
+                        flags_updated = True
+                elif feature_due_now:
+                    if scheduling.auto_feature:
+                        scheduling.auto_feature = False
+                        flags_updated = True
+
+                # Update scheduling record's last action per movie
+                action_summary = []
+                if did_publish:
+                    action_summary.append('pub')
+                if did_unpublish:
+                    action_summary.append('unpub')
+                if did_feature:
+                    action_summary.append('feat')
+                if did_unfeature:
+                    action_summary.append('unfeat')
+
+                if action_summary or flags_updated:
+                    last_action = f"auto_{'_'.join(action_summary)}" if action_summary else (scheduling.last_action_executed or 'auto_none')
                     last_action = last_action[:50]
-
                     scheduling.last_action_executed = last_action
                     scheduling.last_action_date = now
-                    scheduling.save(update_fields=['last_action_executed', 'last_action_date'])
+                    update_fields = ['last_action_executed', 'last_action_date']
+                    if flags_updated:
+                        update_fields += ['auto_publish', 'auto_unpublish', 'auto_feature', 'auto_unfeature']
+                    scheduling.save(update_fields=update_fields)
 
-                    # Clear movie caches
+                # Clear movie caches if anything about visibility/feature changed
+                if movie_updated:
                     clear_movie_cache()
 
             except Exception as movie_error:

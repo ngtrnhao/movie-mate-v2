@@ -63,19 +63,19 @@ app.conf.beat_schedule = {
         "task": "apps.movies.tasks.sync_popular_movies",
         # "schedule": crontab(hour=1, minute=0, day_of_week="*/5"),  # every 5 days
         "schedule": timedelta(minutes=30),
-        "options": {"priority": 8}
+        "options": {"priority": 10}
     },
     # Sync top rated movies weekly (Monday 3 AM)
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": crontab(hour=3, minute=0, day_of_week="*/5"),  # every 5 days
-        "options": {"priority": 8}
+        "schedule": timedelta(minutes=30),
+        "options": {"priority": 10}
     },
     # Sync upcoming movies every 3 days (2 AM)
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": crontab(hour=2, minute=0, day_of_month="*/5"),  # every 5 days
-        "options": {"priority": 7}
+        "schedule": timedelta(minutes=30),
+        "options": {"priority": 10}
     },
 
     # ===== CACHE UPDATE TASKS =====

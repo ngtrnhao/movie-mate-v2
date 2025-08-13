@@ -24,12 +24,10 @@ const GoogleLogin = () => {
           !/\/(undefined|null)/.test(location.state.from.pathname)
         ) {
           const redirectTo = location.state.from.pathname + (location.state.from.search || '');
-          console.log('DEBUG Google: redirectTo from checkout', redirectTo);
           navigate(redirectTo);
         } else {
           // Default redirect to home for all other cases
-          console.log('DEBUG Google: redirectTo default /home');
-          navigate('/home');
+          navigate('/');
         }
       } catch (error) {
         console.error('Google login failed:', error);

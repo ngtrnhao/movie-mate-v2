@@ -7,6 +7,8 @@ import {
 import MovieCard from '../movies/movie-card';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
+import MovieTrailerModal from '../movies/movie-trailer/MovieTrailerModal';
+import { useTrailerModal } from '../../hooks/useTrailerModal';
 
 const MOVIES_PER_VIEW = 5;
 const CARD_WIDTH = 270; // px (desktop)
@@ -21,6 +23,10 @@ const RecommendForYou = () => {
 
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   const { t } = useTranslation('movies');
+
+  // Trailer modal hook
+  const { isTrailerOpen, modalMovie, modalTrailerUrl, handleTrailerClick, closeTrailerModal } =
+    useTrailerModal();
 
   // Fetch recommendations
   useEffect(() => {
@@ -188,7 +194,11 @@ const RecommendForYou = () => {
           >
             {recommendations.map(movie => (
               <div key={movie.id} className="flex-shrink-0" style={{ width: CARD_WIDTH }}>
-                <MovieCard movie={movie} onClick={() => handleMovieClick(movie)} />
+                <MovieCard
+                  movie={movie}
+                  onClick={() => handleMovieClick(movie)}
+                  onTrailerClick={handleTrailerClick}
+                />
               </div>
             ))}
           </div>
@@ -218,6 +228,14 @@ const RecommendForYou = () => {
           </div>
         )}
       </div>
+
+      {/* Trailer Modal */}
+      <MovieTrailerModal
+        isOpen={isTrailerOpen}
+        onClose={closeTrailerModal}
+        movie={modalMovie}
+        trailerUrl={modalTrailerUrl}
+      />
     </section>
   );
 };

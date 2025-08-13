@@ -92,16 +92,13 @@ const LoginForm = () => {
   // Handle form submission
   const handleSubmit = async e => {
     e.preventDefault();
-    console.log('DEBUG: Submit login form');
 
     // Validate form
     const errors = validate();
     if (Object.keys(errors).length > 0) {
-      console.log('DEBUG: Validation errors', errors);
       setFormError(errors);
       return;
     }
-    console.log('DEBUG: Validation passed');
 
     try {
       // Dispatch login action
@@ -112,11 +109,9 @@ const LoginForm = () => {
           rememberMe,
         })
       );
-      console.log('DEBUG: resultAction', resultAction);
 
       if (login.fulfilled.match(resultAction)) {
         // Login successful
-        console.log('DEBUG: location.state', location.state);
 
         // Only redirect to saved location if it exists and is valid (from checkout)
         if (
@@ -125,12 +120,10 @@ const LoginForm = () => {
           !/\/(undefined|null)/.test(location.state.from.pathname)
         ) {
           const redirectTo = location.state.from.pathname + (location.state.from.search || '');
-          console.log('DEBUG: redirectTo from checkout', redirectTo);
           navigate(redirectTo);
         } else {
           // Default redirect to home for all other cases
-          console.log('DEBUG: redirectTo default /home');
-          navigate('/home');
+          navigate('/');
         }
       }
     } catch (err) {

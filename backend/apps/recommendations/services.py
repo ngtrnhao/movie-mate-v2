@@ -3429,8 +3429,21 @@ class OptimizedKMeansProductionService:
                     # Extract features using comprehensive vectorizer
                     features = vectorizer.create_demographic_vector(user)
 
-                    # Predict cluster
-                    cluster_label = model.predict([features])[0]
+                    # Predict cluster with proper scaling to match training space
+                    try:
+                        if getattr(self, 'scaler', None) is not None:
+                            try:
+                                features_scaled = self.scaler.transform([features])[0]
+                            except Exception as e:
+                                logger.warning(f"Scaler transform failed for user {user.id}: {str(e)}; using unscaled features")
+                                features_scaled = features
+                        else:
+                            features_scaled = features
+
+                        cluster_label = model.predict([features_scaled])[0]
+                    except Exception as e:
+                        logger.warning(f"Cluster prediction failed for user {user.id}: {str(e)}; assigning default cluster 0")
+                        cluster_label = 0
                     cluster_id = f"kmeans_{cluster_label}"
 
                     # Group users by cluster

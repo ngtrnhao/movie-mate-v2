@@ -47,11 +47,18 @@ CORS_ALLOWED_ORIGINS = [
     "https://movie-mate-v2.vercel.app",
 ]
 
-# Cache settings
+# Cache settings (use django-redis to enable delete_pattern and advanced ops)
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': os.getenv('REDIS_URL'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'RETRY_ON_TIMEOUT': True,
+            'MAX_CONNECTIONS': 50,
+        }
     }
 }
 # Elasticsearch settings

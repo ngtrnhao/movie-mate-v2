@@ -74,25 +74,26 @@ class RecommendationViewSet(viewsets.ViewSet):
             except Exception:
                 meta_map = {}
 
-            # Bulk fetch first trailer key per movie to avoid N+1 queries
-            trailer_map = {}
+            # Bulk fetch first trailer info per movie to avoid N+1 queries
+            trailer_info_map = {}
             try:
                 trailer_qs = (
                     MovieTrailer.objects
                     .filter(movie_id__in=movie_ids, type='TRAILER')
                     .order_by('movie_id', '-created_at')
-                    .values('movie_id', 'youtube_key')
+                    .values('movie_id', 'youtube_key', 'title')
                 )
                 for t in trailer_qs:
                     # keep the first (latest) trailer per movie_id
-                    if t['movie_id'] not in trailer_map:
-                        trailer_map[t['movie_id']] = t['youtube_key']
+                    if t['movie_id'] not in trailer_info_map:
+                        trailer_info_map[t['movie_id']] = t
             except Exception:
-                trailer_map = {}
+                trailer_info_map = {}
 
             for movie in recommendations:
                 meta = meta_map.get(movie.id) or {}
-                youtube_key = trailer_map.get(movie.id)
+                info = trailer_info_map.get(movie.id)
+                youtube_key = info.get('youtube_key') if info else None
                 formatted_recommendations.append({
                     'id': movie.id,
                     'title': movie.title,
@@ -119,6 +120,11 @@ class RecommendationViewSet(viewsets.ViewSet):
                     # Trailer info (if available)
                     'trailer_key': youtube_key,
                     'trailer_url': f"https://www.youtube.com/watch?v={youtube_key}" if youtube_key else None,
+                    'trailers': ([{
+                        'title': info.get('title') or 'Trailer',
+                        'youtube_key': youtube_key,
+                        'type': 'TRAILER'
+                    }] if youtube_key else []),
                     # Localized genres (include language)
                     'genres': [{'id': g.id, 'name': g.name, 'language': getattr(g, 'language', None)} for g in movie.genres.all()],
                     # Recommendation meta
@@ -177,53 +183,54 @@ class RecommendationViewSet(viewsets.ViewSet):
             except Exception:
                 meta_map = {}
 
-            # Bulk fetch first trailer key per movie to avoid N+1 queries
-            trailer_map = {}
+            # Bulk fetch first trailer info per movie to avoid N+1 queries
+            trailer_info_map = {}
             try:
                 trailer_qs = (
                     MovieTrailer.objects
                     .filter(movie_id__in=movie_ids, type='TRAILER')
                     .order_by('movie_id', '-created_at')
-                    .values('movie_id', 'youtube_key')
+                    .values('movie_id', 'youtube_key', 'title')
                 )
                 for t in trailer_qs:
-                    if t['movie_id'] not in trailer_map:
-                        trailer_map[t['movie_id']] = t['youtube_key']
+                    if t['movie_id'] not in trailer_info_map:
+                        trailer_info_map[t['movie_id']] = t
             except Exception:
-                trailer_map = {}
+                trailer_info_map = {}
 
-            # Bulk fetch first trailer key per movie to avoid N+1 queries
-            trailer_map = {}
+            # Bulk fetch first trailer info per movie to avoid N+1 queries
+            trailer_info_map = {}
             try:
                 trailer_qs = (
                     MovieTrailer.objects
                     .filter(movie_id__in=movie_ids, type='TRAILER')
                     .order_by('movie_id', '-created_at')
-                    .values('movie_id', 'youtube_key')
+                    .values('movie_id', 'youtube_key', 'title')
                 )
                 for t in trailer_qs:
-                    if t['movie_id'] not in trailer_map:
-                        trailer_map[t['movie_id']] = t['youtube_key']
+                    if t['movie_id'] not in trailer_info_map:
+                        trailer_info_map[t['movie_id']] = t
             except Exception:
-                trailer_map = {}
+                trailer_info_map = {}
 
-            # Bulk fetch first trailer key per movie to avoid N+1 queries
-            trailer_map = {}
+            # Bulk fetch first trailer info per movie to avoid N+1 queries
+            trailer_info_map = {}
             try:
                 trailer_qs = (
                     MovieTrailer.objects
                     .filter(movie_id__in=movie_ids, type='TRAILER')
                     .order_by('movie_id', '-created_at')
-                    .values('movie_id', 'youtube_key')
+                    .values('movie_id', 'youtube_key', 'title')
                 )
                 for t in trailer_qs:
-                    if t['movie_id'] not in trailer_map:
-                        trailer_map[t['movie_id']] = t['youtube_key']
+                    if t['movie_id'] not in trailer_info_map:
+                        trailer_info_map[t['movie_id']] = t
             except Exception:
-                trailer_map = {}
+                trailer_info_map = {}
 
             for movie in recommendations:
                 meta = meta_map.get(movie.id) or {}
+                info = trailer_info_map.get(movie.id)
                 formatted_recommendations.append({
                     'id': movie.id,
                     'title': movie.title,
@@ -246,8 +253,13 @@ class RecommendationViewSet(viewsets.ViewSet):
                     'is_upcoming': getattr(movie, 'is_upcoming', False),
                     'adult': getattr(movie, 'is_adult', False),
                     # trailer: (optional for hybrid endpoint)
-                    # 'trailer_key': trailer_map.get(movie.id),
-                    # 'trailer_url': f"https://www.youtube.com/watch?v={trailer_map.get(movie.id)}" if trailer_map.get(movie.id) else None,
+                    'trailer_key': (info.get('youtube_key') if info else None),
+                    'trailer_url': (f"https://www.youtube.com/watch?v={info.get('youtube_key')}" if info and info.get('youtube_key') else None),
+                    'trailers': ([{
+                        'title': info.get('title') or 'Trailer',
+                        'youtube_key': info.get('youtube_key'),
+                        'type': 'TRAILER'
+                    }] if info and info.get('youtube_key') else []),
                     'genres': [{'id': g.id, 'name': g.name, 'language': getattr(g, 'language', None)} for g in movie.genres.all()],
                     'recommendation_score': float(meta.get('score', getattr(movie, 'recommendation_score', 0.0)) or 0.0),
                     'predicted_rating': float(meta['predicted_rating']) if meta.get('predicted_rating') is not None else None,
@@ -303,8 +315,24 @@ class RecommendationViewSet(viewsets.ViewSet):
             except Exception:
                 meta_map = {}
 
+            # Bulk fetch first trailer info per movie to avoid N+1 queries
+            trailer_info_map = {}
+            try:
+                trailer_qs = (
+                    MovieTrailer.objects
+                    .filter(movie_id__in=movie_ids, type='TRAILER')
+                    .order_by('movie_id', '-created_at')
+                    .values('movie_id', 'youtube_key', 'title')
+                )
+                for t in trailer_qs:
+                    if t['movie_id'] not in trailer_info_map:
+                        trailer_info_map[t['movie_id']] = t
+            except Exception:
+                trailer_info_map = {}
+
             for movie in recommendations:
                 meta = meta_map.get(movie.id) or {}
+                info = trailer_info_map.get(movie.id)
                 formatted_recommendations.append({
                     'id': movie.id,
                     'title': movie.title,
@@ -318,7 +346,14 @@ class RecommendationViewSet(viewsets.ViewSet):
                     'release_date': movie.release_date,
                     'vote_average': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
                     'cached_imdb_rating': float(movie.cached_imdb_rating) if movie.cached_imdb_rating else None,
-                    # trailer fields omitted in hybrid endpoint
+                    # trailer fields
+                    'trailer_key': (info.get('youtube_key') if info else None),
+                    'trailer_url': (f"https://www.youtube.com/watch?v={info.get('youtube_key')}" if info and info.get('youtube_key') else None),
+                    'trailers': ([{
+                        'title': info.get('title') or 'Trailer',
+                        'youtube_key': info.get('youtube_key'),
+                        'type': 'TRAILER'
+                    }] if info and info.get('youtube_key') else []),
                     'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()],
                     'recommendation_score': float(meta.get('score', getattr(movie, 'recommendation_score', 0.0)) or 0.0),
                     'predicted_rating': float(meta['predicted_rating']) if meta.get('predicted_rating') is not None else None,
@@ -405,8 +440,24 @@ class RecommendationViewSet(viewsets.ViewSet):
             except Exception:
                 meta_map = {}
 
+            # Bulk fetch first trailer info per movie to avoid N+1 queries
+            trailer_info_map = {}
+            try:
+                trailer_qs = (
+                    MovieTrailer.objects
+                    .filter(movie_id__in=movie_ids, type='TRAILER')
+                    .order_by('movie_id', '-created_at')
+                    .values('movie_id', 'youtube_key', 'title')
+                )
+                for t in trailer_qs:
+                    if t['movie_id'] not in trailer_info_map:
+                        trailer_info_map[t['movie_id']] = t
+            except Exception:
+                trailer_info_map = {}
+
             for movie in recommendations:
                 meta = meta_map.get(movie.id) or {}
+                info = trailer_info_map.get(movie.id)
                 formatted_recommendations.append({
                     'id': movie.id,
                     'title': movie.title,
@@ -428,6 +479,13 @@ class RecommendationViewSet(viewsets.ViewSet):
                     'is_top_rated': getattr(movie, 'is_top_rated', False),
                     'is_upcoming': getattr(movie, 'is_upcoming', False),
                     'adult': getattr(movie, 'is_adult', False),
+                    'trailer_key': (info.get('youtube_key') if info else None),
+                    'trailer_url': (f"https://www.youtube.com/watch?v={info.get('youtube_key')}" if info and info.get('youtube_key') else None),
+                    'trailers': ([{
+                        'title': info.get('title') or 'Trailer',
+                        'youtube_key': info.get('youtube_key'),
+                        'type': 'TRAILER'
+                    }] if info and info.get('youtube_key') else []),
                     'genres': [{'id': g.id, 'name': g.name, 'language': getattr(g, 'language', None)} for g in movie.genres.all()],
                     'recommendation_score': float(meta.get('score', getattr(movie, 'recommendation_score', 0.0)) or 0.0),
                     'predicted_rating': float(meta['predicted_rating']) if meta.get('predicted_rating') is not None else None,
@@ -520,14 +578,39 @@ class RecommendationViewSet(viewsets.ViewSet):
                 genres__in=target_movie.genres.all()
             ).exclude(id=movie_id).distinct()[:limit]
 
+              # Build trailer map for these movies to avoid N+1
+            trailer_map = {}
+            try:
+                movie_ids = list(similar_movies.values_list('id', flat=True))
+                if movie_ids:
+                    trailer_qs = (
+                        MovieTrailer.objects
+                        .filter(movie_id__in=movie_ids, type='TRAILER')
+                        .order_by('movie_id', '-created_at')
+                        .values('movie_id', 'youtube_key')
+                    )
+                    for t in trailer_qs:
+                        if t['movie_id'] not in trailer_map:
+                            trailer_map[t['movie_id']] = t['youtube_key']
+            except Exception:
+                trailer_map = {}
+
             # Format response
             formatted_movies = []
             for movie in similar_movies:
+                youtube_key = trailer_map.get(movie.id)
                 formatted_movies.append({
                     'id': movie.id,
                     'title': movie.title,
                     'poster_url': movie.poster_url,
                     'vote_average': movie.vote_average,
+                    'trailer_key': youtube_key,
+                    'trailer_url': f"https://www.youtube.com/watch?v={youtube_key}" if youtube_key else None,
+                    'trailers': ([{
+                        'title': 'Trailer',
+                        'youtube_key': youtube_key,
+                        'type': 'TRAILER'
+                    }] if youtube_key else []),
                     'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()]
                 })
 
@@ -626,14 +709,39 @@ class RecommendationViewSet(viewsets.ViewSet):
                 recent_activity=models.Count('reviews')
             ).order_by('-recent_activity', '-vote_average')[:limit]
 
+            # Build trailer map for these movies to avoid N+1
+            trailer_map = {}
+            try:
+                movie_ids = list(trending_movies.values_list('id', flat=True))
+                if movie_ids:
+                    trailer_qs = (
+                        MovieTrailer.objects
+                        .filter(movie_id__in=movie_ids, type='TRAILER')
+                        .order_by('movie_id', '-created_at')
+                        .values('movie_id', 'youtube_key')
+                    )
+                    for t in trailer_qs:
+                        if t['movie_id'] not in trailer_map:
+                            trailer_map[t['movie_id']] = t['youtube_key']
+            except Exception:
+                trailer_map = {}
+
             # Format response
             formatted_movies = []
             for movie in trending_movies:
+                youtube_key = trailer_map.get(movie.id)
                 formatted_movies.append({
                     'id': movie.id,
                     'title': movie.title,
                     'poster_url': movie.poster_url,
                     'vote_average': movie.vote_average,
+                    'trailer_key': youtube_key,
+                    'trailer_url': f"https://www.youtube.com/watch?v={youtube_key}" if youtube_key else None,
+                    'trailers': ([{
+                        'title': 'Trailer',
+                        'youtube_key': youtube_key,
+                        'type': 'TRAILER'
+                    }] if youtube_key else []),
                     'recent_activity': getattr(movie, 'recent_activity', 0),
                     'genres': [{'id': g.id, 'name': g.name} for g in movie.genres.all()]
                 })

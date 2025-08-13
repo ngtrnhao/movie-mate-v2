@@ -198,7 +198,10 @@ class Command(BaseCommand):
 
                 # Clear cache
                 from django.core.cache import cache
-                cache.delete_pattern('user_cluster:*')
+                try:
+                    cache.delete_pattern('user_cluster:*')
+                except Exception:
+                    pass
                 cache.delete('kmeans_model')
                 cache.delete('kmeans_metadata')
 

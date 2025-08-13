@@ -4,6 +4,8 @@ import MovieCard from '../movies/movie-card/MovieCard';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
+import MovieTrailerModal from '../movies/movie-trailer/MovieTrailerModal';
+import { useTrailerModal } from '../../hooks/useTrailerModal';
 
 const PersonalizedRecommendations = ({
   context = 'homepage',
@@ -20,6 +22,15 @@ const PersonalizedRecommendations = ({
 
   const { user, token } = useSelector(state => state.auth);
   const { t } = useTranslation();
+
+  // Trailer modal hook
+  const {
+    isTrailerOpen,
+    modalMovie,
+    modalTrailerUrl,
+    handleTrailerClick,
+    closeTrailerModal,
+  } = useTrailerModal();
 
   // Use translated title if not provided
   const displayTitle = title || t('movies.recommendations.personalized.title');
@@ -289,6 +300,7 @@ const PersonalizedRecommendations = ({
                 movie={movie}
                 onClick={() => handleMovieClick(movie)}
                 onRating={rating => handleMovieRating(movie, rating)}
+                onTrailerClick={handleTrailerClick}
                 showQuickActions={true}
               />
 
@@ -357,6 +369,14 @@ const PersonalizedRecommendations = ({
         </div>
       )}
     </div>
+
+    {/* Trailer Modal */}
+    <MovieTrailerModal
+      isOpen={isTrailerOpen}
+      onClose={closeTrailerModal}
+      movie={modalMovie}
+      trailerUrl={modalTrailerUrl}
+    />
   );
 };
 

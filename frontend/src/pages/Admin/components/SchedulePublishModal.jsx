@@ -95,7 +95,7 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
                     setScheduleData(prev => ({ ...prev, scheduled_date: e.target.value }))
                   }
                   min={new Date().toISOString().split('T')[0]}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
               </div>
 
@@ -111,7 +111,7 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
                   onChange={e =>
                     setScheduleData(prev => ({ ...prev, scheduled_time: e.target.value }))
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
               </div>
 
@@ -127,7 +127,7 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
                     setScheduleData(prev => ({ ...prev, campaign_name: e.target.value }))
                   }
                   placeholder="VD: Xuất bản phim Việt Nam"
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
               </div>
 
@@ -139,11 +139,17 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
                   onChange={e =>
                     setScheduleData(prev => ({ ...prev, priority: parseInt(e.target.value) }))
                   }
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 >
-                  <option value={1}>Thấp</option>
-                  <option value={5}>Trung bình</option>
-                  <option value={10}>Cao</option>
+                  <option className="text-black" value={1}>
+                    Thấp
+                  </option>
+                  <option className="text-black" value={5}>
+                    Trung bình
+                  </option>
+                  <option className="text-black" value={10}>
+                    Cao
+                  </option>
                 </select>
               </div>
 
@@ -177,7 +183,7 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
                         setScheduleData(prev => ({ ...prev, end_date: e.target.value }))
                       }
                       min={scheduleData.scheduled_date || new Date().toISOString().split('T')[0]}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                   </div>
                   <div>
@@ -190,7 +196,7 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
                       onChange={e =>
                         setScheduleData(prev => ({ ...prev, end_time: e.target.value }))
                       }
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                   </div>
                 </div>

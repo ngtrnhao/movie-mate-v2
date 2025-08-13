@@ -5,6 +5,8 @@ import {
   trackRecommendationInteraction,
 } from '../../api/recommendationService';
 import MovieCard from '../movies/movie-card';
+import MovieTrailerModal from '../movies/movie-trailer/MovieTrailerModal';
+import { useTrailerModal } from '../../hooks/useTrailerModal';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { useTranslation } from '../../i18n/hooks/useTranslation';
 
@@ -21,6 +23,10 @@ const CollaborativeRecommendations = () => {
 
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   const { t } = useTranslation('movies');
+
+  // Trailer modal hook
+  const { isTrailerOpen, modalMovie, modalTrailerUrl, handleTrailerClick, closeTrailerModal } =
+    useTrailerModal();
 
   // Fetch collaborative recommendations
   useEffect(() => {
@@ -205,7 +211,11 @@ const CollaborativeRecommendations = () => {
           >
             {recommendations.map(movie => (
               <div key={movie.id} className="flex-shrink-0" style={{ width: CARD_WIDTH }}>
-                <MovieCard movie={movie} onClick={() => handleMovieClick(movie)} />
+                <MovieCard
+                  movie={movie}
+                  onClick={() => handleMovieClick(movie)}
+                  onTrailerClick={handleTrailerClick}
+                />
               </div>
             ))}
           </div>
@@ -235,6 +245,14 @@ const CollaborativeRecommendations = () => {
           </div>
         )}
       </div>
+
+      {/* Trailer Modal */}
+      <MovieTrailerModal
+        isOpen={isTrailerOpen}
+        onClose={closeTrailerModal}
+        movie={modalMovie}
+        trailerUrl={modalTrailerUrl}
+      />
     </section>
   );
 };

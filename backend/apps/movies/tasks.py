@@ -108,8 +108,12 @@ def sync_popular_movies(self):
                 cache.set(cache_key, movies, 3600)
                 logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
 
-        # Clear IMDB API cache
-        cache.delete_pattern("imdb_*")
+        # Clear IMDB API cache (support backends without delete_pattern)
+        try:
+            cache.delete_pattern("imdb_*")
+        except Exception:
+            # Fallback: bump a version key to invalidate logically
+            cache.incr("imdb_cache_version", ignore_key_check=True) if hasattr(cache, 'incr') else None
 
         logger.info(f"Successfully synced {len(synced_movies)} popular movies")
         return len(synced_movies)
@@ -181,8 +185,11 @@ def sync_top_rated_movies(self):
                 cache.set(cache_key, movies, 3600)
                 logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
 
-        # Clear IMDB API cache
-        cache.delete_pattern("imdb_*")
+        # Clear IMDB API cache (support backends without delete_pattern)
+        try:
+            cache.delete_pattern("imdb_*")
+        except Exception:
+            cache.incr("imdb_cache_version", ignore_key_check=True) if hasattr(cache, 'incr') else None
 
         logger.info(f"Successfully synced {len(synced_movies)} top rated movies")
         return len(synced_movies)
@@ -254,8 +261,11 @@ def sync_upcoming_movies(self):
                 cache.set(cache_key, movies, 3600)
                 logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
 
-        # Clear IMDB API cache
-        cache.delete_pattern("imdb_*")
+        # Clear IMDB API cache (support backends without delete_pattern)
+        try:
+            cache.delete_pattern("imdb_*")
+        except Exception:
+            cache.incr("imdb_cache_version", ignore_key_check=True) if hasattr(cache, 'incr') else None
 
         logger.info(f"Successfully synced {len(synced_movies)} upcoming movies")
         return len(synced_movies)

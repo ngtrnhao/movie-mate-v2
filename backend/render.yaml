@@ -109,7 +109,7 @@ services:
       echo "Background worker dependencies installed"
     startCommand: |
       echo "Starting Celery worker..."
-      celery -A config worker --loglevel=info --concurrency=2
+      celery -A config worker --loglevel=info --concurrency=2 --queues=high_priority,batch_processing,default
     envVars:
       - key: DJANGO_ENV
         value: production
@@ -197,7 +197,7 @@ services:
       echo "Celery Beat dependencies installed"
     startCommand: |
       echo "Starting Celery Beat scheduler..."
-      celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      celery -A config beat --loglevel=info --scheduler=celery.beat.PersistentScheduler
     envVars:
       - key: DJANGO_ENV
         value: production

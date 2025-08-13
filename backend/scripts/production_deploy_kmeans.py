@@ -282,7 +282,10 @@ def rollback_deployment():
         # Clear cache
         cache.delete('kmeans_model')
         cache.delete('kmeans_metadata')
-        cache.delete_pattern('user_cluster:*')
+        try:
+            cache.delete_pattern('user_cluster:*')
+        except Exception:
+            pass
 
         # Clear database (optional - be careful!)
         # DemographicCluster.objects.filter(cluster_id__startswith='kmeans_').delete()

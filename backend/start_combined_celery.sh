@@ -18,5 +18,5 @@ echo "Beat scheduler started successfully"
 echo ""
 
 echo "Starting Celery Worker in foreground..."
-echo "Worker will listen on queues: high_priority, batch_processing, default"
-exec celery -A config worker --loglevel=info --concurrency=2 --max-tasks-per-child=100 --queues=high_priority,batch_processing,default
+echo "Worker will listen on queues: high_priority, batch_processing, default, celery"
+exec celery -A config worker --loglevel=info --concurrency=2 --max-tasks-per-child=100 --queues=high_priority,batch_processing,default,celery

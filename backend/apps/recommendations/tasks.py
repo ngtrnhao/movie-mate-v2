@@ -175,10 +175,10 @@ def generate_collaborative_recommendations_async(self, user_id: int, context: st
             ).exclude(
                 movie__in=[movie for movie in movies[:limit]]
             ).delete()
-            logger.info(f"✅ Đã xóa recommendations cũ và lưu {len(movies)} recommendations mới cho user {user_id}")
+            logger.info(f" Đã xóa recommendations cũ và lưu {len(movies)} recommendations mới cho user {user_id}")
         else:
             # Nếu không tạo được recommendations mới, giữ lại recommendations cũ
-            logger.warning(f"⚠️ Không tạo được recommendations mới, giữ lại {len(old_recommendations)} recommendations cũ cho user {user_id}")
+            logger.warning(f" Không tạo được recommendations mới, giữ lại {len(old_recommendations)} recommendations cũ cho user {user_id}")
 
         # Clear task cache
         cache.delete(task_cache_key)
@@ -186,7 +186,7 @@ def generate_collaborative_recommendations_async(self, user_id: int, context: st
         return len(movies)
 
     except Exception as e:
-        logger.error(f"❌ Error in background collaborative filtering for user {user_id}: {str(e)}")
+        logger.error(f"Error in background collaborative filtering for user {user_id}: {str(e)}")
         return 0
 
 @shared_task(bind=True)
@@ -232,18 +232,18 @@ def generate_hybrid_recommendations_async(self, user_id: int, context: str = 'ho
             ).exclude(
                 movie__in=[movie for movie in movies[:limit]]
             ).delete()
-            logger.info(f"✅ Đã xóa recommendations cũ và lưu {len(movies)} hybrid recommendations mới cho user {user_id}")
+            logger.info(f"Đã xóa recommendations cũ và lưu {len(movies)} hybrid recommendations mới cho user {user_id}")
         else:
             # Nếu không tạo được recommendations mới, giữ lại recommendations cũ
-            logger.warning(f"⚠️ Không tạo được hybrid recommendations mới, giữ lại {len(old_recommendations)} recommendations cũ cho user {user_id}")
+            logger.warning(f" Không tạo được hybrid recommendations mới, giữ lại {len(old_recommendations)} recommendations cũ cho user {user_id}")
 
         # Clear task cache
         cache.delete(task_cache_key)
-        logger.info(f"✅ Background hybrid recommendations completed for user {user_id}")
+        logger.info(f" Background hybrid recommendations completed for user {user_id}")
         return len(movies)
 
     except Exception as e:
-        logger.error(f"❌ Error in background hybrid recommendations for user {user_id}: {str(e)}")
+        logger.error(f"Error in background hybrid recommendations for user {user_id}: {str(e)}")
         return 0
 
 @shared_task(bind=True)
@@ -297,11 +297,11 @@ def generate_demographic_recommendations_async(self, user_id: int, context: str 
         # NOTE: Do not overwrite detailed metadata by re-inserting minimal rows here.
         # The service already stored enhanced recommendations in RecommendationResult.
 
-        logger.info(f"✅ Background demographic recommendations completed for user {user_id}")
+        logger.info(f" Background demographic recommendations completed for user {user_id}")
         return len(recommendations)
 
     except Exception as e:
-        logger.error(f"❌ Error in background demographic recommendations for user {user_id}: {str(e)}")
+        logger.error(f"Error in background demographic recommendations for user {user_id}: {str(e)}")
         return 0
 
 @shared_task(bind=True)
@@ -342,12 +342,12 @@ def refresh_all_recommendations_async(self, user_id: int, context: str = 'homepa
                 results.append(0)
 
         total_recommendations = sum(results)
-        logger.info(f"✅ Background refresh all recommendations completed for user {user_id}. Total: {total_recommendations}")
+        logger.info(f" Background refresh all recommendations completed for user {user_id}. Total: {total_recommendations}")
 
         return total_recommendations
 
     except Exception as e:
-        logger.error(f"❌ Error in background refresh all recommendations for user {user_id}: {str(e)}")
+        logger.error(f"Error in background refresh all recommendations for user {user_id}: {str(e)}")
         return 0
 
 @shared_task(bind=True)
@@ -361,11 +361,11 @@ def cleanup_old_recommendations(self, days_old=7):
             created_at__lt=cutoff_date
         ).delete()[0]
 
-        logger.info(f"🧹 Cleaned up {deleted_count} old recommendations")
+        logger.info(f" Cleaned up {deleted_count} old recommendations")
         return deleted_count
 
     except Exception as e:
-        logger.error(f"❌ Error cleaning up old recommendations: {str(e)}")
+        logger.error(f"Error cleaning up old recommendations: {str(e)}")
         return 0
 
 @shared_task(bind=True)
@@ -389,7 +389,7 @@ def batch_generate_collaborative_recommendations(self, user_ids: list = None, co
         else:
             users = User.objects.filter(id__in=user_ids)
 
-        logger.info(f"🔄 Starting batch collaborative filtering for {users.count()} users")
+        logger.info(f" Starting batch collaborative filtering for {users.count()} users")
 
         total_recommendations = 0
         for user in users:
@@ -400,7 +400,7 @@ def batch_generate_collaborative_recommendations(self, user_ids: list = None, co
                 logger.error(f"Error processing user {user.id}: {str(e)}")
                 continue
 
-        logger.info(f"✅ Batch collaborative filtering completed. Total recommendations: {total_recommendations}")
+        logger.info(f" Batch collaborative filtering completed. Total recommendations: {total_recommendations}")
         return total_recommendations
 
     except Exception as e:

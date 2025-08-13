@@ -23,15 +23,15 @@ app.conf.beat_schedule_filename = 'celerybeat-schedule'
 app.conf.beat_schedule = {
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
-        "schedule": timedelta(days=5),
+        "schedule": timedelta(days=5),  # Every 5 days
     },
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": timedelta(days=5),
+        "schedule": timedelta(days=5),  # Every 15 minutes
     },
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": timedelta(days=5),
+        "schedule": timedelta(days=5),  # Every 5 days
     },
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",
@@ -39,148 +39,82 @@ app.conf.beat_schedule = {
     },
     "refresh_genre_summary": {
         "task": "apps.metadata.tasks.refresh_genre_summary_task",
-        "schedule": timedelta(hours=6),
+        "schedule": timedelta(hours=6),  # Every 6 hours
     },
 
-    # Auto-processing tasks
+    # 🔄 Auto-processing tasks
     "process_user_interactions_frequent": {
         "task": "apps.movies.tasks.process_user_interactions_auto",
-        "schedule": timedelta(minutes=15),
-        "kwargs": {"hours": 1}
+        "schedule": timedelta(minutes=15),  # Every 15 minutes
+        "kwargs": {"hours": 1}  # Process last 1 hour (changed from 0.25)
     },
     "process_user_interactions_hourly": {
         "task": "apps.movies.tasks.process_user_interactions_auto",
-        "schedule": timedelta(hours=0.25),
-        "kwargs": {"hours": 1}
+        "schedule": timedelta(hours=0.25),  # Every hour
+        "kwargs": {"hours": 1}  # Last 1 hour
     },
     "sync_trending_categories": {
         "task": "apps.movies.tasks.sync_trending_categories_auto",
-        "schedule": timedelta(minutes=15),
+        "schedule": timedelta(minutes=15),  # Every 6 hours
     },
 
-    # Scheduling automation tasks
+    # 📅 Scheduling automation tasks
     "process_scheduled_actions": {
         "task": "apps.movies.tasks.process_scheduled_actions_auto",
-        "schedule": timedelta(minutes=5),
-        "options": {"priority": 9}
+        "schedule": timedelta(minutes=5),  # Every 5 minutes
+        "options": {"priority": 9}  # High priority for timely execution
     },
     "update_scheduling_status": {
         "task": "apps.movies.tasks.update_scheduling_status_auto",
-        "schedule": timedelta(hours=1),
-        "options": {"priority": 5}
+        "schedule": timedelta(hours=1),  # Every hour
+        "options": {"priority": 5}  # Normal priority
     },
 
-    # Quality automation tasks
+    # 📊 Quality automation tasks
     "calculate_quality_new_movies": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(hours=2),
+        "schedule": timedelta(hours=2),  # Every 2 hours
         "kwargs": {"target_type": "new", "batch_size": 25, "max_movies": 100},
-        "options": {"priority": 6}
+        "options": {"priority": 6}  # Medium priority
     },
     "calculate_quality_low_quality": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(hours=12),
+        "schedule": timedelta(hours=12),  # Twice daily
         "kwargs": {"target_type": "low_quality", "batch_size": 20, "max_movies": 50},
-        "options": {"priority": 4}
+        "options": {"priority": 4}  # Lower priority
     },
     "calculate_quality_outdated": {
         "task": "apps.movies.tasks.calculate_quality_metrics_auto",
-        "schedule": timedelta(days=1),
+        "schedule": timedelta(days=1),  # Daily
         "kwargs": {"target_type": "outdated", "batch_size": 30, "max_movies": 200},
-        "options": {"priority": 3}
+        "options": {"priority": 3}  # Low priority
     },
     "quality_maintenance": {
         "task": "apps.movies.tasks.quality_maintenance_auto",
-        "schedule": timedelta(days=1),
-        "options": {"priority": 2}
+        "schedule": timedelta(days=1),  # Daily
+        "options": {"priority": 2}  # Very low priority
     },
 
-    # Recommendation system tasks
+    # 🎯 Recommendation system tasks
     "update_user_similarities": {
         "task": "apps.users.tasks.update_user_similarities_batch",
-        "schedule": timedelta(hours=6),
-        "options": {"priority": 7}
+        "schedule": timedelta(hours=6),  # Every 6 hours
+        "options": {"priority": 7}  # Medium priority
     },
     "generate_recommendations_active_users": {
         "task": "apps.users.tasks.generate_recommendations_for_active_users",
-        "schedule": timedelta(hours=2),
-        "options": {"priority": 8}
+        "schedule": timedelta(hours=2),  # Every 2 hours
+        "options": {"priority": 8}  # High priority
     },
-
-    # ===== NEW BACKGROUND RECOMMENDATION TASKS =====
-    # Background collaborative filtering for stale recommendations (batch)
-    "background_collaborative_refresh": {
-        "task": "apps.recommendations.tasks.batch_generate_collaborative_recommendations",
-        "schedule": timedelta(hours=4),
-        "options": {"priority": 6}
+    "refresh_demographic_clusters": {
+        "task": "apps.recommendations.tasks.refresh_demographic_clusters",
+        "schedule": timedelta(days=1),  # Daily
+        "options": {"priority": 5}  # Normal priority
     },
-    # Background hybrid recommendations for stale recommendations (batch)
-    "background_hybrid_refresh": {
-        "task": "apps.recommendations.tasks.batch_generate_hybrid_recommendations",
-        "schedule": timedelta(hours=4),
-        "options": {"priority": 6}
-    },
-    # Background demographic recommendations for stale recommendations (batch)
-    "background_demographic_refresh": {
-        "task": "apps.recommendations.tasks.batch_generate_demographic_recommendations",
-        "schedule": timedelta(hours=6),
-        "options": {"priority": 5}
-    },
-    # Refresh all recommendation types for active users
-    "refresh_all_recommendations_batch": {
-        "task": "apps.recommendations.tasks.refresh_all_recommendations_async",
-        "schedule": timedelta(hours=8),
-        "options": {"priority": 7}
-    },
-    # "refresh_demographic_clusters": {
-    #     "task": "apps.recommendations.tasks.refresh_demographic_clusters",
-    #     "schedule": timedelta(days=1),
-    #     "options": {"priority": 5}
-    # },
     "cleanup_expired_recommendations": {
         "task": "apps.recommendations.tasks.cleanup_expired_recommendations",
-        "schedule": timedelta(hours=12),
-        "options": {"priority": 3}
-    },
-
-    # Auto-management for large user bases (100+ users)
-    "auto_manage_large_user_base": {
-        "task": "apps.recommendations.tasks.auto_manage_large_user_base",
-        "schedule": timedelta(hours=6),
-        "options": {"priority": 8}
-    },
-
-    # Bulk recommendation refresh (triggered by auto-management)
-    "bulk_refresh_stale_recommendations_weekly": {
-        "task": "apps.recommendations.tasks.bulk_refresh_stale_recommendations",
-        "schedule": timedelta(days=1),
-        "options": {"priority": 6}
-    },
-
-    # ===== NEW PURE CF OPTIMIZATION TASKS =====
-    # Detect and generate missing CF recommendations every 4 hours
-    "detect_missing_cf_recommendations": {
-        "task": "apps.recommendations.tasks.detect_and_generate_missing_cf_recommendations",
-        "schedule": timedelta(hours=4),
-        "options": {"priority": 7}
-    },
-    # Smart CF prioritization daily at 1 AM
-    "smart_cf_prioritization": {
-        "task": "apps.recommendations.tasks.smart_cf_recommendation_prioritization",
-        "schedule": crontab(hour=1, minute=0),
-        "options": {"priority": 8}
-    },
-    # Precompute user similarities daily at 2 AM
-    "precompute_similarities": {
-        "task": "apps.recommendations.tasks.precompute_user_similarities_batch",
-        "schedule": crontab(hour=2, minute=0),
-        "options": {"priority": 7}
-    },
-    # Monitor CF system health twice daily (8 AM and 8 PM)
-    "monitor_cf_health": {
-        "task": "apps.recommendations.tasks.monitor_cf_system_health",
-        "schedule": crontab(hour="8,20", minute=30),
-        "options": {"priority": 5}
+        "schedule": timedelta(hours=12),  # Twice daily
+        "options": {"priority": 3}  # Low priority
     },
 }
 

@@ -76,18 +76,16 @@ def sync_popular_movies(self):
                 if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
-                # Chỉ sync phim mới
-                if Movie.objects.filter(imdb_id=imdb_id).exists():
-                    logger.info(f"Movie {imdb_id} already exists, skipping sync.")
-                    continue
+                # Tạo hoặc lấy movie, luôn cập nhật cờ và process data
                 movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
-                movie.is_popular = True
-                movie.save(update_fields=["is_popular"])
+                if not movie.is_popular:
+                    movie.is_popular = True
+                    movie.save(update_fields=["is_popular"])
 
-                # Add to synced movies list
-                synced_movies.append(movie)
+                if created:
+                    synced_movies.append(movie)
 
-                # Process movie data
+                # Process movie data cho cả phim mới và đã tồn tại
                 process_movie_data.delay(imdb_id)
                 time.sleep(2)
 
@@ -105,7 +103,9 @@ def sync_popular_movies(self):
                 .order_by("-release_date")[:limit]
             )
             if movies:
+                # Giữ cả 2 dạng key để tương thích
                 cache.set(cache_key, movies, 3600)
+                cache.set(f"popular_movies:{limit}", movies, timeout=3600)
                 logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
 
         # Clear IMDB API cache (support backends without delete_pattern)
@@ -153,18 +153,16 @@ def sync_top_rated_movies(self):
                 if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
-                # Chỉ sync phim mới
-                if Movie.objects.filter(imdb_id=imdb_id).exists():
-                    logger.info(f"Movie {imdb_id} already exists, skipping sync.")
-                    continue
+                # Tạo hoặc lấy movie, luôn cập nhật cờ và process data
                 movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
-                movie.is_top_rated = True
-                movie.save(update_fields=["is_top_rated"])
+                if not movie.is_top_rated:
+                    movie.is_top_rated = True
+                    movie.save(update_fields=["is_top_rated"])
 
-                # Add to synced movies list
-                synced_movies.append(movie)
+                if created:
+                    synced_movies.append(movie)
 
-                # Process movie data
+                # Process movie data cho cả phim mới và đã tồn tại
                 process_movie_data.delay(imdb_id)
                 time.sleep(2)
 
@@ -182,7 +180,9 @@ def sync_top_rated_movies(self):
                 .order_by("-release_date")[:limit]
             )
             if movies:
+                # Giữ cả 2 dạng key để tương thích
                 cache.set(cache_key, movies, 3600)
+                cache.set(f"top_rated_movies:{limit}", movies, timeout=3600)
                 logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
 
         # Clear IMDB API cache (support backends without delete_pattern)
@@ -229,18 +229,16 @@ def sync_upcoming_movies(self):
                 if not isinstance(imdb_id, str) or not imdb_id.startswith("tt"):
                     logger.error(f"Invalid IMDB ID format: {imdb_id}")
                     continue
-                # Chỉ sync phim mới
-                if Movie.objects.filter(imdb_id=imdb_id).exists():
-                    logger.info(f"Movie {imdb_id} already exists, skipping sync.")
-                    continue
+                # Tạo hoặc lấy movie, luôn cập nhật cờ và process data
                 movie, created = Movie.objects.get_or_create(imdb_id=imdb_id)
-                movie.is_upcoming = True
-                movie.save(update_fields=["is_upcoming"])
+                if not movie.is_upcoming:
+                    movie.is_upcoming = True
+                    movie.save(update_fields=["is_upcoming"])
 
-                # Add to synced movies list
-                synced_movies.append(movie)
+                if created:
+                    synced_movies.append(movie)
 
-                # Process movie data
+                # Process movie data cho cả phim mới và đã tồn tại
                 process_movie_data.delay(imdb_id)
                 time.sleep(2)
 
@@ -258,7 +256,9 @@ def sync_upcoming_movies(self):
                 .order_by("release_date")[:limit]
             )
             if movies:
+                # Giữ cả 2 dạng key để tương thích
                 cache.set(cache_key, movies, 3600)
+                cache.set(f"upcoming_movies:{limit}", movies, timeout=3600)
                 logger.info(f"Updated cache for {cache_key} with {len(movies)} movies")
 
         # Clear IMDB API cache (support backends without delete_pattern)

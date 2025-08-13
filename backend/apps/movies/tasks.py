@@ -87,6 +87,7 @@ def sync_popular_movies(self):
 
                 # Process movie data cho cả phim mới và đã tồn tại
                 process_movie_data.delay(imdb_id)
+                logger.info(f"Queued process_movie_data for {imdb_id}")
                 time.sleep(2)
 
             except Exception as e:
@@ -164,6 +165,7 @@ def sync_top_rated_movies(self):
 
                 # Process movie data cho cả phim mới và đã tồn tại
                 process_movie_data.delay(imdb_id)
+                logger.info(f"Queued process_movie_data for {imdb_id}")
                 time.sleep(2)
 
             except Exception as e:
@@ -240,6 +242,7 @@ def sync_upcoming_movies(self):
 
                 # Process movie data cho cả phim mới và đã tồn tại
                 process_movie_data.delay(imdb_id)
+                logger.info(f"Queued process_movie_data for {imdb_id}")
                 time.sleep(2)
 
             except Exception as e:

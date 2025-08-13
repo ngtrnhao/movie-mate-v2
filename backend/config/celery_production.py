@@ -62,19 +62,19 @@ app.conf.beat_schedule = {
     "sync_popular_movies": {
         "task": "apps.movies.tasks.sync_popular_movies",
         # "schedule": crontab(hour=1, minute=0, day_of_week="*/5"),  # every 5 days
-        "schedule": timedelta(minutes=30),
+        "schedule": timedelta(days=5),
         "options": {"priority": 10}
     },
     # Sync top rated movies weekly (Monday 3 AM)
     "sync_top_rated_movies": {
         "task": "apps.movies.tasks.sync_top_rated_movies",
-        "schedule": timedelta(minutes=30),
+        "schedule": timedelta(days=5),
         "options": {"priority": 10}
     },
     # Sync upcoming movies every 3 days (2 AM)
     "sync_upcoming_movies": {
         "task": "apps.movies.tasks.sync_upcoming_movies",
-        "schedule": timedelta(minutes=30),
+        "schedule": timedelta(days=5),
         "options": {"priority": 10}
     },
 
@@ -82,7 +82,7 @@ app.conf.beat_schedule = {
     # Update movie cache every 30 minutes
     "update_movie_cache": {
         "task": "apps.movies.tasks.update_movie_cache",
-        "schedule": timedelta(minutes=30),
+        "schedule": timedelta(days=5),
         "options": {"priority": 6}
     },
     # Refresh genre summary twice daily (6 AM and 6 PM)

@@ -340,9 +340,27 @@ class CollaborativeFilteringService:
         """
         Predict rating for a movie using weighted average of similar users
         """
+        predicted, _ = self.predict_rating_with_details(user, movie, similar_users)
+        return predicted
+
+    def predict_rating_with_details(self, user, movie, similar_users: List[Tuple[any, float]]) -> Tuple[Optional[float], Dict]:
+        """
+        Predict rating and return calculation details for explanation.
+
+        Returns: (predicted_rating or None, details_dict)
+        details_dict includes keys: user_avg, contributors, weighted_delta_sum, similarity_sum_abs, neighbors_used
+        """
         try:
+            details: Dict[str, any] = {
+                'user_avg': None,
+                'contributors': [],
+                'weighted_delta_sum': 0.0,
+                'similarity_sum_abs': 0.0,
+                'neighbors_used': 0,
+            }
+
             if not similar_users:
-                return None
+                return None, details
 
             weighted_sum = 0.0
             similarity_sum = 0.0
@@ -353,7 +371,10 @@ class CollaborativeFilteringService:
                 review_type='USER',
                 rating__isnull=False
             ).aggregate(avg_rating=Avg('rating'))['avg_rating'] or 3.0
-            user_avg = float(user_avg)  # Cast to float
+            user_avg = float(user_avg)
+            details['user_avg'] = user_avg
+
+            contributors: List[Dict[str, float]] = []
 
             for similar_user, similarity in similar_users:
                 # Get similar user's rating for this movie
@@ -371,7 +392,7 @@ class CollaborativeFilteringService:
                         review_type='USER',
                         rating__isnull=False
                     ).aggregate(avg_rating=Avg('rating'))['avg_rating'] or 3.0
-                    similar_avg = float(similar_avg)  # Cast to float
+                    similar_avg = float(similar_avg)
 
                     # Normalize rating
                     normalized_rating = float(similar_user_rating.rating) - similar_avg
@@ -379,18 +400,43 @@ class CollaborativeFilteringService:
                     weighted_sum += similarity * normalized_rating
                     similarity_sum += abs(similarity)
 
+                    contributors.append({
+                        'user_id': getattr(similar_user, 'id', None),
+                        'similarity': float(similarity),
+                        'rating': float(similar_user_rating.rating),
+                        'similar_user_avg': similar_avg,
+                        'delta': float(normalized_rating),
+                    })
+
             if similarity_sum == 0:
-                return None
+                details['contributors'] = contributors
+                details['weighted_delta_sum'] = weighted_sum
+                details['similarity_sum_abs'] = similarity_sum
+                details['neighbors_used'] = len(contributors)
+                return None, details
 
             # Denormalize prediction
-            predicted = user_avg + (weighted_sum / similarity_sum)
+            predicted_raw = user_avg + (weighted_sum / similarity_sum)
+            predicted_clamped = max(0.0, min(5.0, predicted_raw))
 
-            # Clamp to valid range
-            return max(0.0, min(5.0, predicted))
+            details['contributors'] = contributors
+            details['weighted_delta_sum'] = float(weighted_sum)
+            details['similarity_sum_abs'] = float(similarity_sum)
+            details['neighbors_used'] = len(contributors)
+            details['predicted_raw'] = float(predicted_raw)
+            details['predicted_clamped'] = float(predicted_clamped)
+
+            return predicted_clamped, details
 
         except Exception as e:
-            logger.error(f"Error predicting rating: {str(e)}")
-            return None
+            logger.error(f"Error predicting rating (with details): {str(e)}")
+            return None, {
+                'user_avg': None,
+                'contributors': [],
+                'weighted_delta_sum': 0.0,
+                'similarity_sum_abs': 0.0,
+                'neighbors_used': 0,
+            }
 
     def generate_collaborative_recommendations(self, user, limit=20, context='homepage') -> List[any]:
         """
@@ -457,8 +503,24 @@ class CollaborativeFilteringService:
                     avg_score = sum(scores) / len(scores)
                     confidence = min(1.0, len(scores) / 5.0)  # Higher confidence with more ratings
 
-                    # Predict rating
-                    predicted_rating = self.predict_rating(user, movie, similar_users)
+                    # Predict rating with details
+                    predicted_rating, pred_details = self.predict_rating_with_details(user, movie, similar_users)
+
+                    # Build richer explanation
+                    contributors = pred_details.get('contributors', [])
+                    neighbors_used = pred_details.get('neighbors_used', 0)
+                    avg_similarity = (sum(c.get('similarity', 0.0) for c in contributors) / neighbors_used) if neighbors_used else 0.0
+                    # Top 5 contributors by similarity
+                    top_contributors = sorted(contributors, key=lambda c: c.get('similarity', 0.0), reverse=True)[:5]
+                    # Keep lightweight fields for top contributors
+                    top_contributors = [
+                        {
+                            'user_id': tc.get('user_id'),
+                            'similarity': float(tc.get('similarity', 0.0)),
+                            'rating': float(tc.get('rating', 0.0)),
+                        }
+                        for tc in top_contributors
+                    ]
 
                     recommendations.append({
                         'movie': movie,
@@ -468,7 +530,16 @@ class CollaborativeFilteringService:
                         'explanation': {
                             'type': 'collaborative',
                             'similar_users_count': len(scores),
-                            'average_rating': sum(scores) / len(scores)
+                            'support': neighbors_used,
+                            'average_weighted_rating': float(avg_score),
+                            'avg_similarity': float(avg_similarity),
+                            'user_avg': float(pred_details.get('user_avg', 0.0) or 0.0),
+                            'prediction_components': {
+                                'weighted_delta_sum': float(pred_details.get('weighted_delta_sum', 0.0)),
+                                'similarity_sum_abs': float(pred_details.get('similarity_sum_abs', 0.0)),
+                            },
+                            'predicted_raw': float(pred_details.get('predicted_raw', predicted_rating or 0.0)) if pred_details.get('predicted_raw') is not None else None,
+                            'top_contributors': top_contributors,
                         }
                     })
 
@@ -2230,7 +2301,8 @@ class HybridRecommendationService:
 
             enough_df_candidates = len(demographic_recs) >= self.df_min_count_to_store
 
-            if self._is_profile_complete(user) and not trending_only and has_recent_df and enough_df_candidates:
+            # Relaxed: ignore `has_recent_df` gating to allow storing when DF pool is sufficient
+            if self._is_profile_complete(user) and not trending_only and enough_df_candidates:
                 # Store recommendations using unified cache service
                 RecommendationCacheService.store_recommendations(user, final_recommendations, 'hybrid', context)
             else:

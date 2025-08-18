@@ -16,10 +16,35 @@ class UserInteractionService {
 
     this.startAutoFlush();
     this.startCleanupTimer();
+
+    // Track page navigation for referrer detection
+    this.trackPageNavigation();
   }
 
   generateSessionId() {
     return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  /**
+   * Track page navigation for referrer detection
+   */
+  trackPageNavigation() {
+    // Store current page as previous page when navigating
+    const currentPage = window.location.href;
+    const previousPage = sessionStorage.getItem('current_page');
+
+    if (previousPage && previousPage !== currentPage) {
+      sessionStorage.setItem('previous_page', previousPage);
+    }
+
+    sessionStorage.setItem('current_page', currentPage);
+
+    // Listen for popstate events (back/forward navigation)
+    window.addEventListener('popstate', () => {
+      const newPage = window.location.href;
+      sessionStorage.setItem('previous_page', currentPage);
+      sessionStorage.setItem('current_page', newPage);
+    });
   }
 
   /**
@@ -31,7 +56,7 @@ class UserInteractionService {
   trackInteraction(movieId, action, metadata = {}) {
     if (!action) return;
 
-    // ✅ NEW: Check if user is authenticated before tracking
+    //  NEW: Check if user is authenticated before tracking
     const currentUser = this.getCurrentUser();
     if (!currentUser || !currentUser.id) {
       console.warn('User not authenticated, skipping interaction tracking:', action);
@@ -44,6 +69,32 @@ class UserInteractionService {
       return;
     }
 
+    // Enhanced referrer detection
+    const getReferrer = () => {
+      const referrer = document.referrer;
+      if (referrer && referrer.length > 0) {
+        return referrer;
+      }
+
+      // Fallback: Check if user came from internal navigation
+      const previousPage = sessionStorage.getItem('previous_page');
+      if (previousPage && previousPage !== window.location.href) {
+        return previousPage;
+      }
+
+      // Fallback: Check if user came from search engine
+      const searchEngines = ['google.com', 'bing.com', 'yahoo.com', 'duckduckgo.com'];
+      const urlParams = new URLSearchParams(window.location.search);
+      const utmSource = urlParams.get('utm_source');
+      const utmMedium = urlParams.get('utm_medium');
+
+      if (utmSource && searchEngines.some(engine => utmSource.includes(engine))) {
+        return `https://${utmSource}`;
+      }
+
+      return 'direct_access';
+    };
+
     const interaction = {
       movie_id: movieId,
       action: action,
@@ -52,6 +103,7 @@ class UserInteractionService {
       metadata: {
         ...metadata,
         page_url: window.location.href,
+        referrer: getReferrer(),
         user_agent: navigator.userAgent,
         screen_resolution: `${window.screen.width}x${window.screen.height}`,
         viewport_size: `${window.innerWidth}x${window.innerHeight}`,

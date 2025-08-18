@@ -186,13 +186,13 @@ class UserDataCollectionService:
             # Session-based validation for spam prevention
             should_track, reason = self._validate_session_interaction(movie_id, session_id, action, metadata)
             if not should_track:
-                logger.info(f"⏭️ Skipping interaction: {action} for movie {movie_id} - {reason}")
+                logger.info(f"Skipping interaction: {action} for movie {movie_id} - {reason}")
                 return
 
             # Cache key to prevent duplicate tracking in short time
             cache_key = f"interaction_{movie_id}_{action}_{user_id or session_id}"
             if cache.get(cache_key):
-                logger.info(f"⏭️ Duplicate interaction detected: {action} for movie {movie_id}")
+                logger.info(f"Duplicate interaction detected: {action} for movie {movie_id}")
                 return  # Skip duplicate interaction in 5 minutes
 
             # Extract metadata fields
@@ -238,13 +238,13 @@ class UserDataCollectionService:
             # Also store in cache for batch processing (fallback)
             self._store_interaction_cache(movie_id, action, user_id, session_id, metadata)
 
-            logger.info(f"✅ Interaction saved: {action} for movie {movie_id} by {user.username if user else session_id} (ID: {interaction.id}) - {reason}")
+            logger.info(f"Interaction saved: {action} for movie {movie_id} by {user.username if user else session_id} (ID: {interaction.id}) - {reason}")
 
         except Exception as e:
-            logger.error(f"❌ Error collecting interaction for movie {movie_id}: {str(e)}")
+            logger.error(f"Error collecting interaction for movie {movie_id}: {str(e)}")
 
     def _update_metrics_immediate(self, movie: Movie, action: str, interaction: UserInteraction):
-        """Cập nhật metrics ngay lập tức cho responsive feedback"""
+        """Update metrics immediately for responsive feedback"""
         try:
             production_metrics, created = ProductionMetrics.objects.get_or_create(
                 movie=movie,

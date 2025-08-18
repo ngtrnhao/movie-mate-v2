@@ -60,7 +60,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """Main command handler"""
         self.stdout.write(
-            self.style.SUCCESS('🔥 User Interaction Processing Command Started')
+            self.style.SUCCESS('User Interaction Processing Command Started')
         )
 
         # Get options
@@ -79,15 +79,15 @@ class Command(BaseCommand):
         self._show_interaction_stats(hours, movie_id)
 
         if stats_only:
-            self.stdout.write(self.style.SUCCESS('📊 Stats-only mode. Exiting.'))
+            self.stdout.write(self.style.SUCCESS(' Stats-only mode. Exiting.'))
             return
 
         if dry_run:
-            self.stdout.write(self.style.WARNING('🧪 DRY RUN MODE - No changes will be made'))
+            self.stdout.write(self.style.WARNING('DRY RUN MODE - No changes will be made'))
 
         try:
             # Step 1: Process raw interactions into metrics
-            self.stdout.write('\n📈 Step 1: Processing user interactions...')
+            self.stdout.write('\nStep 1: Processing user interactions...')
             processing_result = user_data_service.process_batch_interactions_from_database(
                 movie_id=movie_id,
                 hours=hours
@@ -96,21 +96,21 @@ class Command(BaseCommand):
             if not dry_run:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'✅ Processed {processing_result["processed_interactions"]} interactions '
+                        f'Processed {processing_result["processed_interactions"]} interactions '
                         f'for {processing_result["movies_processed"]} movies'
                     )
                 )
             else:
                 self.stdout.write(
                     self.style.WARNING(
-                        f'🧪 Would process {processing_result["processed_interactions"]} interactions '
+                        f'Would process {processing_result["processed_interactions"]} interactions '
                         f'for {processing_result["movies_processed"]} movies'
                     )
                 )
 
             # Step 2: Recalculate production metrics if requested
             if force_recalculate or processing_result["movies_processed"] > 0:
-                self.stdout.write('\n🎯 Step 2: Recalculating production metrics...')
+                self.stdout.write('\nStep 2: Recalculating production metrics...')
 
                 if movie_id:
                     movies_to_recalculate = [movie_id]
@@ -132,28 +132,28 @@ class Command(BaseCommand):
                 if not dry_run:
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f'✅ Recalculated metrics for {metrics_result["processed"]} movies '
+                            f'Recalculated metrics for {metrics_result["processed"]} movies '
                             f'({metrics_result["errors"]} errors)'
                         )
                     )
                 else:
                     self.stdout.write(
                         self.style.WARNING(
-                            f'🧪 Would recalculate metrics for {len(movies_to_recalculate)} movies'
+                            f'Would recalculate metrics for {len(movies_to_recalculate)} movies'
                         )
                     )
 
             # Step 3: Show final statistics
-            self.stdout.write('\n📊 Final Statistics:')
+            self.stdout.write('\nFinal Statistics:')
             self._show_interaction_stats(hours, movie_id)
 
             self.stdout.write(
-                self.style.SUCCESS('\n🎉 User interaction processing completed successfully!')
+                self.style.SUCCESS('\nUser interaction processing completed successfully!')
             )
 
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'❌ Error processing user interactions: {str(e)}')
+                self.style.ERROR(f'Error processing user interactions: {str(e)}')
             )
             logger.error(f"Error in process_user_interactions command: {str(e)}")
             raise CommandError(f'Processing failed: {str(e)}')
@@ -193,25 +193,25 @@ class Command(BaseCommand):
             tablet_count = interactions_qs.filter(user_agent__icontains='Tablet').count()
             desktop_count = total_interactions - mobile_count - tablet_count
 
-            self.stdout.write(f'\n📊 Interaction Statistics (last {hours} hours, {scope}):')
-            self.stdout.write(f'   📈 Total interactions: {total_interactions}')
-            self.stdout.write(f'   ✅ Processed: {processed_interactions}')
-            self.stdout.write(f'   ⏳ Unprocessed: {unprocessed_interactions}')
-            self.stdout.write(f'   🎬 Unique movies: {unique_movies}')
+            self.stdout.write(f'\nInteraction Statistics (last {hours} hours, {scope}):')
+            self.stdout.write(f'   Total interactions: {total_interactions}')
+            self.stdout.write(f'   Processed: {processed_interactions}')
+            self.stdout.write(f'   Unprocessed: {unprocessed_interactions}')
+            self.stdout.write(f'   Unique movies: {unique_movies}')
 
             if top_actions:
-                self.stdout.write(f'   🔥 Top actions:')
+                self.stdout.write(f'   Top actions:')
                 for action_data in top_actions:
                     self.stdout.write(f'      • {action_data["action"]}: {action_data["count"]}')
 
-            self.stdout.write(f'   📱 Device breakdown:')
+            self.stdout.write(f'   Device breakdown:')
             self.stdout.write(f'      • Mobile: {mobile_count}')
             self.stdout.write(f'      • Desktop: {desktop_count}')
             self.stdout.write(f'      • Tablet: {tablet_count}')
 
         except Exception as e:
             self.stdout.write(
-                self.style.WARNING(f'⚠️ Could not generate statistics: {str(e)}')
+                self.style.WARNING(f'Could not generate statistics: {str(e)}')
             )
 
     def _recalculate_production_metrics(self, production_service, movie_ids, batch_size, dry_run):
@@ -231,7 +231,7 @@ class Command(BaseCommand):
                     processed_count += 1
 
                     if processed_count % 50 == 0:
-                        self.stdout.write(f'   📊 Processed {processed_count} movies...')
+                        self.stdout.write(f'   Processed {processed_count} movies...')
 
                 except Exception as e:
                     error_count += 1

@@ -149,9 +149,13 @@ class CollaborativeFilteringService:
     """
 
     def __init__(self):
+        # Quality gate: tối thiểu số phim đồng‑đánh‑giá để tính Pearson
         self.min_common_ratings = 5
+        # Ngưỡng "đủ giàu" cho precomputed similarities (không phải gate phục vụ)
         self.min_similar_users = 10
+        # Quality gate: ngưỡng tương đồng tối thiểu để nhận láng giềng
         self.similarity_threshold = 0.1
+        # TTL cache similarities
         self.cache_timeout = 3600 * 24 * 7
 
     def calculate_user_similarity(self, user1, user2, method='pearson') -> float:
@@ -181,9 +185,10 @@ class CollaborativeFilteringService:
             if not user1_ratings or not user2_ratings:
                 return 0.0
 
-            # Find common movies
+            # Find common movies (J(u,v))
             common_movies = set(user1_ratings.keys()) & set(user2_ratings.keys())
 
+            # Quality gate: không đủ phim chung ⇒ bỏ (sim=0)
             if len(common_movies) < self.min_common_ratings:
                 return 0.0
 
@@ -293,6 +298,7 @@ class CollaborativeFilteringService:
             similar_users = []
 
             # Check precomputed similarities first
+            # Precomputed similarities: chỉ lấy bản ghi đạt ngưỡng sim≥threshold
             precomputed = UserSimilarity.objects.filter(
                 Q(user1=user) | Q(user2=user),
                 similarity_type='collaborative',
@@ -309,6 +315,7 @@ class CollaborativeFilteringService:
                 similar_users = list(precomputed_users.values())
             else:
                 # Calculate similarities on-the-fly
+                # Pool ứng viên on‑the‑fly: user đã chấm ÍT NHẤT 1 phim user hiện tại đã chấm; cap 500
                 candidate_users = User.objects.filter(
                     moviereview__movie_id__in=user_rated_movies,
                     moviereview__review_type='USER',
@@ -320,6 +327,7 @@ class CollaborativeFilteringService:
                 for other_user in candidate_users:
                     similarity = self.calculate_user_similarity(user, other_user, method)
 
+                    # Quality gate: chỉ giữ láng giềng có sim≥threshold
                     if similarity > self.similarity_threshold:
                         similar_users.append((other_user, similarity))
 
@@ -366,6 +374,7 @@ class CollaborativeFilteringService:
             similarity_sum = 0.0
 
             # Get user's average rating for normalization
+            # User base (bias term) cho dự đoán: trung bình tất cả ratings của user
             user_avg = MovieReview.objects.filter(
                 user=user,
                 review_type='USER',
@@ -408,6 +417,7 @@ class CollaborativeFilteringService:
                         'delta': float(normalized_rating),
                     })
 
+            # Quality gate: không có đóng góp hữu ích (Σ|sim|=0) ⇒ không dự đoán
             if similarity_sum == 0:
                 details['contributors'] = contributors
                 details['weighted_delta_sum'] = weighted_sum
@@ -415,7 +425,7 @@ class CollaborativeFilteringService:
                 details['neighbors_used'] = len(contributors)
                 return None, details
 
-            # Denormalize prediction
+            # Bias‑corrected weighted average + clamp về [0,5]
             predicted_raw = user_avg + (weighted_sum / similarity_sum)
             predicted_clamped = max(0.0, min(5.0, predicted_raw))
 
@@ -478,6 +488,7 @@ class CollaborativeFilteringService:
             ).values_list('movie_id', flat=True))
 
             # Get candidate movies
+            # Candidates: chỉ lấy phim láng giềng chấm tích cực (rating≥4.0) và u chưa xem
             candidate_ratings = MovieReview.objects.filter(
                 user_id__in=similar_user_ids,
                 review_type='USER',
@@ -499,9 +510,11 @@ class CollaborativeFilteringService:
             recommendations = []
 
             for movie, scores in movie_scores.items():
+                # Quality gate: support ≥ 1 (ít nhất 1 láng giềng chấm phim này)
                 if len(scores) >= 1:  # At least 1 similar user rated it (reduced from 2)
                     avg_score = sum(scores) / len(scores)
-                    confidence = min(1.0, len(scores) / 5.0)  # Higher confidence with more ratings
+                    # Confidence đơn giản theo support (min(1, support/5))
+                    confidence = min(1.0, len(scores) / 5.0)
 
                     # Predict rating with details
                     predicted_rating, pred_details = self.predict_rating_with_details(user, movie, similar_users)
@@ -3604,7 +3617,7 @@ class OptimizedKMeansProductionService:
                     'id', 'age', 'gender', 'occupation', 'location', 'zip_code', 'user_type'
                 ).get(id=user_id)
 
-            # 1. Try database lookup first (faster than cloud Redis)
+            # 1. Try database lookup first
             # Use values() to get only the field we need
             user_pref_data = UserPreference.objects.filter(
                 user=user_id
@@ -3793,19 +3806,19 @@ class OptimizedRecommendationService:
                     # Chỉ dùng fallback cache cho collaborative để đơn giản
                     if rec_type == 'collaborative':
                         self._save_to_fallback_cache(user, rec_type, context, immediate_recommendations)
-                    logger.info(f"✅ Tạo thành công {len(immediate_recommendations)} {rec_type} recommendations cho user {user.id}")
+                    logger.info(f"Tạo thành công {len(immediate_recommendations)} {rec_type} recommendations cho user {user.id}")
 
                     # Trigger background generation để cập nhật cache cho lần sau
                     self._trigger_background_generation(user, rec_type, context)
                     return immediate_recommendations
                 else:
-                    logger.warning(f"⚠️ Immediate generation trả về empty, fallback về trending")
+                    logger.warning(f" Immediate generation trả về empty, fallback về trending")
 
             except Exception as e:
-                logger.error(f"❌ Lỗi khi tạo immediate recommendations: {str(e)}")
+                logger.error(f" Lỗi khi tạo immediate recommendations: {str(e)}")
 
             # 4. Fallback cuối cùng - trả về trending/popular movies
-            logger.warning(f"⚠️ Fallback về trending movies cho user {user.id}")
+            logger.warning(f" Fallback về trending movies cho user {user.id}")
             # Trigger background generation để tạo cache cho lần sau
             self._trigger_background_generation(user, rec_type, context)
             return self._get_trending_fallback(limit)
@@ -3838,7 +3851,7 @@ class OptimizedRecommendationService:
                         priority=9,
                         queue='high_priority'
                     )
-                    logger.info(f"🔄 Triggered background hybrid generation cho user {user.id} (task: {task.id}) với priority cao")
+                    logger.info(f" Triggered background hybrid generation cho user {user.id} (task: {task.id}) với priority cao")
 
                 elif rec_type == 'collaborative':
                     # Trigger collaborative filtering background task với priority cao
@@ -3848,7 +3861,7 @@ class OptimizedRecommendationService:
                         priority=9,
                         queue='high_priority'
                     )
-                    logger.info(f"🔄 Triggered background collaborative generation cho user {user.id} (task: {task.id}) với priority cao")
+                    logger.info(f" Triggered background collaborative generation cho user {user.id} (task: {task.id}) với priority cao")
 
                 elif rec_type == 'demographic':
                     # Trigger demographic recommendations background task với priority cao
@@ -3858,7 +3871,7 @@ class OptimizedRecommendationService:
                         priority=9,
                         queue='high_priority'
                     )
-                    logger.info(f"🔄 Triggered background demographic generation cho user {user.id} (task: {task.id}) với priority cao")
+                    logger.info(f" Triggered background demographic generation cho user {user.id} (task: {task.id}) với priority cao")
 
                 else:
                     # Trigger all types of recommendations với priority cao
@@ -3868,7 +3881,7 @@ class OptimizedRecommendationService:
                         priority=9,
                         queue='high_priority'
                     )
-                    logger.info(f"🔄 Triggered background refresh all recommendations cho user {user.id} (task: {task.id}) với priority cao")
+                    logger.info(f"Triggered background refresh all recommendations cho user {user.id} (task: {task.id}) với priority cao")
 
         except Exception as e:
             logger.error(f"Error triggering background generation: {str(e)}")
@@ -3878,7 +3891,7 @@ class OptimizedRecommendationService:
         Tạo recommendations ngay lập tức dựa trên rec_type
         """
         try:
-            logger.info(f"🔄 Generating immediate {rec_type} recommendations for user {user.id}")
+            logger.info(f" immediate {rec_type} recommendations for user {user.id}")
 
             if rec_type == 'collaborative':
                 return self.collaborative_service.generate_collaborative_recommendations(

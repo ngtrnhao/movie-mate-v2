@@ -54,12 +54,11 @@ const initialState = {
 
   // Settings
   autoRefresh: true,
-  refreshInterval: 60000, // 60 seconds default (reduced frequency)
+  refreshInterval: 60000,
 
-  // Tab-based control
   activeTab: null,
   tabRefreshMap: {
-    overview: ['dashboard'], // Only load dashboard initially, load others on demand
+    overview: ['dashboard'],
     realtime_analytics: ['production', 'trending', 'userInteraction'],
     auto_processing: ['dashboard'],
     movies: ['dashboard', 'production'],

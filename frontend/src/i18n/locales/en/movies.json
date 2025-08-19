@@ -207,7 +207,7 @@
     "changesCount": "{{count}} changed"
   },
   "sortOptions": {
-    "popularity": "Most Popular",
+    "most_popular": "Most Popular",
     "rating": "Highest Rated",
     "release_date": "Newest First",
     "title": "Title A-Z",

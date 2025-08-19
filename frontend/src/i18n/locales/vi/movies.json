@@ -169,7 +169,7 @@
   "showFilters": " Bộ Lọc",
   "hideFilters": "Ẩn Bộ Lọc",
   "sortOptions": {
-    "popularity": "Phổ Biến Nhất",
+    "most_popular": "Phổ Biến Nhất",
     "rating": "Đánh Giá Cao Nhất",
     "release_date": "Mới Nhất",
     "title": "Tên A-Z",

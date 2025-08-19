@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class GenreSummarySerializer(serializers.ModelSerializer):
     """
-    Serializer cho GenreSummary - Hiệu năng cực cao
+    Serializer cho GenreSummary 
     """
     id = serializers.IntegerField(source='genre.id')
     name = serializers.CharField(source='genre.name')

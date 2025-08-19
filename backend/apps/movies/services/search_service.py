@@ -25,7 +25,7 @@ class MovieSearchService:
             return
 
         try:
-            # Check if cloud configuration is available
+
             if (hasattr(settings, 'ELASTICSEARCH_CLOUD_ID') and
                 hasattr(settings, 'ELASTICSEARCH_USERNAME') and
                 hasattr(settings, 'ELASTICSEARCH_PASSWORD') and
@@ -358,10 +358,38 @@ class MovieSearchService:
             # Keyset Pagination for Elasticsearch
             page_size = int(params.get('page_size', 20))
 
+            # Get sort parameters early for search_after handling
+            sort_by = params.get('sort_by', 'created_at')
+            order = params.get('order', 'desc')
+
             # Handle search_after for keyset pagination
             if params.get('search_after'):
                 search_after_values = params['search_after']
                 if isinstance(search_after_values, list):
+                    # Convert values based on sort type for most_popular
+                    if sort_by == 'most_popular':
+                        # Convert boolean string to actual boolean
+                        if len(search_after_values) >= 1:
+                            is_popular_str = search_after_values[0]
+                            if is_popular_str == '1':
+                                search_after_values[0] = True
+                            elif is_popular_str == '0':
+                                search_after_values[0] = False
+                            else:
+                                search_after_values[0] = bool(is_popular_str)
+
+                        # Convert timestamp to date string if needed
+                        if len(search_after_values) >= 2:
+                            try:
+                                # Try to convert timestamp to date string
+                                timestamp = int(search_after_values[1])
+                                from datetime import datetime
+                                date_obj = datetime.fromtimestamp(timestamp / 1000)  # Convert from milliseconds
+                                search_after_values[1] = date_obj.strftime('%Y-%m-%d')
+                            except (ValueError, TypeError):
+                                # If conversion fails, keep original value
+                                pass
+
                     search = search.extra(search_after=search_after_values)
                     logger.info(f"[SEARCH SERVICE] Using search_after array: {search_after_values}")
                 else:
@@ -392,9 +420,7 @@ class MovieSearchService:
                 search = search[:page_size]
                 # logger.info(f"[SEARCH SERVICE] Initial page load, page_size: {page_size}")
 
-            # 📊 ENHANCED SORTING with consistent keyset pagination
-            sort_by = params.get('sort_by', 'created_at')
-            order = params.get('order', 'desc')
+            #  ENHANCED SORTING with consistent keyset pagination
 
             # Map sort fields
             sort_field_mapping = {
@@ -406,9 +432,9 @@ class MovieSearchService:
                 'homepage_views': 'homepage_views',
                 'user_favorites': 'user_favorites_count',
                 'campaign_priority': 'campaign_priority',
-                'popularity': 'combined_rating_score',
+                'most_popular': 'is_popular',  # Special sort for popular movies first
                 'rating': 'combined_rating_score',
-                'date': 'release_date',
+                'release_date': 'release_date',  # Fixed: map release_date correctly
                 'title': 'title.raw',
                 'runtime': 'runtime',
                 'vote_count': 'vote_count',
@@ -421,17 +447,47 @@ class MovieSearchService:
             # Create sort array for consistent keyset pagination
             if params.get('q'):
                 # Khi có search query, sort theo relevance score trước
-                sort_order = [
-                    {'_score': {'order': 'desc'}},  # Sort by relevance first
-                    {sort_field: {'order': order}},
-                    {'id': {'order': order}}  # Always add id as tie-breaker
-                ]
+                if sort_by == 'most_popular':
+                    # Special handling for most_popular: popular movies first, then by release_date
+                    sort_order = [
+                        {'_score': {'order': 'desc'}},  # Sort by relevance first
+                        {'is_popular': {'order': 'desc'}},  # Popular movies first
+                        {'release_date': {'order': 'desc'}},  # Then by release date (newest first)
+                        {'id': {'order': 'desc'}}  # Always add id as tie-breaker
+                    ]
+                elif sort_by == 'release_date':
+                    # Special handling for release_date: relevance first, then date
+                    sort_order = [
+                        {'_score': {'order': 'desc'}},  # Sort by relevance first
+                        {'release_date': {'order': 'desc'}},  # Then by release date (newest first)
+                        {'id': {'order': 'desc'}}  # Always add id as tie-breaker
+                    ]
+                else:
+                    sort_order = [
+                        {'_score': {'order': 'desc'}},  # Sort by relevance first
+                        {sort_field: {'order': order}},
+                        {'id': {'order': order}}  # Always add id as tie-breaker
+                    ]
             else:
                 # Khi không có search query, sort theo field được chọn
-                sort_order = [
-                    {sort_field: {'order': order}},
-                    {'id': {'order': order}}  # Always add id as tie-breaker
-                ]
+                if sort_by == 'most_popular':
+                    # Special handling for most_popular: popular movies first, then by release_date
+                    sort_order = [
+                        {'is_popular': {'order': 'desc'}},  # Popular movies first
+                        {'release_date': {'order': 'desc'}},  # Then by release date (newest first)
+                        {'id': {'order': 'desc'}}  # Always add id as tie-breaker
+                    ]
+                elif sort_by == 'release_date':
+                    # Special handling for release_date: ensure proper date sorting
+                    sort_order = [
+                        {'release_date': {'order': 'desc'}},  # Newest first
+                        {'id': {'order': 'desc'}}  # Always add id as tie-breaker
+                    ]
+                else:
+                    sort_order = [
+                        {sort_field: {'order': order}},
+                        {'id': {'order': order}}  # Always add id as tie-breaker
+                    ]
 
             search = search.sort(*sort_order)
 
@@ -445,6 +501,15 @@ class MovieSearchService:
                 last_hit = response.hits[-1]
                 if hasattr(last_hit.meta, 'sort'):
                     next_search_after = list(last_hit.meta.sort)
+
+                    # Ensure proper format for most_popular sort
+                    if sort_by == 'most_popular' and len(next_search_after) >= 3:
+                        # Convert boolean to string format for consistency
+                        if next_search_after[0] is True:
+                            next_search_after[0] = '1'
+                        elif next_search_after[0] is False:
+                            next_search_after[0] = '0'
+
                     # logger.info(f"[SEARCH SERVICE] Calculated next_search_after: {next_search_after}")
                 else:
                     logger.warning(f"[SEARCH SERVICE] Last hit has no sort metadata")
@@ -830,9 +895,10 @@ class MovieSearchService:
                 'homepage_views': 'production_metrics__homepage_views',
                 'user_favorites': 'production_metrics__user_favorites_count',
                 'campaign_priority': 'scheduling__campaign_priority',
-                'popularity': 'combined_rating_score',
+                'most_popular': 'is_popular',  # Special sort for popular movies first
                 'rating': 'combined_rating_score',
-                'date': 'release_date',
+                'release_date': 'release_date',  # Fixed: map release_date correctly
+                'date': 'release_date',  # Keep for backward compatibility
                 'title': 'title_en',
                 'runtime': 'runtime',
                 'vote_count': 'cached_imdb_votes',
@@ -840,9 +906,15 @@ class MovieSearchService:
             }
             sort_by = params.get('sort_by', 'created_at')
             order = params.get('order', 'desc')
-            sort_field = sort_mapping.get(sort_by, 'created_at')
-            order_prefix = '-' if order == 'desc' else ''
-            queryset = queryset.order_by(f"{order_prefix}{sort_field}", f"{order_prefix}id")
+
+            # Special handling for most_popular sort
+            if sort_by == 'most_popular':
+                # Sort by is_popular first (desc), then by release_date (desc)
+                queryset = queryset.order_by('-is_popular', '-release_date', '-id')
+            else:
+                sort_field = sort_mapping.get(sort_by, 'created_at')
+                order_prefix = '-' if order == 'desc' else ''
+                queryset = queryset.order_by(f"{order_prefix}{sort_field}", f"{order_prefix}id")
 
             # Phân trang
             use_keyset = False
@@ -853,18 +925,56 @@ class MovieSearchService:
                 use_keyset = True
                 search_after_values = params['search_after']
                 if isinstance(search_after_values, list) and len(search_after_values) >= 2:
-                    sort_value = search_after_values[0]
-                    id_value = search_after_values[1]
-                    if order == 'desc':
+                    if sort_by == 'most_popular':
+                        # Special handling for most_popular: [is_popular, release_date, id]
+                        is_popular_value = search_after_values[0]
+                        release_date_value = search_after_values[1]
+                        id_value = search_after_values[2]
+
+                        # Convert boolean string to actual boolean
+                        if isinstance(is_popular_value, str):
+                            if is_popular_value == '1':
+                                is_popular_value = True
+                            elif is_popular_value == '0':
+                                is_popular_value = False
+                            else:
+                                is_popular_value = bool(is_popular_value)
+
+                        # Convert timestamp to date if needed
+                        if isinstance(release_date_value, str) and release_date_value.isdigit():
+                            try:
+                                from datetime import datetime
+                                timestamp = int(release_date_value)
+                                date_obj = datetime.fromtimestamp(timestamp / 1000)  # Convert from milliseconds
+                                release_date_value = date_obj.date()
+                            except (ValueError, TypeError):
+                                # If conversion fails, try to parse as date string
+                                try:
+                                    from datetime import datetime
+                                    release_date_value = datetime.strptime(release_date_value, '%Y-%m-%d').date()
+                                except ValueError:
+                                    # If all conversions fail, skip this filter
+                                    logger.warning(f"Could not parse release_date_value: {release_date_value}")
+                                    return None
+
                         queryset = queryset.filter(
-                            Django_Q(**{f"{sort_field}__lt": sort_value}) |
-                            (Django_Q(**{f"{sort_field}": sort_value}) & Django_Q(id__lt=id_value))
+                            Django_Q(is_popular__lt=is_popular_value) |
+                            (Django_Q(is_popular=is_popular_value) & Django_Q(release_date__lt=release_date_value)) |
+                            (Django_Q(is_popular=is_popular_value) & Django_Q(release_date=release_date_value) & Django_Q(id__lt=id_value))
                         )
                     else:
-                        queryset = queryset.filter(
-                            Django_Q(**{f"{sort_field}__gt": sort_value}) |
-                            (Django_Q(**{f"{sort_field}": sort_value}) & Django_Q(id__gt=id_value))
-                        )
+                        sort_value = search_after_values[0]
+                        id_value = search_after_values[1]
+                        if order == 'desc':
+                            queryset = queryset.filter(
+                                Django_Q(**{f"{sort_field}__lt": sort_value}) |
+                                (Django_Q(**{f"{sort_field}": sort_value}) & Django_Q(id__lt=id_value))
+                            )
+                        else:
+                            queryset = queryset.filter(
+                                Django_Q(**{f"{sort_field}__gt": sort_value}) |
+                                (Django_Q(**{f"{sort_field}": sort_value}) & Django_Q(id__gt=id_value))
+                            )
                 start = 0
             elif params.get('page'):
                 page = int(params.get('page', 1))
@@ -900,7 +1010,18 @@ class MovieSearchService:
                 # Keyset: next_search_after nếu còn trang tiếp theo
                 if len(results) > page_size:
                     last_result = results[page_size - 1]
-                    next_search_after = [resolve_attr(last_result, sort_field), last_result.id]
+                    if sort_by == 'most_popular':
+                        # Special handling for most_popular: [is_popular, release_date, id]
+                        # Convert date to timestamp for consistency with Elasticsearch
+                        release_date = last_result.release_date
+                        if release_date:
+                            from datetime import datetime
+                            timestamp = int(datetime.combine(release_date, datetime.min.time()).timestamp() * 1000)
+                            next_search_after = [last_result.is_popular, timestamp, last_result.id]
+                        else:
+                            next_search_after = [last_result.is_popular, None, last_result.id]
+                    else:
+                        next_search_after = [resolve_attr(last_result, sort_field), last_result.id]
                     results = results[:page_size]
                 else:
                     next_search_after = None

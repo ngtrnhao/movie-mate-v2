@@ -75,7 +75,7 @@ class GenreSummary(models.Model):
     @classmethod
     def get_categories_for_language(cls, language):
         """
-        Lấy categories cho ngôn ngữ cụ thể - hiệu năng cực cao
+        Lấy categories cho ngôn ngữ cụ thể
         """
         return cls.objects.filter(
             language=language,
@@ -177,7 +177,7 @@ def clear_genre_summary_cache(sender, instance, **kwargs):
     Clear cache khi GenreSummary được cập nhật hoặc xóa
     """
     try:
-        # Xóa cache cho language cụ thể (nếu có)
+        # Xóa cache cho language cụ thể 
         if hasattr(instance, 'language') and instance.language:
             cache_key = f'movie_categories_summary_{instance.language}'
             cache.delete(cache_key)

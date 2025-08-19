@@ -219,6 +219,30 @@ export const getTrendingAnalytics = async (options = {}) => {
   });
 };
 
+/**
+ * Get real-time user interactions data for admin dashboard
+ */
+export const getRealTimeInteractions = async (options = {}) => {
+  const { signal } = options;
+  console.log('🔍 [getRealTimeInteractions] Starting API call...');
+  return retryRequest(async () => {
+    try {
+      console.log(
+        '🔍 [getRealTimeInteractions] Making request to /api/admin/movies/real_time_interactions/'
+      );
+      const response = await axiosInstance.get('/api/admin/movies/real_time_interactions/', {
+        signal,
+        timeout: 30000, // 30 second timeout
+      });
+      console.log('🔍 [getRealTimeInteractions] Response received:', response.data);
+      return handleResponse(response);
+    } catch (error) {
+      console.error('🔍 [getRealTimeInteractions] Error:', error);
+      handleError(error, 'fetch real-time interactions');
+    }
+  });
+};
+
 // === MOVIE MANAGEMENT ===
 
 /**

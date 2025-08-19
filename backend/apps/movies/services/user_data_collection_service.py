@@ -232,8 +232,8 @@ class UserDataCollectionService:
             # Set cache to prevent duplicates
             cache.set(cache_key, True, timeout=self.cache_timeout)
 
-            # Immediate metrics update (for real-time responsiveness)
-            self._update_metrics_immediate(movie, action, interaction)
+            # Defer aggregation to background job to avoid double counting
+            # self._update_metrics_immediate(movie, action, interaction)
 
             # Also store in cache for batch processing (fallback)
             self._store_interaction_cache(movie_id, action, user_id, session_id, metadata)

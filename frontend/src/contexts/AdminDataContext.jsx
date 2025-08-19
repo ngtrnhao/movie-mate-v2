@@ -4,6 +4,7 @@ import {
   getProductionMetrics,
   getTrendingAnalytics,
   getUserInteractionStats,
+  getRealTimeInteractions,
 } from '../api/adminMovieService';
 
 // Action types
@@ -14,6 +15,7 @@ const ACTIONS = {
   SET_PRODUCTION_METRICS: 'SET_PRODUCTION_METRICS',
   SET_TRENDING_ANALYTICS: 'SET_TRENDING_ANALYTICS',
   SET_USER_INTERACTION_STATS: 'SET_USER_INTERACTION_STATS',
+  SET_REAL_TIME_INTERACTIONS: 'SET_REAL_TIME_INTERACTIONS',
   SET_LAST_UPDATED: 'SET_LAST_UPDATED',
   CLEAR_ERROR: 'CLEAR_ERROR',
   SET_ACTIVE_TAB: 'SET_ACTIVE_TAB',
@@ -27,6 +29,7 @@ const initialState = {
   productionMetrics: null,
   trendingAnalytics: null,
   userInteractionStats: null,
+  realTimeInteractions: null,
 
   // Loading states
   loading: {
@@ -34,6 +37,7 @@ const initialState = {
     production: false,
     trending: false,
     userInteraction: false,
+    realTimeInteractions: false,
   },
 
   // Error states
@@ -42,6 +46,7 @@ const initialState = {
     production: null,
     trending: null,
     userInteraction: null,
+    realTimeInteractions: null,
   },
 
   // Cache timestamps
@@ -50,6 +55,7 @@ const initialState = {
     production: null,
     trending: null,
     userInteraction: null,
+    realTimeInteractions: null,
   },
 
   // Settings
@@ -59,11 +65,11 @@ const initialState = {
   activeTab: null,
   tabRefreshMap: {
     overview: ['dashboard'],
-    realtime_analytics: ['production', 'trending', 'userInteraction'],
+    realtime_analytics: ['production', 'trending', 'userInteraction', 'realTimeInteractions'],
     auto_processing: ['dashboard'],
     movies: ['dashboard', 'production'],
     visibility: ['production'],
-    user_interactions: ['userInteraction'],
+    user_interactions: ['userInteraction', 'realTimeInteractions'],
     trending_analytics: ['trending'],
     content: ['dashboard', 'production'],
   },
@@ -130,6 +136,15 @@ const adminDataReducer = (state, action) => {
         lastUpdated: { ...state.lastUpdated, userInteraction: new Date() },
       };
 
+    case ACTIONS.SET_REAL_TIME_INTERACTIONS:
+      return {
+        ...state,
+        realTimeInteractions: action.data,
+        loading: { ...state.loading, realTimeInteractions: false },
+        errors: { ...state.errors, realTimeInteractions: null },
+        lastUpdated: { ...state.lastUpdated, realTimeInteractions: new Date() },
+      };
+
     case ACTIONS.CLEAR_ERROR:
       return {
         ...state,
@@ -192,7 +207,8 @@ export const AdminDataProvider = ({ children }) => {
         dashboard: 180000, // 3 minutes
         production: 300000, // 5 minutes
         trending: 600000, // 10 minutes
-        userInteraction: 600000, // 10 minutes
+        userInteraction: 60000, // 1 minute for charts on real-time tab
+        realTimeInteractions: 60000, // 1 minute for real-time
       };
 
       if (!force && !isDataStale(dataType, extendedCacheTime[dataType])) {
@@ -215,6 +231,7 @@ export const AdminDataProvider = ({ children }) => {
         production: 45000, // 45 seconds for complex production metrics (increased)
         trending: 35000, // 35 seconds for trending analytics (increased)
         userInteraction: 30000, // 30 seconds for user stats (increased)
+        realTimeInteractions: 20000, // 20 seconds for real-time API
       };
 
       const timeout = setTimeout(() => {
@@ -252,6 +269,9 @@ export const AdminDataProvider = ({ children }) => {
             break;
           case 'userInteraction':
             dispatch({ type: ACTIONS.SET_USER_INTERACTION_STATS, data: extractedData });
+            break;
+          case 'realTimeInteractions':
+            dispatch({ type: ACTIONS.SET_REAL_TIME_INTERACTIONS, data: extractedData });
             break;
         }
 
@@ -291,6 +311,7 @@ export const AdminDataProvider = ({ children }) => {
   const fetchProduction = useCallback(signal => getProductionMetrics({ signal }), []);
   const fetchTrending = useCallback(signal => getTrendingAnalytics({ signal }), []);
   const fetchUserInteraction = useCallback(signal => getUserInteractionStats({ signal }), []);
+  const fetchRealTimeInteractions = useCallback(signal => getRealTimeInteractions({ signal }), []);
 
   // Public API methods
   const refreshDashboard = useCallback(
@@ -321,6 +342,13 @@ export const AdminDataProvider = ({ children }) => {
     [fetchData, fetchUserInteraction]
   );
 
+  const refreshRealTimeInteractions = useCallback(
+    (force = false) => {
+      return fetchData('realTimeInteractions', fetchRealTimeInteractions, force);
+    },
+    [fetchData, fetchRealTimeInteractions]
+  );
+
   // Store refresh functions in ref to prevent infinite loops
   useEffect(() => {
     refreshFunctionsRef.current = {
@@ -328,13 +356,23 @@ export const AdminDataProvider = ({ children }) => {
       production: refreshProductionMetrics,
       trending: refreshTrendingAnalytics,
       userInteraction: refreshUserInteractionStats,
+      realTimeInteractions: refreshRealTimeInteractions,
     };
   }, [
     refreshDashboard,
     refreshProductionMetrics,
     refreshTrendingAnalytics,
     refreshUserInteractionStats,
+    refreshRealTimeInteractions,
   ]);
+
+  // Clear error function
+  const clearError = useCallback(
+    dataType => {
+      dispatch({ type: ACTIONS.CLEAR_ERROR, dataType });
+    },
+    [dispatch]
+  );
 
   // Tab control functions
   const setActiveTab = useCallback(
@@ -360,6 +398,7 @@ export const AdminDataProvider = ({ children }) => {
       refreshFunctionsRef.current.production(force),
       refreshFunctionsRef.current.trending(force),
       refreshFunctionsRef.current.userInteraction(force),
+      refreshFunctionsRef.current.realTimeInteractions(force),
     ]);
   }, []);
 
@@ -395,6 +434,8 @@ export const AdminDataProvider = ({ children }) => {
             return refreshFunctionsRef.current.trending(force);
           case 'userInteraction':
             return refreshFunctionsRef.current.userInteraction(force);
+          case 'realTimeInteractions':
+            return refreshFunctionsRef.current.realTimeInteractions(force);
           default:
             return Promise.resolve();
         }
@@ -431,7 +472,8 @@ export const AdminDataProvider = ({ children }) => {
       dashboard: 120000, // 2 minutes (less frequent for basic stats)
       production: 90000, // 1.5 minutes (slightly reduced)
       trending: 300000, // 5 minutes (trends don't change quickly)
-      userInteraction: 600000, // 10 minutes (interaction stats are less time-sensitive)
+      userInteraction: 60000, // 1 minute to sync with real-time charts
+      realTimeInteractions: 60000, // 1 minute for real-time feed
     };
 
     // Set up intervals ONLY for data types relevant to current tab
@@ -439,7 +481,7 @@ export const AdminDataProvider = ({ children }) => {
       const interval = intervals[dataType];
 
       // Skip auto-refresh for heavy operations unless specifically needed
-      if (dataType === 'userInteraction' || dataType === 'trending') {
+      if (dataType === 'trending') {
         console.log(`⏸️ [AdminDataContext] Skipping auto-refresh for ${dataType} (manual only)`);
         return;
       }
@@ -462,6 +504,9 @@ export const AdminDataProvider = ({ children }) => {
             case 'userInteraction':
               refreshFunctionsRef.current.userInteraction();
               break;
+            case 'realTimeInteractions':
+              refreshFunctionsRef.current.realTimeInteractions();
+              break;
           }
         }, interval);
       }
@@ -474,8 +519,8 @@ export const AdminDataProvider = ({ children }) => {
         if (dataType === 'dashboard' || dataType === 'production') {
           return true;
         }
-        // Only fetch userInteraction and trending if specifically requested
-        if (dataType === 'userInteraction' || dataType === 'trending') {
+        // Only fetch trending if specifically requested (keep manual)
+        if (dataType === 'trending') {
           console.log(`📋 [AdminDataContext] Deferring ${dataType} to manual load`);
           return false;
         }
@@ -491,6 +536,8 @@ export const AdminDataProvider = ({ children }) => {
             return refreshFunctionsRef.current.trending();
           case 'userInteraction':
             return refreshFunctionsRef.current.userInteraction();
+          case 'realTimeInteractions':
+            return refreshFunctionsRef.current.realTimeInteractions();
           default:
             return Promise.resolve();
         }
@@ -527,6 +574,7 @@ export const AdminDataProvider = ({ children }) => {
     productionMetrics: state.productionMetrics,
     trendingAnalytics: state.trendingAnalytics,
     userInteractionStats: state.userInteractionStats,
+    realTimeInteractions: state.realTimeInteractions,
 
     // Loading states
     loading: state.loading,
@@ -545,6 +593,7 @@ export const AdminDataProvider = ({ children }) => {
     refreshProductionMetrics,
     refreshTrendingAnalytics,
     refreshUserInteractionStats,
+    refreshRealTimeInteractions,
     refreshAllData,
     loadDataOnDemand,
 

@@ -22,6 +22,9 @@ from .models import Movie, MovieCast, MovieImage, MovieReview, ReviewVote, Movie
 from .serializers import MovieListSerializer, MovieDetailSerializer, OptimizedMovieListSerializer, UnifiedMovieReviewSerializer, MovieReviewSerializer, MovieReviewCreateSerializer, MovieReviewUpdateSerializer, ReviewVoteSerializer, MovieCastSerializer, MovieReplySerializer, MovieReplyCreateSerializer, ReviewReportSerializer, ModerationQueueReviewSerializer, AdminMovieListSerializer, AdminMovieSerializer
 import logging
 import time
+
+# Import admin real-time interactions function
+from .admin_real_time_interactions import admin_real_time_interactions
 import hashlib
 from django.utils import timezone
 from datetime import timedelta
@@ -956,7 +959,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     def _get_optimized_user_queryset(self):
         """
-        🚀 Get highly optimized queryset for user search (production-ready movies only)
+        Get highly optimized queryset for user search (production-ready movies only)
         """
         return Movie.objects.select_related(
             'moviemetadata', 'admin_control', 'quality_metrics'
@@ -979,14 +982,12 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
 
     def _optimize_search_results(self, results):
         """
-        🚀 Keep all essential fields for movie card display
+         Keep all essential fields for movie card display
         Only optimize where necessary without breaking functionality
         """
         if not results:
             return results
 
-        # For movie cards, we need to keep all the essential fields
-        # Don't over-optimize and break the UI functionality
         return results
 
     @action(detail=False, methods=['get'])
@@ -5902,7 +5903,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def trigger_manual_processing(self, request):
         """
-        ⚡ Trigger manual processing for immediate updates
+         Trigger manual processing for immediate updates
         Backup option khi cần force processing ngay lập tức
         """
         try:

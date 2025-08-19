@@ -28,6 +28,9 @@ urlpatterns = [
     path('admin/movies/<int:movie_id>/enrich/', views.admin_enrich_movie, name='admin-enrich-movie'),
     path('admin/movies/<int:movie_id>/enrichment-status/', views.admin_movie_enrichment_status, name='admin-movie-enrichment-status'),
 
+    # Admin analytics endpoints
+    path('admin/movies/real_time_interactions/', views.admin_real_time_interactions, name='admin-real-time-interactions'),
+
     # Include router URLs after specific patterns
     path('', include(router.urls)),
 

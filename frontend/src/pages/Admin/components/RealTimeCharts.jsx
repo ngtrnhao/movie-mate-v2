@@ -45,12 +45,14 @@ const RealTimeCharts = () => {
     userInteractionStats: userStats,
     trendingAnalytics: trendingData,
     productionMetrics,
+    realTimeInteractions,
     loading,
     errors,
     loadDataOnDemand,
     refreshUserInteractionStats,
     refreshTrendingAnalytics,
     refreshProductionMetrics,
+    refreshRealTimeInteractions,
   } = useAdminData();
 
   // Check what data we have and load missing data on demand (with debounce)
@@ -62,6 +64,12 @@ const RealTimeCharts = () => {
       // Prioritize production metrics as most important
       if (!productionMetrics && !loading.production && !errors.production) {
         missingData.push('production');
+      }
+
+      // Load real-time interactions for real-time chart
+      if (!realTimeInteractions && !loading.realTimeInteractions && !errors.realTimeInteractions) {
+        console.log('📊 [RealTimeCharts] Loading real-time interactions data');
+        missingData.push('realTimeInteractions');
       }
 
       // Only load userInteraction and trending if really needed for charts
@@ -84,7 +92,15 @@ const RealTimeCharts = () => {
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timer);
-  }, [userStats, trendingData, productionMetrics, loading, errors, loadDataOnDemand]);
+  }, [
+    userStats,
+    trendingData,
+    productionMetrics,
+    realTimeInteractions,
+    loading,
+    errors,
+    loadDataOnDemand,
+  ]);
 
   // Derived loading states
   const userLoading = loading.userInteraction;
@@ -110,17 +126,23 @@ const RealTimeCharts = () => {
     if (!trendingData && !loading.trending) {
       additionalData.push('trending');
     }
+    if (!realTimeInteractions && !loading.realTimeInteractions) {
+      additionalData.push('realTimeInteractions');
+    }
 
     if (additionalData.length > 0) {
       loadDataOnDemand(additionalData);
     }
-  }, [userStats, trendingData, loading, loadDataOnDemand]);
+  }, [userStats, trendingData, realTimeInteractions, loading, loadDataOnDemand]);
 
   // Process real backend data
   const processRealTimeData = useCallback(
-    (userInteractionStats, trendingAnalytics, productionMetrics) => {
+    (userInteractionStats, trendingAnalytics, productionMetrics, realTimeInteractionsData) => {
       // Generate time series from real interaction data
-      const userActivity = generateTimeSeriesFromRealData(userInteractionStats);
+      const userActivity = generateTimeSeriesFromRealData(
+        userInteractionStats,
+        realTimeInteractionsData
+      );
 
       // Process real action breakdown
       const viewCounts = processActionBreakdown(userInteractionStats.action_breakdown || []);
@@ -147,22 +169,31 @@ const RealTimeCharts = () => {
     console.log('Debug - userStats:', userStats);
     console.log('Debug - trendingData:', trendingData);
     console.log('Debug - productionMetrics:', productionMetrics);
+    console.log('Debug - realTimeInteractions:', realTimeInteractions);
 
     // Check different possible data structures
-    const userData = userStats?.data || userStats;
-    const trendingDataRes = trendingData?.data || trendingData;
-    const productionData = productionMetrics?.data || productionMetrics;
+    const userData = userStats?.data || userStats || {};
+    const trendingDataRes = trendingData?.data || trendingData || {};
+    const productionData = productionMetrics?.data || productionMetrics || {};
+    const realTimeData = realTimeInteractions?.data || realTimeInteractions || null;
 
     console.log('Debug - processed userData:', userData);
     console.log('Debug - processed trendingDataRes:', trendingDataRes);
     console.log('Debug - processed productionData:', productionData);
+    console.log('Debug - processed realTimeData:', realTimeData);
 
-    if (userData && trendingDataRes && productionData) {
-      const processedData = processRealTimeData(userData, trendingDataRes, productionData);
+    // Update as long as we have at least real-time data or any of the supporting datasets
+    if (realTimeData || userData || trendingDataRes || productionData) {
+      const processedData = processRealTimeData(
+        userData,
+        trendingDataRes,
+        productionData,
+        realTimeData
+      );
       console.log('Debug - processedData:', processedData);
       setRealTimeData(processedData);
     }
-  }, [userStats, trendingData, productionMetrics, processRealTimeData]);
+  }, [userStats, trendingData, productionMetrics, realTimeInteractions, processRealTimeData]);
 
   // Remove separate interval - rely on AdminDataContext for auto-refresh
   // useEffect(() => {
@@ -182,45 +213,35 @@ const RealTimeCharts = () => {
   //   };
   // }, [refetchUserStats, refetchTrending, refetchMetrics]);
 
-  // Generate realistic time series data from real stats
-  const generateTimeSeriesFromRealData = stats => {
-    const now = new Date();
-    const data = [];
-    const _baseValue = stats.overview?.total_interactions || 0;
-    const todayInteractions = stats.overview?.today_interactions || 0;
-    const _weekInteractions = stats.overview?.week_interactions || 0;
+  // Generate time series data from real API only
+  const generateTimeSeriesFromRealData = (stats, realTimeApiData = null) => {
+    console.log('🔍 [DEBUG] generateTimeSeriesFromRealData input:', { stats, realTimeApiData });
 
-    // Calculate realistic hourly distribution
-    const _hourlyAverage = Math.max(1, Math.floor(todayInteractions / 24));
+    // Hỗ trợ cả hai định dạng: {real_time_activity: [...]} hoặc {data: {real_time_activity: [...]}}
+    const activity =
+      realTimeApiData?.real_time_activity || realTimeApiData?.data?.real_time_activity || [];
 
-    for (let i = 29; i >= 0; i--) {
-      const time = new Date(now.getTime() - i * 2 * 60 * 1000); // 2-minute intervals
-      const hour = time.getHours();
-
-      // Simulate realistic activity patterns (more active during day hours)
-      let activityMultiplier = 1;
-      if (hour >= 6 && hour <= 23) {
-        activityMultiplier = 1.5; // More active during day
-      } else {
-        activityMultiplier = 0.3; // Less active at night
-      }
-
-      // Use actual data to create more realistic values
-      const baseActivityLevel = Math.max(1, Math.floor(todayInteractions / 50)); // Distribute over time points
-      const positionVariation = i < 5 ? 1.2 : i > 25 ? 0.8 : 1.0; // Recent points higher
-
-      const value = Math.max(
-        1,
-        Math.floor(baseActivityLevel * activityMultiplier * positionVariation)
-      );
-
-      data.push({
-        time: time.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        value: value,
+    if (Array.isArray(activity) && activity.length) {
+      console.log('✅ [DEBUG] Sử dụng dữ liệu thực từ real-time interactions API');
+      return activity.map(item => {
+        // Ưu tiên dùng time_iso (UTC) nếu có và format theo local timezone
+        const label = item.time_iso
+          ? new Date(item.time_iso).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })
+          : item.time;
+        return {
+          time: label,
+          value: item.interactions ?? item.value ?? 0,
+        };
       });
     }
 
-    return data;
+    // Nếu không có dữ liệu thực, trả về mảng rỗng
+    console.log('⚠️ [DEBUG] Không có dữ liệu thực, trả về mảng rỗng');
+    return [];
   };
 
   // Process action breakdown from real data
@@ -330,7 +351,7 @@ const RealTimeCharts = () => {
       },
       title: {
         display: true,
-        text: 'User Activity (Real-time)',
+        text: 'User Interactions (Real-time)',
       },
     },
     scales: {
@@ -389,7 +410,7 @@ const RealTimeCharts = () => {
     labels: realTimeData.userActivity.map(item => item.time),
     datasets: [
       {
-        label: 'Active Users',
+        label: 'User Interactions',
         data: realTimeData.userActivity.map(item => item.value),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -568,6 +589,7 @@ const RealTimeCharts = () => {
               refreshUserInteractionStats(true);
               refreshTrendingAnalytics(true);
               refreshProductionMetrics(true);
+              refreshRealTimeInteractions(true);
             }}
             className="text-sm font-medium text-blue-600 hover:text-blue-800"
           >

@@ -49,7 +49,7 @@ const MoviesPage = () => {
       adult: false,
       language: 'en',
       query: '',
-      sortBy: 'popularity',
+      sortBy: 'most_popular',
       order: 'desc',
     }),
     []
@@ -372,7 +372,8 @@ const MoviesPage = () => {
   ];
 
   const sortOptions = [
-    { value: 'popularity', label: t('sortOptions.popularity') },
+    { value: 'most_popular', label: t('sortOptions.most_popular', 'Phổ biến nhất') },
+    // { value: 'popularity', label: t('sortOptions.popularity') },
     { value: 'rating', label: t('sortOptions.rating') },
     { value: 'release_date', label: t('sortOptions.release_date') },
     { value: 'title', label: t('sortOptions.title') },
@@ -482,7 +483,7 @@ const MoviesPage = () => {
       adult: false,
       language: 'en',
       query: filters.query, // Preserve current search query from header
-      sortBy: 'popularity',
+      sortBy: 'most_popular',
       order: 'desc',
     };
 

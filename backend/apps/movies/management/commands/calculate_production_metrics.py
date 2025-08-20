@@ -135,7 +135,7 @@ class Command(BaseCommand):
                 self.stdout.write('')
                 self.stdout.write('⭐ USER RATINGS:')
                 self.stdout.write(f'  • Average User Rating: {metrics_data["avg_user_rating"]:.2f}/10.0')
-                self.stdout.write(f'  • User Reviews Count: {metrics_data["user_reviews_count"]:,}')
+                self.stdout.write(f'  • User Reviews Count: {metrics_data.get("reviews_count", 0):,}')
 
             if not dry_run:
                 self.stdout.write('')
@@ -218,16 +218,14 @@ class Command(BaseCommand):
             batch_movies = list(Movie.objects.filter(id__in=batch_movie_ids).select_related().prefetch_related('quality_metrics'))
             self.stdout.write(f'🚀 Batch {batch_count}/{total_batches}: Processing {len(batch_movies)} movies...')
             try:
-                with transaction.atomic():
-                    for movie in batch_movies:
-                        try:
-                            service.calculate_production_metrics(movie, save=True)
-                            processed += 1
-                        except Exception as e:
-                            logger.error(f'❌ Error calculating metrics for movie {movie.id}: {str(e)}')
-                            errors += 1
-                    # Commit transaction for this batch
-                    connection.commit()
+                # Process each movie individually without transaction to avoid conflicts
+                for movie in batch_movies:
+                    try:
+                        service.calculate_production_metrics(movie, save=True)
+                        processed += 1
+                    except Exception as e:
+                        logger.error(f'❌ Error calculating metrics for movie {movie.id}: {str(e)}')
+                        errors += 1
             except Exception as e:
                 logger.error(f'❌ Error in batch {batch_count}: {str(e)}')
                 errors += len(batch_movies)

@@ -130,7 +130,27 @@ const useUserTracking = (options = {}) => {
    */
   const trackDetailView = (movieId, metadata = {}) => {
     if (!movieId) return;
-    userInteractionService.trackDetailView(movieId, metadata);
+
+    // Add page duration tracking
+    const pageStartTime = Date.now();
+    const enhancedMetadata = {
+      ...metadata,
+      page_start_time: pageStartTime,
+    };
+
+    userInteractionService.trackDetailView(movieId, enhancedMetadata);
+
+    // Track page duration when user leaves
+    const handlePageLeave = () => {
+      const duration = Date.now() - pageStartTime;
+      userInteractionService.trackInteraction(movieId, 'page_duration', {
+        duration_seconds: Math.floor(duration / 1000),
+        page_type: 'detail',
+      });
+      window.removeEventListener('beforeunload', handlePageLeave);
+    };
+
+    window.addEventListener('beforeunload', handlePageLeave);
   };
 
   /**

@@ -36,7 +36,7 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # Elasticsearch Cloud configuration
 ELASTICSEARCH_DSL = {
     'default': {
-        'hosts': ['https://elastic:xhXFT7WIJ1Eht8zx9uCP9dnQ@f5b5af6851e647718cf2a39a07701c52.asia-southeast1.gcp.elastic-cloud.com:443'],
+        'hosts': ['https://elastic:1vkiDFD2UbjZjVKPYRxzzlT2@d49b35a6cdca44f7966cc493abe4c3ce.asia-southeast1.gcp.elastic-cloud.com'],
         'timeout': 20,
         'retry_on_timeout': True,
         'max_retries': 3,

@@ -53,7 +53,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
         if (completionPercentage >= 80) {
           trackTrailerView(movie.id, {
             action: 'trailer_completion',
-            duration: watchedDuration,
+            duration_seconds: Math.floor(watchedDuration / 1000), // ✅ Convert to seconds
             completion_percentage: completionPercentage,
           });
         }

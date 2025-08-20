@@ -1686,14 +1686,14 @@ class ProductionMetrics(models.Model):
             if self.review_count > 0 and self.average_user_rating:
                 content_score = min((
                     (float(self.average_user_rating) / 5.0 * 15) +
-                    (self.positive_review_ratio / 100 * 5)
+                    (self.review_count / 100 * 5)  # Use review_count instead of positive_review_ratio
                 ), 20)
                 scores.append(content_score)
 
-            # Consistency score (10% weight)
-            if self.total_featured_days > 0:
-                consistency_score = min(self.total_featured_days * 2, 10)
-                scores.append(consistency_score)
+            # Consistency score (10% weight) - REMOVED: total_featured_days field no longer exists
+            # if self.total_featured_days > 0:
+            #     consistency_score = min(self.total_featured_days * 2, 10)
+            #     scores.append(consistency_score)
 
             self.performance_score = sum(scores) if scores else 0
             return self.performance_score
@@ -1716,9 +1716,9 @@ class ProductionMetrics(models.Model):
                 avg_rating = reviews.aggregate(avg_rating=models.Avg('rating'))['avg_rating']
                 self.average_user_rating = avg_rating
 
-                # Calculate positive review ratio (rating >= 3.5)
-                positive_reviews = reviews.filter(rating__gte=3.5).count()
-                self.positive_review_ratio = (positive_reviews / self.review_count) * 100
+                # Calculate positive review ratio (rating >= 3.5) - REMOVED: positive_review_ratio field no longer exists
+                # positive_reviews = reviews.filter(rating__gte=3.5).count()
+                # self.positive_review_ratio = (positive_reviews / self.review_count) * 100
 
             # Calculate trending score based on recent activity
             from datetime import datetime, timedelta

@@ -100,6 +100,15 @@ class ProductionMetricsService:
             # Save to database if requested
             if save:
                 self._save_production_metrics(production_metrics, metrics_data)
+
+                # 🔥 CRITICAL FIX: Call update_metrics() to calculate average_user_rating
+                # ⚠️ TEMPORARILY DISABLED IN BATCH MODE TO AVOID TRANSACTION CONFLICT
+                # try:
+                #     production_metrics.update_metrics()
+                #     logger.info(f"✅ Updated review metrics for movie {movie.id}: avg_rating={production_metrics.average_user_rating}, review_count={production_metrics.review_count}")
+                # except Exception as e:
+                #     logger.error(f"❌ Error updating review metrics for movie {movie.id}: {str(e)}")
+
                 # Update featured date after saving metrics
                 self._update_featured_date(movie, production_metrics)
 
@@ -133,6 +142,9 @@ class ProductionMetricsService:
             shares = all_interactions.filter(action='share').count()
             likes = all_interactions.filter(action='like').count()
 
+            # Calculate trailer plays from interactions
+            trailer_plays = all_interactions.filter(action='trailer_view').count()
+
             # Calculate unique users and sessions
             unique_users = all_interactions.filter(user__isnull=False).values('user').distinct().count()
             unique_sessions = all_interactions.filter(session_id__isnull=False).values('session_id').distinct().count()
@@ -160,6 +172,7 @@ class ProductionMetricsService:
                 'interaction_detail_views': detail_views,
                 'interaction_page_views': page_views,
                 'interaction_total_views': homepage_views + detail_views + page_views,
+                'interaction_trailer_plays': trailer_plays,
                 'interaction_favorites': favorites,
                 'interaction_watchlist': watchlist_adds,
                 'interaction_shares': shares,
@@ -226,7 +239,10 @@ class ProductionMetricsService:
             'homepage_views': homepage_views,
             'detail_page_views': detail_page_views,
             'total_views': total_views,
-            'trailer_plays': production_metrics.trailer_plays,
+            'trailer_plays': max(
+                production_metrics.trailer_plays,
+                interaction_metrics.get('interaction_trailer_plays', 0)
+            ),
             'mobile_views': interaction_metrics.get('interaction_mobile_count', production_metrics.mobile_views),
             'desktop_views': interaction_metrics.get('interaction_desktop_count', production_metrics.desktop_views),
             'tablet_views': interaction_metrics.get('interaction_tablet_count', production_metrics.tablet_views),
@@ -425,14 +441,13 @@ class ProductionMetricsService:
     def _save_production_metrics(self, production_metrics: ProductionMetrics, metrics_data: Dict):
         """Lưu production metrics vào database"""
         try:
-            with transaction.atomic():
-                # Update existing record
-                for key, value in metrics_data.items():
-                    if hasattr(production_metrics, key):
-                        setattr(production_metrics, key, value)
+            # Update existing record (không dùng transaction để tránh nested transaction conflict)
+            for key, value in metrics_data.items():
+                if hasattr(production_metrics, key):
+                    setattr(production_metrics, key, value)
 
-                production_metrics.save()
-                logger.info(f"Production metrics updated for movie {production_metrics.movie.id}")
+            production_metrics.save()
+            logger.info(f"Production metrics updated for movie {production_metrics.movie.id}")
 
         except Exception as e:
             logger.error(f"Error saving production metrics for movie {production_metrics.movie.id}: {str(e)}")

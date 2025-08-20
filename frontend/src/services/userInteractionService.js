@@ -100,6 +100,7 @@ class UserInteractionService {
       action: action,
       session_id: this.sessionId,
       timestamp: Date.now(),
+      duration_seconds: metadata.duration_seconds || null, // ✅ Add duration_seconds
       metadata: {
         ...metadata,
         page_url: window.location.href,

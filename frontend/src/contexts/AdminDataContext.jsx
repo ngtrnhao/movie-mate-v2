@@ -243,13 +243,13 @@ export const AdminDataProvider = ({ children }) => {
 
       try {
         console.log(
-          `🚀 [AdminDataContext] Fetching ${dataType} with ${timeouts[dataType] || 20000}ms timeout...`
+          ` [AdminDataContext] Fetching ${dataType} with ${timeouts[dataType] || 20000}ms timeout...`
         );
         const data = await fetchFunction(abortController.signal);
 
         // Check if request was aborted
         if (abortController.signal.aborted) {
-          console.log(`❌ [AdminDataContext] ${dataType} request aborted`);
+          console.log(` [AdminDataContext] ${dataType} request aborted`);
           return;
         }
 
@@ -275,10 +275,10 @@ export const AdminDataProvider = ({ children }) => {
             break;
         }
 
-        console.log(`✅ [AdminDataContext] ${dataType} fetched successfully`);
+        console.log(`[AdminDataContext] ${dataType} fetched successfully`);
       } catch (error) {
         if (error.name === 'AbortError' || error.name === 'CanceledError') {
-          console.log(`🛑 [AdminDataContext] ${dataType} fetch aborted (timeout or canceled)`);
+          console.log(` [AdminDataContext] ${dataType} fetch aborted (timeout or canceled)`);
           dispatch({
             type: ACTIONS.SET_ERROR,
             dataType,
@@ -287,7 +287,7 @@ export const AdminDataProvider = ({ children }) => {
           return;
         }
 
-        console.error(`❌ [AdminDataContext] Error fetching ${dataType}:`, error);
+        console.error(` [AdminDataContext] Error fetching ${dataType}:`, error);
         dispatch({
           type: ACTIONS.SET_ERROR,
           dataType,
@@ -377,7 +377,7 @@ export const AdminDataProvider = ({ children }) => {
   // Tab control functions
   const setActiveTab = useCallback(
     tab => {
-      console.log('🔄 [AdminDataContext] Setting active tab to:', tab);
+      console.log(' [AdminDataContext] Setting active tab to:', tab);
       dispatch({ type: ACTIONS.SET_ACTIVE_TAB, tab });
     },
     [dispatch]
@@ -392,7 +392,7 @@ export const AdminDataProvider = ({ children }) => {
 
   // Refresh all data
   const refreshAllData = useCallback(async (force = false) => {
-    console.log('🔄 [AdminDataContext] Refreshing all data...', { force });
+    console.log(' [AdminDataContext] Refreshing all data...', { force });
     await Promise.allSettled([
       refreshFunctionsRef.current.dashboard(force),
       refreshFunctionsRef.current.production(force),
@@ -405,14 +405,14 @@ export const AdminDataProvider = ({ children }) => {
   // Load specific data types on demand (for lazy loading with throttling)
   const loadDataOnDemand = useCallback(
     async (dataTypes, force = false) => {
-      console.log('📋 [AdminDataContext] Loading data on demand:', dataTypes);
+      console.log(' [AdminDataContext] Loading data on demand:', dataTypes);
 
       // Filter out data types that are already loading to prevent duplicates
       const filteredDataTypes = dataTypes.filter(dataType => {
         const isLoading = state.loading[dataType];
         if (isLoading && !force) {
           console.log(
-            `⏸️ [AdminDataContext] ${dataType} already loading, skipping duplicate request`
+            ` [AdminDataContext] ${dataType} already loading, skipping duplicate request`
           );
           return false;
         }
@@ -420,7 +420,7 @@ export const AdminDataProvider = ({ children }) => {
       });
 
       if (filteredDataTypes.length === 0) {
-        console.log('📋 [AdminDataContext] No new data types to load');
+        console.log(' [AdminDataContext] No new data types to load');
         return;
       }
 

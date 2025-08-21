@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from apps.movies.models import Movie, MovieAdminControl, MovieQualityMetrics, MovieScheduling, ProductionMetrics,MovieRating
+from apps.movies.models import Movie, MovieAdminControl, MovieQualityMetrics, MovieScheduling, ProductionMetrics, MovieRating, MovieReview
 from apps.movies.services.elasticsearch_service import update_movie_index
 
 import logging
@@ -28,6 +28,43 @@ def update_movie_cached_ratings_on_delete(sender, instance, **kwargs):
             logger.info(f"Updated cached ratings for movie {instance.movie.id} after rating deleted")
     except Exception as e:
         logger.error(f"Error updating cached ratings for movie {instance.movie.id}: {str(e)}")
+
+
+@receiver(post_save, sender=MovieReview)
+def trigger_recommendation_refresh_on_rating(sender, instance, created, **kwargs):
+    """
+    Trigger refresh recommendations khi user tạo rating mới
+    Đây là signal chính để cải thiện recommendations theo flow test
+    """
+    try:
+        # Chỉ trigger khi tạo rating mới (không phải update)
+        if not created:
+            return
+
+        # Chỉ trigger cho user ratings (không phải admin/system ratings)
+        if instance.review_type != 'USER':
+            return
+
+        # Chỉ trigger khi có rating value
+        if instance.rating is None:
+            return
+
+        user_id = instance.user.id
+        logger.info(f"🎯 Rating created by user {user_id} for movie {instance.movie.id} - triggering recommendation refresh")
+
+        # Import task để tránh circular import
+        from apps.recommendations.tasks import refresh_demographic_recommendations_after_rating
+
+        # Trigger task với delay nhỏ để tránh spam
+        task = refresh_demographic_recommendations_after_rating.apply_async(
+            args=[user_id, 'homepage', 20],
+            countdown=30  # Delay 30 giây để tránh spam khi user rating nhiều phim
+        )
+
+        logger.info(f"✅ Scheduled demographic recommendation refresh task {task.id} for user {user_id}")
+
+    except Exception as e:
+        logger.error(f"Error triggering recommendation refresh for user {instance.user.id}: {str(e)}")
 
 
 @receiver(post_save, sender=Movie)

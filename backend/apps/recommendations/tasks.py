@@ -904,3 +904,185 @@ def monitor_cf_system_health(self):
     except Exception as e:
         logger.error(f"❌ Error in monitor_cf_system_health: {str(e)}")
         return {'status': 'error', 'error': str(e)}
+
+@shared_task(bind=True)
+def refresh_recommendations_after_rating(self, user_id: int, context: str = 'homepage', limit: int = 20):
+    """
+    Refresh recommendations sau khi user tạo rating mới
+    Đây là task chính để cải thiện recommendations theo flow test
+    """
+    from django.core.cache import cache
+    from django.contrib.auth import get_user_model
+    from .services import EnhancedDemographicFilteringService, CollaborativeFilteringService, HybridRecommendationService
+
+    User = get_user_model()
+
+    try:
+        # Cache task ID for this user/context
+        task_cache_key = f"rating_refresh_task:{user_id}:{context}"
+        cache.set(task_cache_key, self.request.id, 600)  # Cache for 10 minutes
+
+        logger.info(f"🔄 Starting recommendation refresh after rating for user {user_id}")
+
+        # Get user
+        user = User.objects.get(id=user_id)
+
+        # Check if user has complete profile
+        has_complete_profile = (
+            user.age and
+            user.gender and
+            user.occupation and
+            user.location and
+            user.user_type
+        )
+
+        if not has_complete_profile:
+            logger.info(f"User {user_id} has incomplete profile - skipping recommendation refresh")
+            return 0
+
+        # 1. Refresh Demographic Recommendations (ưu tiên cao nhất)
+        logger.info(f"📊 Refreshing demographic recommendations for user {user_id}")
+        demo_service = EnhancedDemographicFilteringService()
+
+        # Clear existing demographic recommendations
+        RecommendationResult.objects.filter(
+            user=user,
+            recommendation_type='demographic',
+            context=context
+        ).delete()
+
+        # Generate new demographic recommendations
+        demo_recommendations = demo_service.generate_enhanced_demographic_recommendations(
+            user, limit, context, store=True
+        )
+
+        logger.info(f"✅ Generated {len(demo_recommendations)} updated demographic recommendations")
+
+        # 2. Refresh Collaborative Filtering (nếu user có đủ ratings)
+        user_rating_count = user.moviereview_set.filter(
+            review_type='USER',
+            rating__isnull=False
+        ).count()
+
+        if user_rating_count >= 5:  # Ngưỡng tối thiểu để CF hoạt động
+            logger.info(f"🤝 Refreshing collaborative filtering for user {user_id} ({user_rating_count} ratings)")
+            cf_service = CollaborativeFilteringService()
+
+            # Clear existing CF recommendations
+            RecommendationResult.objects.filter(
+                user=user,
+                recommendation_type='collaborative',
+                context=context
+            ).delete()
+
+            # Generate new CF recommendations
+            cf_recommendations = cf_service.generate_collaborative_recommendations(
+                user, limit, context
+            )
+
+            logger.info(f"✅ Generated {len(cf_recommendations)} collaborative recommendations")
+        else:
+            logger.info(f"⏭️ Skipping collaborative filtering for user {user_id} (only {user_rating_count} ratings)")
+            cf_recommendations = []
+
+        # 3. Refresh Hybrid Recommendations
+        logger.info(f"🔄 Refreshing hybrid recommendations for user {user_id}")
+        hybrid_service = HybridRecommendationService()
+
+        # Clear existing hybrid recommendations
+        RecommendationResult.objects.filter(
+            user=user,
+            recommendation_type='hybrid',
+            context=context
+        ).delete()
+
+        # Generate new hybrid recommendations
+        hybrid_recommendations = hybrid_service.generate_hybrid_recommendations(
+            user, limit, context
+        )
+
+        logger.info(f"✅ Generated {len(hybrid_recommendations)} hybrid recommendations")
+
+        # 4. Tính tổng kết
+        total_recommendations = len(demo_recommendations) + len(cf_recommendations) + len(hybrid_recommendations)
+
+        logger.info(f"🎉 Recommendation refresh completed for user {user_id}")
+        logger.info(f"   - Demographic: {len(demo_recommendations)}")
+        logger.info(f"   - Collaborative: {len(cf_recommendations)}")
+        logger.info(f"   - Hybrid: {len(hybrid_recommendations)}")
+        logger.info(f"   - Total: {total_recommendations}")
+
+        # Clear task cache
+        cache.delete(task_cache_key)
+
+        return total_recommendations
+
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found")
+        return 0
+    except Exception as e:
+        logger.error(f"Error refreshing recommendations after rating for user {user_id}: {str(e)}")
+        # Clear task cache on error
+        cache.delete(task_cache_key)
+        return 0
+
+@shared_task(bind=True)
+def refresh_demographic_recommendations_after_rating(self, user_id: int, context: str = 'homepage', limit: int = 20):
+    """
+    Chỉ refresh demographic recommendations sau khi user tạo rating mới
+    Task này nhẹ hơn và nhanh hơn
+    """
+    from django.core.cache import cache
+    from django.contrib.auth import get_user_model
+    from .services import EnhancedDemographicFilteringService
+
+    User = get_user_model()
+
+    try:
+        # Cache task ID for this user/context
+        task_cache_key = f"demo_refresh_task:{user_id}:{context}"
+        cache.set(task_cache_key, self.request.id, 300)  # Cache for 5 minutes
+
+        logger.info(f"📊 Refreshing demographic recommendations after rating for user {user_id}")
+
+        # Get user
+        user = User.objects.get(id=user_id)
+
+        # Check if user has complete demographic data
+        has_complete_demographic = (
+            user.age and
+            user.gender and
+            user.occupation and
+            user.location and
+            user.user_type
+        )
+
+        if not has_complete_demographic:
+            logger.warning(f"User {user_id} has incomplete demographic data - skipping demographic refresh")
+            return 0
+
+        # Clear existing demographic recommendations
+        RecommendationResult.objects.filter(
+            user=user,
+            recommendation_type='demographic',
+            context=context
+        ).delete()
+
+        # Generate new demographic recommendations
+        demo_service = EnhancedDemographicFilteringService()
+        recommendations = demo_service.generate_enhanced_demographic_recommendations(
+            user, limit, context, store=True
+        )
+
+        logger.info(f"✅ Refreshed {len(recommendations)} demographic recommendations for user {user_id}")
+
+        # Clear task cache
+        cache.delete(task_cache_key)
+
+        return len(recommendations)
+
+    except Exception as e:
+        logger.error(f"Error refreshing demographic recommendations for user {user_id}: {str(e)}")
+        # Clear task cache on error
+        cache.delete(task_cache_key)
+        return 0

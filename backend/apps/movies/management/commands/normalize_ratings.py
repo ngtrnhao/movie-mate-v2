@@ -98,9 +98,15 @@ class Command(BaseCommand):
         normalized = 0
         errors = 0
 
-        # Process in batches
-        for offset in range(0, query.count(), batch_size):
-            batch = query[offset:offset + batch_size]
+        # IMPORTANT: Materialize IDs before updating to avoid skipping rows
+        # Queryset size shrinks as we normalize, so offset-based paging can skip entries.
+        ids = list(query.values_list('id', flat=True))
+        total_ids = len(ids)
+
+        # Process in batches using stable ID list
+        for start in range(0, total_ids, batch_size):
+            batch_ids = ids[start:start + batch_size]
+            batch = MovieReview.objects.filter(id__in=batch_ids)
 
             with transaction.atomic():
                 for review in batch:
@@ -126,7 +132,7 @@ class Command(BaseCommand):
             # Progress update
             if processed % batch_size == 0:
                 self.stdout.write(
-                    f"Progress: {processed}/{query.count()} processed, "
+                    f"Progress: {processed}/{total_ids} processed, "
                     f"{normalized} normalized, {errors} errors"
                 )
 

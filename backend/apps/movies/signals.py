@@ -53,15 +53,15 @@ def trigger_recommendation_refresh_on_rating(sender, instance, created, **kwargs
         logger.info(f"🎯 Rating created by user {user_id} for movie {instance.movie.id} - triggering recommendation refresh")
 
         # Import task để tránh circular import
-        from apps.recommendations.tasks import refresh_demographic_recommendations_after_rating
+        from apps.recommendations.tasks import refresh_recommendations_after_rating
 
-        # Trigger task với delay nhỏ để tránh spam
-        task = refresh_demographic_recommendations_after_rating.apply_async(
+        # Trigger FULL recommendation refresh (demographic + collaborative + hybrid)
+        task = refresh_recommendations_after_rating.apply_async(
             args=[user_id, 'homepage', 20],
             countdown=30  # Delay 30 giây để tránh spam khi user rating nhiều phim
         )
 
-        logger.info(f"✅ Scheduled demographic recommendation refresh task {task.id} for user {user_id}")
+        logger.info(f"✅ Scheduled FULL recommendation refresh task {task.id} for user {user_id}")
 
     except Exception as e:
         logger.error(f"Error triggering recommendation refresh for user {instance.user.id}: {str(e)}")

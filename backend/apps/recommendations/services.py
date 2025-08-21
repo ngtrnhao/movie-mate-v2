@@ -157,6 +157,10 @@ class CollaborativeFilteringService:
         self.similarity_threshold = 0.1
         # TTL cache similarities
         self.cache_timeout = 3600 * 24 * 7
+        # Debug/Explanation context for the last similarity retrieval
+        self._last_similarity_source = None  # 'precomputed' | 'on_the_fly'
+        self._last_similarity_method = None  # e.g. 'pearson'
+        self._last_topk_limit = None         # int
 
     def calculate_user_similarity(self, user1, user2, method='pearson') -> float:
         """
@@ -284,6 +288,8 @@ class CollaborativeFilteringService:
             return cached_result
 
         try:
+            # record method used for explanation
+            self._last_similarity_method = method
             # Get user's ratings
             user_ratings = dict(MovieReview.objects.filter(
                 user=user,
@@ -313,6 +319,7 @@ class CollaborativeFilteringService:
             if len(precomputed_users) >= self.min_similar_users:
                 # Use precomputed similarities
                 similar_users = list(precomputed_users.values())
+                self._last_similarity_source = 'precomputed'
             else:
                 # Calculate similarities on-the-fly
                 # Pool ứng viên on‑the‑fly: user đã chấm ÍT NHẤT 1 phim user hiện tại đã chấm; cap 500
@@ -330,10 +337,13 @@ class CollaborativeFilteringService:
                     # Quality gate: chỉ giữ láng giềng có sim≥threshold
                     if similarity > self.similarity_threshold:
                         similar_users.append((other_user, similarity))
+                self._last_similarity_source = 'on_the_fly'
 
             # Sort by similarity score
             similar_users.sort(key=lambda x: x[1], reverse=True)
             result = similar_users[:limit]
+            # record K for explanation
+            self._last_topk_limit = limit
 
             # Cache result
             cache.set(cache_key, result, self.cache_timeout)
@@ -524,16 +534,33 @@ class CollaborativeFilteringService:
                     neighbors_used = pred_details.get('neighbors_used', 0)
                     avg_similarity = (sum(c.get('similarity', 0.0) for c in contributors) / neighbors_used) if neighbors_used else 0.0
                     # Top 5 contributors by similarity
-                    top_contributors = sorted(contributors, key=lambda c: c.get('similarity', 0.0), reverse=True)[:5]
-                    # Keep lightweight fields for top contributors
-                    top_contributors = [
-                        {
-                            'user_id': tc.get('user_id'),
+                    _top_contrib = sorted(contributors, key=lambda c: c.get('similarity', 0.0), reverse=True)[:5]
+                    # Enrich with similar_user_avg, delta and common_ratings_count
+                    try:
+                        top_ids = [tc.get('user_id') for tc in _top_contrib if tc.get('user_id')]
+                        user_map = {u.id: u for u in User.objects.filter(id__in=top_ids)}
+                    except Exception:
+                        user_map = {}
+
+                    top_contributors = []
+                    for tc in _top_contrib:
+                        uid = tc.get('user_id')
+                        common_count = 0
+                        try:
+                            other_user_obj = user_map.get(uid)
+                            if other_user_obj is not None:
+                                common_count = self._get_common_ratings_count(user, other_user_obj)
+                        except Exception:
+                            common_count = 0
+
+                        top_contributors.append({
+                            'user_id': uid,
                             'similarity': float(tc.get('similarity', 0.0)),
                             'rating': float(tc.get('rating', 0.0)),
-                        }
-                        for tc in top_contributors
-                    ]
+                            'similar_user_avg': float(tc.get('similar_user_avg', 0.0)) if tc.get('similar_user_avg') is not None else None,
+                            'delta': float(tc.get('delta', 0.0)) if tc.get('delta') is not None else None,
+                            'common_ratings_count': int(common_count),
+                        })
 
                     recommendations.append({
                         'movie': movie,
@@ -547,12 +574,20 @@ class CollaborativeFilteringService:
                             'average_weighted_rating': float(avg_score),
                             'avg_similarity': float(avg_similarity),
                             'user_avg': float(pred_details.get('user_avg', 0.0) or 0.0),
+                            'similarity_method': self._last_similarity_method or 'pearson',
+                            'neighbors_source': self._last_similarity_source or 'on_the_fly',
+                            'top_k_limit': int(self._last_topk_limit or limit),
+                            'quality_gates': {
+                                'min_common_ratings': int(self.min_common_ratings),
+                                'similarity_threshold': float(self.similarity_threshold),
+                            },
                             'prediction_components': {
                                 'weighted_delta_sum': float(pred_details.get('weighted_delta_sum', 0.0)),
                                 'similarity_sum_abs': float(pred_details.get('similarity_sum_abs', 0.0)),
                             },
                             'predicted_raw': float(pred_details.get('predicted_raw', predicted_rating or 0.0)) if pred_details.get('predicted_raw') is not None else None,
                             'top_contributors': top_contributors,
+                            'generated_at': timezone.now().isoformat(),
                         }
                     })
 
@@ -1765,7 +1800,7 @@ class EnhancedDemographicFilteringService:
                 return []
 
             # Get similar users from the same cluster
-            similar_users = self._get_similar_users_from_cluster(user, user_cluster, limit=20)
+            similar_users = self._get_similar_users_from_cluster(user, user_cluster, limit=100)
             if not similar_users:
                 logger.warning(f"No similar users found in cluster {user_cluster} for user {user.id}")
                 logger.info(f"Using cluster-based cold start logic for user {user.id}")
@@ -2092,7 +2127,7 @@ class EnhancedDemographicFilteringService:
             context=context
         ).order_by('-created_at')
 
-    def _get_similar_users_from_cluster(self, user, cluster, limit=20):
+    def _get_similar_users_from_cluster(self, user, cluster, limit=50):
         """
         Get similar users from the same demographic cluster
         FIXED: Theo lý thuyết Demographic Filtering - KHÔNG cần user mới có ratings

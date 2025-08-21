@@ -250,18 +250,35 @@ const MovieFormModal = ({ open, onClose, onSubmit, movie }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700">Thể loại *</label>
             <div className="mt-1 max-h-40 overflow-y-auto border border-gray-300 rounded p-2">
-              {genres.map(genre => (
-                <label key={genre.id} className="flex items-center space-x-2 py-1">
-                  <input
-                    type="checkbox"
-                    checked={selectedGenres.includes(genre.id)}
-                    onChange={() => handleGenreChange(genre.id)}
-                    disabled={isSubmitting}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                  <span className="text-sm text-gray-700">{genre.name}</span>
-                </label>
-              ))}
+              {/* Nhóm genres theo ngôn ngữ */}
+              {(() => {
+                const genresByLanguage = genres.reduce((acc, genre) => {
+                  const lang = genre.language || 'en';
+                  if (!acc[lang]) acc[lang] = [];
+                  acc[lang].push(genre);
+                  return acc;
+                }, {});
+
+                return Object.entries(genresByLanguage).map(([lang, langGenres]) => (
+                  <div key={lang} className="mb-3">
+                    <div className="text-xs font-medium text-gray-500 mb-2 uppercase">
+                      {lang === 'vi' ? 'Tiếng Việt' : 'English'}
+                    </div>
+                    {langGenres.map(genre => (
+                      <label key={genre.id} className="flex items-center space-x-2 py-1 ml-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedGenres.includes(genre.id)}
+                          onChange={() => handleGenreChange(genre.id)}
+                          disabled={isSubmitting}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <span className="text-sm text-gray-700">{genre.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                ));
+              })()}
             </div>
             {errors.genres && <div className="text-red-500 text-xs mt-1">{errors.genres}</div>}
           </div>

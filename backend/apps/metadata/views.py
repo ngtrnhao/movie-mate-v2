@@ -69,22 +69,40 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
         try:
             # Sử dụng raw SQL để đạt hiệu năng tối đa
             with connection.cursor() as cursor:
-                sql = """
-                SELECT
-                    g.id,
-                    g.name,
-                    g.slug,
-                    g.description,
-                    g.language,
-                    gs.movie_count as count,
-                    gs.latest_movie_data as latest_movie
-                FROM metadata_genre g
-                INNER JOIN metadata_genre_summary gs ON g.id = gs.genre_id
-                WHERE gs.language = %s AND gs.movie_count > 0
-                ORDER BY g.name
-                """
-
-                cursor.execute(sql, [language])
+                if language == 'all':
+                    # Lấy tất cả genres cho admin
+                    sql = """
+                    SELECT
+                        g.id,
+                        g.name,
+                        g.slug,
+                        g.description,
+                        g.language,
+                        gs.movie_count as count,
+                        gs.latest_movie_data as latest_movie
+                    FROM metadata_genre g
+                    INNER JOIN metadata_genre_summary gs ON g.id = gs.genre_id
+                    WHERE gs.movie_count > 0
+                    ORDER BY g.language, g.name
+                    """
+                    cursor.execute(sql)
+                else:
+                    # Lấy genres theo ngôn ngữ cụ thể
+                    sql = """
+                    SELECT
+                        g.id,
+                        g.name,
+                        g.slug,
+                        g.description,
+                        g.language,
+                        gs.movie_count as count,
+                        gs.latest_movie_data as latest_movie
+                    FROM metadata_genre g
+                    INNER JOIN metadata_genre_summary gs ON g.id = gs.genre_id
+                    WHERE gs.language = %s AND gs.movie_count > 0
+                    ORDER BY g.name
+                    """
+                    cursor.execute(sql, [language])
                 columns = [col[0] for col in cursor.description]
                 results = []
 
@@ -105,39 +123,71 @@ class GenreViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
         Fallback: Sử dụng Raw SQL để đạt hiệu năng cực cao khi summary table không có sẵn
         """
         with connection.cursor() as cursor:
-            # Raw SQL tối ưu với JOIN và subquery
-            sql = """
-            SELECT
-                g.id,
-                g.name,
-                g.slug,
-                g.description,
-                g.language,
-                COUNT(mg.movie_id) as count,
-                (
-                    SELECT json_build_object(
-                        'id', m.id,
-                        'title', m.title,
-                        'poster_url', m.poster_url,
-                        'release_date', m.release_date
-                    )
-                    FROM movies_movie m
-                    INNER JOIN movies_movie_genres mg2 ON m.id = mg2.movie_id
-                    WHERE mg2.genre_id = g.id
-                    AND m.poster_url IS NOT NULL
-                    AND m.poster_url != ''
-                    ORDER BY m.release_date DESC
-                    LIMIT 1
-                ) as latest_movie
-            FROM metadata_genre g
-            INNER JOIN movies_movie_genres mg ON g.id = mg.genre_id
-            WHERE g.language = %s
-            GROUP BY g.id, g.name, g.slug, g.description, g.language
-            HAVING COUNT(mg.movie_id) > 0
-            ORDER BY g.name
-            """
-
-            cursor.execute(sql, [language])
+            if language == 'all':
+                # Raw SQL tối ưu với JOIN và subquery - lấy tất cả ngôn ngữ
+                sql = """
+                SELECT
+                    g.id,
+                    g.name,
+                    g.slug,
+                    g.description,
+                    g.language,
+                    COUNT(mg.movie_id) as count,
+                    (
+                        SELECT json_build_object(
+                            'id', m.id,
+                            'title', m.title,
+                            'poster_url', m.poster_url,
+                            'release_date', m.release_date
+                        )
+                        FROM movies_movie m
+                        INNER JOIN movies_movie_genres mg2 ON m.id = mg2.movie_id
+                        WHERE mg2.genre_id = g.id
+                        AND m.poster_url IS NOT NULL
+                        AND m.poster_url != ''
+                        ORDER BY m.release_date DESC
+                        LIMIT 1
+                    ) as latest_movie
+                FROM metadata_genre g
+                INNER JOIN movies_movie_genres mg ON g.id = mg.genre_id
+                GROUP BY g.id, g.name, g.slug, g.description, g.language
+                HAVING COUNT(mg.movie_id) > 0
+                ORDER BY g.language, g.name
+                """
+                cursor.execute(sql)
+            else:
+                # Raw SQL tối ưu với JOIN và subquery - lấy theo ngôn ngữ cụ thể
+                sql = """
+                SELECT
+                    g.id,
+                    g.name,
+                    g.slug,
+                    g.description,
+                    g.language,
+                    COUNT(mg.movie_id) as count,
+                    (
+                        SELECT json_build_object(
+                            'id', m.id,
+                            'title', m.title,
+                            'poster_url', m.poster_url,
+                            'release_date', m.release_date
+                        )
+                        FROM movies_movie m
+                        INNER JOIN movies_movie_genres mg2 ON m.id = mg2.movie_id
+                        WHERE mg2.genre_id = g.id
+                        AND m.poster_url IS NOT NULL
+                        AND m.poster_url != ''
+                        ORDER BY m.release_date DESC
+                        LIMIT 1
+                    ) as latest_movie
+                FROM metadata_genre g
+                INNER JOIN movies_movie_genres mg ON g.id = mg.genre_id
+                WHERE g.language = %s
+                GROUP BY g.id, g.name, g.slug, g.description, g.language
+                HAVING COUNT(mg.movie_id) > 0
+                ORDER BY g.name
+                """
+                cursor.execute(sql, [language])
             columns = [col[0] for col in cursor.description]
             results = []
 

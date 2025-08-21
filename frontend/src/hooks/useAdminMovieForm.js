@@ -18,14 +18,11 @@ const defaultQueryOptions = {
   retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
 };
 
-// Hook để fetch genres cho admin form
+// Hook để fetch genres cho admin form - lấy tất cả ngôn ngữ
 export const useAdminGenres = (options = {}) => {
-  const { i18n } = useTranslation();
-  const language = i18n.language === 'vi' ? 'vi' : 'en';
-
   return useQuery({
-    queryKey: ['admin-genres', language],
-    queryFn: () => getGenresForAdmin(language),
+    queryKey: ['admin-genres-all'],
+    queryFn: () => getGenresForAdmin(),
     ...defaultQueryOptions,
     ...options,
   });

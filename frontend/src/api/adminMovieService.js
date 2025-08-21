@@ -798,10 +798,11 @@ export default {
   clearAdminMovieCache,
 };
 
-// Fetch genres for admin movie form
-export const getGenresForAdmin = async (language = 'en') => {
+// Fetch genres for admin movie form - lấy tất cả ngôn ngữ
+export const getGenresForAdmin = async () => {
   try {
-    const response = await axiosInstance.get(`/api/metadata/categories/?language=${language}`);
+    // Lấy tất cả genres cho admin (không filter theo language)
+    const response = await axiosInstance.get('/api/metadata/categories/?language=all');
     if (response.data.status !== 'success') {
       throw new Error(response.data.message || 'Failed to fetch genres');
     }

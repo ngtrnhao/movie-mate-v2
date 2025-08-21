@@ -24,9 +24,9 @@ class ProductionMetricsService:
         'freshness': 0.10       # Recent activity
     }
 
-    # Score calculation constants
-    VIEW_SCORE_THRESHOLD = 10000  # Views needed for max view score
-    ENGAGEMENT_SCORE_THRESHOLD = 100  # Engagements for max score
+    # Score calculation constants - ADJUSTED for real data scale
+    VIEW_SCORE_THRESHOLD = 500   # Views needed for max view score (adjusted from 10000)
+    ENGAGEMENT_SCORE_THRESHOLD = 20  # Engagements for max score (adjusted from 100)
 
     def __init__(self):
         self.calculation_version = "2.0"  # Updated to reflect UserInteraction integration

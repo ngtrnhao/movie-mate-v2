@@ -678,9 +678,12 @@ const MovieManagement = () => {
     try {
       await createAdminMovie(movieData);
       setShowMovieForm(false);
-      fetchMovies();
+      await fetchMovies();
+      // Không cần throw error vì MovieFormModal sẽ xử lý success toast
     } catch (error) {
-      alert(error.error || 'Không thể tạo phim mới');
+      console.error('Error creating movie:', error);
+      // Throw error để MovieFormModal xử lý error toast
+      throw error;
     }
   };
 
@@ -690,9 +693,12 @@ const MovieManagement = () => {
       await updateAdminMovie(movieId, movieData);
       setShowMovieForm(false);
       setEditMovie(null);
-      fetchMovies();
+      await fetchMovies();
+      // Không cần throw error vì MovieFormModal sẽ xử lý success toast
     } catch (error) {
-      alert(error.error || 'Không thể cập nhật phim');
+      console.error('Error updating movie:', error);
+      // Throw error để MovieFormModal xử lý error toast
+      throw error;
     }
   };
 

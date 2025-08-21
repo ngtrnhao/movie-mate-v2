@@ -50,6 +50,10 @@
   },
   "page": {
     "title": "Cài đặt hồ sơ",
+    "completion": {
+      "title": "Mức độ hoàn thiện hồ sơ",
+      "complete": "Hoàn thành"
+    },
     "sections": {
       "completion": "Mức độ hoàn thiện hồ sơ",
       "personal": "Thông tin cá nhân",
@@ -67,6 +71,10 @@
       "bio": "Giới thiệu"
     },
     "placeholders": {
+      "first_name": "Nhập tên của bạn",
+      "last_name": "Nhập họ của bạn",
+      "gender": "Chọn giới tính",
+      "occupation": "Chọn nghề nghiệp",
       "bio": "Hãy giới thiệu ngắn về bản thân...",
       "location": "vd: Hà Nội, Việt Nam",
       "zip_code": "vd: 10001"
@@ -103,14 +111,14 @@
   },
   "toasts": {
     "load_failed": "Không thể tải dữ liệu hồ sơ",
-    "location_detect_success": "Đã phát hiện vị trí thành công!",
-    "location_detect_failed": "Không thể tự động phát hiện vị trí",
+    "location_detected": "Đã phát hiện vị trí thành công!",
+    "location_detection_failed": "Không thể tự động phát hiện vị trí",
     "complete_required_for_recs": "Hãy hoàn thiện các trường bắt buộc để nhận gợi ý cá nhân hóa",
     "complete_success": "Hoàn tất hồ sơ thành công!",
     "update_failed": "Cập nhật hồ sơ thất bại",
     "update_success": "Cập nhật hồ sơ thành công!",
-    "avatar_success": "Cập nhật ảnh đại diện thành công!",
-    "avatar_failed": "Tải ảnh đại diện thất bại"
+    "avatar_upload_success": "Tải ảnh đại diện thành công!",
+    "avatar_upload_failed": "Tải ảnh đại diện thất bại"
   },
   "options": {
     "gender": {

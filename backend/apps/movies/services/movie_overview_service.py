@@ -29,6 +29,9 @@ class MovieOverviewService:
         if "en" not in overviews:
             overviews["en"] = None
 
+        # Log what we got for debugging
+        logger.info(f"Overview for {imdb_id}: EN={bool(overviews.get('en'))}, VI={bool(overviews.get('vi'))}")
+
         # Comment out IMDB usage as API token is expired
         # if not all(lang in overviews for lang in ["vi", "en"]):
         #     try:

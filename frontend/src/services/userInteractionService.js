@@ -100,7 +100,6 @@ class UserInteractionService {
       action: action,
       session_id: this.sessionId,
       timestamp: Date.now(),
-      duration_seconds: metadata.duration_seconds || null, // ✅ Add duration_seconds
       metadata: {
         ...metadata,
         page_url: window.location.href,
@@ -108,8 +107,15 @@ class UserInteractionService {
         user_agent: navigator.userAgent,
         screen_resolution: `${window.screen.width}x${window.screen.height}`,
         viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+        duration_seconds: metadata.duration_seconds || null, // ✅ Move to metadata
       },
     };
+
+    console.log('🔍 [trackInteraction] Debug:', {
+      original_duration: metadata.duration_seconds,
+      final_duration: interaction.metadata.duration_seconds,
+      metadata_keys: Object.keys(metadata),
+    });
 
     // Add user ID if available
     const user = this.getCurrentUser();
@@ -121,7 +127,10 @@ class UserInteractionService {
     this.recordInteractionForDeduplication(movieId, action);
 
     this.queue.push(interaction);
-    console.log(`✅ Tracked interaction: ${action} for movie ${movieId}`);
+    console.log(`✅ Tracked interaction: ${action} for movie ${movieId}`, {
+      duration_seconds: interaction.metadata.duration_seconds,
+      has_duration: !!interaction.metadata.duration_seconds,
+    });
 
     // Flush if queue is full
     if (this.queue.length >= this.batchSize) {
@@ -231,7 +240,17 @@ class UserInteractionService {
    * @param {object} metadata - Additional metadata
    */
   trackTrailerView(movieId, metadata = {}) {
-    this.trackInteraction(movieId, 'trailer_view', {
+    // Use action from metadata if provided, otherwise default to 'trailer_view'
+    const action = metadata.action || 'trailer_view';
+
+    console.log('🔍 [trackTrailerView] Debug:', {
+      movieId,
+      action,
+      metadata,
+      duration_seconds: metadata.duration_seconds,
+    });
+
+    this.trackInteraction(movieId, action, {
       ...metadata,
       interaction_type: 'trailer_modal',
     });

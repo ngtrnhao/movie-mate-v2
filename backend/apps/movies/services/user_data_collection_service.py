@@ -205,6 +205,9 @@ class UserDataCollectionService:
             interaction_type = metadata.get('interaction_type', '')
             duration_seconds = metadata.get('duration_seconds')
 
+            # Debug logging for duration
+            logger.info(f"🔍 Duration debug - movie_id: {movie_id}, action: {action}, duration_seconds: {duration_seconds}, metadata: {metadata}")
+
             # Check if this is unique session interaction
             is_unique_session = not UserInteraction.objects.filter(
                 movie=movie,

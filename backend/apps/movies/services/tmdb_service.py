@@ -120,38 +120,32 @@ class TMDBService:
 
         tmdb_id = find_result["movie_results"][0]["id"]
 
-        # Get Vietnamese overview first
+        # Always get both Vietnamese and English overviews
         vi_details = cls._make_request(
             f"/movie/{tmdb_id}",
             params={"language": "vi-VN"},
             use_cache=use_cache
         )
 
-        if vi_details:
-            if "overview" in vi_details and vi_details["overview"]:
-                overviews["vi"] = vi_details["overview"]
-            else:
-                # If no Vietnamese overview, try English
-                en_details = cls._make_request(
-                    f"/movie/{tmdb_id}",
-                    params={"language": "en-US"},
-                    use_cache=use_cache
-                )
-                if en_details and "overview" in en_details:
-                    overviews["en"] = en_details["overview"]
-                    # Use English as fallback for Vietnamese
-                    overviews["vi"] = en_details["overview"]
-        else:
-            # If Vietnamese request failed, try English
-            en_details = cls._make_request(
-                f"/movie/{tmdb_id}",
-                params={"language": "en-US"},
-                use_cache=use_cache
-            )
-            if en_details and "overview" in en_details:
-                overviews["en"] = en_details["overview"]
-                # Use English as fallback for Vietnamese
-                overviews["vi"] = en_details["overview"]
+        en_details = cls._make_request(
+            f"/movie/{tmdb_id}",
+            params={"language": "en-US"},
+            use_cache=use_cache
+        )
+
+        # Extract Vietnamese overview
+        if vi_details and "overview" in vi_details and vi_details["overview"]:
+            overviews["vi"] = vi_details["overview"]
+        elif en_details and "overview" in en_details and en_details["overview"]:
+            # Use English as fallback for Vietnamese if Vietnamese is empty
+            overviews["vi"] = en_details["overview"]
+
+        # Extract English overview
+        if en_details and "overview" in en_details and en_details["overview"]:
+            overviews["en"] = en_details["overview"]
+        elif vi_details and "overview" in vi_details and vi_details["overview"]:
+            # Use Vietnamese as fallback for English if English is empty
+            overviews["en"] = vi_details["overview"]
 
         return overviews
 

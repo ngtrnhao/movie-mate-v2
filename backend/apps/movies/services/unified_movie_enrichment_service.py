@@ -534,13 +534,20 @@ class UnifiedMovieEnrichmentService:
             titles = title_data.get('title', {})
 
             updated_fields = []
+
+            # Always try to update both languages if we have data
             if titles.get('en') and titles['en'] != movie.title_en:
                 movie.title_en = titles['en']
                 updated_fields.append('title_en')
+                logger.info(f"Updated EN title for movie {movie.id}: {titles['en']}")
 
             if titles.get('vi') and titles['vi'] != movie.title_vi:
                 movie.title_vi = titles['vi']
                 updated_fields.append('title_vi')
+                logger.info(f"Updated VI title for movie {movie.id}: {titles['vi']}")
+
+            # Log what we got vs what we had
+            logger.info(f"Movie {movie.id} titles - EN: {titles.get('en')} vs {movie.title_en}, VI: {titles.get('vi')} vs {movie.title_vi}")
 
             if updated_fields:
                 movie.save(update_fields=updated_fields + ['updated_at'])
@@ -565,13 +572,20 @@ class UnifiedMovieEnrichmentService:
             overviews = self.overview_service.get_movie_overview(movie.imdb_id)
 
             updated_fields = []
+
+            # Always try to update both languages if we have data
             if overviews.get('en') and overviews['en'] != movie.overview_en:
                 movie.overview_en = overviews['en']
                 updated_fields.append('overview_en')
+                logger.info(f"Updated EN overview for movie {movie.id}")
 
             if overviews.get('vi') and overviews['vi'] != movie.overview_vi:
                 movie.overview_vi = overviews['vi']
                 updated_fields.append('overview_vi')
+                logger.info(f"Updated VI overview for movie {movie.id}")
+
+            # Log what we got vs what we had
+            logger.info(f"Movie {movie.id} overviews - EN: {bool(overviews.get('en'))} vs {bool(movie.overview_en)}, VI: {bool(overviews.get('vi'))} vs {bool(movie.overview_vi)}")
 
             if updated_fields:
                 movie.save(update_fields=updated_fields + ['updated_at'])
@@ -692,11 +706,21 @@ class UnifiedMovieEnrichmentService:
             genres = title_genre_data.get('genres', {})
 
             if genres:
+                # Log what we got
+                logger.info(f"Movie {movie.id} genres - EN: {genres.get('en', [])}, VI: {genres.get('vi', [])}")
+
                 success = movie.update_genres(genres)
                 if success:
+                    # Get updated genres to show what was actually added
+                    updated_genres = list(movie.genres.values_list('name', 'language'))
+                    en_genres = [name for name, lang in updated_genres if lang == 'en']
+                    vi_genres = [name for name, lang in updated_genres if lang == 'vi']
+
+                    logger.info(f"Updated genres for movie {movie.id}: EN={en_genres}, VI={vi_genres}")
+
                     return {
                         'success': True,
-                        'message': f'Updated genres: {len(genres.get("en", []))} EN, {len(genres.get("vi", []))} VI'
+                        'message': f'Updated genres: {len(en_genres)} EN, {len(vi_genres)} VI'
                     }
 
             return {'success': False, 'message': 'No new genre data available'}

@@ -741,6 +741,10 @@ class MovieDocument(Document):
         """Prepare title field"""
         return instance.title_en or instance.title_vi or instance.title or ""
 
+    def prepare_original_title(self, instance):
+        """Prepare original_title field"""
+        return instance.original_title or ""
+
     def prepare_title_vi_no_diacritic(self, instance):
         """Chuẩn hóa title_vi thành không dấu để index cho trường title_vi_no_diacritic"""
         import unicodedata

@@ -49,6 +49,10 @@
   },
   "page": {
     "title": "Profile Settings",
+    "completion": {
+      "title": "Profile Completion",
+      "complete": "Complete"
+    },
     "sections": {
       "completion": "Profile Completion",
       "personal": "Personal Information",
@@ -66,6 +70,10 @@
       "bio": "Bio"
     },
     "placeholders": {
+      "first_name": "Enter your first name",
+      "last_name": "Enter your last name",
+      "gender": "Select your gender",
+      "occupation": "Select your occupation",
       "bio": "Tell us a bit about yourself...",
       "location": "e.g., New York, NY, USA",
       "zip_code": "e.g., 10001"
@@ -102,14 +110,14 @@
   },
   "toasts": {
     "load_failed": "Failed to load profile data",
-    "location_detect_success": "Location detected successfully!",
-    "location_detect_failed": "Could not detect location automatically",
+    "location_detected": "Location detected successfully!",
+    "location_detection_failed": "Could not detect location automatically",
     "complete_required_for_recs": "Please complete all required fields for personalized recommendations",
     "complete_success": "Profile completed successfully!",
     "update_failed": "Failed to update profile",
     "update_success": "Profile updated successfully!",
-    "avatar_success": "Avatar updated successfully!",
-    "avatar_failed": "Failed to upload avatar"
+    "avatar_upload_success": "Avatar uploaded successfully!",
+    "avatar_upload_failed": "Failed to upload avatar"
   },
   "options": {
     "gender": {

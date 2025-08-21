@@ -26,6 +26,16 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
       watchTimer.current = setInterval(() => {
         const elapsed = Date.now() - start;
         setWatchedDuration(elapsed);
+
+        // Track progress milestones (30s, 60s, 90s)
+        const elapsedSeconds = Math.floor(elapsed / 1000);
+        if (elapsedSeconds === 30 || elapsedSeconds === 60 || elapsedSeconds === 90) {
+          trackTrailerView(movie.id, {
+            action: 'trailer_progress',
+            duration_seconds: elapsedSeconds,
+            progress_milestone: elapsedSeconds,
+          });
+        }
       }, 1000);
 
       // Track trailer view start - only once when modal opens
@@ -33,6 +43,7 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
         action: 'trailer_start',
         timestamp: start,
         url: trailerUrl,
+        // Không cần duration_seconds cho trailer_start vì chưa xem gì cả
       });
 
       return () => {
@@ -58,12 +69,14 @@ const MovieTrailerModal = ({ isOpen, onClose, movie, trailerUrl }) => {
           });
         }
 
-        // Always track end event
-        trackTrailerView(movie.id, {
-          action: 'trailer_end',
-          duration: watchedDuration,
-          completion_percentage: completionPercentage,
-        });
+        // Always track end event with actual duration
+        if (watchedDuration > 0) {
+          trackTrailerView(movie.id, {
+            action: 'trailer_end',
+            duration_seconds: Math.floor(watchedDuration / 1000), // ✅ Convert to seconds
+            completion_percentage: completionPercentage,
+          });
+        }
       }
     };
   }, [movie, startTime, watchedDuration, trackTrailerView]);

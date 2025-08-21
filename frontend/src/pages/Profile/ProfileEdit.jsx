@@ -1,35 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Container,
-  Paper,
-  Typography,
-  Box,
-  Grid,
-  TextField,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Avatar,
-  IconButton,
-  LinearProgress,
-  Alert,
-  Card,
-  CardContent,
-  Chip,
-  Divider,
-  CircularProgress,
-} from '@mui/material';
-import {
-  Edit as EditIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-  LocationOn as LocationIcon,
-  PhotoCamera as PhotoCameraIcon,
-  Person as PersonIcon,
-  Work as WorkIcon,
-} from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
 import { updateUser } from '../../store/slices/authSlice';
@@ -50,6 +19,7 @@ const ProfileEdit = () => {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [error, setError] = useState(null);
   const [choices, setChoices] = useState({});
   const [userData, setUserData] = useState(null);
 
@@ -66,6 +36,54 @@ const ProfileEdit = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  // Common input field classes for dark theme
+  const inputClasses = {
+    base: 'w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors',
+    disabled:
+      'w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-white placeholder-gray-400 opacity-90 cursor-not-allowed',
+    label: 'block text-sm font-medium text-gray-300 mb-1',
+    labelDisabled: 'block text-sm font-medium text-gray-400 mb-1 opacity-90',
+    error: 'text-red-400 text-xs mt-1',
+    helper: 'text-gray-400 text-xs mt-1',
+  };
+
+  // Safety check for translation function
+  const safeT = (key, defaultValue = '') => {
+    try {
+      return t(key) || defaultValue;
+    } catch (error) {
+      console.warn(`Translation key not found: ${key}`, error);
+      return defaultValue;
+    }
+  };
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch both user data and choices
+      const [userDataResponse, choicesData] = await Promise.all([
+        getCurrentUserProfileAPI(),
+        getProfileChoicesAPI(),
+      ]);
+
+      if (userDataResponse.status === 'success') {
+        setUserData(userDataResponse.data);
+      }
+
+      if (choicesData.status === 'success') {
+        setChoices(choicesData.data);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setError(t('toasts.load_failed'));
+      toast.error(t('toasts.load_failed'));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
 
   // Load initial data
   useEffect(() => {
@@ -91,37 +109,6 @@ const ProfileEdit = () => {
     }
   }, [userData]);
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      // Fetch both user data and choices
-      const [userDataResponse, choicesData] = await Promise.all([
-        getCurrentUserProfileAPI(),
-        getProfileChoicesAPI(),
-      ]);
-
-      if (userDataResponse.status === 'success') {
-        setUserData(userDataResponse.data);
-      }
-
-      if (choicesData.status === 'success') {
-        setChoices(choicesData.data);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-      toast.error(t('toasts.load_failed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    if (currentUser?.id) {
-      loadData();
-    }
-  }, [currentUser?.id, loadData]);
-
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -146,16 +133,6 @@ const ProfileEdit = () => {
     if (!formData.last_name.trim()) {
       newErrors.last_name = t('errors.last_name_required_basic');
     }
-    if (formData.birth_date) {
-      const birthDate = new Date(formData.birth_date);
-      const today = new Date();
-      const age = today.getFullYear() - birthDate.getFullYear();
-      if (age < 13) {
-        newErrors.birth_date = t('errors.age_min_13');
-      } else if (age > 120) {
-        newErrors.birth_date = t('errors.age_max_120');
-      }
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -166,32 +143,29 @@ const ProfileEdit = () => {
       return;
     }
 
-    setLoading(true);
     try {
-      const result = await updateCurrentUserProfileAPI(formData);
+      setLoading(true);
+      const response = await updateCurrentUserProfileAPI(formData);
 
-      if (result.status === 'success') {
+      if (response.status === 'success') {
         // Update Redux store
-        dispatch(updateUser(result.data));
-
+        dispatch(updateUser(response.data));
         toast.success(t('toasts.update_success'));
         setEditMode(false);
+        setErrors({});
+      } else {
+        toast.error(response.message || t('toasts.update_failed'));
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-
-      if (error.errors) {
-        setErrors(error.errors);
-      } else {
-        toast.error(error.message || t('toasts.update_failed'));
-      }
+      toast.error(t('toasts.update_failed'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    // Reset form to original user data
+    // Reset form to original data
     if (userData) {
       setFormData({
         first_name: userData.first_name || '',
@@ -209,731 +183,460 @@ const ProfileEdit = () => {
     setEditMode(false);
   };
 
-  const handleAutoDetectLocation = async () => {
-    setLoadingLocation(true);
-    try {
-      const result = await autoDetectLocationAPI();
+  const handleAvatarUpload = async event => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-      if (result.status === 'success') {
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await uploadAvatarAPI(formData);
+      if (response.status === 'success') {
         setFormData(prev => ({
           ...prev,
-          location: result.data.location || prev.location,
-          zip_code: result.data.zip_code || prev.zip_code,
+          avatar_url: response.data.avatar_url,
         }));
-        toast.success('Location detected successfully!');
+        toast.success(t('toasts.avatar_upload_success'));
+      }
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error(t('toasts.avatar_upload_failed'));
+    }
+  };
+
+  const handleAutoDetectLocation = async () => {
+    try {
+      setLoadingLocation(true);
+      const response = await autoDetectLocationAPI();
+      if (response.status === 'success') {
+        setFormData(prev => ({
+          ...prev,
+          location: response.data.location || '',
+          zip_code: response.data.zip_code || '',
+        }));
+        toast.success(t('toasts.location_detected'));
       }
     } catch (error) {
       console.error('Error detecting location:', error);
-      toast.error('Could not detect location automatically');
+      toast.error(t('toasts.location_detection_failed'));
     } finally {
       setLoadingLocation(false);
     }
   };
 
-  const handleAvatarUpload = async event => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('avatar', file);
-
-    setLoading(true);
-    try {
-      const result = await uploadAvatarAPI(currentUser.id, formData);
-
-      if (result.status === 'success') {
-        dispatch(updateUser({ avatarUrl: result.data.avatar_url }));
-        setFormData(prev => ({ ...prev, avatar_url: result.data.avatar_url }));
-        toast.success(t('toasts.avatar_success'));
-      }
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast.error(t('toasts.avatar_failed'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getCompletionPercentage = () => {
+  // Calculate completion percentage
+  const completionPercentage = useCallback(() => {
     if (!userData) return 0;
-    return userData.profile_completion_percentage || 0;
-  };
 
-  const getMissingFields = () => {
-    const missing = [];
-    if (!formData.birth_date) missing.push(t('page.labels.birth_date'));
-    if (!formData.gender) missing.push(t('page.labels.gender'));
-    if (!formData.occupation) missing.push(t('page.labels.occupation'));
-    if (!formData.location) missing.push(t('page.labels.location'));
-    if (!formData.bio) missing.push(t('page.labels.bio'));
-    return missing;
-  };
+    const fields = [
+      'first_name',
+      'last_name',
+      'birth_date',
+      'gender',
+      'occupation',
+      'location',
+      'zip_code',
+      'bio',
+    ];
+
+    const filledFields = fields.filter(
+      field => userData[field] && userData[field].toString().trim()
+    );
+    return Math.round((filledFields.length / fields.length) * 100);
+  }, [userData]);
+
+  if (loading && !userData) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      {/* Profile Completion Status */}
-      <Card sx={{ mb: 3, background: '#1f2937', color: '#fff', borderRadius: 3, boxShadow: 6 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <PersonIcon sx={{ color: '#ef4444' }} />
-            <Typography variant="h6" sx={{ color: '#ef4444', fontWeight: 700 }}>
-              {t('page.sections.completion')}
-            </Typography>
-            <Chip
-              label={`${getCompletionPercentage()}%`}
-              sx={{
-                color: getCompletionPercentage() === 100 ? '#22c55e' : '#ef4444',
-                borderColor: getCompletionPercentage() === 100 ? '#22c55e' : '#ef4444',
-                background: 'transparent',
-                fontWeight: 700,
-              }}
-              variant="outlined"
-            />
-          </Box>
-          <LinearProgress
-            variant="determinate"
-            value={getCompletionPercentage()}
-            sx={{
-              mb: 2,
-              height: 8,
-              borderRadius: 4,
-              background: '#374151',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: '#ef4444',
-              },
-            }}
-          />
-          {getMissingFields().length > 0 && (
-            <Alert
-              severity="info"
-              sx={{
-                mt: 2,
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: '#f3f4f6',
-                border: '1px solid #ef4444',
-                '& .MuiAlert-icon': {
-                  color: '#ef4444',
-                },
-              }}
-            >
-              <Typography variant="body2" sx={{ color: '#f3f4f6' }}>
-                <strong style={{ color: '#ef4444' }}>{t('page.tips.improve_title')}:</strong>{' '}
-                {t('page.tips.complete_prefix')}{' '}
-                <span style={{ color: '#fbbf24' }}>{getMissingFields().join(', ')}</span>
-              </Typography>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-      {/* Main Profile Form */}
-      <Paper elevation={3} sx={{ p: 4, background: '#111827', color: '#fff', borderRadius: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
-          <Typography variant="h4" component="h1" sx={{ color: '#ef4444', fontWeight: 700 }}>
-            {t('page.title')}
-          </Typography>
-          {!editMode ? (
-            <Button
-              variant="contained"
-              startIcon={<EditIcon />}
-              onClick={() => setEditMode(true)}
-              sx={{
-                background: '#ef4444',
-                color: '#fff',
-                fontWeight: 700,
-                borderRadius: 2,
-                boxShadow: 3,
-                '&:hover': { background: '#dc2626' },
-              }}
-            >
-              {t('page.buttons.edit')}
-            </Button>
-          ) : (
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="outlined"
-                startIcon={<CancelIcon />}
-                onClick={handleCancel}
-                disabled={loading}
-                sx={{
-                  color: '#fff',
-                  borderColor: '#6b7280',
-                  background: 'rgba(55,65,81,0.5)',
-                  '&:hover': { background: '#374151', borderColor: '#ef4444', color: '#ef4444' },
-                  borderRadius: 2,
-                }}
+    <div className="min-h-screen bg-slate-950 py-8">
+      <div className="container mx-auto px-4 max-w-4xl">
+        {/* Profile Completion Status */}
+        <div className="mb-6 bg-slate-800 rounded-lg shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <h3 className="text-xl font-bold text-red-500">{t('page.completion.title')}</h3>
+          </div>
+          <div
+            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${
+              completionPercentage() === 100
+                ? 'bg-green-500 text-white'
+                : 'bg-yellow-500 text-white'
+            }`}
+          >
+            {completionPercentage()}% {t('page.completion.complete')}
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div className="bg-red-500 h-2 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="mb-6 bg-red-900 border border-red-500 rounded-lg p-4">
+            <p className="text-red-200">{error}</p>
+          </div>
+        )}
+
+        {/* Main Profile Form */}
+        <div className="bg-slate-900 rounded-lg shadow-lg p-8">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-red-500">{t('page.title')}</h1>
+            {!editMode ? (
+              <button
+                onClick={() => setEditMode(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors shadow-lg"
               >
-                {t('page.buttons.cancel')}
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={loading ? <CircularProgress size={16} /> : <SaveIcon />}
-                onClick={handleSave}
-                disabled={loading}
-                sx={{
-                  background: '#ef4444',
-                  color: '#fff',
-                  fontWeight: 700,
-                  borderRadius: 2,
-                  boxShadow: 3,
-                  '&:hover': { background: '#dc2626' },
-                }}
-              >
-                {loading ? t('page.buttons.saving') : t('page.buttons.save')}
-              </Button>
-            </Box>
-          )}
-        </Box>
-        <Grid container spacing={4}>
-          {/* Avatar Section */}
-          <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ position: 'relative' }}>
-                <Avatar
-                  src={formData.avatar_url}
-                  sx={{
-                    width: 150,
-                    height: 150,
-                    bgcolor: '#374151',
-                    color: '#00000',
-                    fontSize: 48,
-                    border: '3px solid #ef4444',
-                  }}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+                {safeT('page.buttons.edit', 'Edit Profile')}
+              </button>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancel}
+                  disabled={loading}
+                  className="px-6 py-3 border border-gray-600 text-white font-bold rounded-lg hover:bg-gray-700 hover:border-red-500 hover:text-red-500 transition-colors disabled:opacity-50"
                 >
-                  {formData.first_name?.charAt(0) || formData.last_name?.charAt(0)}
-                </Avatar>
-                {editMode && (
-                  <IconButton
-                    component="label"
-                    sx={{
-                      position: 'absolute',
-                      bottom: 0,
-                      right: 0,
-                      bgcolor: '#ef4444',
-                      color: 'white',
-                      '&:hover': { bgcolor: '#dc2626' },
-                    }}
-                  >
-                    <PhotoCameraIcon />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarUpload}
-                      style={{ display: 'none' }}
-                    />
-                  </IconButton>
+                  {safeT('page.buttons.cancel', 'Cancel')}
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors shadow-lg disabled:opacity-50"
+                >
+                  {loading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
+                  {loading
+                    ? safeT('page.buttons.saving', 'Saving...')
+                    : safeT('page.buttons.save', 'Save Changes')}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Avatar Section */}
+            <div className="lg:col-span-1">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="w-32 h-32 bg-gray-700 rounded-full border-4 border-red-500 flex items-center justify-center text-4xl font-bold text-white">
+                    {formData.avatar_url ? (
+                      <img
+                        src={formData.avatar_url}
+                        alt="Avatar"
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      formData.first_name?.charAt(0) || formData.last_name?.charAt(0) || '?'
+                    )}
+                  </div>
+                  {editMode && (
+                    <label className="absolute bottom-0 right-0 bg-red-500 text-white p-2 rounded-full cursor-pointer hover:bg-red-600 transition-colors">
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+                <h2 className="text-xl font-bold text-white text-center">
+                  {formData.first_name} {formData.last_name}
+                </h2>
+                {formData.occupation && (
+                  <div className="flex items-center gap-2 px-3 py-1 border border-red-500 text-red-500 rounded-full text-sm font-bold">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z"
+                        clipRule="evenodd"
+                      />
+                      <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
+                    </svg>
+                    {choices.occupation_choices?.find(opt => opt.value === formData.occupation)
+                      ?.label || formData.occupation}
+                  </div>
                 )}
-              </Box>
-              <Typography variant="h6" textAlign="center" sx={{ color: '#fff', fontWeight: 700 }}>
-                {formData.first_name} {formData.last_name}
-              </Typography>
-              {formData.occupation && (
-                <Chip
-                  icon={<WorkIcon sx={{ color: '#ef4444' }} />}
-                  label={
-                    choices.occupation_choices?.find(opt => opt.value === formData.occupation)
-                      ?.label || formData.occupation
-                  }
-                  sx={{
-                    color: '#ef4444',
-                    borderColor: '#ef4444',
-                    background: 'transparent',
-                    fontWeight: 700,
-                  }}
-                  variant="outlined"
-                />
-              )}
-            </Box>
-          </Grid>
-          {/* Form Fields */}
-          <Grid item xs={12} md={8}>
-            <Grid container spacing={3}>
-              {/* Personal Information */}
-              <Grid item xs={12}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    mb: 2,
-                    color: '#ef4444',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
-                  <PersonIcon sx={{ color: '#ef4444' }} /> {t('page.sections.personal')}
-                </Typography>
-                <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('page.labels.first_name')}
-                  value={formData.first_name}
-                  onChange={e => handleInputChange('first_name', e.target.value)}
-                  error={!!errors.first_name}
-                  helperText={errors.first_name}
-                  disabled={!editMode}
-                  required
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      color: '#1f2937',
-                      background: '#ffffff',
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                        borderWidth: '2px',
-                      },
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#6b7280',
-                      borderWidth: '1px',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: '#f3f4f6',
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                      '&.Mui-focused': {
-                        color: '#ef4444',
-                        fontWeight: 700,
-                        textShadow: '0 1px 2px rgba(0,0,0,0.7)',
-                      },
-                    },
-                    '& .MuiFormHelperText-root': {
-                      color: '#d1d5db',
-                      fontSize: '0.875rem',
-                      '&.Mui-error': {
-                        color: '#f87171',
-                        fontWeight: 500,
-                      },
-                    },
-                    '& .MuiInputBase-input::placeholder': {
-                      color: '#4b5563',
-                      opacity: 1,
-                      fontWeight: 400,
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('page.labels.last_name')}
-                  value={formData.last_name}
-                  onChange={e => handleInputChange('last_name', e.target.value)}
-                  error={!!errors.last_name}
-                  helperText={errors.last_name}
-                  disabled={!editMode}
-                  required
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      color: '#1f2937',
-                      background: '#ffffff',
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                        borderWidth: '2px',
-                      },
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#6b7280',
-                      borderWidth: '1px',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: '#f3f4f6',
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                      '&.Mui-focused': {
-                        color: '#ef4444',
-                        fontWeight: 700,
-                        textShadow: '0 1px 2px rgba(0,0,0,0.7)',
-                      },
-                    },
-                    '& .MuiFormHelperText-root': {
-                      color: '#d1d5db',
-                      fontSize: '0.875rem',
-                      '&.Mui-error': {
-                        color: '#f87171',
-                        fontWeight: 500,
-                      },
-                    },
-                    '& .MuiInputBase-input::placeholder': {
-                      color: '#4b5563',
-                      opacity: 1,
-                      fontWeight: 400,
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('page.labels.birth_date')}
-                  type="date"
-                  value={formData.birth_date}
-                  onChange={e => handleInputChange('birth_date', e.target.value)}
-                  error={!!errors.birth_date}
-                  helperText={errors.birth_date || t('page.helper.birthdate_purpose')}
-                  InputLabelProps={{ shrink: true }}
-                  disabled={!editMode}
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      color: '#1f2937',
-                      background: '#ffffff',
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                        borderWidth: '2px',
-                      },
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#6b7280',
-                      borderWidth: '1px',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: '#f3f4f6',
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                      '&.Mui-focused': {
-                        color: '#ef4444',
-                        fontWeight: 700,
-                        textShadow: '0 1px 2px rgba(0,0,0,0.7)',
-                      },
-                    },
-                    '& .MuiFormHelperText-root': {
-                      color: '#d1d5db',
-                      fontSize: '0.875rem',
-                      '&.Mui-error': {
-                        color: '#f87171',
-                        fontWeight: 500,
-                      },
-                    },
-                    '& .MuiInputBase-input::placeholder': {
-                      color: '#4b5563',
-                      opacity: 1,
-                      fontWeight: 400,
-                    },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth disabled={!editMode}>
-                  <InputLabel
-                    sx={{
-                      color: '#ffffff',
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                    }}
-                  >
-                    {t('page.labels.gender')}
-                  </InputLabel>
-                  <Select
-                    value={formData.gender}
-                    onChange={e => handleInputChange('gender', e.target.value)}
-                    label={t('page.labels.gender')}
-                    sx={{
-                      color: '#1f2937',
-                      background: '#ffffff',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#6b7280',
-                        borderWidth: '1px',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                        borderWidth: '2px',
-                      },
-                      '& .MuiSelect-icon': {
-                        color: '#6b7280',
-                      },
-                      '& .MuiInputLabel-root': {
-                        color: '#e5e7eb',
-                        fontWeight: 500,
-                        fontSize: '0.95rem',
-                        '&.Mui-focused': {
-                          color: '#ef4444',
-                          fontWeight: 600,
-                        },
-                      },
-                    }}
-                  >
-                    {choices.gender_choices?.map(choice => (
-                      <MenuItem key={choice.value} value={choice.value} sx={{ color: '#1f2937' }}>
-                        {t(`options.gender.${choice.value}`, { defaultValue: choice.label })}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              {/* Demographics */}
-              <Grid item xs={12}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    mb: 2,
-                    mt: 2,
-                    color: '#ef4444',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
-                  <WorkIcon sx={{ color: '#ef4444' }} /> {t('page.sections.demographics')}
-                </Typography>
-                <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
-              </Grid>
-              <Grid item xs={12}>
-                <FormControl fullWidth disabled={!editMode}>
-                  <InputLabel
-                    sx={{
-                      color: '#ffffff',
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                    }}
-                  >
-                    {t('page.labels.occupation')}
-                  </InputLabel>
-                  <Select
-                    value={formData.occupation}
-                    onChange={e => handleInputChange('occupation', e.target.value)}
-                    label={t('page.labels.occupation')}
-                    sx={{
-                      color: '#1f2937',
-                      background: '#ffffff',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#6b7280',
-                        borderWidth: '1px',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                        borderWidth: '2px',
-                      },
-                      '& .MuiSelect-icon': {
-                        color: '#6b7280',
-                      },
-                      '& .MuiInputLabel-root': {
-                        color: '#e5e7eb',
-                        fontWeight: 500,
-                        fontSize: '0.95rem',
-                        '&.Mui-focused': {
-                          color: '#ef4444',
-                          fontWeight: 600,
-                        },
-                      },
-                    }}
-                  >
-                    {choices.occupation_choices?.map(choice => (
-                      <MenuItem key={choice.value} value={choice.value} sx={{ color: '#1f2937' }}>
-                        {t(`options.occupation.${choice.value}`, { defaultValue: choice.label })}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              {/* Location */}
-              <Grid item xs={12}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    mb: 2,
-                    mt: 2,
-                    color: '#ef4444',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
-                  <LocationIcon sx={{ color: '#ef4444' }} /> {t('page.sections.location')}
-                </Typography>
-                <Divider sx={{ mb: 3, borderColor: '#ef4444' }} />
-              </Grid>
-              <Grid item xs={12} sm={editMode ? 8 : 12}>
-                <TextField
-                  fullWidth
-                  label={t('page.labels.location')}
-                  value={formData.location}
-                  onChange={e => handleInputChange('location', e.target.value)}
-                  placeholder={t('page.placeholders.location')}
-                  disabled={!editMode}
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      color: '#1f2937',
-                      background: '#ffffff',
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                        borderWidth: '2px',
-                      },
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#6b7280',
-                      borderWidth: '1px',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: '#f3f4f6',
-                      '&.Mui-focused': {
-                        color: '#ef4444',
-                      },
-                    },
-                    '& .MuiFormHelperText-root': {
-                      color: '#d1d5db',
-                      '&.Mui-error': {
-                        color: '#f87171',
-                      },
-                    },
-                    '& .MuiInputBase-input::placeholder': {
-                      color: '#4b5563',
-                      opacity: 1,
-                    },
-                  }}
-                />
-              </Grid>
-              {editMode && (
-                <Grid item xs={12} sm={4}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    onClick={handleAutoDetectLocation}
-                    disabled={loadingLocation}
-                    startIcon={loadingLocation ? <CircularProgress size={16} /> : <LocationIcon />}
-                    sx={{
-                      height: 56,
-                      color: '#ef4444',
-                      borderColor: '#ef4444',
-                      background: 'rgba(239,68,68,0.05)',
-                      fontWeight: 700,
-                      '&:hover': { background: '#ef4444', color: '#fff', borderColor: '#ef4444' },
-                    }}
-                  >
-                    {loadingLocation ? t('page.buttons.detecting') : t('page.buttons.auto_detect')}
-                  </Button>
-                </Grid>
-              )}
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('page.labels.zip_code')}
-                  value={formData.zip_code}
-                  onChange={e => handleInputChange('zip_code', e.target.value)}
-                  placeholder={t('page.placeholders.zip_code')}
-                  disabled={!editMode}
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      color: '#1f2937',
-                      background: '#ffffff',
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                        borderWidth: '2px',
-                      },
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#6b7280',
-                      borderWidth: '1px',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: '#f3f4f6',
-                      '&.Mui-focused': {
-                        color: '#ef4444',
-                      },
-                    },
-                    '& .MuiFormHelperText-root': {
-                      color: '#d1d5db',
-                      '&.Mui-error': {
-                        color: '#f87171',
-                      },
-                    },
-                    '& .MuiInputBase-input::placeholder': {
-                      color: '#4b5563',
-                      opacity: 1,
-                    },
-                  }}
-                />
-              </Grid>
-              {/* Bio */}
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label={t('page.labels.bio')}
-                  multiline
-                  rows={4}
-                  value={formData.bio}
-                  onChange={e => handleInputChange('bio', e.target.value)}
-                  placeholder={t('page.placeholders.bio')}
-                  disabled={!editMode}
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      color: '#1f2937',
-                      background: '#ffffff',
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#ef4444',
-                        borderWidth: '2px',
-                      },
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#6b7280',
-                      borderWidth: '1px',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: '#f3f4f6',
-                      '&.Mui-focused': {
-                        color: '#ef4444',
-                      },
-                    },
-                    '& .MuiFormHelperText-root': {
-                      color: '#d1d5db',
-                      '&.Mui-error': {
-                        color: '#f87171',
-                      },
-                    },
-                    '& .MuiInputBase-input::placeholder': {
-                      color: '#4b5563',
-                      opacity: 1,
-                    },
-                  }}
-                />
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-      </Paper>
-    </Container>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="lg:col-span-2">
+              <div className="space-y-6">
+                {/* Personal Information */}
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <h3 className="text-xl font-bold text-red-500">
+                      {t('page.sections.personal')}
+                    </h3>
+                  </div>
+                  <div className="border-b border-red-500 mb-6"></div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={editMode ? inputClasses.label : inputClasses.labelDisabled}>
+                        {t('page.labels.first_name')} *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.first_name}
+                        onChange={e => handleInputChange('first_name', e.target.value)}
+                        disabled={!editMode}
+                        required
+                        className={editMode ? inputClasses.base : inputClasses.disabled}
+                        placeholder={t('page.placeholders.first_name')}
+                      />
+                      {errors.first_name && (
+                        <p className={inputClasses.error}>{errors.first_name}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className={editMode ? inputClasses.label : inputClasses.labelDisabled}>
+                        {t('page.labels.last_name')} *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.last_name}
+                        onChange={e => handleInputChange('last_name', e.target.value)}
+                        disabled={!editMode}
+                        required
+                        className={editMode ? inputClasses.base : inputClasses.disabled}
+                        placeholder={t('page.placeholders.last_name')}
+                      />
+                      {errors.last_name && <p className={inputClasses.error}>{errors.last_name}</p>}
+                    </div>
+
+                    <div>
+                      <label className={editMode ? inputClasses.label : inputClasses.labelDisabled}>
+                        {t('page.labels.birth_date')}
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.birth_date}
+                        onChange={e => handleInputChange('birth_date', e.target.value)}
+                        disabled={!editMode}
+                        className={editMode ? inputClasses.base : inputClasses.disabled}
+                      />
+                      <p className={inputClasses.helper}>{t('page.helper.birthdate_purpose')}</p>
+                    </div>
+
+                    <div>
+                      <label className={editMode ? inputClasses.label : inputClasses.labelDisabled}>
+                        {t('page.labels.gender')}
+                      </label>
+                      <select
+                        value={formData.gender}
+                        onChange={e => handleInputChange('gender', e.target.value)}
+                        disabled={!editMode}
+                        className={editMode ? inputClasses.base : inputClasses.disabled}
+                      >
+                        <option value="">{t('page.placeholders.gender')}</option>
+                        {choices.gender_choices?.map(choice => (
+                          <option key={choice.value} value={choice.value}>
+                            {t(`options.gender.${choice.value}`, { defaultValue: choice.label })}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Demographics */}
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z"
+                        clipRule="evenodd"
+                      />
+                      <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
+                    </svg>
+                    <h3 className="text-xl font-bold text-red-500">
+                      {t('page.sections.demographics')}
+                    </h3>
+                  </div>
+                  <div className="border-b border-red-500 mb-6"></div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className={editMode ? inputClasses.label : inputClasses.labelDisabled}>
+                        {t('page.labels.occupation')}
+                      </label>
+                      <select
+                        value={formData.occupation}
+                        onChange={e => handleInputChange('occupation', e.target.value)}
+                        disabled={!editMode}
+                        className={editMode ? inputClasses.base : inputClasses.disabled}
+                      >
+                        <option value="">{t('page.placeholders.occupation')}</option>
+                        {choices.occupation_choices?.map(choice => (
+                          <option key={choice.value} value={choice.value}>
+                            {t(`options.occupation.${choice.value}`, {
+                              defaultValue: choice.label,
+                            })}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <svg
+                          className="w-6 h-6 text-red-500"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        <h3 className="text-xl font-bold text-red-500">
+                          {t('page.sections.location')}
+                        </h3>
+                      </div>
+                      <div className="border-b border-red-500 mb-6"></div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                          <label
+                            className={editMode ? inputClasses.label : inputClasses.labelDisabled}
+                          >
+                            {t('page.labels.location')}
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.location}
+                            onChange={e => handleInputChange('location', e.target.value)}
+                            disabled={!editMode}
+                            className={editMode ? inputClasses.base : inputClasses.disabled}
+                            placeholder={t('page.placeholders.location')}
+                          />
+                        </div>
+                        {editMode && (
+                          <div className="flex items-end">
+                            <button
+                              onClick={handleAutoDetectLocation}
+                              disabled={loadingLocation}
+                              className="w-full px-4 py-2 border border-red-500 text-red-500 font-bold rounded-md hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50"
+                            >
+                              {loadingLocation ? (
+                                <div className="flex items-center justify-center">
+                                  <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                              ) : (
+                                <span>{t('page.buttons.auto_detect') || 'Auto Detect'}</span>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4">
+                        <label
+                          className={editMode ? inputClasses.label : inputClasses.labelDisabled}
+                        >
+                          {t('page.labels.zip_code')}
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.zip_code}
+                          onChange={e => handleInputChange('zip_code', e.target.value)}
+                          disabled={!editMode}
+                          className={editMode ? inputClasses.base : inputClasses.disabled}
+                          placeholder={t('page.placeholders.zip_code')}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bio */}
+                    <div>
+                      <label className={editMode ? inputClasses.label : inputClasses.labelDisabled}>
+                        {t('page.labels.bio')}
+                      </label>
+                      <textarea
+                        value={formData.bio}
+                        onChange={e => handleInputChange('bio', e.target.value)}
+                        disabled={!editMode}
+                        rows={4}
+                        className={editMode ? inputClasses.base : inputClasses.disabled}
+                        placeholder={t('page.placeholders.bio')}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

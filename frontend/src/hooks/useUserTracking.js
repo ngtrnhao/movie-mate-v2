@@ -143,14 +143,33 @@ const useUserTracking = (options = {}) => {
     // Track page duration when user leaves
     const handlePageLeave = () => {
       const duration = Date.now() - pageStartTime;
-      userInteractionService.trackInteraction(movieId, 'page_duration', {
-        duration_seconds: Math.floor(duration / 1000),
-        page_type: 'detail',
-      });
+      if (duration > 5000) {
+        // Chỉ track nếu ở lại ít nhất 5 giây
+        userInteractionService.trackInteraction(movieId, 'page_duration', {
+          duration_seconds: Math.floor(duration / 1000),
+          page_type: 'detail',
+        });
+      }
       window.removeEventListener('beforeunload', handlePageLeave);
     };
 
+    // Track page duration khi user navigate away
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        const duration = Date.now() - pageStartTime;
+        if (duration > 5000) {
+          // Chỉ track nếu ở lại ít nhất 5 giây
+          userInteractionService.trackInteraction(movieId, 'page_duration', {
+            duration_seconds: Math.floor(duration / 1000),
+            page_type: 'detail',
+            reason: 'visibility_change',
+          });
+        }
+      }
+    };
+
     window.addEventListener('beforeunload', handlePageLeave);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
   };
 
   /**

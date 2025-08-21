@@ -306,21 +306,34 @@ class Movie(models.Model):
             bool: True if update was successful
         """
         try:
-            # Chỉ update nếu chưa có genres
-            if self.genres.count() > 0:
-                return True  # Đã có genres, không cần update
+            # Check if we need to update genres
+            existing_genres = list(self.genres.values_list('name', 'language'))
+            existing_languages = set(lang for _, lang in existing_genres)
 
-            # Clear existing genres (nếu có)
-            MovieGenre.objects.filter(movie=self).delete()
+            # Check if we have new genres to add
+            new_genres_to_add = []
+            for lang, genre_names in genres.items():
+                if lang not in existing_languages:
+                    # New language, add all genres
+                    for genre_name in genre_names:
+                        new_genres_to_add.append((genre_name, lang))
+                else:
+                    # Language exists, check for new genres
+                    existing_genre_names = [name for name, l in existing_genres if l == lang]
+                    for genre_name in genre_names:
+                        if genre_name not in existing_genre_names:
+                            new_genres_to_add.append((genre_name, lang))
+
+            if not new_genres_to_add:
+                return True  # No new genres to add
 
             # Add new genres
-            for lang, genre_names in genres.items():
-                for genre_name in genre_names:
-                    genre, _ = Genre.objects.get_or_create(
-                        name=genre_name,
-                        language=lang
-                    )
-                    MovieGenre.objects.create(movie=self, genre=genre)
+            for genre_name, lang in new_genres_to_add:
+                genre, _ = Genre.objects.get_or_create(
+                    name=genre_name,
+                    language=lang
+                )
+                MovieGenre.objects.create(movie=self, genre=genre)
 
             self.last_genre_sync = timezone.now()
             self.save(update_fields=['last_genre_sync'])

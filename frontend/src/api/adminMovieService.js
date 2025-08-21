@@ -5,10 +5,28 @@ const pendingRequests = new Map();
 
 // Helper function to handle API responses
 const handleResponse = response => {
-  if (response.data.status === 'success') {
+  // Nếu response có status field và là success
+  if (response.data && response.data.status === 'success') {
     return response.data.data;
   }
-  throw new Error(response.data.message || 'API request failed');
+
+  // Nếu response không có status field nhưng có data (thành công)
+  if (response.data && response.data.data) {
+    return response.data.data;
+  }
+
+  // Nếu response trực tiếp là data (thành công) - trường hợp này
+  if (response.data && !response.data.status && response.data.id) {
+    return response.data;
+  }
+
+  // Nếu có message error
+  if (response.data && response.data.message) {
+    throw new Error(response.data.message);
+  }
+
+  // Fallback
+  throw new Error('API request failed');
 };
 
 // Helper function to handle API errors
@@ -712,6 +730,7 @@ export const updateAdminMovie = async (movieId, data) => {
     const response = await axiosInstance.put(`/api/admin/movies/${movieId}/`, data);
     return handleResponse(response);
   } catch (error) {
+    console.error('Error in updateAdminMovie:', error);
     handleError(error, 'cập nhật phim');
   }
 };
@@ -777,4 +796,57 @@ export default {
 
   // Cache
   clearAdminMovieCache,
+};
+
+// Fetch genres for admin movie form
+export const getGenresForAdmin = async (language = 'en') => {
+  try {
+    const response = await axiosInstance.get(`/api/metadata/categories/?language=${language}`);
+    if (response.data.status !== 'success') {
+      throw new Error(response.data.message || 'Failed to fetch genres');
+    }
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching genres for admin:', error);
+    throw error;
+  }
+};
+
+// Fetch movie status options
+export const getMovieStatusOptions = async () => {
+  // Since status options are static, we can return them directly
+  // But in the future, this could be fetched from an API endpoint
+  return [
+    { value: '', label: 'Chọn trạng thái' },
+    { value: 'RUMORED', label: 'Đồn đoán' },
+    { value: 'PLANNED', label: 'Đã lên kế hoạch' },
+    { value: 'IN_PRODUCTION', label: 'Đang sản xuất' },
+    { value: 'POST_PRODUCTION', label: 'Hậu kỳ' },
+    { value: 'RELEASED', label: 'Đã phát hành' },
+    { value: 'UPCOMING', label: 'Sắp ra mắt' },
+  ];
+};
+
+// Fetch approval status options
+export const getApprovalStatusOptions = async () => {
+  return [
+    { value: '', label: 'Chọn trạng thái duyệt' },
+    { value: 'PENDING', label: 'Chờ duyệt' },
+    { value: 'APPROVED', label: 'Đã duyệt' },
+    { value: 'REJECTED', label: 'Từ chối' },
+    { value: 'NEEDS_REVIEW', label: 'Cần xem xét' },
+  ];
+};
+
+// Fetch visibility status options
+export const getVisibilityStatusOptions = async () => {
+  return [
+    { value: '', label: 'Chọn trạng thái hiển thị' },
+    { value: 'PUBLISHED', label: 'Công khai' },
+    { value: 'DRAFT', label: 'Bản nháp' },
+    { value: 'SCHEDULED', label: 'Đã lên lịch' },
+    { value: 'ARCHIVED', label: 'Lưu trữ' },
+    { value: 'RESTRICTED', label: 'Hạn chế' },
+    { value: 'HIDDEN', label: 'Ẩn' },
+  ];
 };

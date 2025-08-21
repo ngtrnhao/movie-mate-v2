@@ -503,7 +503,9 @@ class MovieDocument(Document):
                 from django.utils import timezone
                 now = timezone.now()
                 if instance.scheduling.auto_publish and instance.scheduling.publish_date:
-                    return instance.scheduling.publish_date > now
+                    # Ensure publish_date is timezone-aware
+                    publish_date = timezone.localtime(instance.scheduling.publish_date) if timezone.is_aware(instance.scheduling.publish_date) else timezone.make_aware(instance.scheduling.publish_date)
+                    return publish_date > now
             return False
         except Exception as e:
             logger.warning(f"Error preparing is_scheduled_for_publish for movie {instance.id}: {e}")
@@ -517,7 +519,9 @@ class MovieDocument(Document):
                 from django.utils import timezone
                 now = timezone.now()
                 if instance.scheduling.auto_feature and instance.scheduling.featured_from:
-                    return instance.scheduling.featured_from > now
+                    # Ensure featured_from is timezone-aware
+                    featured_from = timezone.localtime(instance.scheduling.featured_from) if timezone.is_aware(instance.scheduling.featured_from) else timezone.make_aware(instance.scheduling.featured_from)
+                    return featured_from > now
             return False
         except Exception as e:
             logger.warning(f"Error preparing is_scheduled_for_feature for movie {instance.id}: {e}")

@@ -104,3 +104,21 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# Timeout settings for bulk actions
+REQUEST_TIMEOUT = 600  # 10 minutes
+WORKER_TIMEOUT = 600
+KEEP_ALIVE_TIMEOUT = 10
+
+# Gunicorn specific settings
+GUNICORN_TIMEOUT = 600
+GUNICORN_WORKER_TIMEOUT = 600
+GUNICORN_KEEP_ALIVE = 10
+
+# Timezone settings
+TIME_ZONE = 'Asia/Ho_Chi_Minh'
+USE_TZ = True
+
+# Celery timezone settings
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = False

@@ -42,3 +42,11 @@ ELASTICSEARCH_DSL = {
         'max_retries': 3,
     },
 }
+
+# Timezone settings
+TIME_ZONE = 'Asia/Ho_Chi_Minh'
+USE_TZ = True
+
+# Celery timezone settings
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = False

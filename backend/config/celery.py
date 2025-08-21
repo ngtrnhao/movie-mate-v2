@@ -19,6 +19,10 @@ app.conf.worker_max_tasks_per_child = 1
 app.conf.beat_scheduler = 'celery.beat.PersistentScheduler'
 app.conf.beat_schedule_filename = 'celerybeat-schedule'
 
+# Timezone configuration - use local timezone instead of UTC
+app.conf.timezone = 'Asia/Ho_Chi_Minh'
+app.conf.enable_utc = False
+
 # Configure celery beat schedule
 app.conf.beat_schedule = {
     "sync_popular_movies": {

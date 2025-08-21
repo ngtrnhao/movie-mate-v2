@@ -2257,7 +2257,7 @@ class MovieScheduling(models.Model):
         help_text="Mẫu lặp lại cho nội dung theo mùa"
     )
     timezone = models.CharField(
-        max_length=50, default='UTC',
+        max_length=50, default='Asia/Ho_Chi_Minh',
         help_text="Múi giờ cho lịch trình"
     )
 
@@ -2377,10 +2377,16 @@ class MovieScheduling(models.Model):
         now = timezone.now()
 
         # Check if within publish window
-        if self.publish_date and now < self.publish_date:
-            return False
-        if self.unpublish_date and now > self.unpublish_date:
-            return False
+        if self.publish_date:
+            # Ensure publish_date is timezone-aware
+            publish_date = timezone.localtime(self.publish_date) if timezone.is_aware(self.publish_date) else timezone.make_aware(self.publish_date)
+            if now < publish_date:
+                return False
+        if self.unpublish_date:
+            # Ensure unpublish_date is timezone-aware
+            unpublish_date = timezone.localtime(self.unpublish_date) if timezone.is_aware(self.unpublish_date) else timezone.make_aware(self.unpublish_date)
+            if now > unpublish_date:
+                return False
         return True
 
     @property
@@ -2390,10 +2396,16 @@ class MovieScheduling(models.Model):
         now = timezone.now()
 
         # Check if within featured window
-        if self.featured_from and now < self.featured_from:
-            return False
-        if self.featured_until and now > self.featured_until:
-            return False
+        if self.featured_from:
+            # Ensure featured_from is timezone-aware
+            featured_from = timezone.localtime(self.featured_from) if timezone.is_aware(self.featured_from) else timezone.make_aware(self.featured_from)
+            if now < featured_from:
+                return False
+        if self.featured_until:
+            # Ensure featured_until is timezone-aware
+            featured_until = timezone.localtime(self.featured_until) if timezone.is_aware(self.featured_until) else timezone.make_aware(self.featured_until)
+            if now > featured_until:
+                return False
         return True
 
     @property
@@ -2409,16 +2421,28 @@ class MovieScheduling(models.Model):
         actions = []
 
         # Check publish actions
-        if self.auto_publish and self.publish_date and self.publish_date > now:
-            actions.append(('publish', self.publish_date))
-        if self.auto_unpublish and self.unpublish_date and self.unpublish_date > now:
-            actions.append(('unpublish', self.unpublish_date))
+        if self.auto_publish and self.publish_date:
+            # Ensure publish_date is timezone-aware
+            publish_date = timezone.localtime(self.publish_date) if timezone.is_aware(self.publish_date) else timezone.make_aware(self.publish_date)
+            if publish_date > now:
+                actions.append(('publish', publish_date))
+        if self.auto_unpublish and self.unpublish_date:
+            # Ensure unpublish_date is timezone-aware
+            unpublish_date = timezone.localtime(self.unpublish_date) if timezone.is_aware(self.unpublish_date) else timezone.make_aware(self.unpublish_date)
+            if unpublish_date > now:
+                actions.append(('unpublish', unpublish_date))
 
         # Check feature actions
-        if self.auto_feature and self.featured_from and self.featured_from > now:
-            actions.append(('feature', self.featured_from))
-        if self.auto_unfeature and self.featured_until and self.featured_until > now:
-            actions.append(('unfeature', self.featured_until))
+        if self.auto_feature and self.featured_from:
+            # Ensure featured_from is timezone-aware
+            featured_from = timezone.localtime(self.featured_from) if timezone.is_aware(self.featured_from) else timezone.make_aware(self.featured_from)
+            if featured_from > now:
+                actions.append(('feature', featured_from))
+        if self.auto_unfeature and self.featured_until:
+            # Ensure featured_until is timezone-aware
+            featured_until = timezone.localtime(self.featured_until) if timezone.is_aware(self.featured_until) else timezone.make_aware(self.featured_until)
+            if featured_until > now:
+                actions.append(('unfeature', featured_until))
 
         # Return earliest action
         if actions:

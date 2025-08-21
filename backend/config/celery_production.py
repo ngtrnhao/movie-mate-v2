@@ -51,8 +51,8 @@ app.conf.update(
     result_serializer='json',
 
     # Timezone
-    timezone='UTC',
-    enable_utc=True,
+    timezone='Asia/Ho_Chi_Minh',
+    enable_utc=False,
 )
 
 # Configure celery beat schedule for production

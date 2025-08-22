@@ -219,11 +219,24 @@ class Movie(models.Model):
         elif not self.title and self.title_vi:
             self.title = self.title_vi
 
-        # Generate slug if not exists
-        if not self.slug:
-            self.slug = slugify(self.title)
+        # Generate slug if not exists or if title changed
+        if not self.slug or self._has_title_changed():
+            self.slug = self._generate_unique_slug()
 
         super().save(*args, **kwargs)
+
+    def _has_title_changed(self) -> bool:
+        """
+        Check if title has changed since last save
+        """
+        if not self.pk:  # New instance
+            return False
+
+        try:
+            old_instance = Movie.objects.get(pk=self.pk)
+            return old_instance.title != self.title
+        except Movie.DoesNotExist:
+            return False
 
     def get_title(self, language: str = 'en') -> str:
         """

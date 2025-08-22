@@ -550,6 +550,12 @@ class UnifiedMovieEnrichmentService:
             logger.info(f"Movie {movie.id} titles - EN: {titles.get('en')} vs {movie.title_en}, VI: {titles.get('vi')} vs {movie.title_vi}")
 
             if updated_fields:
+                # If title changed, we need to update slug too
+                if 'title' in updated_fields:
+                    # Force slug regeneration by setting it to None
+                    movie.slug = None
+                    updated_fields.append('slug')
+
                 movie.save(update_fields=updated_fields + ['updated_at'])
                 return {
                     'success': True,

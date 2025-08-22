@@ -19,8 +19,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--batch-size',
             type=int,
-            default=100,
-            help='Number of movies to process per batch (default: 100)'
+            default=50,
+            help='Number of movies to process per batch (default: 50)'
         )
         parser.add_argument(
             '--limit',
@@ -42,6 +42,27 @@ class Command(BaseCommand):
             action='store_true',
             help='Show quality score distribution after calculation'
         )
+        parser.add_argument(
+            '--null-quality-only',
+            action='store_true',
+            help='Only process movies with null quality_score (default behavior)'
+        )
+        parser.add_argument(
+            '--progress-interval',
+            type=int,
+            default=10,
+            help='Show progress every N movies (default: 10)'
+        )
+        parser.add_argument(
+            '--skip-errors',
+            action='store_true',
+            help='Continue processing even if some movies fail'
+        )
+        parser.add_argument(
+            '--status',
+            action='store_true',
+            help='Show current quality score status without processing'
+        )
 
     def handle(self, *args, **options):
         movie_id = options.get('movie_id')
@@ -50,6 +71,10 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         force_recalculate = options['force_recalculate']
         show_distribution = options['show_distribution']
+        null_quality_only = options['null_quality_only']
+        progress_interval = options['progress_interval']
+        skip_errors = options['skip_errors']
+        status = options['status']
 
         service = QualityCalculationService()
 
@@ -58,13 +83,21 @@ class Command(BaseCommand):
                 self.style.WARNING('🧪 DRY RUN MODE - No data will be saved to database')
             )
 
+        # Show status if requested
+        if status:
+            self._show_quality_status()
+            return
+
         # Single movie calculation
         if movie_id:
             self._calculate_single_movie(service, movie_id, dry_run)
             return
 
         # Bulk calculation
-        self._calculate_bulk_movies(service, batch_size, limit, dry_run, force_recalculate)
+        self._calculate_bulk_movies(
+            service, batch_size, limit, dry_run, force_recalculate,
+            null_quality_only, progress_interval, skip_errors
+        )
 
         # Show distribution if requested
         if show_distribution and not dry_run:
@@ -124,13 +157,18 @@ class Command(BaseCommand):
             )
 
     def _calculate_bulk_movies(self, service: QualityCalculationService, batch_size: int,
-                              limit: int, dry_run: bool, force_recalculate: bool):
+                              limit: int, dry_run: bool, force_recalculate: bool,
+                              null_quality_only: bool, progress_interval: int, skip_errors: bool):
         """Calculate quality for multiple movies"""
 
         # Determine which movies to process
         if force_recalculate:
             queryset = Movie.objects.all()
             description = "all movies (forced recalculation)"
+        elif null_quality_only:
+            # Only movies with null quality_score in quality_metrics
+            queryset = Movie.objects.filter(quality_metrics__quality_score__isnull=True)
+            description = "movies with null quality_score"
         else:
             # Only movies without quality metrics
             queryset = Movie.objects.filter(quality_metrics__isnull=True)
@@ -150,6 +188,9 @@ class Command(BaseCommand):
 
         self.stdout.write(f'🎯 Processing {total_count:,} {description}')
         self.stdout.write(f'🔧 Batch size: {batch_size:,}')
+        self.stdout.write(f'📊 Progress interval: {progress_interval:,} movies')
+        if skip_errors:
+            self.stdout.write('⚠️ Skip errors mode: Will continue on failures')
 
         if dry_run:
             # For dry run, just show what would be processed
@@ -162,39 +203,81 @@ class Command(BaseCommand):
             self.stdout.write('=' * 50)
 
             for movie in sample_movies:
-                quality_data = service.calculate_movie_quality(movie, save=False)
-                self.stdout.write(
-                    f'🎬 {movie.title}: {quality_data["quality_score"]}/10.0 '
-                    f'({quality_data["content_completeness"]:.1f}% complete)'
-                )
+                try:
+                    quality_data = service.calculate_movie_quality(movie, save=False)
+                    self.stdout.write(
+                        f'🎬 {movie.title}: {quality_data["quality_score"]}/10.0 '
+                        f'({quality_data["content_completeness"]:.1f}% complete)'
+                    )
+                except Exception as e:
+                    self.stdout.write(
+                        f'❌ {movie.title}: Error - {str(e)}'
+                    )
 
             self.stdout.write('')
             self.stdout.write(f'🧪 Would process {total_count:,} movies total')
             return
 
-        # Real bulk calculation
+        # Real bulk calculation with progress tracking
         movie_ids = list(queryset.values_list('id', flat=True))
 
         try:
             self.stdout.write('')
             self.stdout.write('🚀 Starting bulk quality calculation...')
 
-            results = service.bulk_calculate_quality(
-                movie_ids=movie_ids,
-                batch_size=batch_size
-            )
+            processed = 0
+            successful = 0
+            errors = 0
+            error_details = []
 
-            # Display results
+            for i in range(0, len(movie_ids), batch_size):
+                batch_ids = movie_ids[i:i + batch_size]
+
+                self.stdout.write(f'📦 Processing batch {i//batch_size + 1}/{(len(movie_ids) + batch_size - 1)//batch_size}')
+
+                for movie_id in batch_ids:
+                    try:
+                        movie = Movie.objects.select_related().prefetch_related(
+                            'genres', 'cast', 'trailers', 'reviews'
+                        ).get(id=movie_id)
+
+                        quality_data = service.calculate_movie_quality(movie, save=True)
+                        successful += 1
+
+                        processed += 1
+                        if processed % progress_interval == 0:
+                            self.stdout.write(
+                                f'✅ Progress: {processed:,}/{total_count:,} ({processed/total_count*100:.1f}%) - '
+                                f'Success: {successful:,}, Errors: {errors:,}'
+                            )
+
+                    except Exception as e:
+                        errors += 1
+                        error_msg = f"Movie ID {movie_id}: {str(e)}"
+                        error_details.append(error_msg)
+                        logger.error(error_msg)
+
+                        if not skip_errors:
+                            self.stdout.write(
+                                self.style.ERROR(f'❌ Failed to process movie {movie_id}: {str(e)}')
+                            )
+                            raise e
+                        else:
+                            self.stdout.write(
+                                self.style.WARNING(f'⚠️ Skipped movie {movie_id}: {str(e)}')
+                            )
+
+            # Display final results
             self.stdout.write('')
             self.stdout.write('=' * 60)
             self.stdout.write('📊 BULK CALCULATION RESULTS')
             self.stdout.write('=' * 60)
-            self.stdout.write(f'🎯 Total movies processed: {results["total_movies"]:,}')
-            self.stdout.write(f'✅ Successful calculations: {results["processed_successfully"]:,}')
-            self.stdout.write(f'❌ Errors: {results["errors"]:,}')
-            self.stdout.write(f'📊 Success rate: {results["success_rate"]:.2f}%')
+            self.stdout.write(f'🎯 Total movies processed: {processed:,}')
+            self.stdout.write(f'✅ Successful calculations: {successful:,}')
+            self.stdout.write(f'❌ Errors: {errors:,}')
+            self.stdout.write(f'📊 Success rate: {successful/processed*100:.2f}%' if processed > 0 else '📊 Success rate: 0%')
 
-            if results["errors"] == 0:
+            if errors == 0:
                 self.stdout.write('')
                 self.stdout.write(
                     self.style.SUCCESS('🎉 All movies processed successfully!')
@@ -203,9 +286,20 @@ class Command(BaseCommand):
                 self.stdout.write('')
                 self.stdout.write(
                     self.style.WARNING(
-                        f'⚠️ Completed with {results["errors"]} errors. Check logs for details.'
+                        f'⚠️ Completed with {errors} errors. Check logs for details.'
                     )
                 )
+
+                if len(error_details) <= 10:
+                    self.stdout.write('')
+                    self.stdout.write('❌ ERROR DETAILS:')
+                    for error in error_details:
+                        self.stdout.write(f'  • {error}')
+                else:
+                    self.stdout.write('')
+                    self.stdout.write(f'❌ First 10 errors (total {len(error_details)}):')
+                    for error in error_details[:10]:
+                        self.stdout.write(f'  • {error}')
 
         except Exception as e:
             self.stdout.write(
@@ -239,4 +333,55 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(
                 self.style.ERROR(f'❌ Error getting distribution: {str(e)}')
+            )
+
+    def _show_quality_status(self):
+        """Show current quality score status"""
+        try:
+            from django.db.models import Count, Q
+
+            total_movies = Movie.objects.count()
+            movies_with_quality = Movie.objects.filter(quality_metrics__quality_score__isnull=False).count()
+            movies_without_quality = Movie.objects.filter(quality_metrics__quality_score__isnull=True).count()
+            movies_with_metrics = Movie.objects.filter(quality_metrics__isnull=False).count()
+            movies_without_metrics = Movie.objects.filter(quality_metrics__isnull=True).count()
+
+            # Quality score distribution
+            excellent = Movie.objects.filter(quality_metrics__quality_score__gte=8.0).count()
+            good = Movie.objects.filter(quality_metrics__quality_score__gte=6.0, quality_metrics__quality_score__lt=8.0).count()
+            fair = Movie.objects.filter(quality_metrics__quality_score__gte=4.0, quality_metrics__quality_score__lt=6.0).count()
+            poor = Movie.objects.filter(quality_metrics__quality_score__lt=4.0).count()
+
+            self.stdout.write('')
+            self.stdout.write('=' * 60)
+            self.stdout.write('📊 QUALITY SCORE STATUS')
+            self.stdout.write('=' * 60)
+            self.stdout.write(f'🎬 Total movies: {total_movies:,}')
+            self.stdout.write(f'✅ Movies with quality_score: {movies_with_quality:,} ({movies_with_quality/total_movies*100:.1f}%)')
+            self.stdout.write(f'❌ Movies without quality_score: {movies_without_quality:,} ({movies_without_quality/total_movies*100:.1f}%)')
+            self.stdout.write('')
+            self.stdout.write(f'📋 Movies with quality_metrics: {movies_with_metrics:,} ({movies_with_metrics/total_movies*100:.1f}%)')
+            self.stdout.write(f'📋 Movies without quality_metrics: {movies_without_metrics:,} ({movies_without_metrics/total_movies*100:.1f}%)')
+
+            if movies_with_quality > 0:
+                self.stdout.write('')
+                self.stdout.write('📈 QUALITY SCORE DISTRIBUTION:')
+                self.stdout.write(f'🏆 Excellent (8.0+): {excellent:,} ({excellent/movies_with_quality*100:.1f}%)')
+                self.stdout.write(f'👍 Good (6.0-7.9): {good:,} ({good/movies_with_quality*100:.1f}%)')
+                self.stdout.write(f'⚠️ Fair (4.0-5.9): {fair:,} ({fair/movies_with_quality*100:.1f}%)')
+                self.stdout.write(f'❌ Poor (<4.0): {poor:,} ({poor/movies_with_quality*100:.1f}%)')
+
+            # Sample movies without quality score
+            if movies_without_quality > 0:
+                sample_movies = Movie.objects.filter(quality_metrics__quality_score__isnull=True)[:5]
+                self.stdout.write('')
+                self.stdout.write('🎬 SAMPLE MOVIES WITHOUT QUALITY SCORE:')
+                for movie in sample_movies:
+                    self.stdout.write(f'  • {movie.title} (ID: {movie.id})')
+                if movies_without_quality > 5:
+                    self.stdout.write(f'  ... and {movies_without_quality - 5:,} more')
+
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'❌ Error getting status: {str(e)}')
             )

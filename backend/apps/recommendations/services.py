@@ -285,7 +285,22 @@ class CollaborativeFilteringService:
         cache_key = f"similar_users:{user.id}:{method}:{limit}"
         cached_result = cache.get(cache_key)
         if cached_result:
-            return cached_result
+            # Hydrate cached user IDs back to User objects
+            try:
+                user_ids = [user_id for user_id, _ in cached_result]
+                users = User.objects.filter(id__in=user_ids)
+                user_map = {u.id: u for u in users}
+
+                hydrated_result = []
+                for user_id, similarity in cached_result:
+                    if user_id in user_map:
+                        hydrated_result.append((user_map[user_id], similarity))
+
+                return hydrated_result
+            except Exception as e:
+                logger.error(f"Error hydrating cached similar users: {str(e)}")
+                # Fallback: recalculate if cache hydration fails
+                pass
 
         try:
             # record method used for explanation
@@ -345,8 +360,9 @@ class CollaborativeFilteringService:
             # record K for explanation
             self._last_topk_limit = limit
 
-            # Cache result
-            cache.set(cache_key, result, self.cache_timeout)
+            # Cache result - FIXED: Only cache serializable data (user_id, similarity)
+            serializable_result = [(user_obj.id, similarity) for user_obj, similarity in result]
+            cache.set(cache_key, serializable_result, self.cache_timeout)
 
             return result
 
@@ -481,7 +497,7 @@ class CollaborativeFilteringService:
             )
 
             # Find similar users
-            similar_users = self.find_similar_users(user, limit=50)
+            similar_users = self.find_similar_users(user, limit=100)  # Tăng từ 50 lên 100
 
             if not similar_users:
                 logger.info(f"No similar users found for user {user.id}")
@@ -498,11 +514,12 @@ class CollaborativeFilteringService:
             ).values_list('movie_id', flat=True))
 
             # Get candidate movies
-            # Candidates: chỉ lấy phim láng giềng chấm tích cực (rating≥4.0) và u chưa xem
+            # Candidates: lấy phim láng giềng chấm tích cực (rating≥3.5) và u chưa xem
+            # Mở rộng từ rating≥4.0 xuống rating≥3.5 để có nhiều candidates hơn
             candidate_ratings = MovieReview.objects.filter(
                 user_id__in=similar_user_ids,
                 review_type='USER',
-                rating__gte=4.0,
+                rating__gte=3.5,  # Giảm từ 4.0 xuống 3.5
                 rating__isnull=False
             ).exclude(
                 movie_id__in=user_rated_movies
@@ -520,79 +537,131 @@ class CollaborativeFilteringService:
             recommendations = []
 
             for movie, scores in movie_scores.items():
-                # Quality gate: support ≥ 1 (ít nhất 1 láng giềng chấm phim này)
-                if len(scores) >= 1:  # At least 1 similar user rated it (reduced from 2)
-                    avg_score = sum(scores) / len(scores)
-                    # Confidence đơn giản theo support (min(1, support/5))
-                    confidence = min(1.0, len(scores) / 5.0)
-
-                    # Predict rating with details
+                # Quality gate: support ≥ 2 (ít nhất 2 láng giềng chấm phim này)
+                if len(scores) >= 2:  # At least 2 similar users rated it (reduced from 3)
+                    # Predict rating with details (sử dụng logic đúng)
                     predicted_rating, pred_details = self.predict_rating_with_details(user, movie, similar_users)
 
-                    # Build richer explanation
-                    contributors = pred_details.get('contributors', [])
-                    neighbors_used = pred_details.get('neighbors_used', 0)
-                    avg_similarity = (sum(c.get('similarity', 0.0) for c in contributors) / neighbors_used) if neighbors_used else 0.0
-                    # Top 5 contributors by similarity
-                    _top_contrib = sorted(contributors, key=lambda c: c.get('similarity', 0.0), reverse=True)[:5]
-                    # Enrich with similar_user_avg, delta and common_ratings_count
-                    try:
-                        top_ids = [tc.get('user_id') for tc in _top_contrib if tc.get('user_id')]
-                        user_map = {u.id: u for u in User.objects.filter(id__in=top_ids)}
-                    except Exception:
-                        user_map = {}
+                    # Sử dụng predicted_rating làm score thay vì avg_score
+                    if predicted_rating is not None:
+                        # Confidence đơn giản theo support (min(1, support/5))
+                        confidence = min(1.0, len(scores) / 5.0)
 
-                    top_contributors = []
-                    for tc in _top_contrib:
-                        uid = tc.get('user_id')
-                        common_count = 0
+                        # Build richer explanation
+                        contributors = pred_details.get('contributors', [])
+                        neighbors_used = pred_details.get('neighbors_used', 0)
+                        avg_similarity = (sum(c.get('similarity', 0.0) for c in contributors) / neighbors_used) if neighbors_used else 0.0
+                        # Top 5 contributors by similarity
+                        _top_contrib = sorted(contributors, key=lambda c: c.get('similarity', 0.0), reverse=True)[:5]
+                        # Enrich with similar_user_avg, delta and common_ratings_count
                         try:
-                            other_user_obj = user_map.get(uid)
-                            if other_user_obj is not None:
-                                common_count = self._get_common_ratings_count(user, other_user_obj)
+                            top_ids = [tc.get('user_id') for tc in _top_contrib if tc.get('user_id')]
+                            user_map = {u.id: u for u in User.objects.filter(id__in=top_ids)}
                         except Exception:
+                            user_map = {}
+
+                        top_contributors = []
+                        for tc in _top_contrib:
+                            uid = tc.get('user_id')
                             common_count = 0
+                            try:
+                                other_user_obj = user_map.get(uid)
+                                if other_user_obj is not None:
+                                    common_count = self._get_common_ratings_count(user, other_user_obj)
+                            except Exception:
+                                common_count = 0
 
-                        top_contributors.append({
-                            'user_id': uid,
-                            'similarity': float(tc.get('similarity', 0.0)),
-                            'rating': float(tc.get('rating', 0.0)),
-                            'similar_user_avg': float(tc.get('similar_user_avg', 0.0)) if tc.get('similar_user_avg') is not None else None,
-                            'delta': float(tc.get('delta', 0.0)) if tc.get('delta') is not None else None,
-                            'common_ratings_count': int(common_count),
+                            top_contributors.append({
+                                'user_id': uid,
+                                'similarity': float(tc.get('similarity', 0.0)),
+                                'rating': float(tc.get('rating', 0.0)),
+                                'similar_user_avg': float(tc.get('similar_user_avg', 0.0)) if tc.get('similar_user_avg') is not None else None,
+                                'delta': float(tc.get('delta', 0.0)) if tc.get('delta') is not None else None,
+                                'common_ratings_count': int(common_count),
+                            })
+
+                        recommendations.append({
+                            'movie': movie,
+                            'score': predicted_rating,  # Sử dụng predicted_rating làm score
+                            'confidence': confidence,
+                            'predicted_rating': predicted_rating,
+                            'explanation': {
+                                'type': 'collaborative',
+                                'similar_users_count': len(scores),
+                                'support': neighbors_used,
+                                'average_weighted_rating': float(predicted_rating),  # Sử dụng predicted_rating
+                                'avg_similarity': float(avg_similarity),
+                                'user_avg': float(pred_details.get('user_avg', 0.0) or 0.0),
+                                'similarity_method': self._last_similarity_method or 'pearson',
+                                'neighbors_source': self._last_similarity_source or 'on_the_fly',
+                                'top_k_limit': int(self._last_topk_limit or limit),
+                                'quality_gates': {
+                                    'min_common_ratings': int(self.min_common_ratings),
+                                    'similarity_threshold': float(self.similarity_threshold),
+                                },
+                                'prediction_components': {
+                                    'weighted_delta_sum': float(pred_details.get('weighted_delta_sum', 0.0)),
+                                    'similarity_sum_abs': float(pred_details.get('similarity_sum_abs', 0.0)),
+                                },
+                                'predicted_raw': float(pred_details.get('predicted_raw', predicted_rating or 0.0)) if pred_details.get('predicted_raw') is not None else None,
+                                'top_contributors': top_contributors,
+                                'generated_at': timezone.now().isoformat(),
+                            }
                         })
-
-                    recommendations.append({
-                        'movie': movie,
-                        'score': avg_score,
-                        'confidence': confidence,
-                        'predicted_rating': predicted_rating,
-                        'explanation': {
-                            'type': 'collaborative',
-                            'similar_users_count': len(scores),
-                            'support': neighbors_used,
-                            'average_weighted_rating': float(avg_score),
-                            'avg_similarity': float(avg_similarity),
-                            'user_avg': float(pred_details.get('user_avg', 0.0) or 0.0),
-                            'similarity_method': self._last_similarity_method or 'pearson',
-                            'neighbors_source': self._last_similarity_source or 'on_the_fly',
-                            'top_k_limit': int(self._last_topk_limit or limit),
-                            'quality_gates': {
-                                'min_common_ratings': int(self.min_common_ratings),
-                                'similarity_threshold': float(self.similarity_threshold),
-                            },
-                            'prediction_components': {
-                                'weighted_delta_sum': float(pred_details.get('weighted_delta_sum', 0.0)),
-                                'similarity_sum_abs': float(pred_details.get('similarity_sum_abs', 0.0)),
-                            },
-                            'predicted_raw': float(pred_details.get('predicted_raw', predicted_rating or 0.0)) if pred_details.get('predicted_raw') is not None else None,
-                            'top_contributors': top_contributors,
-                            'generated_at': timezone.now().isoformat(),
-                        }
-                    })
 
             # Sort by score and take top recommendations
             recommendations.sort(key=lambda x: x['score'], reverse=True)
+
+            # Nếu chưa đủ recommendations, thêm movies từ similar users có support = 1
+            if len(recommendations) < limit:
+                print(f"⚠️ Chỉ có {len(recommendations)} recommendations, tìm thêm movies với support = 1...")
+
+                # Lấy thêm movies với support = 1
+                for movie, scores in movie_scores.items():
+                    if len(scores) == 1 and len(recommendations) < limit:
+                        # Predict rating with details
+                        predicted_rating, pred_details = self.predict_rating_with_details(user, movie, similar_users)
+
+                        if predicted_rating is not None:
+                            confidence = 0.2  # Confidence thấp hơn cho support = 1
+
+                            # Build explanation
+                            contributors = pred_details.get('contributors', [])
+                            neighbors_used = pred_details.get('neighbors_used', 0)
+                            avg_similarity = (sum(c.get('similarity', 0.0) for c in contributors) / neighbors_used) if neighbors_used else 0.0
+
+                            recommendations.append({
+                                'movie': movie,
+                                'score': predicted_rating,
+                                'confidence': confidence,
+                                'predicted_rating': predicted_rating,
+                                'explanation': {
+                                    'type': 'collaborative',
+                                    'similar_users_count': len(scores),
+                                    'support': neighbors_used,
+                                    'average_weighted_rating': float(predicted_rating),
+                                    'avg_similarity': float(avg_similarity),
+                                    'user_avg': float(pred_details.get('user_avg', 0.0) or 0.0),
+                                    'similarity_method': self._last_similarity_method or 'pearson',
+                                    'neighbors_source': self._last_similarity_source or 'on_the_fly',
+                                    'top_k_limit': int(self._last_topk_limit or limit),
+                                    'quality_gates': {
+                                        'min_common_ratings': int(self.min_common_ratings),
+                                        'similarity_threshold': float(self.similarity_threshold),
+                                    },
+                                    'prediction_components': {
+                                        'weighted_delta_sum': float(pred_details.get('weighted_delta_sum', 0.0)),
+                                        'similarity_sum_abs': float(pred_details.get('similarity_sum_abs', 0.0)),
+                                    },
+                                    'predicted_raw': float(pred_details.get('predicted_raw', predicted_rating or 0.0)) if pred_details.get('predicted_raw') is not None else None,
+                                    'top_contributors': [],
+                                    'generated_at': timezone.now().isoformat(),
+                                }
+                            })
+
+                # Sort lại sau khi thêm
+                recommendations.sort(key=lambda x: x['score'], reverse=True)
+
             top_recommendations = recommendations[:limit]
 
             # Store recommendations using unified cache service
@@ -605,40 +674,38 @@ class CollaborativeFilteringService:
             return []
 
     def _store_recommendations(self, user, recommendations: List[Dict], rec_type: str, context: str):
-        """Store recommendations in database"""
+        """Store recommendations in database (atomic, race-safe)"""
         try:
-            # Clear existing recommendations for this user/type/context
-            RecommendationResult.objects.filter(
-                user=user,
-                recommendation_type=rec_type,
-                context=context
-            ).delete()
+            from django.db import transaction
 
-            # Create new recommendations (dedupe by (user, movie, type, context))
-            recommendation_objects = []
-            existing_pairs = set(RecommendationResult.objects.filter(
-                user=user,
-                recommendation_type=rec_type,
-                context=context
-            ).values_list('movie_id', flat=True))
+            with transaction.atomic():
+                # Clear existing recommendations for this user/type/context atomically
+                RecommendationResult.objects.filter(
+                    user=user,
+                    recommendation_type=rec_type,
+                    context=context
+                ).delete()
 
-            for rank, rec in enumerate(recommendations, 1):
-                recommendation_objects.append(
-                    RecommendationResult(
-                        user=user,
-                        movie=rec['movie'],
-                        recommendation_type=rec_type,
-                        context=context,
-                        predicted_rating=rec.get('predicted_rating'),
-                        confidence_score=rec.get('confidence', 0.5),
-                        novelty_score=rec.get('novelty_score', 0.5),
-                        rank=rank,
-                        score=rec['score'],
-                        explanation=rec.get('explanation', {})
+                # Create new recommendations
+                recommendation_objects = []
+                for rank, rec in enumerate(recommendations, 1):
+                    recommendation_objects.append(
+                        RecommendationResult(
+                            user=user,
+                            movie=rec['movie'],
+                            recommendation_type=rec_type,
+                            context=context,
+                            predicted_rating=rec.get('predicted_rating'),
+                            confidence_score=rec.get('confidence', 0.5),
+                            novelty_score=rec.get('novelty_score', 0.5),
+                            rank=rank,
+                            score=rec['score'],
+                            explanation=rec.get('explanation', {})
+                        )
                     )
-                )
 
-            RecommendationResult.objects.bulk_create(recommendation_objects)
+                if recommendation_objects:
+                    RecommendationResult.objects.bulk_create(recommendation_objects)
 
         except Exception as e:
             logger.error(f"Error storing recommendations: {str(e)}")
@@ -1668,94 +1735,208 @@ class EnhancedDemographicFilteringService:
             logger.warning(f"Error calculating age preference score: {e}")
             return 0.5
 
-    def _calculate_gender_preference_score(self, movie, cluster) -> float:
-        """Calculate gender-based preference score từ DATA THỰC TẾ (không hardcode)"""
+    def _calculate_gender_preference_score(self, movie, cluster, user=None) -> float:
+        """Calculate gender-based preference score từ DATA THỰC TẾ"""
         try:
-            # Sử dụng cluster.preferred_genres (đã học từ data thực tế)
-            return self._calculate_age_preference_score(movie, cluster)
+            if not cluster or not cluster.preferred_genres:
+                return 0.5
+
+            # Get gender-specific preferences from cluster
+            movie_genres = movie.genres.all()
+            if not movie_genres.exists():
+                return 0.5
+
+            # Calculate gender weight if user provided
+            gender_weight = 1.0
+            if user and cluster.primary_gender:
+                if user.gender == cluster.primary_gender:
+                    gender_weight = 1.2  # Boost for matching gender
+                else:
+                    gender_weight = 0.8  # Reduce for different gender
+
+            total_score = 0.0
+            genre_count = 0
+
+            for genre in movie_genres:
+                genre_id_str = str(genre.id)
+                if genre_id_str in cluster.preferred_genres:
+                    genre_pref = cluster.preferred_genres[genre_id_str]
+
+                    # Handle different preference data structures
+                    if isinstance(genre_pref, dict):
+                        base_score = genre_pref.get('preference_score', 0.5)
+                        score = base_score * gender_weight
+                    elif isinstance(genre_pref, (int, float)):
+                        score = float(genre_pref) * gender_weight
+                    else:
+                        score = 0.5 * gender_weight
+
+                    total_score += score
+                    genre_count += 1
+
+            if genre_count == 0:
+                return 0.5
+
+            return total_score / genre_count
 
         except Exception as e:
             logger.warning(f"Error calculating gender preference score: {e}")
             return 0.5
 
-    def _calculate_occupation_preference_score(self, movie, cluster) -> float:
-        """Calculate occupation-based preference score từ DATA THỰC TẾ (không hardcode)"""
+    def _calculate_occupation_preference_score(self, movie, cluster, user=None) -> float:
+        """Calculate occupation-based preference score từ DATA THỰC TẾ"""
         try:
-            # Sử dụng cluster.preferred_genres (đã học từ data thực tế)
-            return self._calculate_age_preference_score(movie, cluster)
+            if not cluster or not cluster.preferred_genres:
+                return 0.5
+
+            # Get occupation-specific preferences from cluster
+            movie_genres = movie.genres.all()
+            if not movie_genres.exists():
+                return 0.5
+
+            # Calculate occupation weight if user provided
+            occupation_weight = 1.0
+            if user and user.occupation:
+                occupation_boost = {
+                    'student': 1.1,
+                    'engineer': 1.0,
+                    'scientist': 1.0,
+                    'executive': 0.9,
+                    'artist': 1.1,
+                    'writer': 1.1,
+                    'lawyer': 0.9,
+                    'doctor': 0.9,
+                    'teacher': 1.0,
+                    'sales/marketing': 1.0,
+                    'clerical/admin': 1.0,
+                    'technician': 1.0,
+                    'retired': 0.8,
+                    'other': 1.0
+                }
+                occupation_weight = occupation_boost.get(user.occupation.lower(), 1.0)
+
+            total_score = 0.0
+            genre_count = 0
+
+            for genre in movie_genres:
+                genre_id_str = str(genre.id)
+                if genre_id_str in cluster.preferred_genres:
+                    genre_pref = cluster.preferred_genres[genre_id_str]
+
+                    # Handle different preference data structures
+                    if isinstance(genre_pref, dict):
+                        base_score = genre_pref.get('preference_score', 0.5)
+                        score = base_score * occupation_weight
+                    elif isinstance(genre_pref, (int, float)):
+                        score = float(genre_pref) * occupation_weight
+                    else:
+                        score = 0.5 * occupation_weight
+
+                    total_score += score
+                    genre_count += 1
+
+            if genre_count == 0:
+                return 0.5
+
+            return total_score / genre_count
 
         except Exception as e:
             logger.warning(f"Error calculating occupation preference score: {e}")
             return 0.5
 
-    def _calculate_location_preference_score(self, movie, cluster) -> float:
-        """Calculate location-based preference score từ DATA THỰC TẾ (không hardcode)"""
+    def _calculate_location_preference_score(self, movie, cluster, user=None) -> float:
+        """Calculate location-based preference score từ DATA THỰC TẾ"""
         try:
-            # Sử dụng cluster.preferred_genres (đã học từ data thực tế)
-            return self._calculate_age_preference_score(movie, cluster)
+            if not cluster or not cluster.preferred_genres:
+                return 0.5
+
+            # Get location-specific preferences from cluster
+            movie_genres = movie.genres.all()
+            if not movie_genres.exists():
+                return 0.5
+
+            # Calculate location weight if user provided
+            location_weight = 1.0
+            if user and user.location:
+                location_boost = {
+                    'usa': 1.0,
+                    'canada': 1.0,
+                    'uk': 1.0,
+                    'germany': 1.0,
+                    'france': 1.0,
+                    'japan': 1.0,
+                    'australia': 1.0,
+                    'other': 0.9
+                }
+                location_weight = location_boost.get(user.location.lower(), 1.0)
+
+            total_score = 0.0
+            genre_count = 0
+
+            for genre in movie_genres:
+                genre_id_str = str(genre.id)
+                if genre_id_str in cluster.preferred_genres:
+                    genre_pref = cluster.preferred_genres[genre_id_str]
+
+                    # Handle different preference data structures
+                    if isinstance(genre_pref, dict):
+                        base_score = genre_pref.get('preference_score', 0.5)
+                        score = base_score * location_weight
+                    elif isinstance(genre_pref, (int, float)):
+                        score = float(genre_pref) * location_weight
+                    else:
+                        score = 0.5 * location_weight
+
+                    total_score += score
+                    genre_count += 1
+
+            if genre_count == 0:
+                return 0.5
+
+            return total_score / genre_count
 
         except Exception as e:
             logger.warning(f"Error calculating location preference score: {e}")
             return 0.5
 
+
+
     def _store_recommendations(self, user, recommendations: List[Dict], rec_type: str, context: str):
-        """Store recommendations in database (same as collaborative filtering)"""
+        """Store recommendations in database (atomic, race-safe)"""
         try:
-            # Clear existing recommendations for this user/type/context
-            RecommendationResult.objects.filter(
-                user=user,
-                recommendation_type=rec_type,
-                context=context
-            ).delete()
+            from django.db import transaction
 
-            # Create new recommendations
-            recommendation_objects = []
-            existing_pairs = set()
-
-            for rank, rec in enumerate(recommendations, 1):
-                # Convert all values to ensure JSON serialization
-                predicted_rating = float(rec.get('predicted_rating', 0)) if rec.get('predicted_rating') is not None else None
-                confidence_score = float(rec.get('confidence', 0.5))
-                novelty_score = float(rec.get('novelty_score', 0.5))
-                score = float(rec['score']) if isinstance(rec['score'], (int, float, str)) else 0.5
-
-                # Ensure explanation is JSON serializable
-                explanation = rec.get('explanation', {})
-                if isinstance(explanation, dict):
-                    # Convert any Decimal values to float recursively
-                    def convert_decimals(obj):
-                        if hasattr(obj, '__float__'):
-                            return float(obj)
-                        elif isinstance(obj, dict):
-                            return {key: convert_decimals(value) for key, value in obj.items()}
-                        elif isinstance(obj, list):
-                            return [convert_decimals(item) for item in obj]
-                        else:
-                            return obj
-
-                    explanation = convert_decimals(explanation)
-
-                if getattr(rec['movie'], 'id') in existing_pairs:
-                    continue
-                recommendation_objects.append(RecommendationResult(
+            with transaction.atomic():
+                # Clear existing recommendations for this user/type/context atomically
+                RecommendationResult.objects.filter(
                     user=user,
-                    movie=rec['movie'],
                     recommendation_type=rec_type,
-                    context=context,
-                    predicted_rating=predicted_rating,
-                    confidence_score=confidence_score,
-                    novelty_score=novelty_score,
-                    rank=rank,
-                    score=score,
-                    explanation=explanation
-                ))
+                    context=context
+                ).delete()
 
-            RecommendationResult.objects.bulk_create(recommendation_objects)
+                # Create new recommendations
+                recommendation_objects = []
+                for rank, rec in enumerate(recommendations, 1):
+                    recommendation_objects.append(
+                        RecommendationResult(
+                            user=user,
+                            movie=rec['movie'],
+                            recommendation_type=rec_type,
+                            context=context,
+                            predicted_rating=rec.get('predicted_rating'),
+                            confidence_score=rec.get('confidence', 0.5),
+                            novelty_score=rec.get('novelty_score', 0.5),
+                            rank=rank,
+                            score=rec['score'],
+                            explanation=rec.get('explanation', {})
+                        )
+                    )
+
+                if recommendation_objects:
+                    RecommendationResult.objects.bulk_create(recommendation_objects)
 
         except Exception as e:
             logger.error(f"Error storing recommendations: {str(e)}")
-            import traceback
-            traceback.print_exc()
 
     def generate_enhanced_demographic_recommendations(self, user, limit: int = 20,
                                                     context: str = 'homepage', store: bool = False) -> List[Movie]:
@@ -1993,9 +2174,9 @@ class EnhancedDemographicFilteringService:
                 # Calculate component scores cho enhanced explanations
                 if user_cluster:
                     age_score = self._calculate_age_preference_score(rec['movie'], user_cluster)
-                    gender_score = self._calculate_gender_preference_score(rec['movie'], user_cluster)
-                    occupation_score = self._calculate_occupation_preference_score(rec['movie'], user_cluster)
-                    location_score = self._calculate_location_preference_score(rec['movie'], user_cluster)
+                    gender_score = self._calculate_gender_preference_score(rec['movie'], user_cluster, user)
+                    occupation_score = self._calculate_occupation_preference_score(rec['movie'], user_cluster, user)
+                    location_score = self._calculate_location_preference_score(rec['movie'], user_cluster, user)
                     composite_demographic_score = self._calculate_demographic_score(rec['movie'], user_cluster)
                 else:
                     age_score = gender_score = occupation_score = location_score = composite_demographic_score = 0.5
@@ -2012,7 +2193,7 @@ class EnhancedDemographicFilteringService:
                             'avg_rating': round(rec.get('avg_rating', 0), 3),
                             'support': rec.get('support', 0)
                         },
-                        'demographic_analysis': {
+                        'component_scores': {
                             'age_score': round(age_score, 3),
                             'gender_score': round(gender_score, 3),
                             'occupation_score': round(occupation_score, 3),
@@ -3188,7 +3369,9 @@ class RecommendationCacheService:
                 incoming = {}
                 for rank, rec in enumerate(recommendations, 1):
                     if isinstance(rec, dict):
-                        incoming[getattr(rec['movie'], 'id')] = {
+                        # FIXED: Handle movie instance properly
+                        movie_id = getattr(rec['movie'], 'id') if hasattr(rec['movie'], 'id') else rec['movie']
+                        incoming[movie_id] = {
                             'rank': rank,
                             'score': rec.get('score'),
                             'predicted_rating': rec.get('predicted_rating'),
@@ -3242,11 +3425,31 @@ class RecommendationCacheService:
             # Store new recommendations fully
             for rank, rec in enumerate(recommendations, 1):
                 if isinstance(rec, dict):
+                    # FIXED: Handle movie instance and ensure JSON serializable explanation
                     movie = rec['movie']
                     score = rec.get('score', 0.0)
                     confidence = rec.get('confidence', 0.5)
                     predicted_rating = rec.get('predicted_rating')
+
+                    # FIXED: Ensure explanation is JSON serializable
                     explanation = rec.get('explanation', {})
+                    if isinstance(explanation, dict):
+                        # Convert any non-serializable objects to serializable format
+                        def make_serializable(obj):
+                            if hasattr(obj, 'isoformat'):  # datetime objects
+                                return obj.isoformat()
+                            elif hasattr(obj, '__float__'):  # Decimal objects
+                                return float(obj)
+                            elif isinstance(obj, dict):
+                                return {key: make_serializable(value) for key, value in obj.items()}
+                            elif isinstance(obj, list):
+                                return [make_serializable(item) for item in obj]
+                            elif hasattr(obj, 'id'):  # Model instances
+                                return obj.id
+                            else:
+                                return obj
+
+                        explanation = make_serializable(explanation)
                 else:
                     movie = rec
                     score = getattr(rec, 'recommendation_score', 0.0)
@@ -3781,7 +3984,7 @@ class OptimizedKMeansProductionService:
 
 class OptimizedRecommendationService:
     """
-    🚀 Tối ưu hóa recommendation service với background generation và fallback cache
+     Tối ưu hóa recommendation service với background generation và fallback cache
     Giải quyết vấn đề timeout khi tạo recommendation
     """
 

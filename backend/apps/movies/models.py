@@ -238,6 +238,31 @@ class Movie(models.Model):
         except Movie.DoesNotExist:
             return False
 
+    def _generate_unique_slug(self) -> str:
+        """
+        Generate unique slug for movie, handling duplicates by adding IMDB ID
+        """
+        base_slug = slugify(self.title)
+
+        # If no IMDB ID, just use base slug
+        if not self.imdb_id:
+            return base_slug
+
+        # Try base slug first
+        if not Movie.objects.filter(slug=base_slug).exclude(id=self.id).exists():
+            return base_slug
+
+        # If duplicate exists, add IMDB ID to make it unique
+        unique_slug = f"{base_slug}-{self.imdb_id}"
+
+        # Check if this combination also exists (very unlikely but possible)
+        counter = 1
+        while Movie.objects.filter(slug=unique_slug).exclude(id=self.id).exists():
+            unique_slug = f"{base_slug}-{self.imdb_id}-{counter}"
+            counter += 1
+
+        return unique_slug
+
     def get_title(self, language: str = 'en') -> str:
         """
         Get movie title in specified language

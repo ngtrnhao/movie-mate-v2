@@ -155,8 +155,11 @@ class CollaborativeFilteringService:
         self.min_similar_users = 10
         # Quality gate: ngưỡng tương đồng tối thiểu để nhận láng giềng
         self.similarity_threshold = 0.1
-        # TTL cache similarities
-        self.cache_timeout = 3600 * 24 * 7
+        # TTL cache similarities (seconds)
+        try:
+            self.cache_timeout = RecommendationCacheService.get_cache_timeout_seconds()
+        except Exception:
+            self.cache_timeout = 3600 * 24 * 7
         # Debug/Explanation context for the last similarity retrieval
         self._last_similarity_source = None  # 'precomputed' | 'on_the_fly'
         self._last_similarity_method = None  # e.g. 'pearson'
@@ -213,7 +216,7 @@ class CollaborativeFilteringService:
             return 0.0
 
     def _pearson_correlation(self, ratings1: Dict, ratings2: Dict, common_movies: set) -> float:
-        """Calculate Pearson correlation coefficient"""
+        """Calculate Pearson correlation coefficient with significance weighting"""
         if len(common_movies) == 0:
             return 0.0
 
@@ -232,7 +235,16 @@ class CollaborativeFilteringService:
         if denominator == 0:
             return 0.0
 
-        return numerator / denominator
+        raw_correlation = numerator / denominator
+
+        # FIXED: Apply significance weighting (shrinkage) based on common ratings count
+        # Shrinkage factor: more common ratings = higher confidence = less shrinkage
+        n_common = len(common_movies)
+        shrinkage_factor = n_common / (n_common + 10)  # Shrink towards 0 when few common ratings
+
+        weighted_correlation = raw_correlation * shrinkage_factor
+
+        return weighted_correlation
 
     def _cosine_similarity(self, ratings1: Dict, ratings2: Dict, common_movies: set) -> float:
         """Calculate cosine similarity"""
@@ -399,8 +411,7 @@ class CollaborativeFilteringService:
             weighted_sum = 0.0
             similarity_sum = 0.0
 
-            # Get user's average rating for normalization
-            # User base (bias term) cho dự đoán: trung bình tất cả ratings của user
+            # Get user's average rating for normalization (bias term)
             user_avg = MovieReview.objects.filter(
                 user=user,
                 review_type='USER',
@@ -409,45 +420,57 @@ class CollaborativeFilteringService:
             user_avg = float(user_avg)
             details['user_avg'] = user_avg
 
-            contributors: List[Dict[str, float]] = []
-
-            for similar_user, similarity in similar_users:
-                # Get similar user's rating for this movie
-                similar_user_rating = MovieReview.objects.filter(
-                    user=similar_user,
+            # ---- N+1 FIX: bulk fetch for neighbors ----
+            similar_user_ids = [getattr(u, 'id', u) for (u, _) in similar_users]
+            # Map: neighbor_id -> avg rating
+            similar_avg_map = dict(
+                MovieReview.objects.filter(
+                    user_id__in=similar_user_ids,
+                    review_type='USER',
+                    rating__isnull=False
+                ).values('user_id').annotate(avg=Avg('rating')).values_list('user_id', 'avg')
+            )
+            # Map: neighbor_id -> rating for this movie
+            movie_rating_map = dict(
+                MovieReview.objects.filter(
+                    user_id__in=similar_user_ids,
                     movie=movie,
                     review_type='USER',
                     rating__isnull=False
-                ).first()
+                ).values_list('user_id', 'rating')
+            )
+            # ------------------------------------------
 
-                if similar_user_rating:
-                    # Get similar user's average for normalization
-                    similar_avg = MovieReview.objects.filter(
-                        user=similar_user,
-                        review_type='USER',
-                        rating__isnull=False
-                    ).aggregate(avg_rating=Avg('rating'))['avg_rating'] or 3.0
-                    similar_avg = float(similar_avg)
+            contributors: List[Dict[str, float]] = []
 
-                    # Normalize rating
-                    normalized_rating = float(similar_user_rating.rating) - similar_avg
+            for similar_user, similarity in similar_users:
+                neighbor_id = getattr(similar_user, 'id', similar_user)
+                neighbor_rating = movie_rating_map.get(neighbor_id)
+                if neighbor_rating is None:
+                    continue
 
-                    weighted_sum += similarity * normalized_rating
-                    similarity_sum += abs(similarity)
+                neighbor_avg = similar_avg_map.get(neighbor_id) or 3.0
+                neighbor_avg = float(neighbor_avg)
 
-                    contributors.append({
-                        'user_id': getattr(similar_user, 'id', None),
-                        'similarity': float(similarity),
-                        'rating': float(similar_user_rating.rating),
-                        'similar_user_avg': similar_avg,
-                        'delta': float(normalized_rating),
-                    })
+                # Normalize rating
+                normalized_rating = float(neighbor_rating) - neighbor_avg
 
-            # Quality gate: không có đóng góp hữu ích (Σ|sim|=0) ⇒ không dự đoán
+                weighted_sum += similarity * normalized_rating
+                similarity_sum += similarity
+
+                contributors.append({
+                    'user_id': neighbor_id,
+                    'similarity': float(similarity),
+                    'rating': float(neighbor_rating),
+                    'similar_user_avg': neighbor_avg,
+                    'delta': float(normalized_rating),
+                })
+
+            # Quality gate: no useful contribution
             if similarity_sum == 0:
                 details['contributors'] = contributors
-                details['weighted_delta_sum'] = weighted_sum
-                details['similarity_sum_abs'] = similarity_sum
+                details['weighted_delta_sum'] = float(weighted_sum)
+                details['similarity_sum_abs'] = float(similarity_sum)
                 details['neighbors_used'] = len(contributors)
                 return None, details
 
@@ -514,12 +537,11 @@ class CollaborativeFilteringService:
             ).values_list('movie_id', flat=True))
 
             # Get candidate movies
-            # Candidates: lấy phim láng giềng chấm tích cực (rating≥3.5) và u chưa xem
-            # Mở rộng từ rating≥4.0 xuống rating≥3.5 để có nhiều candidates hơn
+            # Candidates: lấy phim láng giềng chấm tích cực (rating≥4.0) và u chưa xem
             candidate_ratings = MovieReview.objects.filter(
                 user_id__in=similar_user_ids,
                 review_type='USER',
-                rating__gte=3.5,  # Giảm từ 4.0 xuống 3.5
+                rating__gte=4.0,
                 rating__isnull=False
             ).exclude(
                 movie_id__in=user_rated_movies
@@ -1396,7 +1418,7 @@ class EnhancedDemographicFilteringService:
                         common_occupations=common_occupations,
                         preferred_genres=genre_preferences,
                         average_rating=rating_stats['avg_rating'] or 3.0,
-                        user_count=cluster_users.count()
+                        user_count=len(cluster_users)
                     )
 
                     # Update user preferences with cluster assignment
@@ -3301,9 +3323,14 @@ class RecommendationCacheService:
     """
 
     @staticmethod
-    def get_cache_timeout():
-        """Get cache timeout from settings"""
+    def get_cache_timeout_hours():
+        """Get cache timeout (hours) from settings for DB freshness cutoff"""
         return getattr(settings, 'RECOMMENDATION_CACHE_SETTINGS', {}).get('CACHE_TIMEOUT_HOURS', 24)
+
+    @staticmethod
+    def get_cache_timeout_seconds():
+        """Get cache timeout (seconds) for cache backends"""
+        return RecommendationCacheService.get_cache_timeout_hours() * 3600
 
     @staticmethod
     def get_cached_recommendations(user, rec_type, context='homepage', limit=20):
@@ -3311,8 +3338,8 @@ class RecommendationCacheService:
         Get cached recommendations with unified logic
         """
         try:
-            cache_timeout = RecommendationCacheService.get_cache_timeout()
-            recent_cutoff = timezone.now() - timedelta(hours=cache_timeout)
+            cache_timeout_hours = RecommendationCacheService.get_cache_timeout_hours()
+            recent_cutoff = timezone.now() - timedelta(hours=cache_timeout_hours)
 
             # Check if context agnostic is enabled
             context_agnostic = getattr(settings, 'RECOMMENDATION_CACHE_SETTINGS', {}).get('CONTEXT_AGNOSTIC', True)
@@ -3351,8 +3378,8 @@ class RecommendationCacheService:
         """
         try:
             # Check if we already have recent recommendations (within cache timeout)
-            cache_timeout = RecommendationCacheService.get_cache_timeout()
-            recent_cutoff = timezone.now() - timedelta(hours=cache_timeout)
+            cache_timeout_hours = RecommendationCacheService.get_cache_timeout_hours()
+            recent_cutoff = timezone.now() - timedelta(hours=cache_timeout_hours)
 
             existing_qs = RecommendationResult.objects.filter(
                 user=user,
@@ -3476,7 +3503,7 @@ class RecommendationCacheService:
 
 class OptimizedKMeansProductionService:
     """
-    🎯 Tối ưu K-means cho production với Render yếu
+     Tối ưu K-means cho production với Render yếu
     Sử dụng hybrid approach: Pre-computed + Caching + Fallback
     """
 

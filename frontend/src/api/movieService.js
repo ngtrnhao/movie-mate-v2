@@ -394,6 +394,47 @@ export const searchMovies = async (filters = {}, pageOrSearchAfter = 1, pageSize
       params.append('order', filters.order);
     }
 
+    // NEW: quality sub-score filters
+    if (filters.basicInfoScoreMin !== undefined)
+      params.append('basic_info_score_min', filters.basicInfoScoreMin);
+    if (filters.visualAssetsScoreMin !== undefined)
+      params.append('visual_assets_score_min', filters.visualAssetsScoreMin);
+    if (filters.metadataRichnessScoreMin !== undefined)
+      params.append('metadata_richness_score_min', filters.metadataRichnessScoreMin);
+    if (filters.ratingValidityScoreMin !== undefined)
+      params.append('rating_validity_score_min', filters.ratingValidityScoreMin);
+    if (filters.basicInfoScoreMax !== undefined)
+      params.append('basic_info_score_max', filters.basicInfoScoreMax);
+    if (filters.visualAssetsScoreMax !== undefined)
+      params.append('visual_assets_score_max', filters.visualAssetsScoreMax);
+    if (filters.metadataRichnessScoreMax !== undefined)
+      params.append('metadata_richness_score_max', filters.metadataRichnessScoreMax);
+    if (filters.ratingValidityScoreMax !== undefined)
+      params.append('rating_validity_score_max', filters.ratingValidityScoreMax);
+
+    // NEW: completeness score
+    if (filters.dataCompletenessMin !== undefined)
+      params.append('data_completeness_min', filters.dataCompletenessMin);
+
+    // NEW: behavior metrics
+    if (filters.performanceScoreMin !== undefined)
+      params.append('performance_score_min', filters.performanceScoreMin);
+    if (filters.trendingScoreMin !== undefined)
+      params.append('trending_score_min', filters.trendingScoreMin);
+    if (filters.trendingCategory) params.append('trending_category', filters.trendingCategory);
+    if (filters.engagementRateMin !== undefined)
+      params.append('engagement_rate_min', filters.engagementRateMin);
+    if (filters.clickThroughRateMin !== undefined)
+      params.append('click_through_rate_min', filters.clickThroughRateMin);
+    if (filters.detailPageViewsMin !== undefined)
+      params.append('detail_page_views_min', filters.detailPageViewsMin);
+    if (filters.homepageViewsMin !== undefined)
+      params.append('homepage_views_min', filters.homepageViewsMin);
+    if (filters.userFavoritesMin !== undefined)
+      params.append('user_favorites_min', filters.userFavoritesMin);
+    if (filters.userWatchlistMin !== undefined)
+      params.append('user_watchlist_min', filters.userWatchlistMin);
+
     // Add poster filter
     if (filters.hasPoster !== undefined) {
       params.append('has_poster', filters.hasPoster.toString());
@@ -461,34 +502,64 @@ export const searchMovies = async (filters = {}, pageOrSearchAfter = 1, pageSize
 //Get search suggestions for autocomplete
 export const getSearchSuggestions = async (query, language = 'en', limit = 5) => {
   try {
+    console.log('Debug - getSearchSuggestions called with:', { query, language, limit });
     if (!query || query.length < 2) {
+      console.log('Debug - Query too short, returning empty');
       return { data: [] };
     }
 
-    //create cache key for suggestions
-    const cacheKey = `suggestions_${language}_${btoa(query)
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .slice(0, 20)}_${limit}`;
+    // Normalize language to backend-expected short codes
+    const normalizedLang = (language || 'en').toLowerCase();
+    const langShort = normalizedLang.startsWith('vi')
+      ? 'vi'
+      : normalizedLang.startsWith('en')
+        ? 'en'
+        : 'en';
 
-    //check cache first
+    console.log('Debug - Normalized language:', langShort);
+
+    //create cache key for suggestions - use simple hash for Unicode safety
+    const simpleHash = query
+      .split('')
+      .reduce((hash, char) => {
+        return ((hash << 5) - hash + char.charCodeAt(0)) & 0xffffffff;
+      }, 0)
+      .toString(36);
+    const cacheKey = `suggestions_${langShort}_${simpleHash}_${limit}`;
+
+    // Check cache first (avoid returning stale-empty results)
     if (cache.suggestions.has(cacheKey) && isCacheValid(`suggestions_${cacheKey}`, 300000)) {
-      //5 minutes cache for suggestions
-      return cache.suggestions.get(cacheKey);
+      const cached = cache.suggestions.get(cacheKey);
+      if (cached?.data && cached.data.length > 0) {
+        // Return cached non-empty suggestions immediately
+        return cached;
+      }
+      // If cached is empty, bypass cache to re-query fresh results
+      cache.suggestions.delete(cacheKey);
+      delete cache.lastFetch[`suggestions_${cacheKey}`];
     }
     const params = new URLSearchParams();
     params.append('q', query);
-    params.append('language', language);
+    params.append('language', langShort);
     params.append('limit', limit);
-    const response = await axiosInstance.get(`/api/movies/search_suggestions/?${params}`);
+
+    const url = `/api/movies/search_suggestions/?${params}`;
+    console.log('Debug - Making API call to:', url);
+
+    const response = await axiosInstance.get(url);
 
     if (response.data.status === 'success') {
       const result = {
         data: response.data.data || [],
       };
 
-      //Cache suggetions
-      cache.suggestions.set(cacheKey, result);
-      cache.lastFetch[`suggestions_${cacheKey}`] = Date.now();
+      console.log('Debug - API response:', result);
+
+      // Cache only non-empty results to avoid sticky empty states
+      if (result.data.length > 0) {
+        cache.suggestions.set(cacheKey, result);
+        cache.lastFetch[`suggestions_${cacheKey}`] = Date.now();
+      }
 
       // Limit cache size
       if (cache.suggestions.size > 50) {

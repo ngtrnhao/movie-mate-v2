@@ -14,6 +14,11 @@ const EmailVerificationChecker = () => {
       }
 
       try {
+        // Skip calling API if profile already complete at 100%
+        if (user.is_profile_complete === true || user.profile_completion_percentage >= 100) {
+          return;
+        }
+
         // Check if user's email verification status has changed
         const response = await getProfileCompletionStatusAPI();
 
@@ -36,6 +41,13 @@ const EmailVerificationChecker = () => {
 
           // Check if we should show profile completion modal
           dispatch(checkAndShowProfileModal());
+
+          // If now complete at 100%, stop further polling
+          if (is_profile_complete === true || profile_completion_percentage >= 100) {
+            if (intervalRef) {
+              clearInterval(intervalRef);
+            }
+          }
         }
       } catch (error) {
         console.error('Error checking email verification status:', error);
@@ -47,6 +59,8 @@ const EmailVerificationChecker = () => {
 
     // Set up interval to check periodically (every 30 seconds)
     const interval = setInterval(checkEmailVerificationAndProfile, 30000);
+    // Save interval ref to clear when complete
+    const intervalRef = interval;
 
     return () => clearInterval(interval);
   }, [dispatch, isAuthenticated, user]);

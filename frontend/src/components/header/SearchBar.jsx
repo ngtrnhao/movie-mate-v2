@@ -45,10 +45,24 @@ const SearchBar = () => {
   // Fetch suggestions when debounced query changes
   useEffect(() => {
     const fetchSuggestions = async () => {
+      console.log(
+        'Debug - debouncedQuery:',
+        debouncedQuery,
+        'length:',
+        debouncedQuery.length,
+        'currentLanguage:',
+        currentLanguage
+      );
       if (debouncedQuery.length >= 2) {
         setIsLoading(true);
         try {
+          console.log(
+            'Debug - Calling getSearchSuggestions with:',
+            debouncedQuery,
+            currentLanguage
+          );
           const result = await getSearchSuggestions(debouncedQuery, currentLanguage, 8);
+          console.log('Debug - Suggestions result:', result);
           setSuggestions(result.data || []);
         } catch (error) {
           console.error('Error fetching suggestions:', error);
@@ -95,6 +109,7 @@ const SearchBar = () => {
   // Handle input changes
   const handleInputChange = e => {
     const value = e.target.value;
+    console.log('Debug - Input change:', value, 'length:', value.length);
     setSearchQuery(value);
     setSelectedIndex(-1);
 

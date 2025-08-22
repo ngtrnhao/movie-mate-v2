@@ -183,8 +183,18 @@ const MovieManagement = () => {
     quality_score_min: null,
     quality_score_max: null,
     content_completeness_min: null,
+    data_completeness_min: null,
     overall_quality_rating: null,
     completion_status: null,
+    // granular quality sub-scores
+    basic_info_score_min: null,
+    basic_info_score_max: null,
+    visual_assets_score_min: null,
+    visual_assets_score_max: null,
+    metadata_richness_score_min: null,
+    metadata_richness_score_max: null,
+    rating_validity_score_min: null,
+    rating_validity_score_max: null,
     campaign_type: null,
     campaign_priority_min: null,
     is_published_now: null,
@@ -195,6 +205,10 @@ const MovieManagement = () => {
     engagement_rate_min: null,
     homepage_views_min: null,
     user_favorites_min: null,
+    user_watchlist_min: null,
+    detail_page_views_min: null,
+    trailer_plays_min: null,
+    click_through_rate_min: null,
   };
   const [filters, setFilters] = useState(initialFilters); // draft
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
@@ -282,7 +296,8 @@ const MovieManagement = () => {
   // Apply search and filters explicitly
   const applySearchAndFilters = useCallback(() => {
     setAppliedSearch(searchQuery.trim());
-    setAppliedFilters(prev => ({ ...prev, ...filters }));
+    // Replace appliedFilters entirely to avoid retaining stale keys
+    setAppliedFilters(filters);
     // Reset pagination
     setCurrentAfter(null);
     setAfterStack([]);
@@ -625,8 +640,17 @@ const MovieManagement = () => {
       quality_score_min: null,
       quality_score_max: null,
       content_completeness_min: null,
+      data_completeness_min: null,
       overall_quality_rating: null,
       completion_status: null,
+      basic_info_score_min: null,
+      basic_info_score_max: null,
+      visual_assets_score_min: null,
+      visual_assets_score_max: null,
+      metadata_richness_score_min: null,
+      metadata_richness_score_max: null,
+      rating_validity_score_min: null,
+      rating_validity_score_max: null,
       campaign_type: null,
       campaign_priority_min: null,
       is_published_now: null,
@@ -637,6 +661,7 @@ const MovieManagement = () => {
       engagement_rate_min: null,
       homepage_views_min: null,
       user_favorites_min: null,
+      user_watchlist_min: null,
     }));
   };
 
@@ -1654,20 +1679,15 @@ const MovieManagement = () => {
           <div className="mt-4 flex justify-end space-x-3">
             <button
               onClick={() => {
-                setFilters({
-                  approval_status: 'NEEDS_REVIEW', // Giữ filter hợp lệ cho ES
-                  visibility_status: '',
-                  is_published: '',
-                  admin_featured: '',
-                  minimum_quality_met: '',
-                  category: '',
-                  sort_by: '-created_at',
-                });
+                setFilters({ ...initialFilters });
+                setAppliedFilters({ ...initialFilters });
+                setAppliedSearch('');
                 setSearchQuery('');
                 // Reset pagination
                 setCurrentAfter(null);
                 setAfterStack([]);
                 setHasPrevious(false);
+                fetchMovies('init', null);
               }}
               className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
@@ -1730,20 +1750,15 @@ const MovieManagement = () => {
               <div className="mt-6">
                 <button
                   onClick={() => {
-                    setFilters({
-                      approval_status: 'NEEDS_REVIEW', // Giữ filter hợp lệ cho ES
-                      visibility_status: '',
-                      is_published: '',
-                      admin_featured: '',
-                      minimum_quality_met: '',
-                      category: '',
-                      sort_by: '-created_at',
-                    });
+                    setFilters({ ...initialFilters });
+                    setAppliedFilters({ ...initialFilters });
+                    setAppliedSearch('');
                     setSearchQuery('');
                     // Reset pagination
                     setCurrentAfter(null);
                     setAfterStack([]);
                     setHasPrevious(false);
+                    fetchMovies('init', null);
                   }}
                   className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                 >

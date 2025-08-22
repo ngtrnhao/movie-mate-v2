@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { replyToReview, getReviewReplies } from '../../api/movieService';
 import ReviewActions from './ReviewActions';
 import { useSpoilerDetection } from '../../hooks/useSpoilerDetection';
-// import SpoilerDetectionAlert from './SpoilerDetectionAlert';
+import SpoilerDetectionAlert from './SpoilerDetectionAlert';
 
 const ReplySection = ({ review, onReplySuccess }) => {
   const [showReplies, setShowReplies] = useState(false);
@@ -194,7 +194,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
         />
 
         {/* Spoiler Detection Alert */}
-        {/* <SpoilerDetectionAlert
+        <SpoilerDetectionAlert
           detectionResult={detectionResult}
           isAnalyzing={isAnalyzing}
           onMarkAsSpoiler={() => setIsSpoiler(true)}
@@ -204,7 +204,7 @@ const ReplySection = ({ review, onReplySuccess }) => {
             const textarea = document.querySelector('textarea');
             if (textarea) textarea.focus();
           }}
-        /> */}
+        />
 
         <div className="mt-2 flex items-center justify-between">
           <span className="text-xs text-gray-400">{(replyTexts[formId] || '').length}/500</span>

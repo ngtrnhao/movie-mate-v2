@@ -90,15 +90,27 @@ const AdvancedAdminFilters = ({
       'quality_score_min',
       'quality_score_max',
       'content_completeness_min',
+      'data_completeness_min',
       'overall_quality_rating',
       'completion_status',
       'minimum_quality_met',
+      // granular quality sub-scores
+      'basic_info_score_min',
+      'basic_info_score_max',
+      'visual_assets_score_min',
+      'visual_assets_score_max',
+      'metadata_richness_score_min',
+      'metadata_richness_score_max',
+      'rating_validity_score_min',
+      'rating_validity_score_max',
+      // campaign/admin
       'campaign_type',
       'campaign_priority_min',
       'admin_priority_min',
       'is_published_now',
       'is_featured_now',
       'has_quality_issues',
+      // performance/trending
       'performance_score_min',
       'trending_score_min',
       'trending_category',
@@ -108,6 +120,7 @@ const AdvancedAdminFilters = ({
       'trailer_plays_min',
       'click_through_rate_min',
       'user_favorites_min',
+      'user_watchlist_min',
     ];
     return advancedFilterKeys.some(
       key => filters[key] !== null && filters[key] !== undefined && filters[key] !== ''
@@ -146,7 +159,7 @@ const AdvancedAdminFilters = ({
             step="0.1"
             value={filters.quality_score_min || ''}
             onChange={e => handleFilterChange('quality_score_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="0.0"
           />
         </div>
@@ -161,7 +174,7 @@ const AdvancedAdminFilters = ({
             step="0.1"
             value={filters.quality_score_max || ''}
             onChange={e => handleFilterChange('quality_score_max', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="10.0"
           />
         </div>
@@ -178,7 +191,23 @@ const AdvancedAdminFilters = ({
           max="100"
           value={filters.content_completeness_min || ''}
           onChange={e => handleFilterChange('content_completeness_min', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          placeholder="0"
+        />
+      </div>
+
+      {/* Data Completeness Score (Document-level) */}
+      <div>
+        <label className="mb-2 block text-sm font-medium text-gray-700">
+          Minimum Data Completeness Score
+        </label>
+        <input
+          type="number"
+          min="0"
+          max="100"
+          value={filters.data_completeness_min || ''}
+          onChange={e => handleFilterChange('data_completeness_min', e.target.value)}
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           placeholder="0"
         />
       </div>
@@ -191,7 +220,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.overall_quality_rating || ''}
           onChange={e => handleFilterChange('overall_quality_rating', e.target.value)}
-          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Ratings</option>
           {qualityRatingOptions.map(option => (
@@ -208,7 +237,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.completion_status || ''}
           onChange={e => handleFilterChange('completion_status', e.target.value)}
-          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Status</option>
           {completionStatusOptions.map(option => (
@@ -246,6 +275,130 @@ const AdvancedAdminFilters = ({
         </div>
       </div>
 
+      {/* Granular Quality Sub-scores */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Basic Info Score (min)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={filters.basic_info_score_min || ''}
+            onChange={e => handleFilterChange('basic_info_score_min', e.target.value)}
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="0.0"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Basic Info Score (max)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={filters.basic_info_score_max || ''}
+            onChange={e => handleFilterChange('basic_info_score_max', e.target.value)}
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="10.0"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Visual Assets Score (min)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={filters.visual_assets_score_min || ''}
+            onChange={e => handleFilterChange('visual_assets_score_min', e.target.value)}
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="0.0"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Visual Assets Score (max)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={filters.visual_assets_score_max || ''}
+            onChange={e => handleFilterChange('visual_assets_score_max', e.target.value)}
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="10.0"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Metadata Richness (min)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={filters.metadata_richness_score_min || ''}
+            onChange={e => handleFilterChange('metadata_richness_score_min', e.target.value)}
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="0.0"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Metadata Richness (max)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={filters.metadata_richness_score_max || ''}
+            onChange={e => handleFilterChange('metadata_richness_score_max', e.target.value)}
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="10.0"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Rating Validity (min)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={filters.rating_validity_score_min || ''}
+            onChange={e => handleFilterChange('rating_validity_score_min', e.target.value)}
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="0.0"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text sm font-medium text-gray-700">
+            Rating Validity (max)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.1"
+            value={filters.rating_validity_score_max || ''}
+            onChange={e => handleFilterChange('rating_validity_score_max', e.target.value)}
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            placeholder="10.0"
+          />
+        </div>
+      </div>
+
       {/* Admin Priority */}
       <div>
         <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -254,7 +407,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.admin_priority_min || ''}
           onChange={e => handleFilterChange('admin_priority_min', e.target.value)}
-          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">All Priorities</option>
           {adminPriorityOptions.map(option => (
@@ -297,7 +450,7 @@ const AdvancedAdminFilters = ({
           max="10"
           value={filters.campaign_priority_min || ''}
           onChange={e => handleFilterChange('campaign_priority_min', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
           placeholder="0"
         />
       </div>
@@ -344,7 +497,7 @@ const AdvancedAdminFilters = ({
             step="0.1"
             value={filters.performance_score_min || ''}
             onChange={e => handleFilterChange('performance_score_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             placeholder="0.0"
           />
         </div>
@@ -359,7 +512,7 @@ const AdvancedAdminFilters = ({
             step="0.1"
             value={filters.trending_score_min || ''}
             onChange={e => handleFilterChange('trending_score_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             placeholder="0.0"
           />
         </div>
@@ -395,7 +548,7 @@ const AdvancedAdminFilters = ({
             step="0.01"
             value={filters.engagement_rate_min || ''}
             onChange={e => handleFilterChange('engagement_rate_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             placeholder="0.00"
           />
         </div>
@@ -408,7 +561,7 @@ const AdvancedAdminFilters = ({
             min="0"
             value={filters.homepage_views_min || ''}
             onChange={e => handleFilterChange('homepage_views_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             placeholder="0"
           />
         </div>
@@ -421,7 +574,7 @@ const AdvancedAdminFilters = ({
             min="0"
             value={filters.detail_page_views_min || ''}
             onChange={e => handleFilterChange('detail_page_views_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             placeholder="0"
           />
         </div>
@@ -438,7 +591,7 @@ const AdvancedAdminFilters = ({
             min="0"
             value={filters.trailer_plays_min || ''}
             onChange={e => handleFilterChange('trailer_plays_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             placeholder="0"
           />
         </div>
@@ -453,7 +606,7 @@ const AdvancedAdminFilters = ({
             step="0.01"
             value={filters.click_through_rate_min || ''}
             onChange={e => handleFilterChange('click_through_rate_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             placeholder="0.00"
           />
         </div>
@@ -469,7 +622,22 @@ const AdvancedAdminFilters = ({
           min="0"
           value={filters.user_favorites_min || ''}
           onChange={e => handleFilterChange('user_favorites_min', e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+          placeholder="0"
+        />
+      </div>
+
+      {/* User Watchlist */}
+      <div>
+        <label className="mb-2 block text-sm font-medium text-gray-700">
+          Minimum User Watchlist
+        </label>
+        <input
+          type="number"
+          min="0"
+          value={filters.user_watchlist_min || ''}
+          onChange={e => handleFilterChange('user_watchlist_min', e.target.value)}
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
           placeholder="0"
         />
       </div>
@@ -509,7 +677,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.approval_status || ''}
           onChange={e => handleFilterChange('approval_status', e.target.value)}
-          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
         >
           <option value="">All Statuses</option>
           <option value="NEEDS_REVIEW">Needs Review</option>
@@ -525,7 +693,7 @@ const AdvancedAdminFilters = ({
         <select
           value={filters.visibility_status || ''}
           onChange={e => handleFilterChange('visibility_status', e.target.value)}
-          className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+          className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
         >
           <option value="">All Visibility</option>
           <option value="PUBLISHED">Published</option>
@@ -548,7 +716,7 @@ const AdvancedAdminFilters = ({
             max="10"
             value={filters.admin_priority_min || ''}
             onChange={e => handleFilterChange('admin_priority_min', e.target.value)}
-            className="block w-full rounded-md border-gray-300 text-gray-700 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
             placeholder="0"
           />
         </div>
@@ -562,7 +730,7 @@ const AdvancedAdminFilters = ({
             max="10"
             value={filters.admin_priority_max || ''}
             onChange={e => handleFilterChange('admin_priority_max', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
             placeholder="10"
           />
         </div>

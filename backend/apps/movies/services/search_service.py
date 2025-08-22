@@ -228,6 +228,26 @@ class MovieSearchService:
                 if params.get('content_completeness_min'):
                     search = search.filter('range', content_completeness={'gte': float(params['content_completeness_min'])})
 
+                # NEW: granular quality sub-scores
+                if params.get('basic_info_score_min'):
+                    search = search.filter('range', basic_info_score={'gte': float(params['basic_info_score_min'])})
+                if params.get('visual_assets_score_min'):
+                    search = search.filter('range', visual_assets_score={'gte': float(params['visual_assets_score_min'])})
+                if params.get('metadata_richness_score_min'):
+                    search = search.filter('range', metadata_richness_score={'gte': float(params['metadata_richness_score_min'])})
+                if params.get('rating_validity_score_min'):
+                    search = search.filter('range', rating_validity_score={'gte': float(params['rating_validity_score_min'])})
+
+                # Optional max bounds
+                if params.get('basic_info_score_max'):
+                    search = search.filter('range', basic_info_score={'lte': float(params['basic_info_score_max'])})
+                if params.get('visual_assets_score_max'):
+                    search = search.filter('range', visual_assets_score={'lte': float(params['visual_assets_score_max'])})
+                if params.get('metadata_richness_score_max'):
+                    search = search.filter('range', metadata_richness_score={'lte': float(params['metadata_richness_score_max'])})
+                if params.get('rating_validity_score_max'):
+                    search = search.filter('range', rating_validity_score={'lte': float(params['rating_validity_score_max'])})
+
                 if params.get('overall_quality_rating'):
                     quality_rating_values = params['overall_quality_rating']
                     if isinstance(quality_rating_values, str):
@@ -271,6 +291,10 @@ class MovieSearchService:
                 if params.get('auto_feature') is not None:
                     search = search.filter('term', auto_feature=params['auto_feature'])
 
+                # NEW: data completeness (Document-level helper)
+                if params.get('data_completeness_min'):
+                    search = search.filter('range', data_completeness_score={'gte': float(params['data_completeness_min'])})
+
             # 🎯 SEARCH QUERY - Áp dụng sau tất cả filter để không bị override
             if params.get('q'):
                 query_text = params['q'].strip()
@@ -292,11 +316,19 @@ class MovieSearchService:
                 if params.get('engagement_rate_min'):
                     search = search.filter('range', engagement_rate={'gte': float(params['engagement_rate_min'])})
 
+                # NEW: additional behavior metrics
+                if params.get('click_through_rate_min'):
+                    search = search.filter('range', click_through_rate={'gte': float(params['click_through_rate_min'])})
+                if params.get('detail_page_views_min'):
+                    search = search.filter('range', detail_page_views={'gte': int(params['detail_page_views_min'])})
                 if params.get('homepage_views_min'):
                     search = search.filter('range', homepage_views={'gte': int(params['homepage_views_min'])})
 
                 if params.get('user_favorites_min'):
                     search = search.filter('range', user_favorites_count={'gte': int(params['user_favorites_min'])})
+
+                if params.get('user_watchlist_min'):
+                    search = search.filter('range', user_watchlist_count={'gte': int(params['user_watchlist_min'])})
 
                 # Enhanced admin filters for quality control
                 if params.get('has_quality_issues'):
@@ -426,11 +458,18 @@ class MovieSearchService:
             sort_field_mapping = {
                 'quality_score': 'quality_score',
                 'content_completeness': 'content_completeness',
+                'basic_info_score': 'basic_info_score',
+                'visual_assets_score': 'visual_assets_score',
+                'metadata_richness_score': 'metadata_richness_score',
+                'rating_validity_score': 'rating_validity_score',
                 'performance_score': 'performance_score',
                 'trending_score': 'trending_score',
+                'click_through_rate': 'click_through_rate',
+                'detail_page_views': 'detail_page_views',
                 'engagement_rate': 'engagement_rate',
                 'homepage_views': 'homepage_views',
                 'user_favorites': 'user_favorites_count',
+                'user_watchlist': 'user_watchlist_count',
                 'campaign_priority': 'campaign_priority',
                 'most_popular': 'is_popular',  # Special sort for popular movies first
                 'rating': 'combined_rating_score',
@@ -1072,11 +1111,31 @@ class MovieSearchService:
                             'boost': 10
                         }
                     },
+                    # Match phrase on analyzed Vietnamese (tolerate small differences)
+                    {
+                        'match_phrase': {
+                            'title_vi': {
+                                'query': query,
+                                'slop': 1,
+                                'boost': 6
+                            }
+                        }
+                    },
+                    # Exact phrase on Vietnamese no-diacritic field (analyzed)
+                    {
+                        'multi_match': {
+                            'query': query,
+                            'fields': ['title_vi_no_diacritic^8'],
+                            'type': 'phrase',
+                            'analyzer': 'vietnamese_analyzer_no_diacritic',
+                            'boost': 7
+                        }
+                    },
                     # Prefix match for suggestions
                     {
                         'multi_match': {
                             'query': query,
-                            'fields': ['title_vi^4', 'title_en^3', 'title^2'],
+                            'fields': ['title_vi^4', 'title_vi_no_diacritic^4', 'title_en^3', 'title^2'],
                             'type': 'phrase_prefix',
                             'boost': 5
                         }
@@ -1088,7 +1147,7 @@ class MovieSearchService:
                             'fields': ['title_vi^3', 'title_en^2', 'title^1', 'overview_vi^0.5', 'overview_en^0.3'],
                             'type': 'cross_fields',
                             'operator': 'or',
-                            'minimum_should_match': '30%',
+                            'minimum_should_match': '25%',
                             'analyzer': 'vietnamese_analyzer',
                             'boost': 1
                         }
@@ -1097,10 +1156,10 @@ class MovieSearchService:
                     {
                         'multi_match': {
                             'query': query,
-                            'fields': ['title_vi^2', 'title^1', 'title_en^1'],
+                            'fields': ['title_vi^2', 'title_vi_no_diacritic^2', 'title^1', 'title_en^1'],
                             'type': 'most_fields',
                             'fuzziness': 'AUTO',
-                            'prefix_length': 1,
+                            'prefix_length': 0,
                             'boost': 0.3
                         }
                     }

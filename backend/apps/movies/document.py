@@ -745,6 +745,10 @@ class MovieDocument(Document):
         """Prepare title field"""
         return instance.title_en or instance.title_vi or instance.title or ""
 
+    def prepare_title_vi(self, instance):
+        """Prepare title_vi field with proper encoding"""
+        return instance.title_vi or ""
+
     def prepare_original_title(self, instance):
         """Prepare original_title field"""
         return instance.original_title or ""

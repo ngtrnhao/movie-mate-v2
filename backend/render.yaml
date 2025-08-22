@@ -27,7 +27,7 @@ services:
       python scripts/import_imdb_data.py
       python scripts/import_imdb_steps_3_to_6.py
       echo "Build process completed"
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 600 --workers 2 --worker-class sync --max-requests 1000 --max-requests-jitter 100
+    startCommand: gunicorn config.wsgi:application -c gunicorn.conf.py
     envVars:
       - key: DJANGO_ENV
         value: production
@@ -82,6 +82,12 @@ services:
         value: "true"
       - key: MIGRATION_SECRET_KEY
         generateValue: true
+      - key: GUNICORN_TIMEOUT
+        value: "1800"
+      - key: GUNICORN_WORKER_TIMEOUT
+        value: "1800"
+      - key: WORKER_TIMEOUT
+        value: "1800"
     volumes:
       - name: imdb-datasets
         mountPath: /opt/render/project/src/backend/data/imdb_datasets

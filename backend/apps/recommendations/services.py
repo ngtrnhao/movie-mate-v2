@@ -164,6 +164,42 @@ class CollaborativeFilteringService:
         self._last_similarity_source = None  # 'precomputed' | 'on_the_fly'
         self._last_similarity_method = None  # e.g. 'pearson'
         self._last_topk_limit = None         # int
+        # Adaptive quality gates flag
+        self.adaptive_gates = True
+
+    def _get_adaptive_quality_gates(self, user):
+        """
+        Tính toán adaptive quality gates dựa trên user profile
+        """
+        if not self.adaptive_gates:
+            return
+
+        # Đếm số ratings của user
+        user_rating_count = MovieReview.objects.filter(
+            user=user,
+            review_type='USER',
+            rating__isnull=False
+        ).count()
+
+        # Adaptive logic dựa trên số ratings
+        if user_rating_count < 50:
+            # Users có ít ratings: giảm yêu cầu
+            self.min_similar_users = 3
+            self.similarity_threshold = 0.05
+            self.min_common_ratings = 3
+            logger.info(f"Adaptive gates for user {user.id}: low_activity (ratings: {user_rating_count})")
+        elif user_rating_count < 100:
+            # Users có ratings trung bình
+            self.min_similar_users = 5
+            self.similarity_threshold = 0.08
+            self.min_common_ratings = 4
+            logger.info(f"Adaptive gates for user {user.id}: medium_activity (ratings: {user_rating_count})")
+        else:
+            # Users có nhiều ratings: giữ nguyên yêu cầu cao
+            self.min_similar_users = 10
+            self.similarity_threshold = 0.1
+            self.min_common_ratings = 5
+            logger.info(f"Adaptive gates for user {user.id}: high_activity (ratings: {user_rating_count})")
 
     def calculate_user_similarity(self, user1, user2, method='pearson') -> float:
         """
@@ -315,6 +351,9 @@ class CollaborativeFilteringService:
                 pass
 
         try:
+            # Apply adaptive quality gates
+            self._get_adaptive_quality_gates(user)
+
             # record method used for explanation
             self._last_similarity_method = method
             # Get user's ratings
@@ -511,7 +550,7 @@ class CollaborativeFilteringService:
                 return cached_recommendations
 
             # Track recommendation generation
-            logger.info(f"🔄 Generating NEW collaborative recommendations for user {user.id} (no cache found)")
+            logger.info(f" Generating NEW collaborative recommendations for user {user.id} (no cache found)")
             metrics_service.track_recommendation_generation(
                 recommendation_type='collaborative',
                 user_count=1,
@@ -558,10 +597,18 @@ class CollaborativeFilteringService:
             # Calculate final scores and create recommendation objects
             recommendations = []
 
+            # Adaptive support requirements based on number of similar users
+            if len(similar_users) < 5:
+                min_support = 1
+            elif len(similar_users) < 10:
+                min_support = 2
+            else:
+                min_support = 3
+
             for movie, scores in movie_scores.items():
-                # Quality gate: support ≥ 2 (ít nhất 2 láng giềng chấm phim này)
-                if len(scores) >= 2:  # At least 2 similar users rated it (reduced from 3)
-                    # Predict rating with details (sử dụng logic đúng)
+                # Quality gate: adaptive support requirements
+                if len(scores) >= min_support:
+                    # Predict rating with details
                     predicted_rating, pred_details = self.predict_rating_with_details(user, movie, similar_users)
 
                     # Sử dụng predicted_rating làm score thay vì avg_score
@@ -636,13 +683,14 @@ class CollaborativeFilteringService:
 
             # Nếu chưa đủ recommendations, thêm movies từ similar users có support = 1
             if len(recommendations) < limit:
-                print(f"⚠️ Chỉ có {len(recommendations)} recommendations, tìm thêm movies với support = 1...")
+                logger.info(f"Chỉ có {len(recommendations)} recommendations, tìm thêm movies với support = 1...")
 
-                # Lấy thêm movies với support = 1
-                for movie, scores in movie_scores.items():
-                    if len(scores) == 1 and len(recommendations) < limit:
-                        # Predict rating with details
-                        predicted_rating, pred_details = self.predict_rating_with_details(user, movie, similar_users)
+                # Lấy thêm movies với support = 1 (chỉ khi min_support > 1)
+                if min_support > 1:
+                    for movie, scores in movie_scores.items():
+                        if len(scores) == 1 and len(recommendations) < limit:
+                            # Predict rating with details
+                            predicted_rating, pred_details = self.predict_rating_with_details(user, movie, similar_users)
 
                         if predicted_rating is not None:
                             confidence = 0.2  # Confidence thấp hơn cho support = 1
@@ -905,11 +953,11 @@ class EnhancedDemographicFilteringService:
 
             # Thử load từ cache trước
             if self._load_model_from_cache():
-                logger.info("✅ Model loaded from cache successfully")
+                logger.info("Model loaded from cache successfully")
                 return
 
             # Nếu không có cache, thử load từ ModelStorage
-            logger.info("🔄 Cache not available, trying ModelStorage...")
+            logger.info("Cache not available, trying ModelStorage...")
 
             from apps.recommendations.models import ModelStorage
             model_storage = ModelStorage.objects.filter(
@@ -929,7 +977,7 @@ class EnhancedDemographicFilteringService:
                         if model is not None:
                             self.kmeans_model = model
                             self.scaler = scaler
-                            logger.info("✅ Model loaded from ModelStorage successfully")
+                            logger.info("Model loaded from ModelStorage successfully")
                             return
 
                     # Case 2: Backward compatibility -> raw KMeans object
@@ -937,13 +985,13 @@ class EnhancedDemographicFilteringService:
                     # scaler có thể không tồn tại trong định dạng cũ
                     if not hasattr(self, 'scaler') or self.scaler is None:
                         self.scaler = None
-                    logger.info("✅ Model loaded from ModelStorage (raw model)")
+                    logger.info("Model loaded from ModelStorage (raw model)")
                     return
                 except Exception as e:
                     logger.warning(f"Error loading from ModelStorage: {str(e)}")
 
             # Fallback: Sử dụng OptimizedKMeansProductionService
-            logger.info("🔄 Using OptimizedKMeansProductionService for model loading...")
+            logger.info("Using OptimizedKMeansProductionService for model loading...")
 
             try:
                 from apps.recommendations.services import OptimizedKMeansProductionService
@@ -960,9 +1008,9 @@ class EnhancedDemographicFilteringService:
                     # Don't use scaler if none exists - avoid unfitted scaler errors
                     if not hasattr(self, 'scaler') or self.scaler is None:
                         self.scaler = None
-                        logger.info("✅ Model loaded from OptimizedKMeansProductionService cache without scaler")
+                        logger.info("Model loaded from OptimizedKMeansProductionService cache without scaler")
                     else:
-                        logger.info("✅ Model loaded from OptimizedKMeansProductionService cache")
+                        logger.info("Model loaded from OptimizedKMeansProductionService cache")
                     return
 
             except Exception as e:
@@ -1068,7 +1116,7 @@ class EnhancedDemographicFilteringService:
                             continue
 
                     optimal_k = best_k
-                    logger.info(f"✅ Adaptive K selection chose k={optimal_k} (silhouette={best_score:.4f})")
+                    logger.info(f"Adaptive K selection chose k={optimal_k} (silhouette={best_score:.4f})")
                 except Exception as e:
                     logger.warning(f"Adaptive K selection failed, using n_clusters={n_clusters}: {e}")
 
@@ -1138,7 +1186,7 @@ class EnhancedDemographicFilteringService:
                     user_pref.demographic_cluster = f"kmeans_{cluster_id}"
                     user_pref.save()
 
-            logger.info(f"✅ Created {n_clusters} K-means clusters successfully")
+            logger.info(f"Created {n_clusters} K-means clusters successfully")
 
             # Lưu model vào cache để lần sau load nhanh hơn
             self._save_model_to_cache()
@@ -1336,7 +1384,7 @@ class EnhancedDemographicFilteringService:
             n_clusters: Number of clusters for K-means
         """
         try:
-            logger.info(f"🔄 Refreshing demographic clusters using {method} method...")
+            logger.info(f"Refreshing demographic clusters using {method} method...")
 
             if method == 'kmeans':
                 return self.create_kmeans_clusters(recalculate=recalculate, n_clusters=n_clusters)
@@ -2178,13 +2226,17 @@ class EnhancedDemographicFilteringService:
                             cluster_score = avg_rating / 5.0
                             demographic_bonus = cluster_score * 0.2
 
-                # Calculate enhanced final score
-                base_score = rec['avg_weighted_score']
-                confidence_bonus = rec['confidence'] * 0.1
-                support_bonus = min(rec['support'] / 10, 0.1)
-                similarity_bonus = rec['avg_similarity'] * 0.1
+                # Calculate enhanced final score with proper normalization
+                # Normalize base_score to 0-1 scale (since avg_weighted_score can be > 5.0)
+                base_score_normalized = min(1.0, rec['avg_weighted_score'] / 5.0)
 
-                final_score = base_score + demographic_bonus + confidence_bonus + support_bonus + similarity_bonus
+                # Calculate bonuses (all should be 0-1 scale)
+                confidence_bonus = rec['confidence'] * 0.1  # Already 0-1
+                support_bonus = min(rec['support'] / 10, 0.1)  # Already 0-1
+                similarity_bonus = rec['avg_similarity'] * 0.1  # Already 0-1
+
+                # Calculate final score and ensure it's capped at 1.0
+                final_score = min(1.0, base_score_normalized + demographic_bonus + confidence_bonus + support_bonus + similarity_bonus)
 
                 rec['demographic_bonus'] = demographic_bonus
                 rec['similarity_bonus'] = similarity_bonus
@@ -2223,12 +2275,13 @@ class EnhancedDemographicFilteringService:
                             'composite_score': round(composite_demographic_score, 3)
                         },
                         'scoring_components': {
+                            'base_score_normalized': round(base_score_normalized, 3),
                             'demographic_bonus': round(demographic_bonus, 3),
                             'similarity_bonus': round(similarity_bonus, 3),
                             'confidence_bonus': round(confidence_bonus, 3),
                             'support_bonus': round(support_bonus, 3)
                         },
-                        'calculation': f'base({base_score:.3f}) + demo({demographic_bonus:.3f}) + conf({confidence_bonus:.3f}) + support({support_bonus:.3f}) + sim({similarity_bonus:.3f}) = {final_score:.3f}',
+                        'calculation': f'base_norm({base_score_normalized:.3f}) + demo({demographic_bonus:.3f}) + conf({confidence_bonus:.3f}) + support({support_bonus:.3f}) + sim({similarity_bonus:.3f}) = {final_score:.3f}',
                         'final_score': round(final_score, 3)
                     }
 
@@ -2401,7 +2454,7 @@ class HybridRecommendationService:
                 return cached_recommendations
 
             # Track recommendation generation
-            logger.info(f"🔄 Generating NEW hybrid recommendations for user {user.id} (no cache found)")
+            logger.info(f" Generating NEW hybrid recommendations for user {user.id} (no cache found)")
             metrics_service.track_recommendation_generation(
                 recommendation_type='hybrid',
                 user_count=1,

@@ -23,7 +23,7 @@ const RatingCard = ({ rating, viewMode = 'list' }) => {
               className="size-full object-cover"
               loading="lazy"
               onError={e => {
-                e.target.src = '/images/no-poster.png';
+                e.target.src = 'https://placehold.co/600x400';
               }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 transition-all duration-300 group-hover:opacity-100">
@@ -82,7 +82,7 @@ const RatingCard = ({ rating, viewMode = 'list' }) => {
               className="size-full rounded-l-xl object-cover"
               loading="lazy"
               onError={e => {
-                e.target.src = '/images/no-poster.png';
+                e.target.src = 'https://placehold.co/600x400';
               }}
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-all duration-300 group-hover:opacity-100">

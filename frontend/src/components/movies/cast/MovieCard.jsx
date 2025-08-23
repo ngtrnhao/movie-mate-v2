@@ -18,7 +18,7 @@ const MovieCard = ({ movie, showCharacter = false, className = '' }) => {
   };
 
   const getDisplayPoster = () => {
-    return movie.poster_url || '/images/placeholder-poster.jpg';
+    return movie.poster_url || 'https://placehold.co/600x400';
   };
 
   const getDisplayYear = () => {
@@ -50,7 +50,7 @@ const MovieCard = ({ movie, showCharacter = false, className = '' }) => {
         alt={getDisplayTitle()}
         className="mb-3 h-40 w-full rounded-lg object-cover"
         onError={e => {
-          e.target.src = '/images/placeholder-poster.jpg';
+          e.target.src = 'https://placehold.co/600x400';
         }}
       />
       <h3 className="mb-1 text-sm font-semibold text-white line-clamp-2">{getDisplayTitle()}</h3>

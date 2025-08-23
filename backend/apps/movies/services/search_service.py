@@ -1343,7 +1343,7 @@ class MovieSearchService:
                 # Enhanced poster URL fallback
                 poster_url = movie_data.get('poster_url')
                 if not poster_url or poster_url.strip() == '':
-                    poster_url = '/images/placeholder-poster.jpg'
+                    poster_url = 'https://placehold.co/600x400'
 
                 suggestion = {
                     'id': hit.meta.id,

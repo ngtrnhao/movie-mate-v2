@@ -249,11 +249,11 @@ const CastMemberDetail = () => {
               {castMember.current_movie ? (
                 <div className="flex gap-4">
                   <img
-                    src={castMember.current_movie.poster_url || '/images/placeholder-poster.jpg'}
+                    src={castMember.current_movie.poster_url || 'https://placehold.co/600x400'}
                     alt={castMember.current_movie.title || t('details.unknownMovie')}
                     className="h-32 w-24 rounded-lg object-cover"
                     onError={e => {
-                      e.target.src = '/images/placeholder-poster.jpg';
+                      e.target.src = 'https://placehold.co/600x400';
                     }}
                   />
                   <div className="flex-1">

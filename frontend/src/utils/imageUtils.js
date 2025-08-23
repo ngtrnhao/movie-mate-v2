@@ -2,7 +2,7 @@ const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
 
 // Fallback URLs
 const FALLBACK_URLS = {
-  poster: '/images/placeholder-poster.jpg',
+  poster: 'https://placehold.co/600x400',
   backdrop: '/images/placeholder-backdrop.jpg',
   profile: {
     male: '/images/avatar-male.png',

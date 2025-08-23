@@ -398,7 +398,7 @@ const LandingPage = () => {
               {/* eslint-disable-next-line react/no-unknown-property */}
               <img
                 key={featuredMovies[currentSlide].id}
-                src={featuredMovies[currentSlide].poster_path || '/placeholder-poster.jpg'}
+                src={featuredMovies[currentSlide].poster_path || 'https://placehold.co/600x400'}
                 alt={`Poster for ${getLocalizedTitle(featuredMovies[currentSlide], app_language)}`}
                 fetchPriority="high"
                 className="absolute inset-0 size-full object-cover"

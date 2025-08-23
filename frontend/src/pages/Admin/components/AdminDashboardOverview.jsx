@@ -591,11 +591,11 @@ const AdminDashboardOverview = () => {
                 className="flex items-center space-x-3 rounded-lg border p-3 hover:bg-gray-50"
               >
                 <img
-                  src={movie.poster_url || '/placeholder-movie.jpg'}
+                  src={movie.poster_url || 'https://placehold.co/600x400'}
                   alt={movie.title}
                   className="h-16 w-12 rounded object-cover"
                   onError={e => {
-                    e.target.src = '/placeholder-movie.jpg';
+                    e.target.src = 'https://placehold.co/600x400';
                   }}
                 />
                 <div className="min-w-0 flex-1">

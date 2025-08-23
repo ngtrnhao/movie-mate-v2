@@ -180,11 +180,11 @@ const WatchlistComponent = () => {
                       onClick={() => handleMovieClick(movieId)}
                     >
                       <img
-                        src={movie.poster_url || '/images/placeholder-movie.jpg'}
+                        src={movie.poster_url || 'https://placehold.co/600x400'}
                         alt={movie.title}
                         className="size-full object-cover"
                         onError={e => {
-                          e.target.src = '/images/placeholder-movie.jpg';
+                          e.target.src = 'https://placehold.co/600x400';
                         }}
                       />
                       {/* Overlay actions */}
@@ -246,11 +246,11 @@ const WatchlistComponent = () => {
                     onClick={() => handleMovieClick(movieId)}
                   >
                     <img
-                      src={movie.poster_url || '/images/placeholder-movie.jpg'}
+                      src={movie.poster_url || 'https://placehold.co/600x400'}
                       alt={movie.title}
                       className="h-30 w-20 rounded-lg object-cover"
                       onError={e => {
-                        e.target.src = '/images/placeholder-movie.jpg';
+                        e.target.src = 'https://placehold.co/600x400';
                       }}
                     />
                     <div className="flex-1">

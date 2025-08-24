@@ -1708,10 +1708,17 @@ def unpublish_movie_task(self, movie_id: int):
 
         logger.info(f"🎬 Executing scheduled unpublish for movie: {movie.title} (ID: {movie_id})")
 
-        # Unpublish movie
+        # Unpublish movie - reset về trạng thái draft
         admin_control.is_published = False
         admin_control.visibility_status = 'DRAFT'
-        admin_control.save(update_fields=['is_published', 'visibility_status'])
+        # Reset approval status về PENDING khi unpublish
+        admin_control.approval_status = 'PENDING'
+        admin_control.approved_by = None
+        admin_control.approved_at = None
+        admin_control.save(update_fields=[
+            'is_published', 'visibility_status',
+            'approval_status', 'approved_by', 'approved_at'
+        ])
 
         # Cập nhật scheduling status
         scheduling = movie.scheduling

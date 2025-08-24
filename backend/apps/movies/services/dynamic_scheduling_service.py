@@ -70,7 +70,12 @@ class DynamicSchedulingService:
             )
 
             # Lưu task ID để có thể cancel sau này
-            cache.set(f"scheduled_task_publish_{movie_id}", task_result.id, timeout=86400*30)  # 30 days
+            try:
+                cache_key = f"scheduled_task_publish_{movie_id}"
+                cache.set(cache_key, task_result.id, timeout=86400*30)  # 30 days
+                logger.info(f"💾 Cached publish task ID: {task_result.id} for movie {movie_id}")
+            except Exception as cache_error:
+                logger.error(f"❌ Failed to cache publish task ID for movie {movie_id}: {str(cache_error)}")
 
             if publish_date <= now:
                 logger.info(f"🚀 Immediate publish scheduled for movie {movie.title} (ID: {movie_id}) - past time detected")
@@ -112,7 +117,13 @@ class DynamicSchedulingService:
                 task_id=f"unpublish_movie_{movie_id}_{unpublish_date.strftime('%Y%m%d_%H%M%S')}"
             )
 
-            cache.set(f"scheduled_task_unpublish_{movie_id}", task_result.id, timeout=86400*30)
+            # Cache task ID with error handling
+            try:
+                cache_key = f"scheduled_task_unpublish_{movie_id}"
+                cache.set(cache_key, task_result.id, timeout=86400*30)
+                logger.info(f"💾 Cached unpublish task ID: {task_result.id} for movie {movie_id}")
+            except Exception as cache_error:
+                logger.error(f"❌ Failed to cache unpublish task ID for movie {movie_id}: {str(cache_error)}")
 
             logger.info(f"✅ Scheduled unpublish for movie {movie.title} (ID: {movie_id}) at {unpublish_date}")
             return True
@@ -161,8 +172,18 @@ class DynamicSchedulingService:
                 task_id=f"unfeature_movie_{movie_id}_{feature_until.strftime('%Y%m%d_%H%M%S')}"
             )
 
-            cache.set(f"scheduled_task_feature_{movie_id}", feature_task.id, timeout=86400*30)
-            cache.set(f"scheduled_task_unfeature_{movie_id}", unfeature_task.id, timeout=86400*30)
+            # Cache feature task IDs with error handling
+            try:
+                cache.set(f"scheduled_task_feature_{movie_id}", feature_task.id, timeout=86400*30)
+                logger.info(f"💾 Cached feature task ID: {feature_task.id} for movie {movie_id}")
+            except Exception as cache_error:
+                logger.error(f"❌ Failed to cache feature task ID for movie {movie_id}: {str(cache_error)}")
+
+            try:
+                cache.set(f"scheduled_task_unfeature_{movie_id}", unfeature_task.id, timeout=86400*30)
+                logger.info(f"💾 Cached unfeature task ID: {unfeature_task.id} for movie {movie_id}")
+            except Exception as cache_error:
+                logger.error(f"❌ Failed to cache unfeature task ID for movie {movie_id}: {str(cache_error)}")
 
             logger.info(f"✅ Scheduled feature for movie {movie.title} (ID: {movie_id}) from {feature_from} to {feature_until}")
             return True
@@ -183,11 +204,16 @@ class DynamicSchedulingService:
             action_type: Loại action (publish, unpublish, feature, unfeature)
         """
         try:
-            task_id = cache.get(f"scheduled_task_{action_type}_{movie_id}")
+            cache_key = f"scheduled_task_{action_type}_{movie_id}"
+            task_id = cache.get(cache_key)
             if task_id:
                 # Revoke task
                 self.app.control.revoke(task_id, terminate=True)
-                cache.delete(f"scheduled_task_{action_type}_{movie_id}")
+                try:
+                    cache.delete(cache_key)
+                    logger.info(f"🗑️ Deleted cache for {action_type} task of movie {movie_id}")
+                except Exception as cache_error:
+                    logger.error(f"❌ Failed to delete cache for {action_type} task of movie {movie_id}: {str(cache_error)}")
 
                 # Cập nhật scheduling record
                 movie = Movie.objects.get(id=movie_id)

@@ -4894,14 +4894,10 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         admin_control.approved_at = timezone.now()
         admin_control.last_modified_by = request.user
 
-        # Auto-publish if quality requirements are met
-        if quality_met and admin_control.visibility_status == 'DRAFT':
-            admin_control.visibility_status = 'PUBLISHED'
-            admin_control.is_published = True
-
+        # Only approve, don't auto-publish to avoid conflicts with scheduling
+        # Auto-publish will be handled by the scheduled task if conditions are met
         admin_control.save(update_fields=[
-            'approval_status', 'approved_by', 'approved_at',
-            'visibility_status', 'is_published', 'last_modified_by'
+            'approval_status', 'approved_by', 'approved_at', 'last_modified_by'
         ])
 
         # Invalidate dashboard cache
@@ -4909,9 +4905,66 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
 
         return Response({
             'status': 'success',
-            'message': 'Movie approved successfully',
+            'message': 'Movie approved successfully. Publishing will be handled by scheduled tasks if conditions are met.',
             'approval_status': admin_control.approval_status,
-            'approved_by': admin_control.approved_by.username if admin_control.approved_by else None
+            'approved_by': admin_control.approved_by.username if admin_control.approved_by else None,
+            'quality_met': quality_met
+        })
+
+    @action(detail=True, methods=['post'])
+    def publish_movie(self, request, pk=None):
+        """Manually publish a movie (auto-approve if not already approved)"""
+        movie = self.get_object()
+        admin_control = self.get_object_admin_control(movie)
+
+        # Check quality metrics
+        quality_met = True
+        try:
+            quality_metrics = movie.quality_metrics
+            quality_met = quality_metrics.minimum_quality_met
+        except MovieQualityMetrics.DoesNotExist:
+            quality_met = False
+
+        if not quality_met:
+            return Response({
+                'status': 'error',
+                'message': 'Movie does not meet quality requirements for publishing'
+            }, status=400)
+
+        # Auto-approve if not already approved
+        was_auto_approved = False
+        if admin_control.approval_status != 'APPROVED':
+            admin_control.approval_status = 'APPROVED'
+            admin_control.approved_by = request.user
+            admin_control.approved_at = timezone.now()
+            was_auto_approved = True
+
+        # Publish the movie
+        admin_control.is_published = True
+        admin_control.visibility_status = 'PUBLISHED'
+        admin_control.last_modified_by = request.user
+
+        # Save all changes
+        update_fields = ['is_published', 'visibility_status', 'last_modified_by']
+        if was_auto_approved:
+            update_fields.extend(['approval_status', 'approved_by', 'approved_at'])
+
+        admin_control.save(update_fields=update_fields)
+
+        # Invalidate dashboard cache
+        self._invalidate_dashboard_cache()
+
+        message = 'Movie published successfully'
+        if was_auto_approved:
+            message += ' and auto-approved'
+
+        return Response({
+            'status': 'success',
+            'message': message,
+            'is_published': admin_control.is_published,
+            'visibility_status': admin_control.visibility_status,
+            'approval_status': admin_control.approval_status,
+            'was_auto_approved': was_auto_approved
         })
 
     @action(detail=True, methods=['post'])
@@ -4991,12 +5044,16 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             )
             message = f'Unfeatured {updated} movies'
         elif action == 'publish':
+            # Auto-approve and publish movies
             updated = controls.update(
+                approval_status='APPROVED',
+                approved_at=now,
+                approved_by=request.user,
                 is_published=True,
                 visibility_status='PUBLISHED',
                 last_modified_by=request.user
             )
-            message = f'Published {updated} movies'
+            message = f'Published and auto-approved {updated} movies'
         elif action == 'unpublish':
             updated = controls.update(
                 is_published=False,

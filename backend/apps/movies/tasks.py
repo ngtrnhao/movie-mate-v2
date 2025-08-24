@@ -1054,7 +1054,7 @@ def process_scheduled_actions_auto(self):
     Runs every 5 minutes to check for pending scheduled actions
     """
     try:
-        from .models import MovieScheduling, MovieAdminControl
+        from .models import MovieScheduling, MovieAdminControl, MovieQualityMetrics
 
         # Set task status
         cache.set('task_status_scheduling', 'running', timeout=3600)
@@ -1098,6 +1098,14 @@ def process_scheduled_actions_auto(self):
                 if not admin_control:
                     admin_control, _ = MovieAdminControl.objects.get_or_create(movie=movie)
 
+                # Check quality metrics for publishing
+                quality_met = True
+                try:
+                    quality_metrics = movie.quality_metrics
+                    quality_met = quality_metrics.minimum_quality_met
+                except MovieQualityMetrics.DoesNotExist:
+                    quality_met = False
+
                 # Determine intended actions with precedence to "un-" actions
                 should_unpublish = bool(
                     scheduling.auto_unpublish and
@@ -1108,7 +1116,9 @@ def process_scheduled_actions_auto(self):
                     scheduling.auto_publish and
                     scheduling.publish_date and
                     scheduling.publish_date <= now and
-                    not should_unpublish  # prevent publish if unpublish is already due
+                    not should_unpublish and  # prevent publish if unpublish is already due
+                    admin_control.approval_status == 'APPROVED' and  # Only publish approved movies
+                    quality_met  # Only publish if quality requirements are met
                 )
                 should_unfeature = bool(
                     scheduling.auto_unfeature and
@@ -1144,6 +1154,12 @@ def process_scheduled_actions_auto(self):
                     did_publish = True
                     actions_processed['published'] += 1
                     logger.info(f"📢 Auto-published movie: {movie.title} (ID: {movie.id})")
+                elif scheduling.auto_publish and scheduling.publish_date and scheduling.publish_date <= now and not should_publish:
+                    # Log why auto-publish was skipped
+                    if admin_control.approval_status != 'APPROVED':
+                        logger.warning(f"⚠️ Auto-publish skipped for movie {movie.title} (ID: {movie.id}): Not approved (status: {admin_control.approval_status})")
+                    elif not quality_met:
+                        logger.warning(f"⚠️ Auto-publish skipped for movie {movie.title} (ID: {movie.id}): Quality requirements not met")
 
                 # Apply feature/unfeature once based on precedence
                 if should_unfeature and admin_control.admin_featured:

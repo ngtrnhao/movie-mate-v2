@@ -62,11 +62,18 @@ app.conf.beat_schedule = {
         "schedule": timedelta(minutes=15),  # Every 6 hours
     },
 
-    # 📅 Scheduling automation tasks
+    # 📅 Scheduling automation tasks (Legacy - can be removed after migration)
     "process_scheduled_actions": {
         "task": "apps.movies.tasks.process_scheduled_actions_auto",
         "schedule": timedelta(minutes=5),  # Every 5 minutes
         "options": {"priority": 9}  # High priority for timely execution
+    },
+
+    # 🧹 Cleanup scheduled tasks
+    "cleanup_scheduled_tasks": {
+        "task": "apps.movies.tasks.cleanup_scheduled_tasks",
+        "schedule": timedelta(hours=24),  # Daily
+        "options": {"priority": 1}  # Low priority
     },
     "update_scheduling_status": {
         "task": "apps.movies.tasks.update_scheduling_status_auto",

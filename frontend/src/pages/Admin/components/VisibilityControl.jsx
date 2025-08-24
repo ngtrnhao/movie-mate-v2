@@ -9,7 +9,7 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XMarkIcon,
-  // PencilIcon,
+  PencilIcon,
   AdjustmentsHorizontalIcon,
   MagnifyingGlassIcon,
   XCircleIcon,
@@ -51,6 +51,10 @@ import {
   rejectMovie,
   updateMoviePriority,
   scheduleMovieAction,
+  scheduleMoviePublish,
+  cancelScheduledTask,
+  getScheduledTasks,
+  rescheduleTask,
   updateAdminMovie,
   deleteAdminMovie,
   // getMovieEnrichmentStatus,
@@ -151,6 +155,8 @@ const VisibilityControl = () => {
   const [editMovie, setEditMovie] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedMovieForSchedule, setSelectedMovieForSchedule] = useState(null);
+  const [isEditScheduleMode, setIsEditScheduleMode] = useState(false);
+  const [existingScheduleData, setExistingScheduleData] = useState(null);
 
   const {
     loading: metricsLoading,
@@ -781,24 +787,93 @@ const VisibilityControl = () => {
   // Schedule publish
   const handleOpenScheduleModal = useCallback(movie => {
     setSelectedMovieForSchedule(movie);
+    setIsEditScheduleMode(false);
+    setExistingScheduleData(null);
     setShowScheduleModal(true);
+  }, []);
+
+  // Xử lý mở modal sửa lịch trình
+  const handleOpenEditScheduleModal = useCallback(async movie => {
+    try {
+      // Lấy thông tin lịch trình hiện tại
+      const scheduledTasks = await getScheduledTasks(movie.id);
+      const publishTask = scheduledTasks.find(task => task.action_type === 'publish');
+
+      if (publishTask) {
+        setSelectedMovieForSchedule(movie);
+        setIsEditScheduleMode(true);
+        setExistingScheduleData(publishTask);
+        setShowScheduleModal(true);
+      } else {
+        alert('Không tìm thấy lịch trình xuất bản cho phim này');
+      }
+    } catch (error) {
+      alert('Không thể lấy thông tin lịch trình: ' + (error.error || error.message));
+    }
   }, []);
 
   const handleSchedulePublish = useCallback(
     async scheduleData => {
       try {
-        const fullScheduleData = {
-          movie_id: selectedMovieForSchedule.id,
-          action_type: 'publish',
-          ...scheduleData,
-        };
-        await scheduleMovieAction(fullScheduleData);
-        alert('Đã lên lịch xuất bản phim thành công!');
+        // SchedulePublishModal gửi scheduled_datetime, không phải publish_date
+        const publishDate = scheduleData.scheduled_datetime || scheduleData.publish_date;
+
+        if (!publishDate) {
+          alert('Vui lòng chọn ngày và giờ xuất bản');
+          return;
+        }
+
+        // Thêm timezone nếu chưa có
+        const publishDateWithTimezone =
+          publishDate.includes('+') || publishDate.includes('Z')
+            ? publishDate
+            : `${publishDate}+07:00`; // Asia/Ho_Chi_Minh timezone
+
+        // Sử dụng API mới với dynamic scheduling
+        await scheduleMoviePublish(
+          selectedMovieForSchedule.id,
+          publishDateWithTimezone,
+          scheduleData.auto_approve || true
+        );
+        alert('Đã lên lịch xuất bản phim thành công! Task sẽ chạy đúng giờ đã đặt.');
         setShowScheduleModal(false);
         setSelectedMovieForSchedule(null);
         await fetchMovies('init', currentAfter);
       } catch (error) {
         alert(error.error || 'Không thể lên lịch xuất bản phim');
+      }
+    },
+    [selectedMovieForSchedule, fetchMovies, currentAfter]
+  );
+
+  // Xử lý sửa lịch trình xuất bản phim
+  const handleReschedulePublish = useCallback(
+    async scheduleData => {
+      try {
+        const publishDate = scheduleData.scheduled_datetime || scheduleData.publish_date;
+
+        if (!publishDate) {
+          alert('Vui lòng chọn ngày và giờ xuất bản');
+          return;
+        }
+
+        // Thêm timezone nếu chưa có
+        const publishDateWithTimezone =
+          publishDate.includes('+') || publishDate.includes('Z')
+            ? publishDate
+            : `${publishDate}+07:00`; // Asia/Ho_Chi_Minh timezone
+
+        // Sử dụng API reschedule
+        await rescheduleTask(selectedMovieForSchedule.id, 'publish', publishDateWithTimezone);
+
+        alert('Đã cập nhật lịch trình xuất bản phim thành công!');
+        setShowScheduleModal(false);
+        setSelectedMovieForSchedule(null);
+        setIsEditScheduleMode(false);
+        setExistingScheduleData(null);
+        await fetchMovies('init', currentAfter);
+      } catch (error) {
+        alert(error.error || 'Không thể cập nhật lịch trình xuất bản phim');
       }
     },
     [selectedMovieForSchedule, fetchMovies, currentAfter]
@@ -1082,13 +1157,24 @@ const VisibilityControl = () => {
 
               {/* Schedule publish for pending and approved */}
               {(approvalStatus === 'PENDING' || approvalStatus === 'APPROVED') && (
-                <button
-                  onClick={() => handleOpenScheduleModal(movie)}
-                  className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  <CalendarIcon className="mr-1.5 size-4" />
-                  Lên lịch xuất bản
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleOpenScheduleModal(movie)}
+                    className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    <CalendarIcon className="mr-1.5 size-4" />
+                    Lên lịch xuất bản
+                  </button>
+
+                  {/* Edit schedule button - chỉ hiển thị nếu có lịch trình hiện tại */}
+                  <button
+                    onClick={() => handleOpenEditScheduleModal(movie)}
+                    className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  >
+                    <PencilIcon className="mr-1.5 size-4" />
+                    Sửa lịch trình
+                  </button>
+                </div>
               )}
 
               {/* Admin control actions */}
@@ -2254,9 +2340,14 @@ const VisibilityControl = () => {
             onClose={() => {
               setShowScheduleModal(false);
               setSelectedMovieForSchedule(null);
+              setIsEditScheduleMode(false);
+              setExistingScheduleData(null);
             }}
             onSchedule={handleSchedulePublish}
+            onReschedule={handleReschedulePublish}
             movieTitle={selectedMovieForSchedule?.title}
+            existingSchedule={existingScheduleData}
+            isEditMode={isEditScheduleMode}
           />
         )}
       </div>

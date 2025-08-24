@@ -14,8 +14,11 @@ import {
 import {
   getAdminMovies,
   scheduleMovieAction,
-  cancelScheduledAction,
+  scheduleMoviePublish,
+  cancelScheduledTask,
+  getScheduledTasks,
   getScheduledActions,
+  rescheduleTask,
 } from '../../../api/adminMovieService';
 import Modal from '../../../components/common/Modal';
 
@@ -79,7 +82,11 @@ const SchedulingManagement = () => {
         auto_unschedule: scheduleForm.auto_unschedule,
       };
 
-      await scheduleMovieAction(scheduleData);
+      await scheduleMoviePublish(
+        scheduleData.movie_id,
+        scheduleData.scheduled_datetime,
+        scheduleData.auto_approve || true
+      );
       setShowScheduleModal(false);
       setSelectedMovie(null);
       resetScheduleForm();
@@ -90,9 +97,9 @@ const SchedulingManagement = () => {
   };
 
   // Cancel scheduled action
-  const handleCancelAction = async actionId => {
+  const handleCancelAction = async (movieId, actionType) => {
     try {
-      await cancelScheduledAction(actionId);
+      await cancelScheduledTask(movieId, actionType);
       fetchData();
     } catch (error) {
       console.error('Error canceling scheduled action:', error);

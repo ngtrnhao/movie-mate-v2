@@ -1596,3 +1596,183 @@ def quality_maintenance_auto(self):
         cache.set('task_status_quality_maintenance', 'error', timeout=3600)
         logger.error(f"❌ Error in quality maintenance: {str(exc)}")
         raise self.retry(exc=exc, countdown=60, max_retries=2)
+
+
+@shared_task(bind=True)
+def publish_movie_task(self, movie_id: int, auto_approve: bool = True):
+    """
+    Task để publish movie tại thời điểm được schedule
+    """
+    try:
+        from .models import Movie, MovieAdminControl, MovieQualityMetrics
+
+        movie = Movie.objects.get(id=movie_id)
+        admin_control = movie.admin_control
+
+        logger.info(f"🎬 Executing scheduled publish for movie: {movie.title} (ID: {movie_id})")
+
+        # Auto-approve nếu cần
+        if auto_approve and admin_control.approval_status != 'APPROVED':
+            admin_control.approval_status = 'APPROVED'
+            admin_control.approved_at = timezone.now()
+            logger.info(f"✅ Auto-approved movie: {movie.title}")
+
+        # Kiểm tra quality metrics
+        quality_met = True
+        try:
+            quality_metrics = movie.quality_metrics
+            quality_met = quality_metrics.minimum_quality_met
+        except MovieQualityMetrics.DoesNotExist:
+            quality_met = False
+
+        if not quality_met:
+            logger.warning(f"⚠️ Scheduled publish skipped for movie {movie.title}: Quality requirements not met")
+            return False
+
+        # Publish movie
+        admin_control.is_published = True
+        admin_control.visibility_status = 'PUBLISHED'
+        admin_control.save(update_fields=[
+            'approval_status', 'approved_at', 'is_published', 'visibility_status'
+        ])
+
+        # Cập nhật scheduling status
+        scheduling = movie.scheduling
+        scheduling.last_action_executed = 'publish'
+        scheduling.last_action_date = timezone.now()
+        scheduling.save()
+
+        logger.info(f"📢 Scheduled publish completed for movie: {movie.title} (ID: {movie_id})")
+        return True
+
+    except Movie.DoesNotExist:
+        logger.error(f"❌ Movie with ID {movie_id} not found for scheduled publish")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled publish for movie {movie_id}: {str(e)}")
+        return False
+
+
+@shared_task(bind=True)
+def unpublish_movie_task(self, movie_id: int):
+    """
+    Task để unpublish movie tại thời điểm được schedule
+    """
+    try:
+        from .models import Movie, MovieAdminControl
+
+        movie = Movie.objects.get(id=movie_id)
+        admin_control = movie.admin_control
+
+        logger.info(f"🎬 Executing scheduled unpublish for movie: {movie.title} (ID: {movie_id})")
+
+        # Unpublish movie
+        admin_control.is_published = False
+        admin_control.visibility_status = 'DRAFT'
+        admin_control.save(update_fields=['is_published', 'visibility_status'])
+
+        # Cập nhật scheduling status
+        scheduling = movie.scheduling
+        scheduling.last_action_executed = 'unpublish'
+        scheduling.last_action_date = timezone.now()
+        scheduling.save()
+
+        logger.info(f"📪 Scheduled unpublish completed for movie: {movie.title} (ID: {movie_id})")
+        return True
+
+    except Movie.DoesNotExist:
+        logger.error(f"❌ Movie with ID {movie_id} not found for scheduled unpublish")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled unpublish for movie {movie_id}: {str(e)}")
+        return False
+
+
+@shared_task(bind=True)
+def feature_movie_task(self, movie_id: int):
+    """
+    Task để feature movie tại thời điểm được schedule
+    """
+    try:
+        from .models import Movie, MovieAdminControl
+
+        movie = Movie.objects.get(id=movie_id)
+        admin_control = movie.admin_control
+
+        logger.info(f"🎬 Executing scheduled feature for movie: {movie.title} (ID: {movie_id})")
+
+        # Feature movie
+        admin_control.admin_featured = True
+        admin_control.admin_priority = 1
+        admin_control.save(update_fields=['admin_featured', 'admin_priority'])
+
+        # Cập nhật scheduling status
+        scheduling = movie.scheduling
+        scheduling.last_action_executed = 'feature'
+        scheduling.last_action_date = timezone.now()
+        scheduling.save()
+
+        logger.info(f"⭐ Scheduled feature completed for movie: {movie.title} (ID: {movie_id})")
+        return True
+
+    except Movie.DoesNotExist:
+        logger.error(f"❌ Movie with ID {movie_id} not found for scheduled feature")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled feature for movie {movie_id}: {str(e)}")
+        return False
+
+
+@shared_task(bind=True)
+def unfeature_movie_task(self, movie_id: int):
+    """
+    Task để unfeature movie tại thời điểm được schedule
+    """
+    try:
+        from .models import Movie, MovieAdminControl
+
+        movie = Movie.objects.get(id=movie_id)
+        admin_control = movie.admin_control
+
+        logger.info(f"🎬 Executing scheduled unfeature for movie: {movie.title} (ID: {movie_id})")
+
+        # Unfeature movie
+        admin_control.admin_featured = False
+        admin_control.admin_priority = 0
+        admin_control.save(update_fields=['admin_featured', 'admin_priority'])
+
+        # Cập nhật scheduling status
+        scheduling = movie.scheduling
+        scheduling.last_action_executed = 'unfeature'
+        scheduling.last_action_date = timezone.now()
+        scheduling.save()
+
+        logger.info(f"📉 Scheduled unfeature completed for movie: {movie.title} (ID: {movie_id})")
+        return True
+
+    except Movie.DoesNotExist:
+        logger.error(f"❌ Movie with ID {movie_id} not found for scheduled unfeature")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled unfeature for movie {movie_id}: {str(e)}")
+        return False
+
+
+@shared_task(bind=True)
+def cleanup_scheduled_tasks(self):
+    """
+    Task để cleanup các scheduled task đã hết hạn
+    Chạy hàng ngày để dọn dẹp cache
+    """
+    try:
+        from .services.dynamic_scheduling_service import DynamicSchedulingService
+
+        service = DynamicSchedulingService()
+        cleaned_count = service.cleanup_expired_tasks()
+
+        logger.info(f"🧹 Cleanup scheduled tasks completed: {cleaned_count} tasks cleaned")
+        return cleaned_count
+
+    except Exception as e:
+        logger.error(f"❌ Error in cleanup scheduled tasks: {str(e)}")
+        return 0

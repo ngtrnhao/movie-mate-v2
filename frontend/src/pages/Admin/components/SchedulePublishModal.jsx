@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
-import { XMarkIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
+import React, { useState, useEffect } from 'react';
+import { XMarkIcon, CalendarIcon, ClockIcon, PencilIcon } from '@heroicons/react/24/outline';
 
-const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
+const SchedulePublishModal = ({
+  isOpen,
+  onClose,
+  onSchedule,
+  onReschedule,
+  movieTitle,
+  existingSchedule = null, // Thông tin lịch trình hiện có
+  isEditMode = false, // Chế độ sửa lịch trình
+}) => {
   const [scheduleData, setScheduleData] = useState({
     scheduled_date: '',
     scheduled_time: '09:00',
@@ -11,6 +19,37 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
     priority: 1,
     auto_unpublish: false,
   });
+
+  // Khởi tạo dữ liệu từ existingSchedule nếu đang ở chế độ edit
+  useEffect(() => {
+    if (isEditMode && existingSchedule) {
+      const scheduleDate = new Date(existingSchedule.scheduled_datetime);
+      const endDate = existingSchedule.end_datetime
+        ? new Date(existingSchedule.end_datetime)
+        : null;
+
+      setScheduleData({
+        scheduled_date: scheduleDate.toISOString().split('T')[0],
+        scheduled_time: scheduleDate.toTimeString().slice(0, 5),
+        end_date: endDate ? endDate.toISOString().split('T')[0] : '',
+        end_time: endDate ? endDate.toTimeString().slice(0, 5) : '23:59',
+        campaign_name: existingSchedule.campaign_name || '',
+        priority: existingSchedule.priority || 1,
+        auto_unpublish: existingSchedule.auto_unpublish || false,
+      });
+    } else {
+      // Reset về giá trị mặc định cho lịch trình mới
+      setScheduleData({
+        scheduled_date: '',
+        scheduled_time: '09:00',
+        end_date: '',
+        end_time: '23:59',
+        campaign_name: '',
+        priority: 1,
+        auto_unpublish: false,
+      });
+    }
+  }, [isEditMode, existingSchedule, isOpen]);
 
   const handleSubmit = e => {
     e.preventDefault();
@@ -26,13 +65,21 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
         ? `${scheduleData.end_date}T${scheduleData.end_time}:00`
         : null;
 
-    onSchedule({
+    const schedulePayload = {
       scheduled_datetime,
       end_datetime,
       campaign_name: scheduleData.campaign_name || 'Manual scheduled publish',
       priority: scheduleData.priority,
       auto_unpublish: scheduleData.auto_unpublish,
-    });
+    };
+
+    if (isEditMode && onReschedule) {
+      // Gọi hàm reschedule nếu đang ở chế độ edit
+      onReschedule(schedulePayload);
+    } else {
+      // Gọi hàm schedule cho lịch trình mới
+      onSchedule(schedulePayload);
+    }
   };
 
   const handleClose = () => {
@@ -61,8 +108,18 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
         <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
           <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium leading-6 text-gray-900">
-                Lên lịch xuất bản phim
+              <h3 className="text-lg font-medium leading-6 text-gray-900 flex items-center">
+                {isEditMode ? (
+                  <>
+                    <PencilIcon className="h-5 w-5 mr-2 text-orange-500" />
+                    Sửa lịch trình xuất bản
+                  </>
+                ) : (
+                  <>
+                    <CalendarIcon className="h-5 w-5 mr-2 text-blue-500" />
+                    Lên lịch xuất bản phim
+                  </>
+                )}
               </h3>
               <button
                 onClick={handleClose}
@@ -77,6 +134,12 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
                 <p className="text-sm text-blue-800">
                   <strong>Phim:</strong> {movieTitle}
                 </p>
+                {isEditMode && existingSchedule && (
+                  <p className="text-sm text-orange-700 mt-1">
+                    <strong>Lịch trình hiện tại:</strong>{' '}
+                    {new Date(existingSchedule.scheduled_datetime).toLocaleString('vi-VN')}
+                  </p>
+                )}
               </div>
             )}
 
@@ -230,9 +293,13 @@ const SchedulePublishModal = ({ isOpen, onClose, onSchedule, movieTitle }) => {
             <button
               type="submit"
               onClick={handleSubmit}
-              className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto"
+              className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${
+                isEditMode
+                  ? 'bg-orange-600 hover:bg-orange-500'
+                  : 'bg-indigo-600 hover:bg-indigo-500'
+              }`}
             >
-              Lên lịch
+              {isEditMode ? 'Cập nhật lịch trình' : 'Lên lịch'}
             </button>
             <button
               type="button"

@@ -53,7 +53,17 @@ const AdminSidebar = ({
                 )}
                 <div className="mt-2 space-y-1">
                   {items.map(item => {
-                    const IconComponent = activeView === item.id ? item.iconSolid : item.icon;
+                    const IconComponent =
+                      activeView === item.id
+                        ? item.iconSolid || item.icon
+                        : item.icon || item.iconSolid;
+
+                    // Skip rendering if no icon is available
+                    if (!IconComponent) {
+                      console.warn(`Missing icon for navigation item: ${item.id}`);
+                      return null;
+                    }
+
                     return (
                       <button
                         key={item.id}

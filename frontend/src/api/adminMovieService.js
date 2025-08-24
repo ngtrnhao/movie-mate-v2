@@ -500,7 +500,7 @@ export const cancelScheduledAction = async actionId => {
 };
 
 /**
- * Schedule a movie action (publish, unpublish, feature, etc.)
+ * Schedule a movie action using dynamic scheduling (publish, unpublish, feature, etc.)
  */
 export const scheduleMovieAction = async scheduleData => {
   try {
@@ -508,6 +508,65 @@ export const scheduleMovieAction = async scheduleData => {
     return handleResponse(response);
   } catch (error) {
     handleError(error, 'schedule movie action');
+  }
+};
+
+/**
+ * Schedule movie publish using dynamic scheduling
+ */
+export const scheduleMoviePublish = async (movieId, publishDate, autoApprove = true) => {
+  try {
+    const response = await axiosInstance.post(`/api/admin/movies/${movieId}/schedule_publish/`, {
+      publish_date: publishDate,
+      auto_approve: autoApprove,
+    });
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'schedule movie publish');
+  }
+};
+
+/**
+ * Cancel scheduled task for a movie
+ */
+export const cancelScheduledTask = async (movieId, actionType) => {
+  try {
+    const response = await axiosInstance.post(
+      `/api/admin/movies/${movieId}/cancel_scheduled_task/`,
+      {
+        action_type: actionType,
+      }
+    );
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'cancel scheduled task');
+  }
+};
+
+/**
+ * Get scheduled tasks for a movie
+ */
+export const getScheduledTasks = async movieId => {
+  try {
+    const response = await axiosInstance.get(`/api/admin/movies/${movieId}/scheduled_tasks/`);
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'get scheduled tasks');
+  }
+};
+
+/**
+ * Reschedule a task for a movie
+ */
+export const rescheduleTask = async (movieId, actionType, newDate) => {
+  try {
+    const response = await axiosInstance.post(`/api/admin/movies/${movieId}/reschedule_task/`, {
+      action_type: actionType,
+      new_date: newDate,
+    });
+    return handleResponse(response);
+  } catch (error) {
+    handleError(error, 'reschedule task');
   }
 };
 

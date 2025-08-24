@@ -4912,6 +4912,154 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=True, methods=['post'])
+    def cancel_scheduled_task(self, request, pk=None):
+        """Cancel a scheduled task for a movie"""
+        movie = self.get_object()
+        action_type = request.data.get('action_type')
+
+        if not action_type:
+            return Response({
+                'status': 'error',
+                'message': 'action_type is required'
+            }, status=400)
+
+        try:
+            from .services.dynamic_scheduling_service import DynamicSchedulingService
+            service = DynamicSchedulingService()
+
+            success = service.cancel_scheduled_task(movie.id, action_type)
+
+            if success:
+                return Response({
+                    'status': 'success',
+                    'message': f'Cancelled {action_type} task for movie'
+                })
+            else:
+                return Response({
+                    'status': 'error',
+                    'message': f'Failed to cancel {action_type} task'
+                }, status=500)
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': f'Error cancelling task: {str(e)}'
+            }, status=500)
+
+    @action(detail=True, methods=['get'])
+    def scheduled_tasks(self, request, pk=None):
+        """Get scheduled tasks for a movie"""
+        movie = self.get_object()
+
+        try:
+            from .services.dynamic_scheduling_service import DynamicSchedulingService
+            service = DynamicSchedulingService()
+
+            tasks = service.get_scheduled_tasks(movie.id)
+
+            return Response({
+                'status': 'success',
+                'tasks': tasks
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': f'Error getting scheduled tasks: {str(e)}'
+            }, status=500)
+
+    @action(detail=True, methods=['post'])
+    def reschedule_task(self, request, pk=None):
+        """Reschedule a task for a movie"""
+        movie = self.get_object()
+        action_type = request.data.get('action_type')
+        new_date = request.data.get('new_date')
+
+        if not action_type or not new_date:
+            return Response({
+                'status': 'error',
+                'message': 'action_type and new_date are required'
+            }, status=400)
+
+        try:
+            from datetime import datetime
+            from .services.dynamic_scheduling_service import DynamicSchedulingService
+
+            new_datetime = datetime.fromisoformat(new_date.replace('Z', '+00:00'))
+            service = DynamicSchedulingService()
+
+            success = service.reschedule_task(movie.id, action_type, new_datetime)
+
+            if success:
+                return Response({
+                    'status': 'success',
+                    'message': f'Rescheduled {action_type} task for movie'
+                })
+            else:
+                return Response({
+                    'status': 'error',
+                    'message': f'Failed to reschedule {action_type} task'
+                }, status=500)
+
+        except ValueError as e:
+            return Response({
+                'status': 'error',
+                'message': f'Invalid date format: {str(e)}'
+            }, status=400)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': f'Error rescheduling task: {str(e)}'
+            }, status=500)
+
+    @action(detail=True, methods=['post'])
+    def schedule_publish(self, request, pk=None):
+        """Schedule movie for publishing at a specific time using dynamic scheduling"""
+        movie = self.get_object()
+        publish_date = request.data.get('publish_date')
+        auto_approve = request.data.get('auto_approve', True)
+
+        if not publish_date:
+            return Response({
+                'status': 'error',
+                'message': 'publish_date is required'
+            }, status=400)
+
+        try:
+            # Parse publish date
+            from datetime import datetime
+            publish_datetime = datetime.fromisoformat(publish_date.replace('Z', '+00:00'))
+
+            # Sử dụng dynamic scheduling service
+            from .services.dynamic_scheduling_service import DynamicSchedulingService
+            service = DynamicSchedulingService()
+
+            success = service.schedule_movie_publish(
+                movie_id=movie.id,
+                publish_date=publish_datetime,
+                auto_approve=auto_approve
+            )
+
+            if success:
+                return Response({
+                    'status': 'success',
+                    'message': f'Movie scheduled for publishing at {publish_datetime}',
+                    'publish_date': publish_datetime.isoformat(),
+                    'auto_approve': auto_approve
+                })
+            else:
+                return Response({
+                    'status': 'error',
+                    'message': 'Failed to schedule movie for publishing'
+                }, status=500)
+
+        except ValueError as e:
+            return Response({
+                'status': 'error',
+                'message': f'Invalid date format: {str(e)}'
+            }, status=400)
+
+    @action(detail=True, methods=['post'])
     def publish_movie(self, request, pk=None):
         """Manually publish a movie (auto-approve if not already approved)"""
         movie = self.get_object()

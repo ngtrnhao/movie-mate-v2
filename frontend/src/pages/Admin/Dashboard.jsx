@@ -17,6 +17,7 @@ import {
   DocumentArrowDownIcon,
   ChartBarSquareIcon,
   ClipboardDocumentListIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 import {
   ChartBarIcon as ChartBarIconSolid,
@@ -29,6 +30,7 @@ import {
   EyeIcon as EyeIconSolid,
   ChartBarSquareIcon as ChartBarSquareIconSolid,
   ArrowTrendingUpIcon as ArrowTrendingUpIconSolid,
+  CalendarIcon as CalendarIconSolid,
 } from '@heroicons/react/24/solid';
 
 import UserAnalytics from './components/UserAnalytics';
@@ -139,6 +141,16 @@ const AdminDashboardContent = () => {
         group: 'content',
         priority: 'high',
         description: 'Enrichment dữ liệu phim từ TMDB/IMDB',
+      },
+      {
+        id: 'scheduling',
+        label: 'Lịch trình',
+        icon: CalendarIcon,
+        iconSolid: CalendarIconSolid,
+        color: 'indigo',
+        group: 'content',
+        priority: 'high',
+        description: 'Quản lý lịch trình xuất bản và featured content',
       },
       {
         id: 'visibility',

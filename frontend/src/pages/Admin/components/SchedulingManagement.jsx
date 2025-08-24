@@ -44,7 +44,7 @@ const SchedulingManagement = () => {
       const [moviesData, actionsData] = await Promise.all([
         getAdminMovies({
           pageSize: 50,
-          filters: { approval_status: 'APPROVED' },
+          filters: { approval_status: ['PENDING', 'APPROVED'] },
         }),
         getScheduledActions(),
       ]);

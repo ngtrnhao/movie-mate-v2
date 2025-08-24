@@ -1041,8 +1041,8 @@ const MovieManagement = () => {
                   </div>
                 )}
 
-                {/* Schedule publish button for pending movies */}
-                {approvalInfo?.status === 'PENDING' && (
+                {/* Schedule publish button for pending and approved movies */}
+                {(approvalInfo?.status === 'PENDING' || approvalInfo?.status === 'APPROVED') && (
                   <button
                     onClick={() => handleOpenScheduleModal(movie)}
                     className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"

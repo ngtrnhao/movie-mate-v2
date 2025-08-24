@@ -1684,6 +1684,25 @@ def publish_movie_task(self, movie_id: int, auto_approve: bool = True):
         scheduling.last_action_date = timezone.now()
         scheduling.save()
 
+        # Clear cache để frontend cập nhật ngay lập tức
+        try:
+            from django.core.cache import cache
+
+            # Clear movie detail cache
+            detail_cache_key = f'movie_details_complete_v4_{movie_id}'
+            cache.delete(detail_cache_key)
+            logger.info(f"🗑️ Cleared movie detail cache for movie {movie_id}")
+
+            # Clear similar movies cache (all genres)
+            for i in range(1, 50):  # Clear for common genre IDs
+                similar_cache_key = f'similar_movies_v3_{movie_id}_{i}'
+                cache.delete(similar_cache_key)
+
+            logger.info(f"🗑️ Cleared similar movies cache for movie {movie_id}")
+
+        except Exception as cache_error:
+            logger.warning(f"⚠️ Failed to clear cache for movie {movie_id}: {str(cache_error)}")
+
         logger.info(f"📢 Scheduled publish completed for movie: {movie.title} (ID: {movie_id})")
         return True
 
@@ -1725,6 +1744,25 @@ def unpublish_movie_task(self, movie_id: int):
         scheduling.last_action_executed = 'unpublish'
         scheduling.last_action_date = timezone.now()
         scheduling.save()
+
+        # Clear cache để frontend cập nhật ngay lập tức
+        try:
+            from django.core.cache import cache
+
+            # Clear movie detail cache
+            detail_cache_key = f'movie_details_complete_v4_{movie_id}'
+            cache.delete(detail_cache_key)
+            logger.info(f"🗑️ Cleared movie detail cache for movie {movie_id}")
+
+            # Clear similar movies cache (all genres)
+            for i in range(1, 50):  # Clear for common genre IDs
+                similar_cache_key = f'similar_movies_v3_{movie_id}_{i}'
+                cache.delete(similar_cache_key)
+
+            logger.info(f"🗑️ Cleared similar movies cache for movie {movie_id}")
+
+        except Exception as cache_error:
+            logger.warning(f"⚠️ Failed to clear cache for movie {movie_id}: {str(cache_error)}")
 
         logger.info(f"📪 Scheduled unpublish completed for movie: {movie.title} (ID: {movie_id})")
         return True

@@ -62,12 +62,8 @@ app.conf.beat_schedule = {
         "schedule": timedelta(minutes=15),  # Every 6 hours
     },
 
-    # 📅 Scheduling automation tasks (Legacy - can be removed after migration)
-    "process_scheduled_actions": {
-        "task": "apps.movies.tasks.process_scheduled_actions_auto",
-        "schedule": timedelta(minutes=5),  # Every 5 minutes
-        "options": {"priority": 9}  # High priority for timely execution
-    },
+    # 📅 Dynamic scheduling tasks (replaces legacy polling)
+    # Legacy process_scheduled_actions_auto removed - now using dynamic scheduling with eta
 
     # 🧹 Cleanup scheduled tasks
     "cleanup_scheduled_tasks": {

@@ -117,12 +117,8 @@ app.conf.beat_schedule = {
     },
 
     # ===== SCHEDULING AUTOMATION =====
-    # Process scheduled actions every 15 minutes
-    "process_scheduled_actions": {
-        "task": "apps.movies.tasks.process_scheduled_actions_auto",
-        "schedule": crontab(minute="*/15"),  # Every 15 minutes
-        "options": {"priority": 9}
-    },
+    # Dynamic scheduling replaces legacy polling - tasks scheduled with eta
+    # Legacy process_scheduled_actions_auto removed
     # Update scheduling status every 2 hours
     "update_scheduling_status": {
         "task": "apps.movies.tasks.update_scheduling_status_auto",
@@ -200,6 +196,12 @@ app.conf.beat_schedule = {
     },
 
     # ===== CLEANUP TASKS =====
+    # Cleanup expired scheduled tasks daily
+    "cleanup_scheduled_tasks": {
+        "task": "apps.movies.tasks.cleanup_scheduled_tasks",
+        "schedule": crontab(hour=3, minute=0),  # Daily at 3 AM
+        "options": {"priority": 1}
+    },
     # Cleanup expired recommendations daily
     "cleanup_expired_recommendations": {
         "task": "apps.recommendations.tasks.cleanup_expired_recommendations",

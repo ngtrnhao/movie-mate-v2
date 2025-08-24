@@ -101,12 +101,27 @@ const MovieFormModal = ({ open, onClose, onSubmit, movie }) => {
 
     setIsSubmitting(true);
     try {
+      // Chỉ gửi các trường cần thiết và đã được điền
       const submitData = {
-        ...form,
+        title: form.title,
+        title_en: form.title_en,
+        title_vi: form.title_vi,
+        overview_en: form.overview_en,
+        overview_vi: form.overview_vi,
+        release_date: form.release_date,
         genres: selectedGenres,
         poster_path: form.poster_path,
         backdrop_path: form.backdrop_path,
+        runtime: form.runtime,
+        status: form.status,
       };
+
+      // Loại bỏ các trường rỗng
+      Object.keys(submitData).forEach(key => {
+        if (submitData[key] === '' || submitData[key] === null || submitData[key] === undefined) {
+          delete submitData[key];
+        }
+      });
 
       const result = await onSubmit(submitData);
 

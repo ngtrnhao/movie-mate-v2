@@ -4949,6 +4949,40 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 'message': f'Error cancelling task: {str(e)}'
             }, status=500)
 
+    @action(detail=False, methods=['post'])
+    def cancel_task_by_id(self, request):
+        """Cancel a scheduled task by task ID"""
+        task_id = request.data.get('task_id')
+
+        if not task_id:
+            return Response({
+                'status': 'error',
+                'message': 'task_id is required'
+            }, status=400)
+
+        try:
+            from .services.dynamic_scheduling_service import DynamicSchedulingService
+            service = DynamicSchedulingService()
+
+            success = service.cancel_task_by_id(task_id)
+
+            if success:
+                return Response({
+                    'status': 'success',
+                    'message': f'Cancelled task {task_id}'
+                })
+            else:
+                return Response({
+                    'status': 'error',
+                    'message': f'Failed to cancel task {task_id}'
+                }, status=500)
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': f'Error cancelling task: {str(e)}'
+            }, status=500)
+
     @action(detail=True, methods=['get'])
     def scheduled_tasks(self, request, pk=None):
         """Get scheduled tasks for a movie"""
@@ -5833,10 +5867,10 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
 
             # Get all scheduling records with upcoming actions
             schedulings = MovieScheduling.objects.select_related('movie').filter(
-                models.Q(publish_date__gte=now) |
-                models.Q(unpublish_date__gte=now) |
-                models.Q(featured_from__gte=now) |
-                models.Q(featured_until__gte=now)
+                models.Q(publish_date__gte=now, auto_publish=True) |
+                models.Q(unpublish_date__gte=now, auto_unpublish=True) |
+                models.Q(featured_from__gte=now, auto_feature=True) |
+                models.Q(featured_until__gte=now, auto_unfeature=True)
             ).order_by('publish_date', 'featured_from')
 
             actions = []
@@ -5845,8 +5879,11 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
 
                 # Publish actions
                 if scheduling.publish_date and scheduling.publish_date >= now:
+                    # Lấy Celery task ID từ cache
+                    task_id = cache.get(f"scheduled_task_publish_{movie.id}")
                     actions.append({
                         'id': f'publish_{scheduling.id}',
+                        'task_id': task_id,  # Thêm Celery task ID
                         'movie_id': movie.id,
                         'movie_title': movie.title,
                         'action_type': 'publish',
@@ -5931,17 +5968,46 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             start_dt = parse_datetime(scheduled_datetime)
             end_dt = parse_datetime(end_datetime) if end_datetime else None
 
+            # Import dynamic scheduling service
+            from .services.dynamic_scheduling_service import DynamicSchedulingService
+            service = DynamicSchedulingService()
+
+            success = False
+
             if action_type == 'publish':
+                # Gọi dynamic scheduling service cho publish
+                success = service.schedule_movie_publish(
+                    movie_id=movie.id,
+                    publish_date=start_dt,
+                    auto_approve=True  # Auto approve khi schedule
+                )
+
+                # Cập nhật database
                 scheduling.publish_date = start_dt
                 scheduling.unpublish_date = end_dt
                 scheduling.auto_publish = True
                 scheduling.auto_unpublish = bool(end_dt)
 
             elif action_type == 'unpublish':
+                # Gọi dynamic scheduling service cho unpublish
+                success = service.schedule_movie_unpublish(
+                    movie_id=movie.id,
+                    unpublish_date=start_dt
+                )
+
+                # Cập nhật database
                 scheduling.unpublish_date = start_dt
                 scheduling.auto_unpublish = True
 
             elif action_type == 'feature':
+                # Gọi dynamic scheduling service cho feature
+                success = service.schedule_movie_feature(
+                    movie_id=movie.id,
+                    feature_from=start_dt,
+                    feature_until=end_dt
+                )
+
+                # Cập nhật database
                 scheduling.featured_from = start_dt
                 scheduling.featured_until = end_dt
                 scheduling.auto_feature = True
@@ -5950,14 +6016,23 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 admin_control.admin_priority = priority
 
             elif action_type == 'unfeature':
+                # Chỉ cập nhật database cho unfeature (chưa có service method)
                 scheduling.featured_until = start_dt
                 scheduling.auto_unfeature = True
+                success = True
 
             else:
                 return Response({
                     'status': 'error',
                     'message': 'Invalid action_type'
                 }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Kiểm tra kết quả từ dynamic scheduling service
+            if not success:
+                return Response({
+                    'status': 'error',
+                    'message': f'Failed to schedule {action_type} task'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             scheduling.campaign_name = campaign_name
             scheduling.campaign_priority = priority

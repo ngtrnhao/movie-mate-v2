@@ -204,6 +204,84 @@ class DynamicSchedulingService:
             logger.error(f"❌ Error cancelling {action_type} task for movie {movie_id}: {str(e)}")
             return False
 
+    def cancel_task_by_id(self, task_id: str) -> bool:
+        """
+        Cancel scheduled task by task ID
+
+        Args:
+            task_id: ID của task cần cancel
+        """
+        try:
+            # Revoke task trong Celery
+            self.app.control.revoke(task_id, terminate=True)
+            logger.info(f"🔄 Revoked task {task_id}")
+
+            # Tìm và cập nhật database record
+            from ..models import MovieScheduling
+
+            # Tìm tất cả cache keys để tìm key chứa task_id này
+            all_keys = cache.keys("scheduled_task_*")
+            found_key = None
+            movie_id = None
+            action_type = None
+
+            # Tìm cache key chứa task_id này
+            for key in all_keys:
+                cached_task_id = cache.get(key)
+                if cached_task_id == task_id:
+                    found_key = key
+                    # Parse key để lấy movie_id và action_type
+                    # Format: scheduled_task_{action_type}_{movie_id}
+                    parts = key.split("_")
+                    if len(parts) >= 4:
+                        action_type = parts[2]
+                        movie_id = parts[3]
+                    break
+
+            if found_key and movie_id and action_type:
+                try:
+                    scheduling = MovieScheduling.objects.get(movie_id=movie_id)
+
+                    # Reset scheduling dựa trên action_type
+                    if action_type == 'publish':
+                        scheduling.auto_publish = False
+                        scheduling.publish_date = None
+                    elif action_type == 'unpublish':
+                        scheduling.auto_unpublish = False
+                        scheduling.unpublish_date = None
+                    elif action_type == 'feature':
+                        scheduling.auto_feature = False
+                        scheduling.featured_from = None
+                    elif action_type == 'unfeature':
+                        scheduling.auto_unfeature = False
+                        scheduling.featured_until = None
+
+                    # Reset next action nếu cần
+                    if scheduling.next_scheduled_action == action_type:
+                        scheduling.next_scheduled_action = None
+                        scheduling.next_action_date = None
+
+                    scheduling.save()
+                    logger.info(f"✅ Updated database for movie {movie_id}, action {action_type}")
+
+                except MovieScheduling.DoesNotExist:
+                    logger.warning(f"⚠️ No scheduling found for movie {movie_id}")
+                except Exception as e:
+                    logger.error(f"❌ Error updating scheduling for movie {movie_id}: {str(e)}")
+            else:
+                logger.warning(f"⚠️ No cache key found for task_id {task_id}")
+
+            # Xóa task ID khỏi cache
+            cache.delete(found_key) if found_key else None
+            logger.info(f"🗑️ Deleted cache key: {found_key}")
+
+            logger.info(f"✅ Successfully cancelled task {task_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Error cancelling task {task_id}: {str(e)}")
+            return False
+
     def get_scheduled_tasks(self, movie_id: int) -> Dict[str, Any]:
         """
         Lấy thông tin các task đã schedule cho movie

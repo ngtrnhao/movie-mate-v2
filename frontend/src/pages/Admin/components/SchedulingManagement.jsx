@@ -10,17 +10,21 @@ import {
   ExclamationTriangleIcon,
   BoltIcon,
   EyeIcon,
+  PencilIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
   getAdminMovies,
   scheduleMovieAction,
   scheduleMoviePublish,
   cancelScheduledTask,
+  cancelTaskById,
   getScheduledTasks,
   getScheduledActions,
   rescheduleTask,
 } from '../../../api/adminMovieService';
 import Modal from '../../../components/common/Modal';
+import ScheduledTasksInfo from './ScheduledTasksInfo';
 
 const SchedulingManagement = () => {
   const [movies, setMovies] = useState([]);
@@ -28,6 +32,8 @@ const SchedulingManagement = () => {
   const [loading, setLoading] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState(null);
   const [scheduleForm, setScheduleForm] = useState({
     action_type: 'publish',
     scheduled_date: '',
@@ -69,41 +75,112 @@ const SchedulingManagement = () => {
     if (!selectedMovie) return;
 
     try {
-      const scheduleData = {
-        movie_id: selectedMovie.id,
-        action_type: scheduleForm.action_type,
-        scheduled_datetime: `${scheduleForm.scheduled_date}T${scheduleForm.scheduled_time}:00`,
-        end_datetime: scheduleForm.end_date
-          ? `${scheduleForm.end_date}T${scheduleForm.end_time}:00`
-          : null,
-        campaign_name: scheduleForm.campaign_name || null,
-        campaign_type: scheduleForm.campaign_type,
-        priority: scheduleForm.priority,
-        auto_unschedule: scheduleForm.auto_unschedule,
-      };
+      const newDateTime = `${scheduleForm.scheduled_date}T${scheduleForm.scheduled_time}:00`;
 
-      await scheduleMoviePublish(
-        scheduleData.movie_id,
-        scheduleData.scheduled_datetime,
-        scheduleData.auto_approve || true
-      );
+      if (isEditing && editingTaskId) {
+        // Chỉnh sửa thời gian lịch trình hiện tại
+        await rescheduleTask(selectedMovie.id, scheduleForm.action_type, newDateTime);
+        alert('Thời gian lịch trình đã được cập nhật thành công!');
+      } else {
+        // Tạo lịch trình mới
+        if (scheduleForm.action_type === 'publish') {
+          await scheduleMoviePublish(
+            selectedMovie.id,
+            newDateTime,
+            true // auto_approve
+          );
+        } else {
+          // Xử lý các action khác nếu cần
+          console.log('Scheduling other action:', scheduleForm);
+        }
+        alert('Lịch trình đã được tạo thành công!');
+      }
+
       setShowScheduleModal(false);
       setSelectedMovie(null);
+      setIsEditing(false);
+      setEditingTaskId(null);
       resetScheduleForm();
       fetchData();
     } catch (error) {
       console.error('Error scheduling action:', error);
+      alert(
+        'Không thể ' +
+          (isEditing ? 'cập nhật' : 'tạo') +
+          ' lịch trình: ' +
+          (error.error || error.message)
+      );
     }
   };
 
   // Cancel scheduled action
-  const handleCancelAction = async (movieId, actionType) => {
+  const handleCancelAction = async taskId => {
     try {
-      await cancelScheduledTask(movieId, actionType);
-      fetchData();
+      console.log('🔄 Cancelling task ID:', taskId);
+
+      const result = await cancelTaskById(taskId);
+      console.log('📋 Cancel result:', result);
+
+      if (result && result.status === 'success') {
+        console.log('✅ Task cancelled successfully');
+        alert('Đã hủy lịch trình thành công!');
+
+        // Force refresh data
+        console.log('🔄 Refreshing data...');
+        await fetchData();
+        console.log('✅ Data refreshed');
+      } else {
+        console.error('❌ Cancel failed:', result);
+        alert('Không thể hủy lịch trình: ' + (result?.message || 'Lỗi không xác định'));
+      }
     } catch (error) {
-      console.error('Error canceling scheduled action:', error);
+      console.error('💥 Error canceling scheduled action:', error);
+      alert('Không thể hủy lịch trình: ' + (error.error || error.message || 'Lỗi kết nối'));
     }
+  };
+
+  // Edit scheduled action
+  const handleEditAction = async action => {
+    try {
+      // Tạo object movie từ action data
+      const movie = {
+        id: action.movie_id,
+        title: action.movie_title,
+        // Thêm các field khác nếu cần
+      };
+
+      setSelectedMovie(movie);
+      setIsEditing(true);
+      setEditingTaskId(action.id);
+      setScheduleForm({
+        action_type: action.action_type,
+        scheduled_date: new Date(action.scheduled_datetime).toISOString().split('T')[0],
+        scheduled_time: new Date(action.scheduled_datetime).toTimeString().slice(0, 5),
+        end_date: action.end_datetime
+          ? new Date(action.end_datetime).toISOString().split('T')[0]
+          : '',
+        end_time: action.end_datetime
+          ? new Date(action.end_datetime).toTimeString().slice(0, 5)
+          : '',
+        campaign_name: action.campaign_name || '',
+        campaign_type: action.campaign_type || 'feature',
+        priority: action.priority || 1,
+        auto_unschedule: action.auto_unschedule || false,
+      });
+      setShowScheduleModal(true);
+    } catch (error) {
+      console.error('Error editing scheduled action:', error);
+      alert('Không thể mở form chỉnh sửa: ' + error.message);
+    }
+  };
+
+  // View action details
+  const handleViewDetails = action => {
+    // Có thể mở modal chi tiết hoặc navigate đến trang chi tiết
+    console.log('View details for action:', action);
+    alert(
+      `Chi tiết lịch trình:\nPhim: ${action.movie_title}\nHành động: ${action.action_type}\nThời gian: ${new Date(action.scheduled_datetime).toLocaleString('vi-VN')}\nTrạng thái: ${action.status}`
+    );
   };
 
   // Reset form
@@ -124,6 +201,8 @@ const SchedulingManagement = () => {
   // Open schedule modal
   const openScheduleModal = movie => {
     setSelectedMovie(movie);
+    setIsEditing(false);
+    setEditingTaskId(null);
     setShowScheduleModal(true);
   };
 
@@ -131,6 +210,8 @@ const SchedulingManagement = () => {
   const closeScheduleModal = () => {
     setShowScheduleModal(false);
     setSelectedMovie(null);
+    setIsEditing(false);
+    setEditingTaskId(null);
     resetScheduleForm();
   };
 
@@ -173,6 +254,17 @@ const SchedulingManagement = () => {
         {statusLabels[action.status]}
       </span>
     );
+  };
+
+  // Get action type label
+  const getActionTypeLabel = actionType => {
+    const typeLabels = {
+      publish: 'Xuất bản',
+      unpublish: 'Ẩn bài',
+      feature: 'Featured',
+      unfeature: 'Bỏ featured',
+    };
+    return typeLabels[actionType] || actionType;
   };
 
   // Get action type badge
@@ -242,6 +334,63 @@ const SchedulingManagement = () => {
         </div>
       </div>
 
+      {/* Statistics */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <ClockIcon className="size-6 text-blue-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Tổng lịch trình</p>
+              <p className="text-2xl font-semibold text-gray-900">{scheduledActions.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <CheckCircleIcon className="size-6 text-green-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Đang chờ</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {scheduledActions.filter(a => a.status === 'PENDING').length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <StarIcon className="size-6 text-yellow-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Xuất bản</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {scheduledActions.filter(a => a.action_type === 'publish').length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <BoltIcon className="size-6 text-purple-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Featured</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {scheduledActions.filter(a => a.action_type === 'feature').length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Scheduled Actions */}
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 px-6 py-4">
@@ -297,14 +446,38 @@ const SchedulingManagement = () => {
                   </td>
                   <td className="whitespace-nowrap px-6 py-4">{getActionStatusBadge(action)}</td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                    {action.status === 'PENDING' && (
+                    <div className="flex items-center space-x-2">
+                      {/* View Details Button */}
                       <button
-                        onClick={() => handleCancelAction(action.id)}
-                        className="text-red-600 hover:text-red-900"
+                        onClick={() => handleViewDetails(action)}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="Xem chi tiết"
                       >
-                        <TrashIcon className="size-4" />
+                        <InformationCircleIcon className="size-4" />
                       </button>
-                    )}
+
+                      {/* Edit Button - chỉ hiển thị cho PENDING actions */}
+                      {action.status === 'PENDING' && (
+                        <button
+                          onClick={() => handleEditAction(action)}
+                          className="text-orange-600 hover:text-orange-900"
+                          title="Sửa lịch trình"
+                        >
+                          <PencilIcon className="size-4" />
+                        </button>
+                      )}
+
+                      {/* Cancel Button - chỉ hiển thị cho PENDING actions */}
+                      {action.status === 'PENDING' && (
+                        <button
+                          onClick={() => handleCancelAction(action.task_id || action.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Hủy lịch trình"
+                        >
+                          <TrashIcon className="size-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -313,8 +486,66 @@ const SchedulingManagement = () => {
         </div>
       </div>
 
+      {/* Scheduled Tasks Info */}
+      {scheduledActions.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-6 py-4">
+            <h3 className="text-lg font-medium text-gray-900">Thông tin chi tiết lịch trình</h3>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {scheduledActions.map((action, index) => (
+                <div key={action.id} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-gray-900">{action.movie_title}</h4>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        action.status === 'PENDING'
+                          ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                          : 'bg-green-100 text-green-800 border-green-200'
+                      }`}
+                    >
+                      {action.status === 'PENDING' ? 'Chờ thực hiện' : 'Hoàn thành'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Hành động:</span>
+                      <span className="ml-2 text-gray-600">
+                        {getActionTypeLabel(action.action_type)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Thời gian:</span>
+                      <span className="ml-2 text-gray-600">
+                        {new Date(action.scheduled_datetime).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Task ID:</span>
+                      <span className="ml-2 text-gray-600 font-mono text-xs">{action.id}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Chiến dịch:</span>
+                      <span className="ml-2 text-gray-600">
+                        {action.campaign_name || 'Không có'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Schedule Modal */}
-      <Modal open={showScheduleModal} onClose={closeScheduleModal} title="Tạo lịch trình mới">
+      <Modal
+        open={showScheduleModal}
+        onClose={closeScheduleModal}
+        title={isEditing ? 'Chỉnh sửa lịch trình' : 'Tạo lịch trình mới'}
+      >
         <div className="space-y-6">
           {/* Movie Selection */}
           {!selectedMovie && (
@@ -346,22 +577,26 @@ const SchedulingManagement = () => {
                 <p className="text-sm text-gray-600">{selectedMovie.original_title}</p>
               </div>
 
-              {/* Action Type */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Loại hành động
-                </label>
-                <select
-                  value={scheduleForm.action_type}
-                  onChange={e => setScheduleForm({ ...scheduleForm, action_type: e.target.value })}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="publish">Xuất bản</option>
-                  <option value="unpublish">Ẩn bài</option>
-                  <option value="feature">Đánh dấu Featured</option>
-                  <option value="unfeature">Bỏ Featured</option>
-                </select>
-              </div>
+              {/* Action Type - chỉ hiển thị khi tạo mới */}
+              {!isEditing && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Loại hành động
+                  </label>
+                  <select
+                    value={scheduleForm.action_type}
+                    onChange={e =>
+                      setScheduleForm({ ...scheduleForm, action_type: e.target.value })
+                    }
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="publish">Xuất bản</option>
+                    <option value="unpublish">Ẩn bài</option>
+                    <option value="feature">Đánh dấu Featured</option>
+                    <option value="unfeature">Bỏ Featured</option>
+                  </select>
+                </div>
+              )}
 
               {/* Scheduled Date and Time */}
               <div className="grid grid-cols-2 gap-4">
@@ -393,107 +628,112 @@ const SchedulingManagement = () => {
                 </div>
               </div>
 
-              {/* End Date and Time (for temporary actions) */}
-              {(scheduleForm.action_type === 'feature' ||
-                scheduleForm.action_type === 'publish') && (
+              {/* End Date and Time (for temporary actions) - chỉ hiển thị khi tạo mới */}
+              {!isEditing &&
+                (scheduleForm.action_type === 'feature' ||
+                  scheduleForm.action_type === 'publish') && (
+                  <>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={scheduleForm.auto_unschedule}
+                        onChange={e =>
+                          setScheduleForm({ ...scheduleForm, auto_unschedule: e.target.checked })
+                        }
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label className="ml-2 text-sm text-gray-700">
+                        Tự động hủy sau một khoảng thời gian
+                      </label>
+                    </div>
+
+                    {scheduleForm.auto_unschedule && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                            Ngày kết thúc
+                          </label>
+                          <input
+                            type="date"
+                            value={scheduleForm.end_date}
+                            onChange={e =>
+                              setScheduleForm({ ...scheduleForm, end_date: e.target.value })
+                            }
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                            Giờ kết thúc
+                          </label>
+                          <input
+                            type="time"
+                            value={scheduleForm.end_time}
+                            onChange={e =>
+                              setScheduleForm({ ...scheduleForm, end_time: e.target.value })
+                            }
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+              {/* Campaign Information - chỉ hiển thị khi tạo mới */}
+              {!isEditing && (
                 <>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={scheduleForm.auto_unschedule}
-                      onChange={e =>
-                        setScheduleForm({ ...scheduleForm, auto_unschedule: e.target.checked })
-                      }
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label className="ml-2 text-sm text-gray-700">
-                      Tự động hủy sau một khoảng thời gian
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Tên chiến dịch (tùy chọn)
                     </label>
+                    <input
+                      type="text"
+                      value={scheduleForm.campaign_name}
+                      onChange={e =>
+                        setScheduleForm({ ...scheduleForm, campaign_name: e.target.value })
+                      }
+                      placeholder="VD: Phim hot cuối tuần, Chiến dịch Tết 2024..."
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
                   </div>
 
-                  {scheduleForm.auto_unschedule && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Ngày kết thúc
-                        </label>
-                        <input
-                          type="date"
-                          value={scheduleForm.end_date}
-                          onChange={e =>
-                            setScheduleForm({ ...scheduleForm, end_date: e.target.value })
-                          }
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Giờ kết thúc
-                        </label>
-                        <input
-                          type="time"
-                          value={scheduleForm.end_time}
-                          onChange={e =>
-                            setScheduleForm({ ...scheduleForm, end_time: e.target.value })
-                          }
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Loại chiến dịch
+                      </label>
+                      <select
+                        value={scheduleForm.campaign_type}
+                        onChange={e =>
+                          setScheduleForm({ ...scheduleForm, campaign_type: e.target.value })
+                        }
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      >
+                        <option value="feature">Feature</option>
+                        <option value="promotion">Khuyến mãi</option>
+                        <option value="seasonal">Theo mùa</option>
+                        <option value="regular">Thường xuyên</option>
+                      </select>
                     </div>
-                  )}
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Mức độ ưu tiên
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={scheduleForm.priority}
+                        onChange={e =>
+                          setScheduleForm({ ...scheduleForm, priority: parseInt(e.target.value) })
+                        }
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
                 </>
               )}
-
-              {/* Campaign Information */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Tên chiến dịch (tùy chọn)
-                </label>
-                <input
-                  type="text"
-                  value={scheduleForm.campaign_name}
-                  onChange={e =>
-                    setScheduleForm({ ...scheduleForm, campaign_name: e.target.value })
-                  }
-                  placeholder="VD: Phim hot cuối tuần, Chiến dịch Tết 2024..."
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Loại chiến dịch
-                  </label>
-                  <select
-                    value={scheduleForm.campaign_type}
-                    onChange={e =>
-                      setScheduleForm({ ...scheduleForm, campaign_type: e.target.value })
-                    }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  >
-                    <option value="feature">Feature</option>
-                    <option value="promotion">Khuyến mãi</option>
-                    <option value="seasonal">Theo mùa</option>
-                    <option value="regular">Thường xuyên</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Mức độ ưu tiên
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={scheduleForm.priority}
-                    onChange={e =>
-                      setScheduleForm({ ...scheduleForm, priority: parseInt(e.target.value) })
-                    }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
 
               {/* Action Buttons */}
               <div className="flex justify-end space-x-3 pt-4">
@@ -511,7 +751,7 @@ const SchedulingManagement = () => {
                   className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <BoltIcon className="mr-2 size-4" />
-                  Tạo lịch trình
+                  {isEditing ? 'Cập nhật lịch trình' : 'Tạo lịch trình'}
                 </button>
               </div>
             </>

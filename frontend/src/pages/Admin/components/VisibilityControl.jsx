@@ -1161,22 +1161,37 @@ const VisibilityControl = () => {
               {/* Schedule publish for pending and approved */}
               {(approvalStatus === 'PENDING' || approvalStatus === 'APPROVED') && (
                 <div className="space-y-2">
-                  <button
-                    onClick={() => handleOpenScheduleModal(movie)}
-                    className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    <CalendarIcon className="mr-1.5 size-4" />
-                    Lên lịch xuất bản
-                  </button>
+                  {/* Lên lịch xuất bản - chỉ hiển thị cho phim chưa published */}
+                  {!isPublished && (
+                    <button
+                      onClick={() => handleOpenScheduleModal(movie)}
+                      className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      <CalendarIcon className="mr-1.5 size-4" />
+                      Lên lịch xuất bản
+                    </button>
+                  )}
 
-                  {/* Edit schedule button - chỉ hiển thị nếu có lịch trình hiện tại */}
-                  <button
-                    onClick={() => handleOpenEditScheduleModal(movie)}
-                    className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-                  >
-                    <PencilIcon className="mr-1.5 size-4" />
-                    Sửa lịch trình
-                  </button>
+                  {/* Sửa lịch trình - chỉ hiển thị cho phim chưa published */}
+                  {!isPublished && (
+                    <button
+                      onClick={() => handleOpenEditScheduleModal(movie)}
+                      className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    >
+                      <PencilIcon className="mr-1.5 size-4" />
+                      Sửa lịch trình
+                    </button>
+                  )}
+
+                  {/* Hiển thị thông tin nếu phim đã published */}
+                  {isPublished && (
+                    <div className="rounded-md bg-green-50 p-3">
+                      <div className="flex items-center">
+                        <CheckCircleIcon className="mr-2 size-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-800">Đã xuất bản</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

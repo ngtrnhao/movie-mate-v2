@@ -1358,6 +1358,48 @@ def update_scheduling_status_auto(self):
 
 
 @shared_task(bind=True)
+def calculate_single_movie_quality(self, movie_id: int):
+    """
+    📊 Calculate quality metrics for a single movie
+    Triggered after manual updates
+    """
+    try:
+        from .models import Movie
+        from .services.quality_calculation_service import QualityCalculationService
+
+        logger.info(f"📊 Calculating quality metrics for movie ID: {movie_id}")
+
+        # Get the movie
+        try:
+            movie = Movie.objects.get(id=movie_id)
+        except Movie.DoesNotExist:
+            logger.error(f"❌ Movie with ID {movie_id} not found")
+            return {
+                'status': 'error',
+                'message': f'Movie with ID {movie_id} not found'
+            }
+
+        # Calculate quality metrics
+        quality_service = QualityCalculationService()
+        result = quality_service.calculate_movie_quality(movie, save=True)
+
+        logger.info(f"✅ Quality calculated for {movie.title} (ID: {movie.id}): {result['quality_score']:.1f}/10.0")
+
+        return {
+            'status': 'success',
+            'movie_id': movie_id,
+            'movie_title': movie.title,
+            'quality_score': result['quality_score'],
+            'content_completeness': result['content_completeness'],
+            'minimum_quality_met': result['minimum_quality_met']
+        }
+
+    except Exception as exc:
+        logger.error(f"❌ Error calculating quality for movie {movie_id}: {str(exc)}")
+        raise self.retry(exc=exc, countdown=60, max_retries=2)
+
+
+@shared_task(bind=True)
 def calculate_quality_metrics_auto(self, target_type='new', batch_size=50, max_movies=500):
     """
     📊 Automatically calculate quality metrics for movies

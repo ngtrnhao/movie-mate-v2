@@ -47,6 +47,7 @@ import {
   scheduleMoviePublish,
   cancelScheduledTask,
   getScheduledTasks,
+  getAllScheduledActions,
   rescheduleTask,
 } from '../../../api/adminMovieService';
 // Note: We intentionally avoid debounce for admin search; apply via explicit button
@@ -58,6 +59,23 @@ import SchedulePublishModal from './SchedulePublishModal';
 const getAdminField = (movie, field, fallback = null) => {
   // Try new nested structure first, fallback to legacy direct access
   return movie.admin_control?.[field] ?? movie[field] ?? fallback;
+};
+
+// Helper function để kiểm tra state của phim
+const getMovieScheduleState = (movie, scheduledTasks) => {
+  const isPublished = movie?.admin_control?.is_published || false;
+  const movieTasks = scheduledTasks[movie?.id] || [];
+  const hasScheduledPublish = movieTasks.some(
+    task => task.action_type === 'publish' && task.status === 'PENDING'
+  );
+
+  return {
+    isPublished,
+    hasScheduledPublish,
+    canSchedule: !isPublished && !hasScheduledPublish,
+    canEditSchedule: !isPublished && hasScheduledPublish,
+    canPublish: !isPublished && !hasScheduledPublish,
+  };
 };
 
 const getApprovalInfo = movie => {
@@ -230,6 +248,30 @@ const MovieManagement = () => {
   const [selectedMovieForSchedule, setSelectedMovieForSchedule] = useState(null);
   const [isEditScheduleMode, setIsEditScheduleMode] = useState(false);
   const [existingScheduleData, setExistingScheduleData] = useState(null);
+  const [scheduledTasks, setScheduledTasks] = useState({}); // movieId -> tasks array
+
+  // Fetch scheduled tasks for all movies
+  const fetchScheduledTasks = useCallback(async () => {
+    try {
+      const response = await getAllScheduledActions();
+      const tasks = response.data || [];
+      const tasksByMovie = {};
+
+      if (tasks && Array.isArray(tasks)) {
+        tasks.forEach(task => {
+          const movieId = task.movie_id;
+          if (!tasksByMovie[movieId]) {
+            tasksByMovie[movieId] = [];
+          }
+          tasksByMovie[movieId].push(task);
+        });
+      }
+
+      setScheduledTasks(tasksByMovie);
+    } catch (error) {
+      console.error('Error fetching scheduled tasks:', error);
+    }
+  }, []);
 
   // Fetch Movies (keyset)
   const fetchMovies = useCallback(
@@ -297,8 +339,9 @@ const MovieManagement = () => {
   useEffect(() => {
     setCurrentAfter(null);
     fetchMovies('init');
+    fetchScheduledTasks();
     // eslint-disable-next-line
-  }, [appliedFilters, appliedSearch]);
+  }, [appliedFilters, appliedSearch, fetchScheduledTasks]);
 
   // Apply search and filters explicitly
   const applySearchAndFilters = useCallback(() => {
@@ -339,8 +382,13 @@ const MovieManagement = () => {
 
   // Update overview after actions
   const handleActionSuccess = useCallback(async () => {
-    await Promise.all([fetchMovies(), fetchOverviewData(), refreshDashboard()]);
-  }, [fetchMovies, fetchOverviewData, refreshDashboard]);
+    await Promise.all([
+      fetchMovies(),
+      fetchOverviewData(),
+      refreshDashboard(),
+      fetchScheduledTasks(),
+    ]);
+  }, [fetchMovies, fetchOverviewData, refreshDashboard, fetchScheduledTasks]);
 
   // Movie Actions with Redux
   const toggleFeatured = useCallback(
@@ -762,9 +810,16 @@ const MovieManagement = () => {
   // Xử lý mở modal sửa lịch trình
   const handleOpenEditScheduleModal = async movie => {
     try {
-      // Lấy thông tin lịch trình hiện tại
-      const scheduledTasks = await getScheduledTasks(movie.id);
-      const publishTask = scheduledTasks.find(task => task.action_type === 'publish');
+      // Sử dụng scheduled tasks từ state
+      const movieTasks = scheduledTasks[movie.id] || [];
+
+      // Kiểm tra scheduledTasks có tồn tại và là array không
+      if (!Array.isArray(movieTasks) || movieTasks.length === 0) {
+        alert('Không tìm thấy lịch trình xuất bản cho phim này');
+        return;
+      }
+
+      const publishTask = movieTasks.find(task => task.action_type === 'publish');
 
       if (publishTask) {
         setSelectedMovieForSchedule(movie);
@@ -775,7 +830,8 @@ const MovieManagement = () => {
         alert('Không tìm thấy lịch trình xuất bản cho phim này');
       }
     } catch (error) {
-      alert('Không thể lấy thông tin lịch trình: ' + (error.error || error.message));
+      console.error('Error processing scheduled tasks:', error);
+      alert('Không thể xử lý thông tin lịch trình: ' + (error.error || error.message));
     }
   };
 
@@ -1142,25 +1198,42 @@ const MovieManagement = () => {
                   </div>
                 )}
 
-                {/* Schedule publish button for pending and approved movies */}
+                {/* Schedule buttons based on movie state */}
                 {(approvalInfo?.status === 'PENDING' || approvalInfo?.status === 'APPROVED') && (
                   <div className="space-y-2">
-                    <button
-                      onClick={() => handleOpenScheduleModal(movie)}
-                      className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    >
-                      <CalendarIcon className="mr-1.5 size-4" />
-                      Lên lịch xuất bản
-                    </button>
+                    {/* Lên lịch xuất bản - chỉ hiển thị cho phim chưa published và chưa có lịch */}
+                    {getMovieScheduleState(movie, scheduledTasks).canSchedule && (
+                      <button
+                        onClick={() => handleOpenScheduleModal(movie)}
+                        className="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      >
+                        <CalendarIcon className="mr-1.5 size-4" />
+                        Lên lịch xuất bản
+                      </button>
+                    )}
 
-                    {/* Edit schedule button - chỉ hiển thị nếu có lịch trình hiện tại */}
-                    <button
-                      onClick={() => handleOpenEditScheduleModal(movie)}
-                      className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-                    >
-                      <PencilIcon className="mr-1.5 size-4" />
-                      Sửa lịch trình
-                    </button>
+                    {/* Sửa lịch trình - chỉ hiển thị cho phim có lịch nhưng chưa published */}
+                    {getMovieScheduleState(movie, scheduledTasks).canEditSchedule && (
+                      <button
+                        onClick={() => handleOpenEditScheduleModal(movie)}
+                        className="inline-flex w-full items-center justify-center rounded-md border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                      >
+                        <PencilIcon className="mr-1.5 size-4" />
+                        Sửa lịch trình
+                      </button>
+                    )}
+
+                    {/* Hiển thị thông tin nếu phim đã có lịch */}
+                    {getMovieScheduleState(movie, scheduledTasks).hasScheduledPublish && (
+                      <div className="rounded-md bg-blue-50 p-3">
+                        <div className="flex items-center">
+                          <ClockIcon className="mr-2 h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-800">
+                            Đã lên lịch xuất bản
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -21,7 +21,7 @@ const handleResponse = response => {
   }
 
   // Nếu response trực tiếp là data (thành công) - trường hợp này
-  if (response.data && !response.data.status && response.data.id) {
+  if (response.data && response.data.id) {
     return response.data;
   }
 
@@ -549,6 +549,30 @@ export const cancelScheduledTask = async (movieId, actionType) => {
 };
 
 /**
+ * Cancel scheduled task by task ID
+ */
+export const cancelTaskById = async taskId => {
+  try {
+    const response = await axiosInstance.post('/api/admin/movies/cancel_task_by_id/', {
+      task_id: taskId,
+    });
+
+    // Xử lý response trực tiếp cho cancel task
+    if (response.data && response.data.status === 'success') {
+      return response.data;
+    } else {
+      throw new Error(response.data?.message || 'Failed to cancel task');
+    }
+  } catch (error) {
+    console.error('Cancel task error:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to cancel task',
+      details: error.response?.data,
+    };
+  }
+};
+
+/**
  * Get scheduled tasks for a movie
  */
 export const getScheduledTasks = async movieId => {
@@ -557,6 +581,28 @@ export const getScheduledTasks = async movieId => {
     return handleResponse(response);
   } catch (error) {
     handleError(error, 'get scheduled tasks');
+  }
+};
+
+/**
+ * Get all scheduled actions
+ */
+export const getAllScheduledActions = async () => {
+  try {
+    const response = await axiosInstance.get('/api/admin/movies/scheduled_actions/');
+
+    // Xử lý response trực tiếp cho scheduled actions
+    if (response.data && response.data.status === 'success') {
+      return response.data.data || [];
+    } else {
+      throw new Error(response.data?.message || 'Failed to get scheduled actions');
+    }
+  } catch (error) {
+    console.error('Get scheduled actions error:', error);
+    throw {
+      error: error.response?.data?.message || 'Failed to get scheduled actions',
+      details: error.response?.data,
+    };
   }
 };
 
@@ -788,13 +834,20 @@ export const createAdminMovie = async data => {
 
 /**
  * Cập nhật phim (Admin)
+ * Sử dụng PATCH method để partial update - chỉ cập nhật các trường được gửi
  */
 export const updateAdminMovie = async (movieId, data) => {
   try {
-    const response = await axiosInstance.put(`/api/admin/movies/${movieId}/`, data);
+    const response = await axiosInstance.patch(`/api/admin/movies/${movieId}/`, data);
     return handleResponse(response);
   } catch (error) {
-    console.error('Error in updateAdminMovie:', error);
+    console.error('❌ [updateAdminMovie] Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      headers: error.response?.headers,
+    });
     throw handleError(error, 'cập nhật phim');
   }
 };

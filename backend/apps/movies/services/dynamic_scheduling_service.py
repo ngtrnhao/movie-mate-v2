@@ -44,6 +44,13 @@ class DynamicSchedulingService:
             movie = Movie.objects.get(id=movie_id)
             scheduling = movie.scheduling
 
+            # Kiểm tra thời gian publish không được trong quá khứ
+            now = timezone.now()
+            if publish_date <= now:
+                logger.warning(f"⚠️ Publish date {publish_date} is in the past, scheduling for immediate execution")
+                # Có thể thêm validation nghiêm ngặt hơn nếu cần
+                # raise ValueError(f"Publish date cannot be in the past: {publish_date}")
+
             # Cập nhật scheduling record
             scheduling.publish_date = publish_date
             scheduling.auto_publish = True
@@ -61,7 +68,11 @@ class DynamicSchedulingService:
             # Lưu task ID để có thể cancel sau này
             cache.set(f"scheduled_task_publish_{movie_id}", task_result.id, timeout=86400*30)  # 30 days
 
-            logger.info(f"✅ Scheduled publish for movie {movie.title} (ID: {movie_id}) at {publish_date}")
+            if publish_date <= now:
+                logger.info(f"🚀 Immediate publish scheduled for movie {movie.title} (ID: {movie_id}) - past time detected")
+            else:
+                logger.info(f"✅ Scheduled publish for movie {movie.title} (ID: {movie_id}) at {publish_date}")
+
             return True
 
         except Movie.DoesNotExist:

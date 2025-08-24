@@ -327,6 +327,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             movies = self.get_production_ready_queryset().filter(
                 is_popular=True
             ).order_by(
+                '-admin_control__admin_priority',  # Admin priority (0-10)
                 '-combined_rating_score',
                 '-cached_imdb_rating',
                 '-release_date'
@@ -378,6 +379,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             movies = self.get_production_ready_queryset().filter(
                 is_top_rated=True
             ).order_by(
+                '-admin_control__admin_priority',  # Admin priority (0-10)
                 '-combined_rating_score',
                 '-cached_imdb_rating',
                 '-release_date'
@@ -429,6 +431,7 @@ class OptimizedMovieViewSet(viewsets.ModelViewSet):
             movies = self.get_production_ready_queryset().filter(
                 is_upcoming=True
             ).order_by(
+                '-admin_control__admin_priority',  # Admin priority (0-10)
                 '-combined_rating_score',
                 '-cached_imdb_rating',
                 'release_date'
@@ -5029,6 +5032,16 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             # Parse publish date
             from datetime import datetime
             publish_datetime = datetime.fromisoformat(publish_date.replace('Z', '+00:00'))
+
+            # Kiểm tra thời gian publish không được trong quá khứ (tùy chọn)
+            now = timezone.now()
+            if publish_datetime <= now:
+                # Có thể thêm validation nghiêm ngặt hơn nếu cần
+                # return Response({
+                #     'status': 'error',
+                #     'message': f'Publish date cannot be in the past: {publish_datetime}'
+                # }, status=400)
+                pass  # Cho phép thời gian quá khứ, sẽ chạy ngay lập tức
 
             # Sử dụng dynamic scheduling service
             from .services.dynamic_scheduling_service import DynamicSchedulingService

@@ -5982,6 +5982,16 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                     auto_approve=True  # Auto approve khi schedule
                 )
 
+                # Nếu có end_datetime, schedule thêm unpublish task
+                if end_dt and success:
+                    unpublish_success = service.schedule_movie_unpublish(
+                        movie_id=movie.id,
+                        unpublish_date=end_dt
+                    )
+                    if not unpublish_success:
+                        logger.warning(f"Failed to schedule unpublish for movie {movie.id}")
+                        # Không fail toàn bộ nếu chỉ unpublish thất bại
+
                 # Cập nhật database
                 scheduling.publish_date = start_dt
                 scheduling.unpublish_date = end_dt

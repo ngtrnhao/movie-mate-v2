@@ -852,12 +852,30 @@ const MovieManagement = () => {
           ? publishDate
           : `${publishDate}+07:00`; // Asia/Ho_Chi_Minh timezone
 
-      // Sử dụng API mới với dynamic scheduling
-      await scheduleMoviePublish(
-        selectedMovieForSchedule.id,
-        publishDateWithTimezone,
-        scheduleData.auto_approve || true
-      );
+      // Kiểm tra xem có unpublish date không
+      const hasUnpublish = scheduleData.auto_unpublish && scheduleData.end_datetime;
+
+      if (hasUnpublish) {
+        // Sử dụng scheduleMovieAction để xử lý cả publish và unpublish
+        const schedulePayload = {
+          movie_id: selectedMovieForSchedule.id,
+          action_type: 'publish',
+          scheduled_datetime: publishDateWithTimezone,
+          end_datetime: scheduleData.end_datetime,
+          campaign_name: scheduleData.campaign_name || 'Manual scheduled publish',
+          priority: scheduleData.priority || 1,
+          auto_unpublish: scheduleData.auto_unpublish,
+        };
+
+        await scheduleMovieAction(schedulePayload);
+      } else {
+        // Chỉ publish, sử dụng API cũ
+        await scheduleMoviePublish(
+          selectedMovieForSchedule.id,
+          publishDateWithTimezone,
+          scheduleData.auto_approve || true
+        );
+      }
 
       alert('Đã lên lịch xuất bản phim thành công! Task sẽ chạy đúng giờ đã đặt.');
       setShowScheduleModal(false);

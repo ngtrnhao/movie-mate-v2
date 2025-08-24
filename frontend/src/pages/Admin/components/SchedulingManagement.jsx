@@ -557,11 +557,13 @@ const SchedulingManagement = () => {
                   const movie = movies.find(m => m.id === parseInt(e.target.value));
                   setSelectedMovie(movie);
                 }}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
-                <option value="">Chọn phim...</option>
+                <option className="text-gray-700" value="">
+                  Chọn phim...
+                </option>
                 {movies.map(movie => (
-                  <option key={movie.id} value={movie.id}>
+                  <option className="text-gray-700" key={movie.id} value={movie.id}>
                     {movie.title}
                   </option>
                 ))}
@@ -610,7 +612,7 @@ const SchedulingManagement = () => {
                     onChange={e =>
                       setScheduleForm({ ...scheduleForm, scheduled_date: e.target.value })
                     }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -623,7 +625,7 @@ const SchedulingManagement = () => {
                     onChange={e =>
                       setScheduleForm({ ...scheduleForm, scheduled_time: e.target.value })
                     }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="block w-full text-gray-700 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>

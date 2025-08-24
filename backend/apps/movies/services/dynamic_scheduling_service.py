@@ -44,6 +44,10 @@ class DynamicSchedulingService:
             movie = Movie.objects.get(id=movie_id)
             scheduling = movie.scheduling
 
+            # Đảm bảo publish_date có timezone awareness
+            if not timezone.is_aware(publish_date):
+                publish_date = timezone.make_aware(publish_date, timezone=timezone.get_current_timezone())
+
             # Kiểm tra thời gian publish không được trong quá khứ
             now = timezone.now()
             if publish_date <= now:
@@ -90,6 +94,10 @@ class DynamicSchedulingService:
             movie = Movie.objects.get(id=movie_id)
             scheduling = movie.scheduling
 
+            # Đảm bảo unpublish_date có timezone awareness
+            if not timezone.is_aware(unpublish_date):
+                unpublish_date = timezone.make_aware(unpublish_date, timezone=timezone.get_current_timezone())
+
             # Cập nhật scheduling record
             scheduling.unpublish_date = unpublish_date
             scheduling.auto_unpublish = True
@@ -123,6 +131,12 @@ class DynamicSchedulingService:
         try:
             movie = Movie.objects.get(id=movie_id)
             scheduling = movie.scheduling
+
+            # Đảm bảo feature_from và feature_until có timezone awareness
+            if not timezone.is_aware(feature_from):
+                feature_from = timezone.make_aware(feature_from, timezone=timezone.get_current_timezone())
+            if not timezone.is_aware(feature_until):
+                feature_until = timezone.make_aware(feature_until, timezone=timezone.get_current_timezone())
 
             # Cập nhật scheduling record
             scheduling.featured_from = feature_from

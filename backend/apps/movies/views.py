@@ -5965,8 +5965,16 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
             from django.utils.dateparse import parse_datetime
             from django.utils import timezone
 
+            # Parse datetime and ensure timezone awareness
             start_dt = parse_datetime(scheduled_datetime)
-            end_dt = parse_datetime(end_datetime) if end_datetime else None
+            if start_dt and not timezone.is_aware(start_dt):
+                start_dt = timezone.make_aware(start_dt, timezone=timezone.get_current_timezone())
+
+            end_dt = None
+            if end_datetime:
+                end_dt = parse_datetime(end_datetime)
+                if end_dt and not timezone.is_aware(end_dt):
+                    end_dt = timezone.make_aware(end_dt, timezone=timezone.get_current_timezone())
 
             # Import dynamic scheduling service
             from .services.dynamic_scheduling_service import DynamicSchedulingService

@@ -722,11 +722,12 @@ const MovieManagement = () => {
   // Xử lý cập nhật phim
   const handleEditMovie = async (movieId, movieData) => {
     try {
-      await updateAdminMovie(movieId, movieData);
+      const result = await updateAdminMovie(movieId, movieData);
       setShowMovieForm(false);
       setEditMovie(null);
       await fetchMovies();
-      // Không cần throw error vì MovieFormModal sẽ xử lý success toast
+      // Trả về result để MovieFormModal biết thành công
+      return result;
     } catch (error) {
       console.error('Error updating movie:', error);
       // Throw error để MovieFormModal xử lý error toast
@@ -738,7 +739,12 @@ const MovieManagement = () => {
   const handleDeleteMovie = async movieId => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa phim này?')) return;
     try {
-      await deleteAdminMovie(movieId);
+      const result = await deleteAdminMovie(movieId);
+      if (result && result.success) {
+        alert('Đã xóa phim thành công!');
+      } else {
+        alert('Xóa phim thành công!');
+      }
       fetchMovies();
     } catch (error) {
       alert(error.error || 'Không thể xóa phim');

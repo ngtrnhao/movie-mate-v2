@@ -759,14 +759,12 @@ const VisibilityControl = () => {
   // Edit / Delete
   const handleEditMovie = useCallback(
     async (movieId, movieData) => {
-      try {
-        await updateAdminMovie(movieId, movieData);
-        setShowMovieForm(false);
-        setEditMovie(null);
-        await fetchMovies('init', currentAfter);
-      } catch (error) {
-        alert(error.error || 'Không thể cập nhật phim');
-      }
+      const result = await updateAdminMovie(movieId, movieData);
+      setShowMovieForm(false);
+      setEditMovie(null);
+      await fetchMovies('init', currentAfter);
+      // Trả về result để MovieFormModal biết thành công
+      return result;
     },
     [fetchMovies, currentAfter]
   );
@@ -775,7 +773,12 @@ const VisibilityControl = () => {
     async movieId => {
       if (!window.confirm('Bạn có chắc chắn muốn xóa phim này?')) return;
       try {
-        await deleteAdminMovie(movieId);
+        const result = await deleteAdminMovie(movieId);
+        if (result && result.success) {
+          alert('Đã xóa phim thành công!');
+        } else {
+          alert('Xóa phim thành công!');
+        }
         await fetchMovies('init', currentAfter);
       } catch (error) {
         alert(error.error || 'Không thể xóa phim');

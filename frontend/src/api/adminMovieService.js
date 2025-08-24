@@ -5,6 +5,11 @@ const pendingRequests = new Map();
 
 // Helper function to handle API responses
 const handleResponse = response => {
+  // Xử lý DELETE operation thành công (204 No Content)
+  if (response.status === 204) {
+    return { success: true, message: 'Operation completed successfully' };
+  }
+
   // Nếu response có status field và là success
   if (response.data && response.data.status === 'success') {
     return response.data.data;
@@ -790,7 +795,7 @@ export const updateAdminMovie = async (movieId, data) => {
     return handleResponse(response);
   } catch (error) {
     console.error('Error in updateAdminMovie:', error);
-    handleError(error, 'cập nhật phim');
+    throw handleError(error, 'cập nhật phim');
   }
 };
 
@@ -802,7 +807,7 @@ export const deleteAdminMovie = async movieId => {
     const response = await axiosInstance.delete(`/api/admin/movies/${movieId}/`);
     return handleResponse(response);
   } catch (error) {
-    handleError(error, 'xóa phim');
+    throw handleError(error, 'xóa phim');
   }
 };
 

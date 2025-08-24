@@ -9,8 +9,8 @@ const SchedulePublishModal = ({
   onSchedule,
   onReschedule,
   movieTitle,
-  existingSchedule = null, // Thông tin lịch trình hiện có
-  isEditMode = false, // Chế độ sửa lịch trình
+  existingSchedule = null,
+  isEditMode = false,
 }) => {
   const [scheduleData, setScheduleData] = useState({
     scheduled_date: '',
@@ -23,8 +23,7 @@ const SchedulePublishModal = ({
   });
 
   // Sử dụng hook để kiểm tra thời gian trong quá khứ
-  const { isPastTime, pastTimeWarning, updatePastTimeWarning, confirmPastTime } =
-    usePastTimeCheck();
+  const { isPastTime, pastTimeWarning, updatePastTimeWarning, confirmPastTime } = usePastTimeCheck();
 
   // Khởi tạo dữ liệu từ existingSchedule nếu đang ở chế độ edit
   useEffect(() => {
@@ -34,7 +33,7 @@ const SchedulePublishModal = ({
         ? new Date(existingSchedule.end_datetime)
         : null;
 
-      const newScheduleData = {
+      setScheduleData({
         scheduled_date: scheduleDate.toISOString().split('T')[0],
         scheduled_time: scheduleDate.toTimeString().slice(0, 5),
         end_date: endDate ? endDate.toISOString().split('T')[0] : '',
@@ -42,12 +41,13 @@ const SchedulePublishModal = ({
         campaign_name: existingSchedule.campaign_name || '',
         priority: existingSchedule.priority || 1,
         auto_unpublish: existingSchedule.auto_unpublish || false,
-      };
-
-      setScheduleData(newScheduleData);
+      });
 
       // Cập nhật warning cho thời gian hiện tại
-      updatePastTimeWarning(newScheduleData.scheduled_date, newScheduleData.scheduled_time);
+      updatePastTimeWarning(
+        scheduleDate.toISOString().split('T')[0],
+        scheduleDate.toTimeString().slice(0, 5)
+      );
     } else {
       // Reset về giá trị mặc định cho lịch trình mới
       setScheduleData({
@@ -71,10 +71,7 @@ const SchedulePublishModal = ({
     }
 
     // Kiểm tra và xác nhận thời gian trong quá khứ
-    const shouldContinue = confirmPastTime(
-      scheduleData.scheduled_date,
-      scheduleData.scheduled_time
-    );
+    const shouldContinue = confirmPastTime(scheduleData.scheduled_date, scheduleData.scheduled_time);
     if (!shouldContinue) {
       return;
     }
@@ -94,10 +91,8 @@ const SchedulePublishModal = ({
     };
 
     if (isEditMode && onReschedule) {
-      // Gọi hàm reschedule nếu đang ở chế độ edit
       onReschedule(schedulePayload);
     } else {
-      // Gọi hàm schedule cho lịch trình mới
       onSchedule(schedulePayload);
     }
   };
@@ -201,6 +196,9 @@ const SchedulePublishModal = ({
                 />
               </div>
 
+              {/* Warning thời gian trong quá khứ */}
+              <PastTimeWarning isPastTime={isPastTime} pastTimeWarning={pastTimeWarning} />
+
               {/* Tên chiến dịch */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -288,9 +286,6 @@ const SchedulePublishModal = ({
                 </div>
               )}
 
-              {/* Warning thời gian trong quá khứ */}
-              <PastTimeWarning isPastTime={isPastTime} pastTimeWarning={pastTimeWarning} />
-
               {/* Preview thời gian */}
               {scheduleData.scheduled_date && (
                 <div
@@ -306,9 +301,7 @@ const SchedulePublishModal = ({
                     ).toLocaleString('vi-VN')}
                   </p>
                   {scheduleData.auto_unpublish && scheduleData.end_date && (
-                    <p
-                      className={`text-sm mt-1 ${isPastTime ? 'text-yellow-700' : 'text-gray-600'}`}
-                    >
+                    <p className={`text-sm mt-1 ${isPastTime ? 'text-yellow-700' : 'text-gray-600'}`}>
                       <strong>Thời gian ngừng:</strong>
                       <br />
                       {new Date(`${scheduleData.end_date}T${scheduleData.end_time}`).toLocaleString(

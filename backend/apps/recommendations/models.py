@@ -20,69 +20,69 @@ class UserPreference(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='recommendation_preference')
 
     # PREFERENCE VECTORS
-    genre_preferences = models.JSONField(
-        default=dict, blank=True,
-        help_text="Genre preference scores: {genre_id: score, ...}"
-    )
-    actor_preferences = models.JSONField(
-        default=dict, blank=True,
-        help_text="Actor preference scores: {person_id: score, ...}"
-    )
-    director_preferences = models.JSONField(
-        default=dict, blank=True,
-        help_text="Director preference scores: {person_id: score, ...}"
-    )
-    year_preferences = models.JSONField(
-        default=dict, blank=True,
-        help_text="Release year preferences: {decade: score, ...}"
-    )
+    # genre_preferences = models.JSONField(
+    #     default=dict, blank=True,
+    #     help_text="Genre preference scores: {genre_id: score, ...}"
+    # )
+    # actor_preferences = models.JSONField(
+    #     default=dict, blank=True,
+    #     help_text="Actor preference scores: {person_id: score, ...}"
+    # )
+    # director_preferences = models.JSONField(
+    #     default=dict, blank=True,
+    #     help_text="Director preference scores: {person_id: score, ...}"
+    # )
+    # year_preferences = models.JSONField(
+    #     default=dict, blank=True,
+    #     help_text="Release year preferences: {decade: score, ...}"
+    # )
 
     # DEMOGRAPHIC CHARACTERISTICS
     demographic_cluster = models.CharField(
         max_length=50, null=True, blank=True,
         help_text="Demographic cluster ID (calculated)"
     )
-    behavior_cluster = models.CharField(
-        max_length=50, null=True, blank=True,
-        help_text="Behavior cluster ID (calculated)"
-    )
+    # behavior_cluster = models.CharField(
+    #     max_length=50, null=True, blank=True,
+    #     help_text="Behavior cluster ID (calculated)"
+    # )
 
     # PREFERENCE SCORES
-    novelty_preference = models.FloatField(
-        default=0.5,
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
-        help_text="How much user likes new/unknown movies (0=popular only, 1=very novel)"
-    )
-    diversity_preference = models.FloatField(
-        default=0.5,
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
-        help_text="How much user likes genre diversity (0=same genre, 1=very diverse)"
-    )
-    recency_preference = models.FloatField(
-        default=0.5,
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
-        help_text="How much user prefers recent movies (0=any era, 1=recent only)"
-    )
+    # novelty_preference = models.FloatField(
+    #     default=0.5,
+    #     validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+    #     help_text="How much user likes new/unknown movies (0=popular only, 1=very novel)"
+    # )
+    # diversity_preference = models.FloatField(
+    #     default=0.5,
+    #     validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+    #     help_text="How much user likes genre diversity (0=same genre, 1=very diverse)"
+    # )
+    # recency_preference = models.FloatField(
+    #     default=0.5,
+    #     validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+    #     help_text="How much user prefers recent movies (0=any era, 1=recent only)"
+    # )
 
-    # CALCULATED FEATURES
-    rating_count = models.IntegerField(default=0)
-    average_rating = models.FloatField(default=0.0)
-    rating_variance = models.FloatField(default=0.0)
-    interaction_count = models.IntegerField(default=0)
+    # CALCULATED FEATURES (unused in recommendation scoring/reranking)
+    # rating_count = models.IntegerField(default=0)
+    # average_rating = models.FloatField(default=0.0)
+    # rating_variance = models.FloatField(default=0.0)
+    # interaction_count = models.IntegerField(default=0)
 
     # TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    last_calculated = models.DateTimeField(null=True, blank=True)
+    # last_calculated = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "recommendations_user_preference"
         indexes = [
             models.Index(fields=['demographic_cluster']),
-            models.Index(fields=['behavior_cluster']),
-            models.Index(fields=['rating_count']),
-            models.Index(fields=['average_rating']),
-            models.Index(fields=['last_calculated']),
+            # models.Index(fields=['behavior_cluster']),
+            # models.Index(fields=['rating_count']),
+            # models.Index(fields=['average_rating']),
+            # models.Index(fields=['last_calculated']),
         ]
 
 class UserSimilarity(models.Model):
@@ -181,15 +181,15 @@ class RecommendationResult(models.Model):
         help_text="Explanation why this movie was recommended"
     )
 
-    # FEEDBACK TRACKING
-    was_clicked = models.BooleanField(default=False)
-    was_rated = models.BooleanField(default=False)
-    was_watched = models.BooleanField(default=False)
-    user_feedback = models.CharField(
-        max_length=20,
-        choices=[('like', 'Like'), ('dislike', 'Dislike'), ('not_interested', 'Not Interested')],
-        null=True, blank=True
-    )
+    # FEEDBACK TRACKING (commented out per request)
+    # was_clicked = models.BooleanField(default=False)
+    # was_rated = models.BooleanField(default=False)
+    # was_watched = models.BooleanField(default=False)
+    # user_feedback = models.CharField(
+    #     max_length=20,
+    #     choices=[('like', 'Like'), ('dislike', 'Dislike'), ('not_interested', 'Not Interested')],
+    #     null=True, blank=True
+    # )
 
     # TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
@@ -204,7 +204,7 @@ class RecommendationResult(models.Model):
             models.Index(fields=['score', 'confidence_score']),
             models.Index(fields=['created_at']),
             models.Index(fields=['expires_at']),
-            models.Index(fields=['was_clicked', 'was_rated']),
+            # models.Index(fields=['was_clicked', 'was_rated']),
         ]
 
 class DemographicCluster(models.Model):
@@ -221,7 +221,7 @@ class DemographicCluster(models.Model):
     age_range_max = models.IntegerField(null=True, blank=True)
     primary_gender = models.CharField(max_length=10, null=True, blank=True)
     common_occupations = models.JSONField(default=list, blank=True)
-    geographic_regions = models.JSONField(default=list, blank=True)
+    # geographic_regions = models.JSONField(default=list, blank=True)
 
     # CLUSTER PREFERENCES
     preferred_genres = models.JSONField(

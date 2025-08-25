@@ -12,43 +12,25 @@ from .models import (
 @admin.register(UserPreference)
 class UserPreferenceAdmin(admin.ModelAdmin):
     list_display = [
-        'user', 'demographic_cluster', 'behavior_cluster',
-        'rating_count', 'average_rating', 'interaction_count',
-        'novelty_preference', 'diversity_preference', 'last_calculated'
+        'user', 'demographic_cluster', 'created_at', 'updated_at'
     ]
     list_filter = [
-        'demographic_cluster', 'behavior_cluster',
-        'novelty_preference', 'diversity_preference', 'last_calculated'
+        'demographic_cluster'
     ]
     search_fields = ['user__username', 'user__email', 'demographic_cluster']
-    readonly_fields = ['created_at', 'updated_at', 'last_calculated']
+    readonly_fields = ['created_at', 'updated_at']
 
     fieldsets = (
         ('User Information', {
-            'fields': ('user', 'demographic_cluster', 'behavior_cluster')
-        }),
-        ('Calculated Statistics', {
-            'fields': ('rating_count', 'average_rating', 'rating_variance', 'interaction_count')
-        }),
-        ('Preference Scores', {
-            'fields': ('novelty_preference', 'diversity_preference', 'recency_preference')
-        }),
-        ('Preference Vectors', {
-            'fields': ('genre_preferences_formatted', 'actor_preferences', 'director_preferences', 'year_preferences'),
-            'classes': ('collapse',)
+            'fields': ('user', 'demographic_cluster')
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at', 'last_calculated'),
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         })
     )
 
-    def genre_preferences_formatted(self, obj):
-        if obj.genre_preferences:
-            formatted_json = json.dumps(obj.genre_preferences, indent=2, ensure_ascii=False)
-            return format_html('<pre>{}</pre>', formatted_json)
-        return "No preferences set"
-    genre_preferences_formatted.short_description = "Genre Preferences (JSON)"
+    # Removed genre_preferences display since the field is commented out in model
 
     def get_readonly_fields(self, request, obj=None):
         readonly = list(self.readonly_fields)
@@ -84,11 +66,10 @@ class UserSimilarityAdmin(admin.ModelAdmin):
 class RecommendationResultAdmin(admin.ModelAdmin):
     list_display = [
         'user', 'movie', 'recommendation_type', 'context', 'rank',
-        'score', 'confidence_score', 'was_clicked', 'was_rated', 'created_at'
+        'score', 'confidence_score', 'created_at'
     ]
     list_filter = [
-        'recommendation_type', 'context', 'was_clicked', 'was_rated',
-        'was_watched', 'user_feedback', 'created_at'
+        'recommendation_type', 'context', 'created_at'
     ]
     search_fields = ['user__username', 'movie__title']
     readonly_fields = ['created_at', 'expires_at']
@@ -101,9 +82,9 @@ class RecommendationResultAdmin(admin.ModelAdmin):
         ('Scoring', {
             'fields': ('rank', 'score', 'predicted_rating', 'confidence_score', 'novelty_score')
         }),
-        ('User Feedback', {
-            'fields': ('was_clicked', 'was_rated', 'was_watched', 'user_feedback')
-        }),
+        # ('User Feedback', {
+        #     'fields': ('was_clicked', 'was_rated', 'was_watched', 'user_feedback')
+        # }),
         ('Explanation', {
             'fields': ('explanation_formatted',),
             'classes': ('collapse',)
@@ -121,22 +102,7 @@ class RecommendationResultAdmin(admin.ModelAdmin):
         return "No explanation"
     explanation_formatted.short_description = "Explanation (JSON)"
 
-    actions = ['mark_as_clicked', 'mark_as_rated', 'clear_feedback']
-
-    def mark_as_clicked(self, request, queryset):
-        queryset.update(was_clicked=True)
-        self.message_user(request, f"{queryset.count()} recommendations marked as clicked.")
-    mark_as_clicked.short_description = "Mark selected recommendations as clicked"
-
-    def mark_as_rated(self, request, queryset):
-        queryset.update(was_rated=True)
-        self.message_user(request, f"{queryset.count()} recommendations marked as rated.")
-    mark_as_rated.short_description = "Mark selected recommendations as rated"
-
-    def clear_feedback(self, request, queryset):
-        queryset.update(was_clicked=False, was_rated=False, was_watched=False, user_feedback=None)
-        self.message_user(request, f"Feedback cleared for {queryset.count()} recommendations.")
-    clear_feedback.short_description = "Clear feedback for selected recommendations"
+    # actions related to feedback removed because fields are commented out in model
 
 @admin.register(DemographicCluster)
 class DemographicClusterAdmin(admin.ModelAdmin):
@@ -154,7 +120,7 @@ class DemographicClusterAdmin(admin.ModelAdmin):
         }),
         ('Demographics', {
             'fields': ('age_range_min', 'age_range_max', 'primary_gender',
-                      'common_occupations', 'geographic_regions')
+                      'common_occupations')
         }),
         ('Preferences', {
             'fields': ('preferred_genres_formatted', 'average_rating', 'rating_variance')

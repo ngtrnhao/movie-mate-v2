@@ -5392,7 +5392,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                     'avg_trending_score': round(engagement_stats['avg_trending_score'] or 0, 2),
                     'avg_engagement_rate': round(engagement_stats['avg_engagement_rate'] or 0, 2),
                     'avg_click_through_rate': round(engagement_stats['avg_click_through_rate'] or 0, 2),
-                    'avg_trailer_completion': round(engagement_stats['avg_trailer_completion'] or 0, 2),
+                    # 'avg_trailer_completion': round(engagement_stats['avg_trailer_completion'] or 0, 2),
                 },
 
                 # Device breakdown

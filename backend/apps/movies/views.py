@@ -5303,7 +5303,7 @@ class AdminMovieViewSet(viewsets.ModelViewSet):
                 avg_trending_score=Avg('production_metrics__trending_score'),
                 avg_engagement_rate=Avg('production_metrics__engagement_rate'),
                 avg_click_through_rate=Avg('production_metrics__click_through_rate'),
-                avg_trailer_completion=Avg('production_metrics__trailer_completion_rate'),
+                # avg_trailer_completion=Avg('production_metrics__trailer_completion_rate'),
             )
 
             # Device breakdown

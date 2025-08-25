@@ -1602,8 +1602,8 @@ class ProductionMetrics(models.Model):
                                            help_text="CTR from homepage to detail page (%)")
     engagement_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
                                         help_text="Overall engagement rate (%)")
-    trailer_completion_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
-                                                 help_text="Trailer completion rate (%)")
+    # trailer_completion_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0,
+    #                                              help_text="Trailer completion rate (%)")
 
     # DEVICE BREAKDOWN (MOBILE, DESKTOP, TABLET)
     mobile_views = models.IntegerField(default=0, help_text="Views from mobile devices")
@@ -1642,8 +1642,8 @@ class ProductionMetrics(models.Model):
     # TRACKING
     last_interaction_date = models.DateTimeField(null=True, blank=True,
                                                 help_text="Last time there was user interaction")
-    last_featured_date = models.DateTimeField(null=True, blank=True,
-                                             help_text="Last time movie was featured")
+    # last_featured_date = models.DateTimeField(null=True, blank=True,
+    #                                          help_text="Last time movie was featured")
 
     # TIMESTAMPS
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1666,7 +1666,7 @@ class ProductionMetrics(models.Model):
             models.Index(fields=["trending_category"], name="idx_metrics_trending_cat"),
             models.Index(fields=["click_through_rate"], name="idx_metrics_ctr"),
             models.Index(fields=["engagement_rate"], name="idx_metrics_engagement"),
-            models.Index(fields=["last_featured_date"], name="idx_metrics_last_featured"),
+            # models.Index(fields=["last_featured_date"], name="idx_metrics_last_featured"),
             models.Index(fields=["homepage_views"], name="idx_metrics_homepage_views"),
             models.Index(fields=["detail_page_views"], name="idx_metrics_detail_views"),
             models.Index(fields=["updated_at"], name="idx_metrics_updated"),
@@ -1697,10 +1697,10 @@ class ProductionMetrics(models.Model):
                 check=models.Q(engagement_rate__gte=0, engagement_rate__lte=100),
                 name='engagement_rate_range'
             ),
-            models.CheckConstraint(
-                check=models.Q(trailer_completion_rate__gte=0, trailer_completion_rate__lte=100),
-                name='trailer_completion_rate_range'
-            ),
+            # models.CheckConstraint(
+            #     check=models.Q(trailer_completion_rate__gte=0, trailer_completion_rate__lte=100),
+            #     name='trailer_completion_rate_range'
+            # ),
         ]
         verbose_name = "Production Metrics"
         verbose_name_plural = "Production Metrics"
@@ -1718,11 +1718,11 @@ class ProductionMetrics(models.Model):
 
             # Engagement score (40% weight)
             if self.homepage_views > 0:
-                engagement_score = min((
+                engagement_score = min(
                     (self.click_through_rate * 0.4) +
-                    (self.engagement_rate * 0.3) +
-                    (self.trailer_completion_rate * 0.3)
-                ), 40)
+                    (self.engagement_rate * 0.3),
+                    40
+                )
                 scores.append(engagement_score)
 
             # View count score (30% weight)

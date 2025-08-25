@@ -1302,8 +1302,8 @@ class AdminMovieListSerializer(OptimizedMovieListSerializer):
             'performance_score': 0.0,
             'trending_score': 0.0,
             'trending_category': 'stable',
-            'trailer_completion_rate': 0.0,
-            'last_featured_date': None,
+            # 'trailer_completion_rate': 0.0,
+            # 'last_featured_date': None,
             'last_calculated_at': None,
             # 'total_featured_days': 0,
             'review_count': 0,
@@ -1323,8 +1323,8 @@ class AdminMovieListSerializer(OptimizedMovieListSerializer):
                 'performance_score': float(metrics.performance_score),
                 'trending_score': float(metrics.trending_score),
                 'trending_category': metrics.trending_category,
-                'trailer_completion_rate': float(metrics.trailer_completion_rate),
-                'last_featured_date': metrics.last_featured_date,
+                # 'trailer_completion_rate': float(metrics.trailer_completion_rate),
+                # 'last_featured_date': metrics.last_featured_date,
                 'last_calculated_at': metrics.last_calculated_at,
                 # 'total_featured_days': metrics.total_featured_days,
                 'review_count': metrics.review_count,
@@ -1402,8 +1402,8 @@ class AdminMovieSerializer(MovieDetailSerializer):
                         'performance_score': float(metrics.performance_score) if metrics.performance_score else 0,
                     'trending_score': float(metrics.trending_score) if metrics.trending_score else 0,
                     'trending_category': metrics.trending_category,
-                    'trailer_completion_rate': float(metrics.trailer_completion_rate) if metrics.trailer_completion_rate else 0,
-                    'last_featured_date': metrics.last_featured_date,
+                    # 'trailer_completion_rate': float(metrics.trailer_completion_rate) if metrics.trailer_completion_rate else 0,
+                    # 'last_featured_date': metrics.last_featured_date,
                     'last_calculated_at': metrics.last_calculated_at
                 }
         except:
@@ -1417,8 +1417,8 @@ class AdminMovieSerializer(MovieDetailSerializer):
             'performance_score': 0,
             'trending_score': 0,
             'trending_category': 'stable',
-            'trailer_completion_rate': 0,
-            'last_featured_date': None,
+            # 'trailer_completion_rate': 0,
+            # 'last_featured_date': None,
             'last_calculated_at': None
         }
 

@@ -80,8 +80,8 @@ class ProductionMetricsService:
             # Get trending information (enhanced with interaction data)
             trending_info = self._calculate_trending_metrics(movie, current_metrics, interaction_metrics)
 
-            # Calculate trailer completion rate
-            trailer_completion_rate = self._calculate_trailer_completion_rate(movie)
+            # Calculate trailer completion rate (disabled)
+            trailer_completion_rate = 0.0
 
             # Prepare metrics data
             metrics_data = {
@@ -90,7 +90,7 @@ class ProductionMetricsService:
                 **engagement_rates,
                 'overall_performance_score': overall_performance,
                 **trending_info,
-                'trailer_completion_rate': trailer_completion_rate,
+                # 'trailer_completion_rate': trailer_completion_rate,
                 'last_calculated_at': timezone.now(),
                 'auto_calculated': True,
                 'calculation_version': self.calculation_version,
@@ -360,21 +360,9 @@ class ProductionMetricsService:
             return 0.0
 
     def _update_featured_date(self, movie: Movie, production_metrics: ProductionMetrics) -> None:
-        """Cập nhật last_featured_date khi movie được featured"""
+        """Disabled: last_featured_date is commented out in model"""
         try:
-            # Check if movie is currently featured (high trending score or admin featured)
-            if (production_metrics.trending_score >= 70 or
-                production_metrics.performance_score >= 80 or
-                getattr(movie, 'is_featured', False)):
-
-                # Update last_featured_date if not already set today
-                from django.utils import timezone
-                today = timezone.now().date()
-
-                if (not production_metrics.last_featured_date or
-                    production_metrics.last_featured_date.date() != today):
-                    production_metrics.last_featured_date = timezone.now()
-
+            return
         except Exception as e:
             logger.warning(f"Error updating featured date for movie {movie.id}: {e}")
 

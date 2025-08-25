@@ -1,11 +1,19 @@
 from celery import shared_task
 from django.contrib.auth import get_user_model
-from apps.movies.models import Movie
-from apps.recommendations.models import RecommendationResult
-from apps.recommendations.services import HybridRecommendationService
+from django.core.cache import cache
 from django.utils import timezone
+from django.db.models import Count, Q
+from datetime import timedelta
 import logging
 
+from apps.movies.models import Movie
+from apps.recommendations.models import RecommendationResult, UserSimilarity
+from apps.recommendations.services import (
+    HybridRecommendationService,
+    CollaborativeFilteringService,
+    RecommendationCacheService,
+    EnhancedDemographicFilteringService
+)
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
@@ -14,11 +22,6 @@ def generate_user_recommendations_async(self, user_id: int, context: str = 'home
     """
     Generate recommendations for a user asynchronously
     """
-    from django.core.cache import cache
-    from django.contrib.auth import get_user_model
-
-    User = get_user_model()
-
     try:
         # Cache task ID for this user/context
         task_cache_key = f"rec_task:{user_id}:{context}"
@@ -58,14 +61,12 @@ def generate_user_recommendations_async(self, user_id: int, context: str = 'home
         RecommendationResult.objects.filter(user=user, context=context).delete()
 
         # Generate recommendations using hybrid service
-        from .services import HybridRecommendationService
         hybrid_service = HybridRecommendationService()
 
         # Get recommendations with full metadata from hybrid service
         recommendations = hybrid_service.generate_hybrid_recommendations(user, limit, context)
 
         # Get detailed recommendations from cache service (hybrid service stores them)
-        from .services import RecommendationCacheService
         detailed_recommendations = RecommendationCacheService.get_cached_recommendations(
             user, 'hybrid', context, limit
         )
@@ -137,12 +138,6 @@ def generate_collaborative_recommendations_async(self, user_id: int, context: st
     """
     Generate collaborative filtering recommendations asynchronously
     """
-    from django.core.cache import cache
-    from django.contrib.auth import get_user_model
-    from .services import CollaborativeFilteringService
-
-    User = get_user_model()
-
     try:
         # Cache task ID for this user/context
         task_cache_key = f"cf_task:{user_id}:{context}"
@@ -194,12 +189,6 @@ def generate_hybrid_recommendations_async(self, user_id: int, context: str = 'ho
     """
     Generate hybrid recommendations asynchronously
     """
-    from django.core.cache import cache
-    from django.contrib.auth import get_user_model
-    from .services import HybridRecommendationService
-
-    User = get_user_model()
-
     try:
         # Cache task ID for this user/context
         task_cache_key = f"hybrid_task:{user_id}:{context}"
@@ -251,12 +240,6 @@ def generate_demographic_recommendations_async(self, user_id: int, context: str 
     """
     Generate demographic recommendations asynchronously
     """
-    from django.core.cache import cache
-    from django.contrib.auth import get_user_model
-    from .services import EnhancedDemographicFilteringService
-
-    User = get_user_model()
-
     try:
         # Cache task ID for this user/context
         task_cache_key = f"demo_task:{user_id}:{context}"
@@ -309,11 +292,6 @@ def refresh_all_recommendations_async(self, user_id: int, context: str = 'homepa
     """
     Refresh all types of recommendations asynchronously
     """
-    from django.core.cache import cache
-    from django.contrib.auth import get_user_model
-
-    User = get_user_model()
-
     try:
         # Cache task ID for this user/context
         task_cache_key = f"refresh_all_task:{user_id}:{context}"
@@ -373,10 +351,6 @@ def batch_generate_collaborative_recommendations(self, user_ids: list = None, co
     """
     Generate collaborative filtering recommendations for multiple users in batch
     """
-    from django.contrib.auth import get_user_model
-
-    User = get_user_model()
-
     try:
         # Get users to process
         if user_ids is None:
@@ -412,10 +386,6 @@ def batch_generate_hybrid_recommendations(self, user_ids: list = None, context: 
     """
     Generate hybrid recommendations for multiple users in batch
     """
-    from django.contrib.auth import get_user_model
-
-    User = get_user_model()
-
     try:
         # Get users to process
         if user_ids is None:
@@ -451,10 +421,6 @@ def batch_generate_demographic_recommendations(self, user_ids: list = None, cont
     """
     Generate demographic recommendations for multiple users in batch
     """
-    from django.contrib.auth import get_user_model
-
-    User = get_user_model()
-
     try:
         # Get users to process
         if user_ids is None:
@@ -777,12 +743,7 @@ def precompute_user_similarities_batch(self):
     try:
         logger.info("🔄 Starting similarity precomputation for active users...")
 
-        from django.db.models import Count
-        from datetime import timedelta
-        from django.utils import timezone
-        from apps.recommendations.models import UserSimilarity
-        from apps.recommendations.services import CollaborativeFilteringService
-        from django.db.models import Q
+
 
         # Get top 500 most active users
         active_users = User.objects.annotate(
@@ -847,11 +808,6 @@ def monitor_cf_system_health(self):
     try:
         logger.info("📊 Starting CF system health monitoring...")
 
-        from apps.recommendations.models import RecommendationResult, UserSimilarity
-        from django.db.models import Count
-        from datetime import timedelta
-        from django.utils import timezone
-
         # Basic stats
         total_users = User.objects.count()
         active_users = User.objects.filter(
@@ -911,12 +867,6 @@ def refresh_recommendations_after_rating(self, user_id: int, context: str = 'hom
     Refresh recommendations sau khi user tạo rating mới
     Đây là task chính để cải thiện recommendations theo flow test
     """
-    from django.core.cache import cache
-    from django.contrib.auth import get_user_model
-    from .services import EnhancedDemographicFilteringService, CollaborativeFilteringService, HybridRecommendationService
-
-    User = get_user_model()
-
     try:
         # Cache task ID for this user/context
         task_cache_key = f"rating_refresh_task:{user_id}:{context}"
@@ -1032,12 +982,6 @@ def refresh_demographic_recommendations_after_rating(self, user_id: int, context
     Chỉ refresh demographic recommendations sau khi user tạo rating mới
     Task này nhẹ hơn và nhanh hơn
     """
-    from django.core.cache import cache
-    from django.contrib.auth import get_user_model
-    from .services import EnhancedDemographicFilteringService
-
-    User = get_user_model()
-
     try:
         # Cache task ID for this user/context
         task_cache_key = f"demo_refresh_task:{user_id}:{context}"

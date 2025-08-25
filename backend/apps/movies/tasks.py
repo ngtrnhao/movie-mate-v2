@@ -1098,13 +1098,16 @@ def process_scheduled_actions_auto(self):
                 if not admin_control:
                     admin_control, _ = MovieAdminControl.objects.get_or_create(movie=movie)
 
-                # Check quality metrics for publishing
+                # Check quality metrics for publishing - BỎ QUA minimum_quality_met để cho phép auto-publish
+                # quality_met = True
+                # try:
+                #     quality_metrics = movie.quality_metrics
+                #     quality_met = quality_metrics.minimum_quality_met
+                # except MovieQualityMetrics.DoesNotExist:
+                #     quality_met = False
+
+                # Bỏ qua kiểm tra minimum quality metrics
                 quality_met = True
-                try:
-                    quality_metrics = movie.quality_metrics
-                    quality_met = quality_metrics.minimum_quality_met
-                except MovieQualityMetrics.DoesNotExist:
-                    quality_met = False
 
                 # Determine intended actions with precedence to "un-" actions
                 should_unpublish = bool(
@@ -1158,8 +1161,9 @@ def process_scheduled_actions_auto(self):
                     # Log why auto-publish was skipped
                     if admin_control.approval_status != 'APPROVED':
                         logger.warning(f"⚠️ Auto-publish skipped for movie {movie.title} (ID: {movie.id}): Not approved (status: {admin_control.approval_status})")
-                    elif not quality_met:
-                        logger.warning(f"⚠️ Auto-publish skipped for movie {movie.title} (ID: {movie.id}): Quality requirements not met")
+                    # Bỏ qua kiểm tra quality requirements
+                    # elif not quality_met:
+                    #     logger.warning(f"⚠️ Auto-publish skipped for movie {movie.title} (ID: {movie.id}): Quality requirements not met")
 
                 # Apply feature/unfeature once based on precedence
                 if should_unfeature and admin_control.admin_featured:
@@ -1659,17 +1663,20 @@ def publish_movie_task(self, movie_id: int, auto_approve: bool = True):
             admin_control.approved_at = timezone.now()
             logger.info(f"✅ Auto-approved movie: {movie.title}")
 
-        # Kiểm tra quality metrics
-        quality_met = True
-        try:
-            quality_metrics = movie.quality_metrics
-            quality_met = quality_metrics.minimum_quality_met
-        except MovieQualityMetrics.DoesNotExist:
-            quality_met = False
+        # Kiểm tra quality metrics - BỎ QUA minimum_quality_met để cho phép publish
+        # quality_met = True
+        # try:
+        #     quality_metrics = movie.quality_metrics
+        #     quality_met = quality_metrics.minimum_quality_met
+        # except MovieQualityMetrics.DoesNotExist:
+        #     quality_met = False
 
-        if not quality_met:
-            logger.warning(f"⚠️ Scheduled publish skipped for movie {movie.title}: Quality requirements not met")
-            return False
+        # if not quality_met:
+        #     logger.warning(f"⚠️ Scheduled publish skipped for movie {movie.title}: Quality requirements not met")
+        #     return False
+
+        # Bỏ qua kiểm tra minimum quality metrics để cho phép publish
+        logger.info(f"✅ Quality check bypassed for scheduled publish: {movie.title}")
 
         # Publish movie
         admin_control.is_published = True

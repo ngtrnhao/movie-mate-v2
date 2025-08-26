@@ -1121,7 +1121,7 @@ def process_scheduled_actions_auto(self):
                     scheduling.publish_date <= now and
                     not should_unpublish and  # prevent publish if unpublish is already due
                     admin_control.approval_status == 'APPROVED' and  # Only publish approved movies
-                    quality_met  # Only publish if quality requirements are met
+                    quality_met  # Bỏ qua kiểm tra quality requirements - luôn True
                 )
                 should_unfeature = bool(
                     scheduling.auto_unfeature and

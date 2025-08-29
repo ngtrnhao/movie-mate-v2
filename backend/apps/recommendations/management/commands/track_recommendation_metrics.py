@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Count, Avg, Sum
+from django.db import models
 from datetime import timedelta
 import logging
 
@@ -81,19 +82,8 @@ class Command(BaseCommand):
                 movie_count=rec_type['movie_count']
             )
 
-        # Track user engagement
-        engagement_stats = RecommendationResult.objects.filter(
-            created_at__date=today
-        ).aggregate(
-            total_clicks=Count('id', filter=models.Q(was_clicked=True)),
-            total_ratings=Count('id', filter=models.Q(was_rated=True)),
-            total_watched=Count('id', filter=models.Q(was_watched=True))
-        )
-
-        self.stdout.write(f'\n   👥 User Engagement:')
-        self.stdout.write(f'      Clicks: {engagement_stats["total_clicks"]}')
-        self.stdout.write(f'      Ratings: {engagement_stats["total_ratings"]}')
-        self.stdout.write(f'      Watched: {engagement_stats["total_watched"]}')
+        # Track user engagement (feedback fields are disabled)
+        self.stdout.write(f'\n   👥 User Engagement: (feedback tracking disabled)')
 
         # Calculate diversity metrics for each recommendation type
         for rec_type in recommendation_types:
@@ -187,21 +177,11 @@ class Command(BaseCommand):
         self.stdout.write(f'   📊 Recent recommendations (24h): {recent_recommendations:,}')
 
         # Check engagement rates
-        recent_engagement = RecommendationResult.objects.filter(
+        # Engagement rate calculation disabled due to feedback fields being commented out
+        recent_count = RecommendationResult.objects.filter(
             created_at__gte=timezone.now() - timedelta(days=7)
-        ).aggregate(
-            total_recs=Count('id'),
-            clicks=Count('id', filter=models.Q(was_clicked=True)),
-            ratings=Count('id', filter=models.Q(was_rated=True))
-        )
-
-        if recent_engagement['total_recs'] > 0:
-            click_rate = recent_engagement['clicks'] / recent_engagement['total_recs']
-            rating_rate = recent_engagement['ratings'] / recent_engagement['total_recs']
-
-            self.stdout.write(f'   👆 Click rate (7d): {click_rate:.2%}')
-            self.stdout.write(f'   ⭐ Rating rate (7d): {rating_rate:.2%}')
-        else:
+        ).count()
+        if recent_count == 0:
             self.stdout.write('   ⚠️ No recent recommendation activity')
 
         self.stdout.write('✅ Health check completed!')

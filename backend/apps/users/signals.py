@@ -76,17 +76,7 @@ def setup_user_recommendation_profile(sender, instance, created, **kwargs):
         with transaction.atomic():
             # Create UserPreference with demographic data
             user_pref, pref_created = UserPreference.objects.get_or_create(
-                user=instance,
-                defaults={
-                    'novelty_preference': 0.5,
-                    'diversity_preference': 0.5,
-                    'recency_preference': 0.5,
-                    'rating_count': 0,
-                    'average_rating': 0.0,
-                    'rating_variance': 0.0,
-                    'interaction_count': 0,
-                    'last_calculated': timezone.now()
-                }
+                user=instance
             )
 
             if pref_created:

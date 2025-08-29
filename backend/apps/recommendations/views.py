@@ -24,6 +24,7 @@ from .services import (
 from apps.movies.models import Movie, MovieReview, MovieTrailer
 from apps.users.models import User
 from django.db import models
+from apps.recommendations.evaluation import RecommendationEvaluator
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -891,6 +892,95 @@ class RecommendationViewSet(viewsets.ViewSet):
                 'error': str(e)
             }, status=500)
 
+    @action(detail=False, methods=['get'])
+    def evaluation(self, request):
+        """
+        Get recommendation algorithm evaluation results
+        """
+        try:
+            # Get evaluation parameters
+            test_size = float(request.query_params.get('test_size', 0.2))
+            min_ratings = int(request.query_params.get('min_ratings', 10))
+            max_users = int(request.query_params.get('max_users', 100))
+
+            # Run evaluation
+            evaluator = RecommendationEvaluator()
+            results = evaluator.evaluate_collaborative_filtering(
+                test_size=test_size,
+                min_ratings=min_ratings,
+                max_users=max_users
+            )
+
+            if 'error' in results:
+                return Response({
+                    'status': 'error',
+                    'message': results['error']
+                }, status=400)
+
+            return Response({
+                'status': 'success',
+                'data': results
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
+
+    @action(detail=False, methods=['get'])
+    def evaluation_summary(self, request):
+        """
+        Get evaluation summary from database
+        """
+        try:
+            # Get latest evaluation metrics
+            metrics = RecommendationMetrics.objects.filter(
+                recommendation_type='collaborative_filtering'
+            ).order_by('-date').first()
+
+            if not metrics:
+                return Response({
+                    'status': 'error',
+                    'message': 'No evaluation data available'
+                }, status=404)
+
+            summary = {
+                'date': metrics.date,
+                'algorithm': metrics.recommendation_type,
+                'accuracy': {
+                    'mae': metrics.mae,
+                    'rmse': metrics.rmse,
+                    'average_predicted_rating': metrics.average_predicted_rating,
+                    'average_actual_rating': metrics.average_actual_rating
+                },
+                'coverage': {
+                    'total_recommendations': metrics.total_recommendations,
+                    'unique_users': metrics.unique_users,
+                    'unique_movies': metrics.unique_movies
+                },
+                'engagement': {
+                    'click_through_rate': metrics.click_through_rate,
+                    'conversion_rate': metrics.conversion_rate,
+                    'average_rating_given': metrics.average_rating_given
+                },
+                'diversity': {
+                    'intra_list_diversity': metrics.intra_list_diversity,
+                    'novelty_score': metrics.novelty_score,
+                    'catalog_coverage': metrics.catalog_coverage
+                }
+            }
+
+            return Response({
+                'status': 'success',
+                'data': summary
+            })
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
 
 
 class RecommendationAnalyticsView(generics.RetrieveAPIView):

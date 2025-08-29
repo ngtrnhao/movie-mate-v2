@@ -170,6 +170,7 @@ class CollaborativeFilteringService:
     def _get_adaptive_quality_gates(self, user):
         """
         Tính toán adaptive quality gates dựa trên user profile
+        Dựa trên phân tích tổng thể hệ thống - CẬP NHẬT TỐI ƯU
         """
         if not self.adaptive_gates:
             return
@@ -181,25 +182,32 @@ class CollaborativeFilteringService:
             rating__isnull=False
         ).count()
 
-        # Adaptive logic dựa trên số ratings
+        # Adaptive logic mới: giảm dần số láng giềng yêu cầu khi user có nhiều ratings,
+        # đồng thời tăng yêu cầu chất lượng (similarity threshold, min common ratings)
         if user_rating_count < 50:
-            # Users có ít ratings: giảm yêu cầu
-            self.min_similar_users = 3
+            # < 50 ratings (≈70.2%): ưu tiên coverage
+            self.min_similar_users = 6
             self.similarity_threshold = 0.05
-            self.min_common_ratings = 3
+            self.min_common_ratings = 1
             logger.info(f"Adaptive gates for user {user.id}: low_activity (ratings: {user_rating_count})")
         elif user_rating_count < 100:
-            # Users có ratings trung bình
+            # 50-99 ratings (≈14.0%): cân bằng
             self.min_similar_users = 5
-            self.similarity_threshold = 0.08
+            self.similarity_threshold = 0.12
             self.min_common_ratings = 4
             logger.info(f"Adaptive gates for user {user.id}: medium_activity (ratings: {user_rating_count})")
-        else:
-            # Users có nhiều ratings: giữ nguyên yêu cầu cao
-            self.min_similar_users = 10
-            self.similarity_threshold = 0.1
-            self.min_common_ratings = 5
+        elif user_rating_count < 200:
+            # 100-199 ratings (≈8.5%):
+            self.min_similar_users = 4
+            self.similarity_threshold = 0.18
+            self.min_common_ratings = 8
             logger.info(f"Adaptive gates for user {user.id}: high_activity (ratings: {user_rating_count})")
+        else:
+            # >= 200 ratings (≈7.3%): neighbors chất lượng cao
+            self.min_similar_users = 3
+            self.similarity_threshold = 0.24
+            self.min_common_ratings = 12
+            logger.info(f"Adaptive gates for user {user.id}: very_high_activity (ratings: {user_rating_count})")
 
     def calculate_user_similarity(self, user1, user2, method='pearson') -> float:
         """
@@ -276,7 +284,14 @@ class CollaborativeFilteringService:
         # FIXED: Apply significance weighting (shrinkage) based on common ratings count
         # Shrinkage factor: more common ratings = higher confidence = less shrinkage
         n_common = len(common_movies)
-        shrinkage_factor = n_common / (n_common + 10)  # Shrink towards 0 when few common ratings
+        # Allow configurable alpha via instance attribute; default to 10 for backward compatibility
+        try:
+            shrink_alpha = float(getattr(self, 'shrinkage_alpha', 10))
+            if shrink_alpha < 0:
+                shrink_alpha = 10.0
+        except Exception:
+            shrink_alpha = 10.0
+        shrinkage_factor = n_common / (n_common + shrink_alpha)  # Shrink towards 0 when few common ratings
 
         weighted_correlation = raw_correlation * shrinkage_factor
 
@@ -388,20 +403,20 @@ class CollaborativeFilteringService:
                 self._last_similarity_source = 'precomputed'
             else:
                 # Calculate similarities on-the-fly
-                # Pool ứng viên on‑the‑fly: user đã chấm ÍT NHẤT 1 phim user hiện tại đã chấm; cap 500
+                # Pool ứng viên on‑the‑fly: user đã chấm ÍT NHẤT 1 phim user hiện tại đã chấm; cap 2000
                 candidate_users = User.objects.filter(
                     moviereview__movie_id__in=user_rated_movies,
                     moviereview__review_type='USER',
                     moviereview__rating__isnull=False
                 ).exclude(
                     id=user.id
-                ).distinct()[:500]  # Limit candidates for performance
+                ).distinct()[:2000]  # Tăng limit từ 500 lên 2000 để tăng coverage
 
                 for other_user in candidate_users:
                     similarity = self.calculate_user_similarity(user, other_user, method)
 
                     # Quality gate: chỉ giữ láng giềng có sim≥threshold
-                    if similarity > self.similarity_threshold:
+                    if similarity >= self.similarity_threshold:
                         similar_users.append((other_user, similarity))
                 self._last_similarity_source = 'on_the_fly'
 
@@ -541,13 +556,18 @@ class CollaborativeFilteringService:
         Generate collaborative filtering recommendations for a user
         """
         try:
-            # Check cache first using unified cache service
-            cached_recommendations = RecommendationCacheService.get_cached_recommendations(
-                user, 'collaborative', context, limit
-            )
+            # For evaluation-like contexts, bypass cache to ensure fresh, scored output
+            evaluation_contexts = {'evaluation', 'alpha_tuning'}
+            use_cache = context not in evaluation_contexts
 
-            if cached_recommendations:
-                return cached_recommendations
+            # Check cache first using unified cache service (only when allowed)
+            if use_cache:
+                cached_recommendations = RecommendationCacheService.get_cached_recommendations(
+                    user, 'collaborative', context, limit
+                )
+
+                if cached_recommendations:
+                    return cached_recommendations
 
             # Track recommendation generation
             logger.info(f" Generating NEW collaborative recommendations for user {user.id} (no cache found)")
@@ -611,7 +631,7 @@ class CollaborativeFilteringService:
                     # Predict rating with details
                     predicted_rating, pred_details = self.predict_rating_with_details(user, movie, similar_users)
 
-                    # Sử dụng predicted_rating làm score thay vì avg_score
+                    # Sử dụng predicted_rating làm score
                     if predicted_rating is not None:
                         # Confidence đơn giản theo support (min(1, support/5))
                         confidence = min(1.0, len(scores) / 5.0)
@@ -647,6 +667,7 @@ class CollaborativeFilteringService:
                                 'similar_user_avg': float(tc.get('similar_user_avg', 0.0)) if tc.get('similar_user_avg') is not None else None,
                                 'delta': float(tc.get('delta', 0.0)) if tc.get('delta') is not None else None,
                                 'common_ratings_count': int(common_count),
+                                'similarity_confidence': min(1.0, common_count / 10.0),  # Confidence based on common ratings
                             })
 
                         recommendations.append({
@@ -734,10 +755,15 @@ class CollaborativeFilteringService:
 
             top_recommendations = recommendations[:limit]
 
-            # Store recommendations using unified cache service
-            RecommendationCacheService.store_recommendations(user, top_recommendations, 'collaborative', context)
-
-            return [rec['movie'] for rec in top_recommendations]
+            # Store or return depending on context
+            if use_cache:
+                # Store recommendations using unified cache service
+                RecommendationCacheService.store_recommendations(user, top_recommendations, 'collaborative', context)
+                # Return list of Movie objects as in production
+                return [rec['movie'] for rec in top_recommendations]
+            else:
+                # In evaluation contexts, return rich dicts (include predicted_rating/score)
+                return top_recommendations
 
         except Exception as e:
             logger.error(f"Error generating collaborative recommendations: {str(e)}")
@@ -847,7 +873,7 @@ class EnhancedDemographicFilteringService:
     """
 
     def __init__(self):
-        self.cache_timeout = None  # No expiration - cache forever
+        self.cache_timeout = None
         self.vectorizer = AdvancedDemographicVectorizer()
         self.similarity_calculator = AdvancedDemographicSimilarityCalculator(self.vectorizer)
         self.min_similar_users = 1  # Giảm từ 3 xuống 1 để DF có thể hoạt động
@@ -859,9 +885,7 @@ class EnhancedDemographicFilteringService:
         # Tự động load K-means model nếu có clusters trong database
         self._load_kmeans_model()
 
-        # Do NOT initialize a blank scaler in production. If scaler is missing,
-        # fallback logic will use unscaled vectors (and we should fix payload).
-        # This prevents unfitted StandardScaler errors during transform.
+       
         if self.kmeans_model is not None and self.scaler is None:
             logger.warning("K-means model loaded without fitted scaler; using unscaled vectors until scaler payload is provided")
 
@@ -2386,7 +2410,6 @@ class EnhancedDemographicFilteringService:
     def _get_similar_users_from_cluster(self, user, cluster, limit=50):
         """
         Get similar users from the same demographic cluster
-        FIXED: Theo lý thuyết Demographic Filtering - KHÔNG cần user mới có ratings
         """
         try:
             # Get ALL users from the same cluster (demographic principle)

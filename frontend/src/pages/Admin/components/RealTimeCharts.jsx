@@ -24,7 +24,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { useAdminData } from '../../../contexts/AdminDataContext';
+import { useAdminData } from '../../../context/AdminDataContext';
 
 // Register Chart.js components
 ChartJS.register(

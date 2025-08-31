@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useAdminData } from '../../../contexts/AdminDataContext';
+import { useAdminData } from '../../../context/AdminDataContext';
 import RealTimeCharts from './RealTimeCharts';
 import {
   ChartBarIcon,

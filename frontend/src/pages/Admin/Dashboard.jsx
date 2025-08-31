@@ -57,7 +57,7 @@ import {
   AdminDataProvider,
   useAdminData,
   useAdminRealTimeMetrics,
-} from '../../contexts/AdminDataContext';
+} from '../../context/AdminDataContext';
 
 const AdminDashboardContent = () => {
   const dispatch = useDispatch();

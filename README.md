@@ -14,6 +14,7 @@ MovieMate is an intelligent movie recommendation system that combines multiple a
 ### 🎯 Key Features
 
 - **🤖 Advanced Recommendation Algorithms**
+
   - Collaborative Filtering with Pearson Correlation
   - Enhanced Demographic Filtering with K-Means Clustering
   - Hybrid Recommendation Engine
@@ -21,24 +22,27 @@ MovieMate is an intelligent movie recommendation system that combines multiple a
   - Real-time Recommendation Updates
 
 - **📊 Multi-Dataset Integration**
-  - IMDB Dataset Integration (1M+ movies)
-  - MovieLens Dataset Support (100K-25M ratings)
-  - Real-time TMDB API Synchronization
+
+  - IMDB Dataset Integration (718K+ movies)
+  - MovieLens Dataset Support (6.6K movies with ML IDs, 402K+ ratings)
+  - Real-time TMDB API Synchronization (164K+ movies)
   - Automatic Data Enrichment Pipeline
 
 - **🎨 Modern User Experience**
+
   - Responsive React 18+ Frontend
   - Real-time Search with Elasticsearch
-  - Cloudinary-Optimized Image Delivery
+  - Optimized Image Delivery
   - Multi-language Support (English/Vietnamese)
-  - Progressive Web App Features
+  - Admin & Moderator Dashboards
+  - Content Moderation with AI
 
 - **⚡ Performance & Scalability**
   - Redis Caching Layer
   - Celery Background Processing
-  - PostgreSQL with Optimized Indexes
+  - PostgreSQL with Optimized Indexes (307K+ user similarities)
   - Elasticsearch Full-Text Search
-  - CDN-Optimized Media Delivery
+  - Production-Ready Deployment
 
 ## 🏗️ Architecture
 
@@ -54,8 +58,8 @@ graph TB
     C --> G[Celery Workers]
     G --> H[IMDB API]
     G --> I[TMDB API]
-    J[Cloudinary CDN] --> A
-    K[Admin Dashboard] --> C
+    K[Admin/Moderator Dashboard] --> C
+    L[ML Recommendation Engine] --> C
 ```
 
 ### 🧠 Machine Learning Pipeline
@@ -63,11 +67,13 @@ graph TB
 The recommendation system employs a sophisticated multi-stage ML pipeline:
 
 1. **Data Preprocessing**
+
    - Feature engineering for demographic vectors
    - Rating matrix construction
    - Sparse matrix optimization
 
 2. **Algorithm Ensemble**
+
    - **Collaborative Filtering**: User-item interactions using Pearson correlation
    - **Demographic Filtering**: K-means clustering with scikit-learn
    - **Hybrid Model**: Weighted combination of multiple algorithms
@@ -82,36 +88,36 @@ The recommendation system employs a sophisticated multi-stage ML pipeline:
 
 ### Backend Technologies
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Django** | 4.0+ | Web framework and REST API |
-| **PostgreSQL** | 13+ | Primary database with advanced indexing |
-| **Redis** | 6+ | Caching and session management |
-| **Elasticsearch** | 7.17+ | Full-text search and analytics |
-| **Celery** | 5.2+ | Asynchronous task processing |
-| **Cloudinary** | 1.41+ | Image optimization and CDN |
+| Technology        | Version | Purpose                                 |
+| ----------------- | ------- | --------------------------------------- |
+| **Django**        | 4.0+    | Web framework and REST API              |
+| **PostgreSQL**    | 13+     | Primary database with advanced indexing |
+| **Redis**         | 6+      | Caching and session management          |
+| **Elasticsearch** | 7.17+   | Full-text search and analytics          |
+| **Celery**        | 5.2+    | Asynchronous task processing            |
+| **TMDB API**      | Latest  | Movie metadata and images               |
 
 ### Machine Learning Stack
 
-| Library | Version | Purpose |
-|---------|---------|---------|
-| **NumPy** | 2.2+ | Numerical computing |
-| **Pandas** | 2.2+ | Data manipulation and analysis |
-| **Scikit-learn** | 1.7+ | Machine learning algorithms |
-| **SciPy** | 1.16+ | Statistical computations |
-| **Matplotlib/Seaborn** | Latest | Data visualization |
-| **NLTK** | 3.9+ | Natural language processing |
+| Library                | Version | Purpose                        |
+| ---------------------- | ------- | ------------------------------ |
+| **NumPy**              | 2.2+    | Numerical computing            |
+| **Pandas**             | 2.2+    | Data manipulation and analysis |
+| **Scikit-learn**       | 1.7+    | Machine learning algorithms    |
+| **SciPy**              | 1.16+   | Statistical computations       |
+| **Matplotlib/Seaborn** | Latest  | Data visualization             |
+| **NLTK**               | 3.9+    | Natural language processing    |
 
 ### Frontend Technologies
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **React** | 18+ | UI framework with hooks |
-| **Redux Toolkit** | 2.8+ | State management |
-| **React Query** | 5.76+ | Data fetching and caching |
-| **Tailwind CSS** | Latest | Utility-first CSS framework |
-| **Framer Motion** | 12+ | Animation library |
-| **Chart.js** | 4.5+ | Data visualization |
+| Technology        | Version | Purpose                     |
+| ----------------- | ------- | --------------------------- |
+| **React**         | 18+     | UI framework with hooks     |
+| **Redux Toolkit** | 2.8+    | State management            |
+| **React Query**   | 5.76+   | Data fetching and caching   |
+| **Tailwind CSS**  | Latest  | Utility-first CSS framework |
+| **Framer Motion** | 12+     | Animation library           |
+| **Chart.js**      | 4.5+    | Data visualization          |
 
 ## 📊 Dataset Integration
 
@@ -167,6 +173,7 @@ class CollaborativeFilteringService:
 ```
 
 **Features**:
+
 - Minimum 5 common ratings for similarity calculation
 - Quality gates to ensure recommendation reliability
 - Cached similarity matrices for performance
@@ -195,6 +202,7 @@ class EnhancedDemographicFilteringService:
 ```
 
 **Features**:
+
 - Multi-dimensional demographic vectors
 - K-means clustering with scikit-learn
 - Behavioral feature integration
@@ -296,9 +304,6 @@ python backend/manage.py sync_popular_movies
 DATABASE_URL=postgresql://username:password@localhost:5432/moviemate
 REDIS_URL=redis://localhost:6379/0
 ELASTICSEARCH_DSL_HOST=localhost:9200
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
 IMDB_API_KEY=your_imdb_key
 TMDB_API_KEY=your_tmdb_key
 ```
@@ -319,9 +324,9 @@ docker-compose up --scale celery=3
 
 - **Database**: Optimized PostgreSQL indexes for recommendation queries
 - **Caching**: Multi-layer Redis caching strategy
-- **CDN**: Cloudinary integration for global image delivery
 - **Search**: Elasticsearch with custom analyzers
 - **Monitoring**: Built-in performance metrics and health checks
+- **ML Optimization**: Pre-computed user similarities for fast recommendations
 
 ## 📈 Features & Services
 
@@ -331,7 +336,7 @@ docker-compose up --scale celery=3
 - **SimilarMovieFinder**: Content-based movie similarity
 - **TrendingAnalytics**: Real-time popularity tracking
 - **GenreExplorer**: Genre-based discovery tools
-- **MoodBasedRecommendations**: Emotion-driven suggestions
+- **DemographicClustering**: Age, gender, occupation-based recommendations
 
 ### 🔍 Advanced Search & Discovery
 
@@ -349,17 +354,18 @@ docker-compose up --scale celery=3
 
 ### 🛡️ Content Moderation
 
-- **SpoilerDetection**: Automatic content filtering
-- **ModerationLearning**: AI-powered content review
+- **SpoilerDetection**: Automatic content filtering with ML
+- **ModerationDashboard**: AI-powered content review interface
 - **ReportingSystem**: Community-driven moderation
 - **AutomaticFlagging**: Real-time content screening
+- **AdminControls**: Movie publishing and visibility management
 
 ### 🎨 User Experience
 
 - **ResponsiveDesign**: Mobile-first approach
-- **ProgressiveWebApp**: Offline capabilities
-- **InternationalizationI18n**: Multi-language support
-- **AccessibilityWCAG**: WCAG 2.1 compliance
+- **ModernUI**: React 18+ with Tailwind CSS
+- **InternationalizationI18n**: Multi-language support (EN/VI)
+- **UserProfiles**: Comprehensive user management system
 
 ## 📊 API Documentation
 
@@ -425,33 +431,90 @@ npm run test:coverage
 # Evaluate recommendation algorithms
 python backend/manage.py evaluate_recommendations
 python backend/manage.py benchmark_algorithms
+
+# Run database analysis and visualization
+python backend/scripts/check_database_status.py
+python backend/scripts/comprehensive_database_analysis.py
+python backend/scripts/visualize_demographic_data.py
+
+# Generated visualizations will be saved to:
+# - backend/data/demographic_visualizations/
+# - backend/data/comprehensive_analysis/
 ```
 
 ## 📈 Performance Metrics
 
 ### System Performance
 
+- **Database**: 718K+ movies, 402K+ ratings, 6.4K+ users
+- **ML Readiness**: 5.5K users ready for CF, 6.2K for demographic filtering
+- **Pre-computed**: 307K+ user similarities for fast recommendations
 - **Response Time**: <200ms for cached recommendations
-- **Throughput**: 1000+ requests/second
-- **Availability**: 99.9% uptime
-- **Scalability**: Horizontal scaling with load balancers
+- **Scalability**: Production-ready with Celery background processing
 
-### ML Algorithm Performance
+### Real Dataset Statistics
 
-- **Collaborative Filtering**:
-  - Precision@10: 0.85
-  - Recall@10: 0.72
-  - RMSE: 0.95
+- **User Coverage**: 96.1% users have demographic data
+- **Rating Density**: 62.7 ratings per CF-ready user on average
+- **Algorithm Mix**:
+  - Collaborative Filtering: 5,529 users ready (≥5 ratings)
+  - Demographic Filtering: 6,183 users ready
+  - Hybrid Recommendations: Weighted combination
+- **Active Clusters**: 21 demographic clusters with balanced distribution
 
-- **Demographic Filtering**:
-  - Coverage: 95%
-  - Diversity: 0.78
-  - Novelty: 0.65
+#### 📊 Data Visualizations
 
-- **Hybrid Model**:
-  - MAP@10: 0.82
-  - NDCG@10: 0.88
-  - User Satisfaction: 4.2/5
+<div align="center">
+
+**User Demographics Analysis**
+
+![User Demographics](backend/data/comprehensive_analysis/user_demographics.png)
+
+**Demographic Clustering Analysis**
+
+![Cluster Analysis](backend/data/demographic_visualizations/cluster_analysis.png)
+
+**Movie Database Analysis**
+
+![Movie Analysis](backend/data/comprehensive_analysis/movie_analysis.png)
+
+**Collaborative Filtering Performance**
+
+![CF Performance](backend/data/comprehensive_analysis/cf_performance.png)
+
+</div>
+
+## 📈 Demographic Analysis
+
+Detailed analysis of our user base and their movie preferences:
+
+<div align="center">
+
+**Gender Distribution**
+
+![Gender Distribution](backend/data/demographic_visualizations/gender_distribution.png)
+
+**Age Distribution**
+
+![Age Distribution](backend/data/demographic_visualizations/age_distribution.png)
+
+**Occupation Distribution**
+
+![Occupation Distribution](backend/data/demographic_visualizations/occupation_distribution.png)
+
+**Location Distribution**
+
+![Location Distribution](backend/data/demographic_visualizations/location_distribution.png)
+
+**User Rating Patterns**
+
+![Rating Patterns](backend/data/demographic_visualizations/rating_patterns.png)
+
+**Demographic Correlations**
+
+![Demographic Correlations](backend/data/demographic_visualizations/demographic_correlations.png)
+
+</div>
 
 ## 🔐 Security
 
@@ -460,6 +523,26 @@ python backend/manage.py benchmark_algorithms
 - **DataProtection**: GDPR compliance
 - **APISecurityRate**: limiting and request validation
 - **ContentSecurity**: XSS and CSRF protection
+
+## 🤖 Machine Learning Analysis
+
+Comprehensive analysis of our recommendation algorithms and performance:
+
+<div align="center">
+
+**Collaborative Filtering Analysis**
+
+![Collaborative Filtering](backend/data/comprehensive_analysis/collaborative_filtering.png)
+
+**Recommendation Results Distribution**
+
+![Recommendation Results](backend/data/comprehensive_analysis/recommendation_results.png)
+
+**User Rating Patterns Analysis**
+
+![Rating Patterns Analysis](backend/data/comprehensive_analysis/rating_patterns.png)
+
+</div>
 
 ## 🌍 Internationalization
 
@@ -470,20 +553,14 @@ python backend/manage.py benchmark_algorithms
 
 ## 🚧 Roadmap
 
-### Q1 2024
-- [ ] Deep Learning Recommendations (Neural Collaborative Filtering)
-- [ ] Real-time Collaborative Filtering with Apache Kafka
-- [ ] Advanced A/B Testing Framework
+### Next Updates
 
-### Q2 2024
-- [ ] Mobile Applications (React Native)
-- [ ] Voice Search Integration
-- [ ] Blockchain-based Review Verification
-
-### Q3 2024
-- [ ] Multi-modal Recommendations (Text + Video)
-- [ ] Social Features and Friend Recommendations
-- [ ] Advanced Analytics Dashboard
+- [ ] Enhanced ML Models (Deep Learning integration)
+- [ ] Real-time recommendation updates
+- [ ] Advanced analytics dashboard
+- [ ] Mobile app development
+- [ ] Social features and user connections
+- [ ] Enhanced content moderation tools
 
 ## 🤝 Contributing
 
@@ -515,19 +592,30 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 📊 Production Statistics
+
+This MovieMate system is currently managing:
+
+- **718,054 movies** from IMDB dataset
+- **6,432 users** with comprehensive demographic data
+- **402,778 user ratings** powering collaborative filtering
+- **307,821 pre-computed user similarities** for fast recommendations
+- **21 demographic clusters** for demographic filtering
+- **49 genres** with multi-language support
+
 ## 🙏 Acknowledgments
 
 - **MovieLens**: University of Minnesota for the MovieLens dataset
-- **IMDB**: Internet Movie Database for movie metadata
-- **TMDB**: The Movie Database for additional movie information
+- **IMDB**: Internet Movie Database for comprehensive movie metadata
+- **TMDB**: The Movie Database for additional movie information and images
 - **Open Source Community**: All the amazing libraries and frameworks used
 
 ---
 
 <div align="center">
 
-**Built with ❤️ by the MovieMate Team**
+**Built with ❤️ by the MovieMate Development Team**
 
-[🌟 Star us on GitHub](https://github.com/yourusername/movie-mate-v2) | [🐛 Report Bug](https://github.com/yourusername/movie-mate-v2/issues) | [💡 Request Feature](https://github.com/yourusername/movie-mate-v2/issues)
+_A comprehensive movie recommendation system with production-ready ML algorithms_
 
 </div>

@@ -470,7 +470,7 @@ python backend/manage.py benchmark_algorithms
 
 ## 🚧 Roadmap
 
-### Q1 2024
+### Q1 202
 - [ ] Deep Learning Recommendations (Neural Collaborative Filtering)
 - [ ] Real-time Collaborative Filtering with Apache Kafka
 - [ ] Advanced A/B Testing Framework
@@ -506,10 +506,10 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## 📞 Support
 
-- **Documentation**: [Wiki](https://github.com/yourusername/movie-mate-v2/wiki)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/movie-mate-v2/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/movie-mate-v2/discussions)
-- **Email**: support@moviemate.com
+- **Documentation**: [Wiki](https://github.com/ngtrnhao/movie-mate-v2/wiki)
+- **Issues**: [GitHub Issues](https://github.com/ngtrnhao/movie-mate-v2/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ngtrnhao/movie-mate-v2/discussions)
+- **Email**: nguyentruongnhathao!@moviemate.com
 
 ## 📄 License
 
@@ -528,6 +528,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ by the MovieMate Team**
 
-[🌟 Star us on GitHub](https://github.com/yourusername/movie-mate-v2) | [🐛 Report Bug](https://github.com/yourusername/movie-mate-v2/issues) | [💡 Request Feature](https://github.com/yourusername/movie-mate-v2/issues)
+[🌟 Star us on GitHub](https://github.com/ngtrnhao/movie-mate-v2/star) | [ 💡Request Feature ](https://github.com/ngtrnhao/movie-mate-v2/issues/issues/new?template=feature_request.md) | [🐛Report Bug ](https://github.com/ngtrnhao/movie-mate-v2/issues/new?template=bug_report.md)
 
 </div>

@@ -553,14 +553,20 @@ Comprehensive analysis of our recommendation algorithms and performance:
 
 ## 🚧 Roadmap
 
-### Next Updates
+### Q1 2026
+- [ ] Deep Learning Recommendations (Neural Collaborative Filtering)
+- [ ] Real-time Collaborative Filtering with Apache Kafka
+- [ ] Advanced A/B Testing Framework
 
-- [ ] Enhanced ML Models (Deep Learning integration)
-- [ ] Real-time recommendation updates
-- [ ] Advanced analytics dashboard
-- [ ] Mobile app development
-- [ ] Social features and user connections
-- [ ] Enhanced content moderation tools
+### Q2 2026
+- [ ] Mobile Applications (React Native)
+- [ ] Voice Search Integration
+- [ ] Blockchain-based Review Verification
+
+### Q3 2026
+- [ ] Multi-modal Recommendations (Text + Video)
+- [ ] Social Features and Friend Recommendations
+- [ ] Advanced Analytics Dashboard
 
 ## 🤝 Contributing
 
@@ -583,10 +589,10 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## 📞 Support
 
-- **Documentation**: [Wiki](https://github.com/yourusername/movie-mate-v2/wiki)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/movie-mate-v2/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/movie-mate-v2/discussions)
-- **Email**: support@moviemate.com
+- **Documentation**: [Wiki](https://github.com/ngtrnhao/movie-mate-v2/wiki)
+- **Issues**: [GitHub Issues](https://github.com/ngtrnhao/movie-mate-v2/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ngtrnhao/movie-mate-v2/discussions)
+- **Email**: nguyentruongnhathao1922@gmail.com
 
 ## 📄 License
 
@@ -616,6 +622,6 @@ This MovieMate system is currently managing:
 
 **Built with ❤️ by the MovieMate Development Team**
 
-_A comprehensive movie recommendation system with production-ready ML algorithms_
+[🌟 Star us on GitHub](https://github.com/ngtrnhao/movie-mate-v2/star) | [ 💡Request Feature ](https://github.com/ngtrnhao/movie-mate-v2/issues/new?template=feature_request.md) | [🐛Report Bug ](https://github.com/ngtrnhao/movie-mate-v2/issues/new?template=bug_report.md)
 
 </div>

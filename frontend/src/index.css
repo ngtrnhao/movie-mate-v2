@@ -33,6 +33,9 @@
   border-radius: 6px;
 } */
 
+body{
+  font-family:'Segoe UI'
+}
 /* Enhanced scrollbar cho containers khác */
 .scroll-container::-webkit-scrollbar {
   width: 26px;

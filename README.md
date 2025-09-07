@@ -470,17 +470,17 @@ python backend/manage.py benchmark_algorithms
 
 ## 🚧 Roadmap
 
-### Q1 202
+### Q1 2026
 - [ ] Deep Learning Recommendations (Neural Collaborative Filtering)
 - [ ] Real-time Collaborative Filtering with Apache Kafka
 - [ ] Advanced A/B Testing Framework
 
-### Q2 2024
+### Q2 2026
 - [ ] Mobile Applications (React Native)
 - [ ] Voice Search Integration
 - [ ] Blockchain-based Review Verification
 
-### Q3 2024
+### Q3 2026
 - [ ] Multi-modal Recommendations (Text + Video)
 - [ ] Social Features and Friend Recommendations
 - [ ] Advanced Analytics Dashboard

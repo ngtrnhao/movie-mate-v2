@@ -609,7 +609,7 @@ This MovieMate system is currently managing:
 - **6,432 users** with comprehensive demographic data
 - **402,778 user ratings** powering collaborative filtering
 - **307,821 pre-computed user similarities** for fast recommendations
-- **21 demographic clusters** for demographic filtering
+- **6 demographic clusters** for demographic filtering
 - **49 genres** with multi-language support
 
 ## 🙏 Acknowledgments

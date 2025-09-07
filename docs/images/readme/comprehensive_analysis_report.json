@@ -1,0 +1,17 @@
+{
+  "created_at": "2025-09-08T04:57:01.302599",
+  "database_stats": {
+    "total_users": 6432,
+    "users_with_demographics": 6183,
+    "total_movies": 718054,
+    "total_ratings": 402778,
+    "total_genres": 49,
+    "user_similarities": 307821,
+    "recommendation_results": 830,
+    "demographic_clusters": 21
+  },
+  "recommendation_readiness": {
+    "cf_ready_users": 5529,
+    "df_ready_users": 6183
+  }
+}

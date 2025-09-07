@@ -468,19 +468,19 @@ python backend/scripts/visualize_demographic_data.py
 
 **User Demographics Analysis**
 
-![User Demographics](backend/data/comprehensive_analysis/user_demographics.png)
+![User Demographics](docs/images/readme/user_demographics.png)
 
 **Demographic Clustering Analysis**
 
-![Cluster Analysis](backend/data/demographic_visualizations/cluster_analysis.png)
+![Cluster Analysis](docs/images/readme/cluster_analysis.png)
 
 **Movie Database Analysis**
 
-![Movie Analysis](backend/data/comprehensive_analysis/movie_analysis.png)
+![Movie Analysis](docs/images/readme/movie_analysis.png)
 
 **Collaborative Filtering Performance**
 
-![CF Performance](backend/data/comprehensive_analysis/cf_performance.png)
+![CF Performance](docs/images/readme/cf_performance.png)
 
 </div>
 
@@ -492,27 +492,27 @@ Detailed analysis of our user base and their movie preferences:
 
 **Gender Distribution**
 
-![Gender Distribution](backend/data/demographic_visualizations/gender_distribution.png)
+![Gender Distribution](docs/images/readme/gender_distribution.png)
 
 **Age Distribution**
 
-![Age Distribution](backend/data/demographic_visualizations/age_distribution.png)
+![Age Distribution](docs/images/readme/age_distribution.png)
 
 **Occupation Distribution**
 
-![Occupation Distribution](backend/data/demographic_visualizations/occupation_distribution.png)
+![Occupation Distribution](docs/images/readme/occupation_distribution.png)
 
 **Location Distribution**
 
-![Location Distribution](backend/data/demographic_visualizations/location_distribution.png)
+![Location Distribution](docs/images/readme/location_distribution.png)
 
 **User Rating Patterns**
 
-![Rating Patterns](backend/data/demographic_visualizations/rating_patterns.png)
+![Rating Patterns](docs/images/readme/rating_patterns.png)
 
 **Demographic Correlations**
 
-![Demographic Correlations](backend/data/demographic_visualizations/demographic_correlations.png)
+![Demographic Correlations](docs/images/readme/demographic_correlations.png)
 
 </div>
 
@@ -532,15 +532,15 @@ Comprehensive analysis of our recommendation algorithms and performance:
 
 **Collaborative Filtering Analysis**
 
-![Collaborative Filtering](backend/data/comprehensive_analysis/collaborative_filtering.png)
+![Collaborative Filtering](docs/images/readme/collaborative_filtering.png)
 
 **Recommendation Results Distribution**
 
-![Recommendation Results](backend/data/comprehensive_analysis/recommendation_results.png)
+![Recommendation Results](docs/images/readme/recommendation_results.png)
 
 **User Rating Patterns Analysis**
 
-![Rating Patterns Analysis](backend/data/comprehensive_analysis/rating_patterns.png)
+![Rating Patterns Analysis](docs/images/readme/rating_patterns.png)
 
 </div>
 
@@ -554,16 +554,19 @@ Comprehensive analysis of our recommendation algorithms and performance:
 ## 🚧 Roadmap
 
 ### Q1 2026
+
 - [ ] Deep Learning Recommendations (Neural Collaborative Filtering)
 - [ ] Real-time Collaborative Filtering with Apache Kafka
 - [ ] Advanced A/B Testing Framework
 
 ### Q2 2026
+
 - [ ] Mobile Applications (React Native)
 - [ ] Voice Search Integration
 - [ ] Blockchain-based Review Verification
 
 ### Q3 2026
+
 - [ ] Multi-modal Recommendations (Text + Video)
 - [ ] Social Features and Friend Recommendations
 - [ ] Advanced Analytics Dashboard

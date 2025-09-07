@@ -1,0 +1,50 @@
+{
+  "created_at": "2025-09-08T04:51:49.025254",
+  "total_users": 6183,
+  "demographic_summary": {
+    "age": {
+      "mean": 30.62493934983018,
+      "std": 12.649732353840053,
+      "min": 13,
+      "max": 101,
+      "median": 25.0
+    },
+    "gender_distribution": {
+      "M": 4410,
+      "F": 1766,
+      "O": 7
+    },
+    "user_type_distribution": {
+      "member": 6164,
+      "regular": 7,
+      "premium": 6,
+      "premium_vip": 3,
+      "premium_basic": 2,
+      "admin": 1
+    },
+    "top_occupations": {
+      "college/grad student": 760,
+      "other": 711,
+      "executive/managerial": 689,
+      "academic/educator": 534,
+      "technician/engineer": 516,
+      "programmer": 396,
+      "sales/marketing": 309,
+      "writer": 285,
+      "artist": 269,
+      "doctor/health care": 243
+    },
+    "top_locations": {
+      "unknown": 6045,
+      "Thành phố Hồ Chí Minh, Việt Nam": 70,
+      "USA": 11,
+      "New York": 4,
+      "": 3,
+      "怀柔区, 中国": 3,
+      "NY": 3,
+      "US": 3,
+      "China": 3,
+      "Hong Kong": 3
+    }
+  }
+}

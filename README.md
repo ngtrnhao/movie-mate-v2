@@ -509,7 +509,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - **Documentation**: [Wiki](https://github.com/ngtrnhao/movie-mate-v2/wiki)
 - **Issues**: [GitHub Issues](https://github.com/ngtrnhao/movie-mate-v2/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/ngtrnhao/movie-mate-v2/discussions)
-- **Email**: nguyentruongnhathao!@moviemate.com
+- **Email**: nguyentruongnhathao1922@gmail.com
 
 ## 📄 License
 

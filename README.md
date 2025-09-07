@@ -248,7 +248,7 @@ class HybridRecommendationService:
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/yourusername/movie-mate-v2.git
+git clone https://github.com/ngtrnhao/movie-mate-v2.git
 cd movie-mate-v2
 ```
 

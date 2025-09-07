@@ -528,6 +528,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ by the MovieMate Team**
 
-[🌟 Star us on GitHub](https://github.com/ngtrnhao/movie-mate-v2/star) | [ 💡Request Feature ](https://github.com/ngtrnhao/movie-mate-v2/issues/issues/new?template=feature_request.md) | [🐛Report Bug ](https://github.com/ngtrnhao/movie-mate-v2/issues/new?template=bug_report.md)
+[🌟 Star us on GitHub](https://github.com/ngtrnhao/movie-mate-v2/star) | [ 💡Request Feature ](https://github.com/ngtrnhao/movie-mate-v2/issues/new?template=feature_request.md) | [🐛Report Bug ](https://github.com/ngtrnhao/movie-mate-v2/issues/new?template=bug_report.md)
 
 </div>

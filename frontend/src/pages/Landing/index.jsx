@@ -102,7 +102,7 @@ const LandingPage = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsSecondaryDataEnabled(true);
-    }, 2000); // Delay of 2 seconds
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -117,7 +117,6 @@ const LandingPage = () => {
     ],
     [t]
   );
-
   // Memoize translated tabs
   const translatedTabs = useMemo(
     () =>
@@ -135,9 +134,6 @@ const LandingPage = () => {
 
   const SLIDE_INTERVAL = 3000; // 5 seconds between slides
   const PAUSE_DURATION = 5000; // 15 seconds pause after user interaction
-
-  // Lấy ngôn ngữ hiện tại
-  // const currentLang = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
   // Memo hóa dữ liệu phim theo tab
   const movies = useMemo(() => {
@@ -1004,6 +1000,7 @@ const LandingPage = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/movies')}
                 className="flex items-center rounded-sm bg-red-600 px-8 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-red-700"
               >
                 {t('latestReleases.viewAllMovies')}

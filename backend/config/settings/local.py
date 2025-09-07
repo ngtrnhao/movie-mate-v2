@@ -1,9 +1,9 @@
 from .base import *
 
-# SECURITY WARNING: don't run with debug turned on in production!
+
 DEBUG = True
 
-# Redis Cloud configuration (đúng chuẩn CLI)
+# Redis Cloud configuration 
 REDIS_HOST = 'redis-11081.c270.us-east-1-3.ec2.redns.redis-cloud.com'
 REDIS_PORT = '11081'
 REDIS_PASSWORD = 'LdyjruU5i4nxqYjb5ISrbEXBjG6a85Vx'
@@ -27,7 +27,6 @@ CACHES = {
     }
 }
 
-# Redis URL cho Celery
 REDIS_URL = f'redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0'
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
@@ -36,7 +35,7 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # Elasticsearch Cloud configuration
 ELASTICSEARCH_DSL = {
     'default': {
-        'hosts': ['https://elastic:1vkiDFD2UbjZjVKPYRxzzlT2@d49b35a6cdca44f7966cc493abe4c3ce.asia-southeast1.gcp.elastic-cloud.com'],
+        'hosts': ['https://elastic:GVvuD1Qx4ONr8UyHZ0Kj3mLI@0b34481036b04ea98c8f6dbd340b2d59.asia-southeast1.gcp.elastic-cloud.com:443'],
         'timeout': 20,
         'retry_on_timeout': True,
         'max_retries': 3,

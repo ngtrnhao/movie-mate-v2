@@ -3,10 +3,9 @@ import { createContext, useContext } from 'react';
 const LandingThemeContext = createContext();
 
 export const LandingThemeProvider = ({ children }) => {
-  // Always return dark theme
-  const value = {
+    const value = {
     isDarkMode: true,
-    toggleTheme: () => {}, // Empty function since we don't want to allow theme toggle
+    toggleTheme: () => {}, 
   };
 
   return <LandingThemeContext.Provider value={value}>{children}</LandingThemeContext.Provider>;

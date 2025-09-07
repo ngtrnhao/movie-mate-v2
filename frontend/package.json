@@ -99,7 +99,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-tailwindcss": "^3.18.0",
     "eslint-plugin-unused-imports": "^4.1.4",
-    "prettier": "^3.5.3",
+    "prettier": "3.6.2",
     "webpack-bundle-analyzer": "^4.9.1"
   }
 }

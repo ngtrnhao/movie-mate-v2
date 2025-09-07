@@ -1,0 +1,16 @@
+{
+  "last_batch": 710000,
+  "indexed_count": 96097,
+  "error_count": 0,
+  "skipped_count": 932903,
+  "timestamp": 1757281273.0509934,
+  "options": {
+    "batch_size": 500,
+    "all_movies": false,
+    "quality_metrics_only": false,
+    "scheduling_only": false,
+    "start_id": null,
+    "end_id": null,
+    "force": false
+  }
+}

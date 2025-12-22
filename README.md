@@ -1,4 +1,4 @@
-# 🎬 MovieMate - Advanced Movie Recommendation System
+#  MovieMate - Advanced Movie Recommendation System
 
 A comprehensive, production-ready movie recommendation platform built with Django and React, featuring state-of-the-art machine learning algorithms, multi-dataset integration, and enterprise-grade architecture.
 
@@ -7,13 +7,13 @@ A comprehensive, production-ready movie recommendation platform built with Djang
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 🚀 Overview
+##  Overview
 
 MovieMate is an intelligent movie recommendation system that combines multiple advanced machine learning techniques to deliver personalized movie suggestions. The platform integrates real-world datasets from IMDB and MovieLens, employs sophisticated filtering algorithms, and provides a modern, responsive user experience.
 
-### 🎯 Key Features
+### Key Features
 
-- **🤖 Advanced Recommendation Algorithms**
+- ** Advanced Recommendation Algorithms**
 
   - Collaborative Filtering with Pearson Correlation
   - Enhanced Demographic Filtering with K-Means Clustering
@@ -21,14 +21,14 @@ MovieMate is an intelligent movie recommendation system that combines multiple a
   - Content-Based Filtering
   - Real-time Recommendation Updates
 
-- **📊 Multi-Dataset Integration**
+- ** Multi-Dataset Integration**
 
   - IMDB Dataset Integration (718K+ movies)
   - MovieLens Dataset Support (6.6K movies with ML IDs, 402K+ ratings)
   - Real-time TMDB API Synchronization (164K+ movies)
   - Automatic Data Enrichment Pipeline
 
-- **🎨 Modern User Experience**
+- ** Modern User Experience**
 
   - Responsive React 18+ Frontend
   - Real-time Search with Elasticsearch
@@ -37,14 +37,14 @@ MovieMate is an intelligent movie recommendation system that combines multiple a
   - Admin & Moderator Dashboards
   - Content Moderation with AI
 
-- **⚡ Performance & Scalability**
+- ** Performance & Scalability**
   - Redis Caching Layer
   - Celery Background Processing
   - PostgreSQL with Optimized Indexes (307K+ user similarities)
   - Elasticsearch Full-Text Search
   - Production-Ready Deployment
 
-## 🏗️ Architecture
+##  Architecture
 
 ### System Architecture Diagram
 
@@ -62,7 +62,7 @@ graph TB
     L[ML Recommendation Engine] --> C
 ```
 
-### 🧠 Machine Learning Pipeline
+###  Machine Learning Pipeline
 
 The recommendation system employs a sophisticated multi-stage ML pipeline:
 
@@ -84,7 +84,7 @@ The recommendation system employs a sophisticated multi-stage ML pipeline:
    - A/B testing framework for algorithm tuning
    - Performance monitoring and auto-scaling
 
-## 🔧 Tech Stack
+##  Tech Stack
 
 ### Backend Technologies
 
@@ -119,7 +119,7 @@ The recommendation system employs a sophisticated multi-stage ML pipeline:
 | **Framer Motion** | 12+     | Animation library           |
 | **Chart.js**      | 4.5+    | Data visualization          |
 
-## 📊 Dataset Integration
+##  Dataset Integration
 
 ### IMDB Dataset
 
@@ -154,7 +154,7 @@ python manage.py import_movielens_with_demographics \
     --download
 ```
 
-## 🤖 Recommendation Algorithms
+##  Recommendation Algorithms
 
 ### 1. Collaborative Filtering
 
@@ -233,7 +233,7 @@ class HybridRecommendationService:
         )
 ```
 
-## 🚀 Installation & Setup
+##  Installation & Setup
 
 ### Prerequisites
 
@@ -308,7 +308,7 @@ IMDB_API_KEY=your_imdb_key
 TMDB_API_KEY=your_tmdb_key
 ```
 
-## 🔧 Production Deployment
+## Production Deployment
 
 ### Docker Deployment
 
@@ -328,9 +328,9 @@ docker-compose up --scale celery=3
 - **Monitoring**: Built-in performance metrics and health checks
 - **ML Optimization**: Pre-computed user similarities for fast recommendations
 
-## 📈 Features & Services
+##  Features & Services
 
-### 🎯 Core Recommendation Services
+###  Core Recommendation Services
 
 - **PersonalizedRecommendations**: User-specific movie suggestions
 - **SimilarMovieFinder**: Content-based movie similarity
@@ -338,21 +338,21 @@ docker-compose up --scale celery=3
 - **GenreExplorer**: Genre-based discovery tools
 - **DemographicClustering**: Age, gender, occupation-based recommendations
 
-### 🔍 Advanced Search & Discovery
+###  Advanced Search & Discovery
 
 - **ElasticsearchService**: Full-text movie search
 - **FacetedSearch**: Multi-dimensional filtering
 - **AutoComplete**: Real-time search suggestions
 - **SmartFiltering**: ML-powered result ranking
 
-### 📊 Analytics & Insights
+###  Analytics & Insights
 
 - **UserBehaviorTracking**: Interaction analytics
 - **RecommendationMetrics**: Algorithm performance monitoring
 - **A/BTestingFramework**: Continuous optimization
 - **ProductionMetrics**: System health monitoring
 
-### 🛡️ Content Moderation
+###  Content Moderation
 
 - **SpoilerDetection**: Automatic content filtering with ML
 - **ModerationDashboard**: AI-powered content review interface
@@ -360,14 +360,14 @@ docker-compose up --scale celery=3
 - **AutomaticFlagging**: Real-time content screening
 - **AdminControls**: Movie publishing and visibility management
 
-### 🎨 User Experience
+###  User Experience
 
 - **ResponsiveDesign**: Mobile-first approach
 - **ModernUI**: React 18+ with Tailwind CSS
 - **InternationalizationI18n**: Multi-language support (EN/VI)
 - **UserProfiles**: Comprehensive user management system
 
-## 📊 API Documentation
+##  API Documentation
 
 ### Recommendation Endpoints
 
@@ -400,7 +400,7 @@ POST /api/users/watchlist/
 
 Full API documentation available at `/api/docs/` when running the development server.
 
-## 🧪 Testing
+##  Testing
 
 ### Backend Testing
 
@@ -442,7 +442,7 @@ python backend/scripts/visualize_demographic_data.py
 # - backend/data/comprehensive_analysis/
 ```
 
-## 📈 Performance Metrics
+##  Performance Metrics
 
 ### System Performance
 
@@ -462,7 +462,7 @@ python backend/scripts/visualize_demographic_data.py
   - Hybrid Recommendations: Weighted combination
 - **Active Clusters**: 21 demographic clusters with balanced distribution
 
-#### 📊 Data Visualizations
+####  Data Visualizations
 
 <div align="center">
 
@@ -484,7 +484,7 @@ python backend/scripts/visualize_demographic_data.py
 
 </div>
 
-## 📈 Demographic Analysis
+##  Demographic Analysis
 
 Detailed analysis of our user base and their movie preferences:
 
@@ -516,7 +516,7 @@ Detailed analysis of our user base and their movie preferences:
 
 </div>
 
-## 🔐 Security
+##  Security
 
 - **Authentication**: JWT-based with refresh tokens
 - **Authorization**: Role-based access control (RBAC)
@@ -524,7 +524,7 @@ Detailed analysis of our user base and their movie preferences:
 - **APISecurityRate**: limiting and request validation
 - **ContentSecurity**: XSS and CSRF protection
 
-## 🤖 Machine Learning Analysis
+##  Machine Learning Analysis
 
 Comprehensive analysis of our recommendation algorithms and performance:
 
@@ -544,14 +544,14 @@ Comprehensive analysis of our recommendation algorithms and performance:
 
 </div>
 
-## 🌍 Internationalization
+##  Internationalization
 
 - **Languages**: English, Vietnamese
 - **Localization**: Date/time, currency, number formats
 - **ContentTranslation**: Movie titles and descriptions
 - **RTLSupport**: Right-to-left language support ready
 
-## 🚧 Roadmap
+##  Roadmap
 
 ### Q1 2026
 
@@ -571,7 +571,7 @@ Comprehensive analysis of our recommendation algorithms and performance:
 - [ ] Social Features and Friend Recommendations
 - [ ] Advanced Analytics Dashboard
 
-## 🤝 Contributing
+##  Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
@@ -589,22 +589,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - **Frontend**: ESLint, Prettier, React best practices
 - **Testing**: 80%+ code coverage required
 - **Documentation**: Comprehensive docstrings and comments
-
-## 📞 Support
-
-- **Documentation**: [Wiki](https://github.com/ngtrnhao/movie-mate-v2/wiki)
-- **Issues**: [GitHub Issues](https://github.com/ngtrnhao/movie-mate-v2/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ngtrnhao/movie-mate-v2/discussions)
-- **Email**: nguyentruongnhathao1922@gmail.com
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📊 Production Statistics
-
+##  Production Statistics
 This MovieMate system is currently managing:
-
 - **718,054 movies** from IMDB dataset
 - **6,432 users** with comprehensive demographic data
 - **402,778 user ratings** powering collaborative filtering
@@ -612,7 +598,7 @@ This MovieMate system is currently managing:
 - **6 demographic clusters** for demographic filtering
 - **49 genres** with multi-language support
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - **MovieLens**: University of Minnesota for the MovieLens dataset
 - **IMDB**: Internet Movie Database for comprehensive movie metadata
@@ -622,9 +608,4 @@ This MovieMate system is currently managing:
 ---
 
 <div align="center">
-
-**Built with ❤️ by the MovieMate Development Team**
-
-[🌟 Star us on GitHub](https://github.com/ngtrnhao/movie-mate-v2/star) | [ 💡Request Feature ](https://github.com/ngtrnhao/movie-mate-v2/issues/new?template=feature_request.md) | [🐛Report Bug ](https://github.com/ngtrnhao/movie-mate-v2/issues/new?template=bug_report.md)
-
 </div>

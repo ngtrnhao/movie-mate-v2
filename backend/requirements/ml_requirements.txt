@@ -13,7 +13,7 @@ numpy==1.25.2                    # Numerical computations
 scipy==1.11.4                    # Scientific computing
 
 # Text Processing (for content-based filtering)
-nltk==3.8.1                      # Natural language processing
+nltk==3.9.3                      # Natural language processing
 spacy==3.7.2                     # Advanced NLP
 gensim==4.3.2                    # Topic modeling and word embeddings
 
